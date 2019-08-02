@@ -181,6 +181,8 @@ gram PDFObj(mut defs, mut refs) {
   // - language needs to be extended to define simpler syntax such as
   //   the PDF primitive objects as well (e.g. using regular
   //   expressions, etc.)
+  // - static semantics (type checks, well-definedness of attribute
+  //   evaluation, etc) are still to be defined.
 
   // Feedback from Shankar:
   // - will need a way of referring to variables in error strings, and string formatting
