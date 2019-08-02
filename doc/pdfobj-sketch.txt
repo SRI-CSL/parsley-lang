@@ -41,6 +41,9 @@ gram PDFObj(mut defs, mut refs) {
   // defined in this grammar, called 'ctxt'.  Global fields of
   // specified types can be added to this structure during
   // specification, and accessed via this structure during execution.
+  // An earlier version of the sketch used this feature, but now
+  // doesn't.  But this might be useful in other specs, so leaving
+  // this note here for feedback.
 
   // We now define a non-terminal for the PDF dictionary object,
   // DictObj.  Non-terminals are typically defined to have an
