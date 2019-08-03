@@ -190,4 +190,5 @@ gram PDFObj(defs, refs)
   // Feedback from Shankar:
   // - will need a way of referring to variables in error strings, and string formatting
   // - grammar parameterization will need to be fleshed out
+  // - need to ensure that attributes have defined values in all cases (static semantics)
 }
