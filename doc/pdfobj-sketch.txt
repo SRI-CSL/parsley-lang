@@ -7,7 +7,10 @@
 // in a Parsley file called PDFPrimitives.ply
 uses PDFPrimitives:{NameObj, NumberObj, RawStreamObj};
 
-gram PDFObj(mut defs, mut refs) {
+gram PDFObj(defs, refs)
+    defs : map<(int64, int64), (IndirectObj, CTXT.location)>,
+    refs : map<(int64, int64), CTXT.location>
+{
 
   // The defs and refs are mutable values that will be passed into the
   // parser context constructed for the rules in this grammar.  They
@@ -28,13 +31,10 @@ gram PDFObj(mut defs, mut refs) {
   // pair to an indirect PDF object, and the location where it was
   // defined. The location is specified as a Parsley predefined type
   // in the CTXT Parsley module.
-    defs : map< (int64, int64), (IndirectObj, CTXT.location) >;
 
   // Similarly, 'refs' stores indirect object references, and maps them
   // to the first location they appeared in the file.  Locations are
   // typically stored for diagnostics.
-
-    refs : map<(int64, int64), CTXT.location>;
 
   // There is a per-grammar user-defined context structure that is
   // accessible in the parsing contexts associated with the rules
@@ -189,4 +189,5 @@ gram PDFObj(mut defs, mut refs) {
 
   // Feedback from Shankar:
   // - will need a way of referring to variables in error strings, and string formatting
+  // - grammar parameterization will need to be fleshed out
 }
