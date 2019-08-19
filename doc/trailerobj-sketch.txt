@@ -1,0 +1,17 @@
+uses PDFPrimitives:{NameObj, NumberObj, RawStreamObj, DictObj};
+gram PDFObjs(defs, refs)
+    defs : map<(int64, int64), (IndirectObj, CTXT.location)>,
+    refs : map<(int64, int64), CTXT.location>
+{
+// The Assumption is DictObj checks for unique keys?
+TrailerObj t {val: DictObj} := a=DictObj [a.val.contains("Size") && a.val.contains("Prev") && a.val.contains("Root") && a.val.contains("Encrypt") && a.val.contains("Info") && a.val.contains("ID")] {};
+// Not sure what the semantic action should be there.
+
+XrefObj x {val: DictObj} := 'xref' whitespace '' low=NumObj high=NumObj whitespace
+table=(
+offset=NumObj(10) // Need to specify number of digits here... 
+whitespace
+gennumber=NumObj [gennumber.val>0 && gennumber.val <= 65535]
+)*;
+
+}
