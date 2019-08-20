@@ -108,3 +108,6 @@ EOF :=
 //   . e.g. start with the EOF, then search backwards to StartXref,
 //     extract offset for Xref, then goto that offset, parse Xref,
 //     fall through to Trailer, then construct DOM
+//
+// - there is currently no clear syntactic distinction between
+//   inherited and synthesized attributes.
