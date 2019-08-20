@@ -51,3 +51,14 @@ pages:
 
    Similarly for the Count key; the spec here specifically says that
    this is redundant!
+
+*
+
+What we seem to be doing is formulating the Safe Subset PDF
+specification.
+
+However, the PDF Corpora page on the JPL wiki, for the 6-month
+demo/evaluation, currently talks about handling missing or invalid
+information.
+
+How do we handle that?

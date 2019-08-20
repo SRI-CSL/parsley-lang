@@ -109,5 +109,10 @@ EOF :=
 //     extract offset for Xref, then goto that offset, parse Xref,
 //     fall through to Trailer, then construct DOM
 //
+//   . one option: leave all random-access control flow out of
+//     Parsley, and entirely up to application.  But we need to ensure
+//     that parser state (e.g. currently constructed AST) is always
+//     consistently maintained.
+//
 // - there is currently no clear syntactic distinction between
 //   inherited and synthesized attributes.
