@@ -1,0 +1,110 @@
+
+type xref_t = Free | Inuse
+
+gram PDFDoc
+{
+  Doc d { header: Header, body: Body, xref: [Xref], trailer: [Trailer], startxref: int } :=
+
+    h=Header b=Body x=Xref t=Trailer s=StartXref e=EOF
+
+    { d.header = h;
+      d.body = b;
+      d.xref.append(x);
+      d.trailer.append(t);
+      d.startxref = s.val
+    }
+
+Header h { version: typeof(CommentObj),
+           binary: option(typeof(CommentObj)) } :=
+
+    v=CommentObj b=(CommentObj)?
+    // '?' is a builtin that creates an option-type
+
+    { version = v;
+      binary  = b  // type-checks since b is an option value
+    }
+
+Body b { body = [PDFObj] } :=
+
+    ( o=PDFObj [ o ~~ IndirectObj ] { b.body.append(o) } )*
+
+    // The constraint ensures that the top-level objects are all
+    // indirect objects.  Note that the parsing action here is
+    // entirely contained within the Kleene star group.
+
+XrefSect x { sects: [XrefSubSect] } :=
+
+    'xref' ( s=XrefSubSect { x.sects.append(s) } )*
+
+XrefSubSect x { start: int, count: int, ents: [XrefEnt] } :=
+
+    s=NumberObj [ s.is_integer() && s.int_val() >= 0 ]
+    c=NumberObj [ s.is_integer() && s.int_val() >  0 ]
+
+    '\n'  // EOL-type is not specified in the spec.
+
+    { x.start := s.int_val();
+      x.count := c.int_val() }
+
+    ( e=XrefEnt [ x.ents.len() < x.count() ] { x.ents.append(e) } )*
+
+XrefEnt x { offset: int, gen: int, status: xfree_t } :=
+
+    o=[[digit]*10] g=[[digit]*5]
+
+    // This is relatively standard regular expression syntax: [digit]
+    // is the numeric character class, and ()*n is the repetition
+    // construct.
+
+    { x.offset = $string_to_int(o);
+      x.gen    = $string_to_int(g);
+      x.status = Inuse
+    }
+
+    // $string_to_int() is a Parsley built-in to convert strings into
+    // integers.
+    // [SEMANTICS: Should this function can throw a parsing exception
+    // on non-numeric input? ]
+
+    ( 'n' { x.status = Inuse }
+    | 'f' { x.status = Free  }
+    )
+
+    '\r\n' // This is required to be 'a two-character end-of-line
+           // sequence'.
+
+    // Note: interleaving of actions, parsing, and constraint checking
+    // is explicitly designed to enable succinct specifications.
+
+Trailer t { dict: DictObj } :=
+
+   'trailer' d=DictObj
+
+   { t.dict = d }
+
+StartXref s { val : int } :=
+
+   'startxref'
+   n=NumberObj [ n.is_integer() && n.int_val() > 0 ]
+
+   { s.val = n.int_val() }
+
+EOF :=
+
+  '%%EOF'
+
+// What's missing in the current sketch:
+//
+// - more explicit handling of whitespace, especially:
+//   . when is it required, and when can it be empty
+//   . EOLs (end-of-line markers), again, when are they required, and
+//     what specific type
+//
+// - supporting random-access primitives
+//   . needed to handle entries in cross-reference table
+//
+// - supporting explicit control flow (in conjunction with above)
+//
+//   . e.g. start with the EOF, then search backwards to StartXref,
+//     extract offset for Xref, then goto that offset, parse Xref,
+//     fall through to Trailer, then construct DOM
