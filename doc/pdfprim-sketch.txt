@@ -45,19 +45,21 @@ gram PDFPrimitives {
   // balanced parentheses, using recursion.
   // We could use syntax like ([:char:] \ '(') for set difference.
   LitStringObj ls { val : [u8] } :=
-      '('                        { ls.val.append('(')    }
-        prefix=([:char:] \ '(')* { ls.val.append(prefix) }
-        n=LitStringObj           { ls.val.append(n.val)  }
-        suffix=([:char:] \ '(')* { ls.val.append(suffix) }
-      ')'                        { ls.val.append(')')    }
+      '('
+        prefix=([:char:] \ '(')*
+        n=LitStringObj
+        suffix=([:char:] \ '(')*
+      ')'
+       { ls.val = ')') + prefix + n.val + suffix + ') }
 
-    | '('                        { ls.val.append('(')    }
-        prefix=([:char:] \ '(')* { ls.val.append(prefix) }
-        p=LitStringObj           { ls.val.append(p.val)  }
-        midfix=([:char:] \ '(')* { ls.val.append(midfix) }
-        q=LitStringObj           { ls.val.append(q.val)  }
-        suffix=([:char:] \ '(')* { ls.val.append(suffix) }
-      ')'                        { ls.val.append(')')    }
+    | '('
+        prefix=([:char:] \ '(')*
+        p=LitStringObj
+        midfix=([:char:] \ '(')*
+        q=LitStringObj
+        suffix=([:char:] \ '(')*
+      ')'
+      { ls.val = '(' + prefix + p.val + midfix + q.val + ')' }
 
     | $epsilon$                  // Parsley keyword
 
@@ -113,4 +115,11 @@ gram PDFPrimitives {
   // A separate issue is that the number objects in the PDF spec don't
   // clearly distinguish between integers and reals.  Does this cause
   // ambiguity?
+
+  // Shankar:
+  // . case-insensitive operator (to support case-insensitive matching)
+  // . add '/' to denote choice operator
+  // . appropriate distinguish comments
+  // . 
+
 }
