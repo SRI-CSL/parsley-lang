@@ -27,6 +27,9 @@ How far can we depart from the spec for "Safe Subset"?
   all table-of-contents information in the front, all xref sections
   coalesced, etc.?
 
+- explicitly distinguish between integer and real number types in the
+  spec?
+
 *
 
 Redundancies in the specification:

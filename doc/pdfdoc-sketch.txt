@@ -1,4 +1,10 @@
+<<file PDFDoc.ply>>
 
+// Use the constructs sketched in pdfobj-sketch.txt
+uses PDFCompoundObj:{CommentObj, IndirectObj, PDFObj, DictObj, NumberObj}
+
+// Syntax for user type definitions.
+// We need to define the supported type language.
 type xref_t = Free | Inuse
 
 gram PDFDoc
@@ -12,7 +18,7 @@ gram PDFDoc
       d.xref.append(x);
       d.trailer.append(t);
       d.startxref = s.val
-    }
+    } ;
 
 Header h { version: typeof(CommentObj),
            binary: option(typeof(CommentObj)) } :=
@@ -22,11 +28,11 @@ Header h { version: typeof(CommentObj),
 
     { version = v;
       binary  = b  // type-checks since b is an option value
-    }
+    } ;
 
 Body b { body = [PDFObj] } :=
 
-    ( o=PDFObj [ o ~~ IndirectObj ] { b.body.append(o) } )*
+    ( o=PDFObj [ o ~~ IndirectObj ] { b.body.append(o) } )* ;
 
     // The constraint ensures that the top-level objects are all
     // indirect objects.  Note that the parsing action here is
@@ -34,7 +40,7 @@ Body b { body = [PDFObj] } :=
 
 XrefSect x { sects: [XrefSubSect] } :=
 
-    'xref' ( s=XrefSubSect { x.sects.append(s) } )*
+    'xref' ( s=XrefSubSect { x.sects.append(s) } )* ;
 
 XrefSubSect x { start: int, count: int, ents: [XrefEnt] } :=
 
@@ -46,7 +52,7 @@ XrefSubSect x { start: int, count: int, ents: [XrefEnt] } :=
     { x.start := s.int_val();
       x.count := c.int_val() }
 
-    ( e=XrefEnt [ x.ents.len() < x.count() ] { x.ents.append(e) } )*
+    ( e=XrefEnt [ x.ents.len() < x.count() ] { x.ents.append(e) } )* ;
 
 XrefEnt x { offset: int, gen: int, status: xfree_t } :=
 
@@ -73,25 +79,29 @@ XrefEnt x { offset: int, gen: int, status: xfree_t } :=
     '\r\n' // This is required to be 'a two-character end-of-line
            // sequence'.
 
+    ;
+
     // Note: interleaving of actions, parsing, and constraint checking
     // is explicitly designed to enable succinct specifications.
+    // The ';' in the concrete syntax terminates the production rule.
 
 Trailer t { dict: DictObj } :=
 
    'trailer' d=DictObj
 
-   { t.dict = d }
+   { t.dict = d } ;
 
 StartXref s { val : int } :=
 
    'startxref'
    n=NumberObj [ n.is_integer() && n.int_val() > 0 ]
 
-   { s.val = n.int_val() }
+   { s.val = n.int_val() } ;
 
 EOF :=
 
-  '%%EOF'
+  '%%EOF' ;
+
 
 // What's missing in the current sketch:
 //

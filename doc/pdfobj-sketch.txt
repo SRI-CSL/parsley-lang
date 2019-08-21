@@ -151,7 +151,7 @@ gram PDFObj(defs, refs)
         n=NumberObj [ n.is_integer() && n.int_val() >= 0 ]
         g=NumberObj [ g.is_integer() && g.int_val() >= 0 && !defs.has_key((n.int_val(), g.int_val()))]
 
-        'obj' d=DictObj s=RawStreamObject 'endobj'
+        'obj' d=DictObj s=RawStreamObj 'endobj'
 
         // The constraints are specified after both the DictObj and
         // StreamObj are matched, so that any StreamObj parsing errors

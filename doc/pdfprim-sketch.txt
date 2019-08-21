@@ -1,0 +1,116 @@
+<<file PDFPrimitives.ply>>
+
+// The basic PDF primitives, used in pdfobj-sketch.txt
+//
+// This essentially uses regular expression syntax, except for
+// LitStringObj, which implements a simple CFG.
+
+gram PDFPrimitives {
+
+  NameObj n { val : string } :=
+    '/' s=[:alphanum:]+
+    { val = s } ;
+
+  CommentObj c { val : string } :=
+    '%' s=[.]* '\n'
+    { val = s } ;
+
+  BooleanObj b { val : bool } :=
+    'true' { val = true }
+  | 'false { val = false } ;
+
+  NullObj {} :=
+    'null'
+    {} ;
+
+  // We need a void / unit type in the expression language.  Should
+  // one or both sets of {} here be optional?  For an example of how
+  // this could look like, see EOF in pdfdoc-sketch.txt.
+
+  RawStreamObj rs { bytes : [u8] } :=
+    'stream'    EOL
+    b=[:byte:]* EOL
+    'endstream'
+    { rs.bytes = b } ;
+
+  // We could use syntax like [:hex:], [:alpha:], [:alphanumeric:], [:char:] etc
+  // for standard character classes.
+  HexStringObj hs { val : [u8] } :=
+    '<'
+    ( h1=[:hex:] h2=[:hex:] { hs.val.append($int_of_hex(h1) * 16 + $int_of_hex(h2)) } )*
+    ( h=[:hex:] { hs.val.append($int_of_hex(h1) * 16) } )?
+    '>' ;
+
+  // The below syntax essentially implements a simple CFG for strings with
+  // balanced parentheses, using recursion.
+  // We could use syntax like ([:char:] \ '(') for set difference.
+  LitStringObj ls { val : [u8] } :=
+      '('                        { ls.val.append('(')    }
+        prefix=([:char:] \ '(')* { ls.val.append(prefix) }
+        n=LitStringObj           { ls.val.append(n.val)  }
+        suffix=([:char:] \ '(')* { ls.val.append(suffix) }
+      ')'                        { ls.val.append(')')    }
+
+    | '('                        { ls.val.append('(')    }
+        prefix=([:char:] \ '(')* { ls.val.append(prefix) }
+        p=LitStringObj           { ls.val.append(p.val)  }
+        midfix=([:char:] \ '(')* { ls.val.append(midfix) }
+        q=LitStringObj           { ls.val.append(q.val)  }
+        suffix=([:char:] \ '(')* { ls.val.append(suffix) }
+      ')'                        { ls.val.append(')')    }
+
+    | $epsilon$                  // Parsley keyword
+
+    ;
+
+  // The PDF StringObj is one of the above two string objects.
+  StringObj s { val : [u8] } :=
+    h=HexStringObj { s.val = h.val }
+  | l=LitStringObj { s.val = l.val } ;
+
+  // How can we parameterize whitespace for the following in a single non-terminal?
+  // - empty or non-empty
+  // - required EOL or optional
+  WhitespaceEOL w {} :=
+    (' ' | '\t' | '\r' | '\n' | '\0' )*
+    { } ;
+
+  // The below is an unsatisfactory sketch of PDF numbers.
+
+  // Use a user-defined type.
+  type num_t = Int(i64)
+             | Real(double)
+
+  // Allow some notation for default values in the non-terminal type spec.
+  NumberObj n { val : num_t,
+                is_integer : bool := false,
+                is_real    : bool := false
+              } :=
+
+         n=[:digit:]+ { val := Int( $int_of_string(n));
+                        is_integer := true;
+                      }
+  | '-'  n=[:digit:]+ { val := Int(-$int_of_string(n));
+                        is_integer := true}
+
+  |      n=[:digit:]+ '.' f=[:digit:]+ { val = Real( $real_of_string(n + '.' + f));
+                                         is_real = true }
+  | '-'  n=[:digit:]+ '.' f=[:digit:]+ { val = Real(-$real_of_string(n + '.' + f));
+                                         is_real = true }
+
+  ;
+
+  // This is unsatisfactory because we (as a user) might want to
+  // specify some properties of the NumberObj, such as those used in pdfobj-sketch:
+  // viz. int_val(), real_val(), etc.
+  //
+  // Also, it would be better to have predicate member functions
+  // instead of directly accessing flags in the structs for
+  // is_integer/is_real.
+  //
+  // Is there a better syntax to make that easier?
+
+  // A separate issue is that the number objects in the PDF spec don't
+  // clearly distinguish between integers and reals.  Does this cause
+  // ambiguity?
+}
