@@ -9,15 +9,15 @@ gram PDFPrimitives {
 
   NameObj n { val : string } :=
     '/' s=[:alphanum:]+
-    { val = s } ;
+    { n.val = s } ;
 
   CommentObj c { val : string } :=
     '%' s=[.]* '\n'
-    { val = s } ;
+    { c.val = s } ;
 
   BooleanObj b { val : bool } :=
-    'true' { val = true }
-  | 'false { val = false } ;
+    'true' { b.val = true }
+  | 'false { b.val = false } ;
 
   NullObj {} :=
     'null'
