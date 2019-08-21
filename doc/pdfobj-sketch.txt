@@ -143,11 +143,15 @@ gram PDFObj(defs, refs)
         } ;
 
 
-    // Stream objects are defined next.
+    // Stream objects are defined next.  Note that they share a prefix with IndirectObj.
     StreamObj s { dict : DictObj, stream : RawStreamObj } :=
 
-        d = DictObj
-        s = RawStreamObject
+        // the constraints check that the matched NumberObj objects
+        // are appropriate integers.
+        n=NumberObj [ n.is_integer() && n.int_val() >= 0 ]
+        g=NumberObj [ g.is_integer() && g.int_val() >= 0 && !defs.has_key((n.int_val(), g.int_val()))]
+
+        'obj' d=DictObj s=RawStreamObj 'endobj'
 
         // The constraints are specified after both the DictObj and
         // StreamObj are matched, so that any StreamObj parsing errors
@@ -165,18 +169,20 @@ gram PDFObj(defs, refs)
 
   // We now define the general PDF object as a variant.
 
-    PDFObj := DictObj | ArrayObj | IndirectObj | ReferenceObj | StreamObj | NameObj | NumberObj
+    PDFObj := DictObj | ArrayObj | IndirectObj | ReferenceObj | StreamObj | NameObj | NumberObj | StringObj | NullObj | Comment | BooleanObj
 
   // This will be mapped into the Rust language as an enum variant:
   // pub enum PDFObj_T {
   //   DictObj (DictObj_T),
   //   ArrayObj (ArrayObj_T),
   //   NumberObj (Number_T),
+  //   IndirectObj (Indirect_T),
+  //   ReferenceObj (Reference_T),
+  //
   //   ..
   // }
   //
   // This eases the Rust implementation of the '~~' and the 'as' constructs above.
-
 
   // Status:
   // - module sublanguage is very preliminary, will be fleshed out
@@ -190,4 +196,5 @@ gram PDFObj(defs, refs)
   // Feedback from Shankar:
   // - will need a way of referring to variables in error strings, and string formatting
   // - grammar parameterization will need to be fleshed out
+  // - need to ensure that attributes have defined values in all cases (static semantics)
 }

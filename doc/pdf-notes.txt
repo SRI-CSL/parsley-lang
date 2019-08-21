@@ -1,0 +1,67 @@
+Questions for PDF expert:
+-------------------------
+
+*
+
+We need clarity on what order constraints are checked, in order to
+control what errors are generated.
+
+For example, consider the following PDF dictionary
+
+  << /Entry true /Entry >>
+
+This is invalid in two ways: duplicate key, and invalid dictionary
+format (second entry doesn't have a value).  Which error should we
+generate?  Depending on where we order the constraint checks in our
+spec, we could support either error.
+
+*
+
+How far can we depart from the spec for "Safe Subset"?
+
+- have a single EOL value?
+
+- remove redundancies (see below)?
+
+- have a format that supports conventional linearized parsing, with
+  all table-of-contents information in the front, all xref sections
+  coalesced, etc.?
+
+- explicitly distinguish between integer and real number types in the
+  spec?
+
+*
+
+Redundancies in the specification:
+----------------------------------
+
+The below redundancies seem to be needlessly creating the potential
+for buggy parsers that do not check that all redundant conditions hold
+exhaustively as opposed to just one or a few.
+
+stream objects:
+   the Length key in the stream dictionary and the demarcation of the
+   stream content with the 'stream' and 'endstream' keywords.
+
+pages:
+
+   having both parent/child pointers in Pages nodes is redundant,
+   assuming that the primary path to a page is top-down from the top
+   Pages node in the tree.  The 'parent' property could be a
+   dynamically computed attribute that is assigned during parsing as
+   opposed to specified (possibly erroneously or maliciously) in the
+   document.
+
+   Similarly for the Count key; the spec here specifically says that
+   this is redundant!
+
+*
+
+What we seem to be doing is formulating the Safe Subset PDF
+specification.
+
+However, the PDF Corpora page on the JPL wiki, for the 6-month
+demo/evaluation, currently talks about handling missing or invalid
+information.
+
+How do we handle that?
