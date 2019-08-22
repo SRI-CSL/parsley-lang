@@ -1,7 +1,7 @@
 <<file PDFDoc.ply>>
 
 // Use the constructs sketched in pdfobj-sketch.txt
-uses PDFCompoundObj:{CommentObj, IndirectObj, PDFObj, DictObj, NumberObj}
+uses PDFCompoundObj:{CommentObj, IndirectObj, PDFObj, DictObj, IntegerObj}
 
 // Syntax for user type definitions.
 // We need to define the supported type language.
@@ -126,3 +126,18 @@ EOF :=
 //
 // - there is currently no clear syntactic distinction between
 //   inherited and synthesized attributes.
+
+// Feedback from Peter Wyatt:
+//
+// - cannot assume PDF integers will be representable in 64-bits
+//   (Annex C).
+//
+// - the syntax and (perhaps also the real numbers?) used in the PDF
+//   rendering and imaging expressions is completely self-contained,
+//   and it should be possible to factor out into a sub-grammar.
+//   There is no leakage across the boundary with the outer language.
+//   Section 7.10.
+//
+// . EOL for xrefs are very explicitly defined in the spec.  might
+//   need a xref-specific EOL definition.  Also need a way of
+//   capturing the leading-zeros requirement of xref entries.

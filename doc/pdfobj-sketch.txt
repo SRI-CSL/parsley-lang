@@ -5,7 +5,7 @@
 
 // This assumes a library of primitive objects.  These are defined
 // in a Parsley file called PDFPrimitives.ply
-uses PDFPrimitives:{NameObj, NumberObj, RawStreamObj};
+uses PDFPrimitives:{NameObj, IntegerObj, RawStreamObj};
 
 gram PDFObj(defs, refs)
     defs : map<(int64, int64), (IndirectObj, CTXT.location)>,
@@ -109,10 +109,10 @@ gram PDFObj(defs, refs)
 
     IndirectObj i { id : int, gen : int, val : PDFObj } :=
 
-        // the constraints check that the matched NumberObj objects
-        // are appropriate integers.
-        n=NumberObj [ n.is_integer() && n.int_val() >= 0 ]
-        g=NumberObj [ g.is_integer() && g.int_val() >= 0 && !defs.has_key((n.int_val(), g.int_val()))]
+        // the constraints check that the matched IntegerObj objects
+        // are appropriate.
+        n=IntegerObj [ n.val >= 0 ]
+        g=IntegerObj [ g.val >= 0 && !defs.has_key((n.val, g.val))]
 
         'obj' o=PDFObj 'endobj'
 
@@ -120,56 +120,56 @@ gram PDFObj(defs, refs)
         // of IndirectObj.  $location() is a predefined function that
         // returns the current parsing cursor location, at the end of
         // the last matching right-hand-side entity in the rule.
-        { i.id  := n.int_val();
-          i.gen := g.int_val();
+        { i.id  := n.val;
+          i.gen := g.val;
           i.val := o;
-          defs[(n.int_val(), g.int_val())] := (i, $location())
+          defs[(n.val, g.val)] := (i, $location())
         } ;
 
   // References to indirect objects are defined below, similarly.
 
     ReferenceObj r { id : int, gen : int } :=
 
-        // the constraints check that the matched NumberObj objects
-        // are appropriate integers.
-        n=NumberObj [ n.is_integer() && n.int_val() > 0 ]
-        g=NumberObj [ g.is_integer() && g.int_val() > 0 ]
+        // the constraints check that the matched IntegerObj objects
+        // are appropriate.
+        n=NumberObj [ n.val > 0 ]
+        g=NumberObj [ g.val > 0 ]
 
         'R'
 
-        { r.id  := n.int_val();
-          r.gen := g.int_val();
-          refs[(n.int_val(), g.int_val())] := $location();
+        { r.id  := n.val;
+          r.gen := g.val;
+          refs[(n.val, g.val)] := $location();
         } ;
 
 
     // Stream objects are defined next.  Note that they share a prefix with IndirectObj.
     StreamObj s { dict : DictObj, stream : RawStreamObj } :=
 
-        // the constraints check that the matched NumberObj objects
-        // are appropriate integers.
-        n=NumberObj [ n.is_integer() && n.int_val() >= 0 ]
-        g=NumberObj [ g.is_integer() && g.int_val() >= 0 && !defs.has_key((n.int_val(), g.int_val()))]
+        // the constraints check that the matched IntegerObj objects
+        // are appropriate.
+        n=NumberObj [ n.val >= 0 ]
+        g=NumberObj [ g.val >= 0 && !defs.has_key((n.val, g.val))]
 
         'obj' d=DictObj s=RawStreamObj 'endobj'
 
         // The constraints are specified after both the DictObj and
         // StreamObj are matched, so that any StreamObj parsing errors
         // can terminate the rule instead of the constraint.
-        [ d.val.contains("Length") && d.val["Length"] ~~ NumberObj && d.val["Length"].is_integer() "Invalid Length" ]
-        [ s.val.length() == (d.val["Length"] as NumberObj).int_val() "Mismatched Length"]
+        [ d.val.contains("Length") && d.val["Length"] ~~ IntegerObj  "Invalid Length" ]
+        [ s.val.length() == (d.val["Length"] as IntegerObj).val "Mismatched Length"]
 
-        { dict := d;
+        { dict   := d;
           stream := s
         } ;
 
         // The '~~' construct ensures that the PDFObj in the "Length"
-        // entry of d.val is of the NumberObj variant.  The 'as'
+        // entry of d.val is of the IntegerObj variant.  The 'as'
         // construct extracts the value of that variant.
 
   // We now define the general PDF object as a variant.
 
-    PDFObj := DictObj | ArrayObj | IndirectObj | ReferenceObj | StreamObj | NameObj | NumberObj | StringObj | NullObj | Comment | BooleanObj
+    PDFObj := DictObj | ArrayObj | IndirectObj | ReferenceObj | StreamObj | NameObj | IntegerObj | NumberObj | StringObj | NullObj | Comment | BooleanObj
 
   // This will be mapped into the Rust language as an enum variant:
   // pub enum PDFObj_T {
@@ -197,4 +197,21 @@ gram PDFObj(defs, refs)
   // - will need a way of referring to variables in error strings, and string formatting
   // - grammar parameterization will need to be fleshed out
   // - need to ensure that attributes have defined values in all cases (static semantics)
+  // - leverage PEG/Packrat greedy matching to ensure unambiguous parsing
+  // - need to flesh out Parsley language predefines like CTXT and $location() in one place
+  // - use a more declarative syntax instead of an imperative syntax (e.g. instead of list.append(v))
+
+  // Feedback from Peter Wyatt:
+  //
+  // . mapping objects to locations is not that simple, since objects
+  //   can occur in object content streams, which in turn could be
+  //   compressed.  Might need some hierarchical or nested notion of
+  //   "location".
+  //
+  // . need to be clearer about whitespace and token boundaries.
+  //   Should need very little explicit non-empty whitespace
+  //   requirements.  Shankar: should have a way of abstracting
+  //   whitespace via a language directive.
+  //
+  // . CommentObjs can appear literally anywhere, not quite captured here
 }

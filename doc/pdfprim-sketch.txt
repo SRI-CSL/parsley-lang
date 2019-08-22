@@ -77,49 +77,33 @@ gram PDFPrimitives {
     (' ' | '\t' | '\r' | '\n' | '\0' )*
     { } ;
 
-  // The below is an unsatisfactory sketch of PDF numbers.
+  // $int_of_string() is a function in the Parsley standard library.
+  IntegerObj i { val : i64 }
+         n=[:digit:]+ { i.val := $int_of_string(n));  }
+  | '-'  n=[:digit:]+ { i.val := -$int_of_string(n)); }
 
-  // Use a user-defined type.
-  type num_t = Int(i64)
-             | Real(double)
+  // TODO: we might need to have a user-defined type for PDF reals,
+  // since they are not defined in terms of IEEE 754, although they
+  // are implemented in those terms.
 
-  // Allow some notation for default values in the non-terminal type spec.
-  NumberObj n { val : num_t,
-                is_integer : bool := false,
-                is_real    : bool := false
-              } :=
+  RealObj r { val : double } :=
 
-         n=[:digit:]+ { val := Int( $int_of_string(n));
-                        is_integer := true;
-                      }
-  | '-'  n=[:digit:]+ { val := Int(-$int_of_string(n));
-                        is_integer := true}
+         n=[:digit:]+ { val := $double_of_string(n);  }
+  | '-'  n=[:digit:]+ { val := -$double_of_string(n); }
 
-  |      n=[:digit:]+ '.' f=[:digit:]+ { val = Real( $real_of_string(n + '.' + f));
-                                         is_real = true }
-  | '-'  n=[:digit:]+ '.' f=[:digit:]+ { val = Real(-$real_of_string(n + '.' + f));
-                                         is_real = true }
+  |      n=[:digit:]+ '.' f=[:digit:]+ { val = $double_of_string(n + '.' + f); }
+  | '-'  n=[:digit:]+ '.' f=[:digit:]+ { val = -$double_of_string(n + '.' + f); }
 
   ;
 
-  // This is unsatisfactory because we (as a user) might want to
-  // specify some properties of the NumberObj, such as those used in pdfobj-sketch:
-  // viz. int_val(), real_val(), etc.
-  //
-  // Also, it would be better to have predicate member functions
-  // instead of directly accessing flags in the structs for
-  // is_integer/is_real.
-  //
-  // Is there a better syntax to make that easier?
-
-  // A separate issue is that the number objects in the PDF spec don't
-  // clearly distinguish between integers and reals.  Does this cause
-  // ambiguity?
-
-  // Shankar:
+  // Feedback from Shankar:
   // . case-insensitive operator (to support case-insensitive matching)
-  // . add '/' to denote choice operator
-  // . appropriate distinguish comments
-  // . 
+  // . for example, add '/' to denote choice operator
+  // . if '/' is chosen, need to appropriate distinguish comments which are using '//'
 
+  // Feedback from Peter Wyatt:
+  // . need to capture name equivalance: Annex J.3.4
+  // . ensure we can capture using Unicode details:      (Section 7.9.2.1 and Figure 7)
+  // . some constraints will of the type: this value of this entry should be a Unicode string
+  //   (whereas other entries are agnostic)
 }
