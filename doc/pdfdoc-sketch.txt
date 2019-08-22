@@ -44,13 +44,13 @@ XrefSect x { sects: [XrefSubSect] } :=
 
 XrefSubSect x { start: int, count: int, ents: [XrefEnt] } :=
 
-    s=NumberObj [ s.is_integer() && s.int_val() >= 0 ]
-    c=NumberObj [ s.is_integer() && s.int_val() >  0 ]
+    s=IntegerObj [ s.val >= 0 ]
+    c=IntegerObj [ s.val >  0 ]
 
     '\n'  // EOL-type is not specified in the spec.
 
-    { x.start := s.int_val();
-      x.count := c.int_val() }
+    { x.start := s.val;
+      x.count := c.val }
 
     ( e=XrefEnt [ x.ents.len() < x.count() ] { x.ents.append(e) } )* ;
 
@@ -94,9 +94,9 @@ Trailer t { dict: DictObj } :=
 StartXref s { val : int } :=
 
    'startxref'
-   n=NumberObj [ n.is_integer() && n.int_val() > 0 ]
+   n=IntegerObj [ n.val > 0 ]
 
-   { s.val = n.int_val() } ;
+   { s.val = n.val } ;
 
 EOF :=
 

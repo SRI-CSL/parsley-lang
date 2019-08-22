@@ -132,8 +132,8 @@ gram PDFObj(defs, refs)
 
         // the constraints check that the matched IntegerObj objects
         // are appropriate.
-        n=NumberObj [ n.val > 0 ]
-        g=NumberObj [ g.val > 0 ]
+        n=IntegerObj [ n.val > 0 ]
+        g=IntegerObj [ g.val > 0 ]
 
         'R'
 
@@ -148,8 +148,8 @@ gram PDFObj(defs, refs)
 
         // the constraints check that the matched IntegerObj objects
         // are appropriate.
-        n=NumberObj [ n.val >= 0 ]
-        g=NumberObj [ g.val >= 0 && !defs.has_key((n.val, g.val))]
+        n=IntegerObj [ n.val >= 0 ]
+        g=IntegerObj [ g.val >= 0 && !defs.has_key((n.val, g.val))]
 
         'obj' d=DictObj s=RawStreamObj 'endobj'
 
@@ -169,13 +169,13 @@ gram PDFObj(defs, refs)
 
   // We now define the general PDF object as a variant.
 
-    PDFObj := DictObj | ArrayObj | IndirectObj | ReferenceObj | StreamObj | NameObj | IntegerObj | NumberObj | StringObj | NullObj | Comment | BooleanObj
+    PDFObj := DictObj | ArrayObj | IndirectObj | ReferenceObj | StreamObj | NameObj | IntegerObj | RealObj | StringObj | NullObj | Comment | BooleanObj
 
   // This will be mapped into the Rust language as an enum variant:
   // pub enum PDFObj_T {
   //   DictObj (DictObj_T),
   //   ArrayObj (ArrayObj_T),
-  //   NumberObj (Number_T),
+  //   IntegerObj (Integer_T),
   //   IndirectObj (Indirect_T),
   //   ReferenceObj (Reference_T),
   //
