@@ -11,12 +11,11 @@
 
   let keywords =
     let tbl = Hashtbl.create 16 in
-    List.iter (fun (key, tok) -> Hashtbl.add tbl key data
-                 [ "format", FORMAT;
-                   "use",    USE;
-                   "type",   TYPE;
-                 ]
-              );
+    List.iter (fun (key, tok) -> Hashtbl.add tbl key tok)
+              [ "format", FORMAT;
+                "use",    USE;
+                "type",   TYPE;
+              ];
     tbl
 
   let decide_ident s loc =
@@ -48,7 +47,7 @@ let int_literal = '-'? ['0'-'9']+
 
 rule token = parse
 | newline
-    { newline lexbuf;
+    { new_line lexbuf;
       token lexbuf }
 | blank +
     { token lexbuf }
@@ -92,24 +91,24 @@ rule token = parse
 | "?"  { QUESTION }
 
 | "$"? alpha ident+
-    { decide_ident (Lexeme.lexeme lexbuf) (Location.curr lexbuf) }
+    { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
 
 | int_literal
-    { let s = Lexeme.lexeme lexbuf in
+    { let s = Lexing.lexeme lexbuf in
       INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
 
 and eol_comment = parse
 | newline
-    { newline lexbuf;
+    { new_line lexbuf;
       token lexbuf }
 | _
     { eol_comment lexbuf }
 
 and quote = parse
 | "'"
-    { store_lexeme lexbuf }
+    { store_token lexbuf }
 | newline
-    { newline lexbuf;
+    { new_line lexbuf;
       quote lexbuf }
 | _
     { quote lexbuf }

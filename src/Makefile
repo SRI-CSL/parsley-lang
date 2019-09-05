@@ -6,3 +6,6 @@ OCAMLBUILD  := ocamlbuild -use-ocamlfind -use-menhir -menhir "$(MENHIR) $(MENHIR
 all:
 	$(OCAMLBUILD) $(PROG).native
 	-rm -f $(PROG) && ln -s $(PROG).native $(PROG)
+
+clean:
+	$(OCAMLBUILD) -clean
