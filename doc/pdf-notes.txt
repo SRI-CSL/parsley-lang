@@ -52,6 +52,15 @@ pages:
    Similarly for the Count key; the spec here specifically says that
    this is redundant!
 
+doubly-linked lists:
+
+   the document could provide the linkage in one direction, and have
+   the reverse direction set up during parsing.  e.g. navigation nodes
+   on the pages, the beads on a thread.
+
+   [ it would be nice if the constraint system can incrementally
+     capture valid double-linkage during parsing. ]
+
 *
 
 What we seem to be doing is formulating the Safe Subset PDF
@@ -62,3 +71,17 @@ demo/evaluation, currently talks about handling missing or invalid
 information.
 
 How do we handle that?
+
+Uses for inherited attributes:
+------------------------------
+
+There are several places in the PDF grammar where inherited attributes
+can prove useful.  We should ensure that such cases can be captured
+succinctly by the Parsley syntax:
+
+- the types/classes of a PDF dictionary depend on the context in which
+  it appears; this context can be provided via the inherited attribute
+  system.  E.g. a dictionary can be interpreted as a (or checked to be
+  a valid) page node dictionary if we are currently parsing the page
+  node tree.  Similarly, a page can inherit its dimensions from a
+  parent in the tree.
