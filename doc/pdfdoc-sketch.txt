@@ -1,14 +1,15 @@
 <<file PDFDoc.ply>>
 
-// Use the constructs sketched in pdfobj-sketch.txt
-uses PDFCompoundObj:{CommentObj, IndirectObj, PDFObj, DictObj, IntegerObj}
-
-// Syntax for user type definitions.
-// We need to define the supported type language.
-type xref_t = Free | Inuse
-
-gram PDFDoc
+format PDFDoc
 {
+  // Use the constructs sketched in pdfobj-sketch.txt
+  use PDFCompoundObj:{CommentObj, IndirectObj, PDFObj, DictObj, IntegerObj};
+
+  // Syntax for user type definitions.
+  // We need to define the supported type language.
+  type xref_t = Free | Inuse
+
+
   Doc d { header: Header, body: Body, xref: [Xref], trailer: [Trailer], startxref: int } :=
 
     h=Header b=Body x=Xref t=Trailer s=StartXref e=EOF
@@ -43,6 +44,7 @@ XrefSect x { sects: [XrefSubSect] } :=
     'xref' ( s=XrefSubSect { x.sects.append(s) } )* ;
 
 XrefSubSect x { start: int, count: int, ents: [XrefEnt] } :=
+    // The spec is not clear whether there is any leading or trailing non-EOL whitespace
 
     s=IntegerObj [ s.val >= 0 ]
     c=IntegerObj [ s.val >  0 ]

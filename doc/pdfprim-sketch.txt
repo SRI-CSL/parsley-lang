@@ -5,7 +5,7 @@
 // This essentially uses regular expression syntax, except for
 // LitStringObj, which implements a simple CFG.
 
-gram PDFPrimitives {
+format PDFPrimitives {
 
   NameObj n { val : string } :=
     '/' s=[:alphanum:]+

@@ -5,9 +5,9 @@
 
 // This assumes a library of primitive objects.  These are defined
 // in a Parsley file called PDFPrimitives.ply
-uses PDFPrimitives:{NameObj, IntegerObj, RawStreamObj};
+use PDFPrimitives:{NameObj, IntegerObj, RawStreamObj};
 
-gram PDFObj(defs, refs)
+format PDFObj(defs, refs)
     defs : map<(int64, int64), (IndirectObj, CTXT.location)>,
     refs : map<(int64, int64), CTXT.location>
 {
@@ -83,7 +83,7 @@ gram PDFObj(defs, refs)
   // To support checks for distinct fields in the dictionary, we can
   // use the following rule instead.
 
-        { s : set<typeof(NameObj.val)> }
+        (| s : set<typeof(NameObj.val)> |)
 
         '<<' ( n=NameObj [ !s.contains(n.val) "Unique dictionary key" ] o=PDFObj { d.val[n.val] := o; s.add(n.val) } )* '>>' ;
 
