@@ -3,14 +3,13 @@
 
 // <file PDFCompoundObj.ply>
 
-// This assumes a library of primitive objects.  These are defined
-// in a Parsley file called PDFPrimitives.ply
-use PDFPrimitives:{NameObj, IntegerObj, RawStreamObj};
-
 format PDFObj(defs, refs)
     defs : map<(int64, int64), (IndirectObj, CTXT.location)>,
     refs : map<(int64, int64), CTXT.location>
 {
+  // This assumes a library of primitive objects.  These are defined
+  // in a Parsley file called PDFPrimitives.ply
+  use PDFPrimitives:{NameObj, IntegerObj, RawStreamObj} .
 
   // The defs and refs are mutable values that will be passed into the
   // parser context constructed for the rules in this grammar.  They
@@ -65,7 +64,7 @@ format PDFObj(defs, refs)
 
   // Below is the production rule of DictObj.
 
-        '<<' ( n=NameObj  o=PDFObj { d.val[n.val] := o } )* '>>' ;
+        '<<' ( n=NameObj  o=PDFObj { d.val[n.val] := o } )* '>>' .
 
   // Literals are specified within quotes ('').  Variables are used to
   // name non-terminals appearing on the right-hand-side, to provide
@@ -85,7 +84,7 @@ format PDFObj(defs, refs)
 
         (| s : set<typeof(NameObj.val)> |)
 
-        '<<' ( n=NameObj [ !s.contains(n.val) "Unique dictionary key" ] o=PDFObj { d.val[n.val] := o; s.add(n.val) } )* '>>' ;
+        '<<' ( n=NameObj [ !s.contains(n.val) "Unique dictionary key" ] o=PDFObj { d.val[n.val] := o; s.add(n.val) } )* '>>' .
 
   // Here, a named boolean-valued constraint is specified within '['
   // and ']'.  If the constraint evaluates to false, an error
@@ -100,7 +99,7 @@ format PDFObj(defs, refs)
 
     ArrayObj a { val : [PDFObj] } :=
 
-        '[' ( o=PDFObj { a.val.append(o) } )* ']' ;
+        '[' ( o=PDFObj { a.val.append(o) } )* ']' .
 
   // The semantic action simply appends the matched object to the
   // vector value of a.val.
@@ -124,7 +123,7 @@ format PDFObj(defs, refs)
           i.gen := g.val;
           i.val := o;
           defs[(n.val, g.val)] := (i, $location())
-        } ;
+        } .
 
   // References to indirect objects are defined below, similarly.
 
@@ -140,7 +139,7 @@ format PDFObj(defs, refs)
         { r.id  := n.val;
           r.gen := g.val;
           refs[(n.val, g.val)] := $location();
-        } ;
+        } .
 
 
     // Stream objects are defined next.  Note that they share a prefix with IndirectObj.
@@ -161,7 +160,7 @@ format PDFObj(defs, refs)
 
         { dict   := d;
           stream := s
-        } ;
+        } .
 
         // The '~~' construct ensures that the PDFObj in the "Length"
         // entry of d.val is of the IntegerObj variant.  The 'as'

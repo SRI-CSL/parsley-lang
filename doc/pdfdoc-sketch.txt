@@ -3,11 +3,11 @@
 format PDFDoc
 {
   // Use the constructs sketched in pdfobj-sketch.txt
-  use PDFCompoundObj:{CommentObj, IndirectObj, PDFObj, DictObj, IntegerObj};
+  use PDFCompoundObj:{CommentObj, IndirectObj, PDFObj, DictObj, IntegerObj} .
 
   // Syntax for user type definitions.
   // We need to define the supported type language.
-  type xref_t = Free | Inuse
+  type xref_t = Free | Inuse .
 
 
   Doc d { header: Header, body: Body, xref: [Xref], trailer: [Trailer], startxref: int } :=
@@ -19,7 +19,7 @@ format PDFDoc
       d.xref.append(x);
       d.trailer.append(t);
       d.startxref = s.val
-    } ;
+    } .
 
 Header h { version: typeof(CommentObj),
            binary: option(typeof(CommentObj)) } :=
@@ -29,11 +29,11 @@ Header h { version: typeof(CommentObj),
 
     { version = v;
       binary  = b  // type-checks since b is an option value
-    } ;
+    } .
 
 Body b { body = [PDFObj] } :=
 
-    ( o=PDFObj [ o ~~ IndirectObj ] { b.body.append(o) } )* ;
+    ( o=PDFObj [ o ~~ IndirectObj ] { b.body.append(o) } )* .
 
     // The constraint ensures that the top-level objects are all
     // indirect objects.  Note that the parsing action here is
@@ -41,7 +41,7 @@ Body b { body = [PDFObj] } :=
 
 XrefSect x { sects: [XrefSubSect] } :=
 
-    'xref' ( s=XrefSubSect { x.sects.append(s) } )* ;
+    'xref' ( s=XrefSubSect { x.sects.append(s) } )* .
 
 XrefSubSect x { start: int, count: int, ents: [XrefEnt] } :=
     // The spec is not clear whether there is any leading or trailing non-EOL whitespace
@@ -54,7 +54,7 @@ XrefSubSect x { start: int, count: int, ents: [XrefEnt] } :=
     { x.start := s.val;
       x.count := c.val }
 
-    ( e=XrefEnt [ x.ents.len() < x.count() ] { x.ents.append(e) } )* ;
+    ( e=XrefEnt [ x.ents.len() < x.count() ] { x.ents.append(e) } )* .
 
 XrefEnt x { offset: int, gen: int, status: xfree_t } :=
 
@@ -81,7 +81,7 @@ XrefEnt x { offset: int, gen: int, status: xfree_t } :=
     '\r\n' // This is required to be 'a two-character end-of-line
            // sequence'.
 
-    ;
+    .
 
     // Note: interleaving of actions, parsing, and constraint checking
     // is explicitly designed to enable succinct specifications.
@@ -91,18 +91,18 @@ Trailer t { dict: DictObj } :=
 
    'trailer' d=DictObj
 
-   { t.dict = d } ;
+   { t.dict = d } .
 
 StartXref s { val : int } :=
 
    'startxref'
    n=IntegerObj [ n.val > 0 ]
 
-   { s.val = n.val } ;
+   { s.val = n.val } .
 
 EOF :=
 
-  '%%EOF' ;
+  '%%EOF' .
 
 
 // What's missing in the current sketch:

@@ -62,6 +62,8 @@ rule token = parse
       let t = Location.mk_loc_val t (Location.curr lexbuf) in
       LITERAL t
     }
+| "(|" { LPARBAR }
+| "|)" { RPARBAR }
 | "|"  { BAR }
 | "{"  { LBRACE }
 | "}"  { RBRACE }
@@ -69,8 +71,6 @@ rule token = parse
 | ")"  { RPAREN }
 | "["  { LBRACK }
 | "]"  { RBRACK }
-| "(|" { LPARBAR }
-| "|)" { RPARBAR }
 | "."  { DOT }
 | ","  { COMMA }
 | ";"  { SEMICOLON}
@@ -82,11 +82,11 @@ rule token = parse
 | "/"  { DIV }
 | "&&" { LAND }
 | "||" { LOR }
-| "<"  { LT }
-| ">"  { GT }
 | "<=" { LTEQ }
 | ">=" { GTEQ }
 | "!=" { NEQ }
+| "<"  { LT }
+| ">"  { GT }
 | "="  { EQ }
 | "~~" { MATCH }
 | "?"  { QUESTION }

@@ -9,12 +9,20 @@ open Ast
 %token BAR COMMA COLON COLONEQ SEMICOLON QUOTE DOT QUESTION
 %token STAR PLUS MINUS DIV
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
+%token MATCH
 
 %token <string Location.loc> LITERAL
 %token <string Location.loc> ID
 %token <string Location.loc> INT_LITERAL
 
 %start <Ast.format> format
+
+(* operators are increasing precedence order. *)
+%left LT GT LTEQ GTEQ
+%left BAR
+%left STAR DIV QUESTION
+%left PLUS MINUS
+%left LPAREN LBRACK
 
 %{
 
@@ -103,12 +111,8 @@ param_decls:
 | l=separated_list(COMMA, param_decl)
   { l }
 
-path:
-| p=separated_list(DOT, ident)
-  { p }
-
 expr:
-| p=path
+| p=separated_nonempty_list(DOT, ident)
   { make_expr (E_path p) $startpos $endpos }
 | i=INT_LITERAL
   { make_expr (E_int (make_int_literal i)) $startpos $endpos }
@@ -116,7 +120,7 @@ expr:
   { make_expr (E_tuple l) $startpos $endpos }
 | e=expr LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_apply(e, l)) $startpos $endpos }
-| e=expr RBRACK i=expr RPAREN
+| e=expr LBRACK i=expr RBRACK
   { make_expr (E_index(e, i)) $startpos $endpos }
 
 | l=expr PLUS r=expr
@@ -189,10 +193,10 @@ decl:
   { make_decl (Decl_type (t, e)) $startpos $endpos }
 
 format:
-| FORMAT i=ident LBRACE d=list(decl) RBRACE
+| FORMAT i=ident LBRACE d=separated_list(DOT, decl) RBRACE
   { make_format i [] [] d $startpos $endpos }
 | FORMAT i=ident
     LPAREN ps=separated_list(COMMA, ident) RPAREN
     pds=separated_list(COMMA, param_decl)
-    LBRACE d=list(decl) RBRACE
+    LBRACE d=separated_list(DOT, decl) RBRACE
   { make_format i ps pds d $startpos $endpos }
