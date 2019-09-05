@@ -9,12 +9,20 @@
 
   let token_buf = ref (Buffer.create 256)
 
-  (* keywords *)
   let keywords =
-    [ "format", FORMAT;
-      "use", USE;
-      "type", TYPE;
-    ]
+    let tbl = Hashtbl.create 16 in
+    List.iter (fun (key, tok) -> Hashtbl.add tbl key data
+                 [ "format", FORMAT;
+                   "use",    USE;
+                   "type",   TYPE;
+                 ]
+              );
+    tbl
+
+  let decide_ident s loc =
+    match (Hashtbl.find_opt keywords s) with
+      | Some tok -> tok
+      | None     -> ID (Location.mk_loc_val s loc)
 
   let reset_token_buffer () =
     Buffer.clear !token_buf
@@ -84,8 +92,8 @@ rule token = parse
 | "?"  { QUESTION }
 
 | "$"? alpha ident+
-    { let s = Lexeme.lexeme lexbuf in
-      ID (Location.mk_loc_val s (Location.curr lexbuf)) }
+    { decide_ident (Lexeme.lexeme lexbuf) (Location.curr lexbuf) }
+
 | int_literal
     { let s = Lexeme.lexeme lexbuf in
       INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
