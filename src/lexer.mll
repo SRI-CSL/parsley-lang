@@ -45,6 +45,8 @@ let alnum = ['A'-'Z' 'a'-'z' '0'-'9']
 let ident = ['A'-'Z' 'a'-'z' '0'-'9' '_' '@']
 let int_literal = '-'? ['0'-'9']+
 
+let re_char_class = "[:" alnum* ":]"
+
 rule token = parse
 | newline
     { new_line lexbuf;
@@ -97,6 +99,11 @@ rule token = parse
     { let s = Lexing.lexeme lexbuf in
       INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
 
+(* TODO: needs a better definition *)
+| re_char_class
+    { let s = Lexing.lexeme lexbuf in
+      RE_CHAR_CLASS (Location.mk_loc_val s (Location.curr lexbuf)) }
+
 and eol_comment = parse
 | newline
     { new_line lexbuf;
@@ -107,6 +114,7 @@ and eol_comment = parse
 and quote = parse
 | "'"
     { store_token lexbuf }
+
 | newline
     { new_line lexbuf;
       quote lexbuf }

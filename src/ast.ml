@@ -14,14 +14,6 @@ type type_expr_desc =
 type param_decl =
     (ident * type_expr) Location.loc
 
-type regex =
-  | RGX_class of ident
-  | RGX_star of regex
-  | RGX_plus of regex
-  | RGX_repeat of regex * int
-  | RGX_seq of regex list
-  | RGX_choice of regex list
-
 type binop =
   | Lt | Gt | Lteq | Gteq
   | Plus | Minus | Mult | Div
@@ -56,9 +48,11 @@ type rule_action =
 type rule_constraint =
     expr
 
+type regex_char_class =
+    ident (*for now*)
+
 type rule_elem_desc =
   | RE_literal of literal
-  | RE_regex of regex * ident option
   | RE_non_term of ident * ident option
   | RE_constraint of rule_constraint
   | RE_action of rule_action
@@ -67,6 +61,8 @@ type rule_elem_desc =
   | RE_star of rule_elem
   | RE_plus of rule_elem
   | RE_opt of rule_elem
+  | RE_char_class of regex_char_class
+  | RE_repeat of rule_elem * int
 
  and rule_elem =
    { rule_elem: rule_elem_desc;

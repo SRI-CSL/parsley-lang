@@ -14,6 +14,7 @@ open Ast
 %token <string Location.loc> LITERAL
 %token <string Location.loc> ID
 %token <string Location.loc> INT_LITERAL
+%token <string Location.loc> RE_CHAR_CLASS
 
 %start <Ast.format> format
 
@@ -151,6 +152,8 @@ action:
 rule_elem:
 | l=LITERAL
   { make_rule_elem (RE_literal l) $startpos $endpos }
+| c=RE_CHAR_CLASS
+  { make_rule_elem (RE_char_class c) $startpos $endpos }
 | v=ident EQ nt=ident
   { make_rule_elem (RE_non_term (nt, Some v)) $startpos $endpos }
 | nt=ident
