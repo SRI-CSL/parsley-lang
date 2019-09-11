@@ -1,0 +1,18 @@
+
+The general idea is that Parsley supports modular specifications.  As
+an example, the outermost layer of the PDF syntax is sketched out in
+three modules:
+
+* pdfprim - primitive PDF objects that do not contain other PDF objects
+
+* pdfobj - more complex PDF objects
+
+* pdfdoc - the overall PDF document layout
+
+These files are not intended to be entirely accurate in all details
+with respect to the PDF specification, but are only to illustrate the
+general syntax of the Parsley language, and how it could capture the
+essential features needed for a more accurate PDF specification.
+
+This is still a very early sketch of the Parsley language, which will
+likely evolve significantly from the sketch presented here.
