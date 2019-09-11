@@ -1,6 +1,7 @@
 %{
 open Location
 open Ast
+open Parseerror
 %}
 
 %token FORMAT TYPE USE
@@ -26,10 +27,13 @@ open Ast
 %left LPAREN LBRACK
 
 %{
+let parse_error e loc =
+  raise (Error (e, loc))
 
 let make_int_literal s =
-  (* TODO: handle exceptions *)
-  int_of_string (Location.value s)
+  let s, loc = (Location.value s), (Location.loc s) in
+  try  int_of_string s
+  with _ -> parse_error (Invalid_integer s) loc
 
 let make_type_expr ty b e =
   { type_expr = ty;
@@ -85,7 +89,6 @@ let make_format name params param_decls decls b e =
     format_decls = decls;
     format_loc = make_loc b e;
   }
-
 %}
 
 %%
