@@ -27,6 +27,7 @@ open Parseerror
 %left  STAR DIV QUESTION
 %left  PLUS MINUS
 %left  LPAREN LBRACK
+%nonassoc UMINUS
 
 %{
 let parse_error e loc =
@@ -122,6 +123,8 @@ expr:
   { make_expr (E_path p) $startpos $endpos }
 | i=INT_LITERAL
   { make_expr (E_int (make_int_literal i)) $startpos $endpos }
+| l=LITERAL
+  { make_expr (E_literal l) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_tuple l) $startpos $endpos }
 | e=expr LPAREN l=separated_list(COMMA, expr) RPAREN
@@ -129,6 +132,8 @@ expr:
 | e=expr LBRACK i=expr RBRACK
   { make_expr (E_index(e, i)) $startpos $endpos }
 
+| MINUS e=expr %prec UMINUS
+  { make_expr (E_unop (Uminus, e)) $startpos $endpos }
 | l=expr PLUS r=expr
   { make_expr (E_binop (Plus, l, r)) $startpos $endpos }
 | l=expr MINUS r=expr

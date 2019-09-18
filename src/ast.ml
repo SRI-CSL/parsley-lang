@@ -19,6 +19,9 @@ type binop =
   | Plus | Minus | Mult | Div
   | Match | Cons
 
+type unop =
+  | Uminus
+
 type path = ident list
 
 type expr_desc =
@@ -26,8 +29,10 @@ type expr_desc =
   | E_int of int
   | E_tuple of expr list
   | E_apply of expr * expr list
+  | E_unop of unop * expr
   | E_binop of binop * expr * expr
   | E_index of expr * expr
+  | E_literal of literal
 
  and expr =
    { expr: expr_desc;
