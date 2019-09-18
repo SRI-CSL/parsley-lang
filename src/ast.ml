@@ -17,7 +17,7 @@ type param_decl =
 type binop =
   | Lt | Gt | Lteq | Gteq
   | Plus | Minus | Mult | Div
-  | Match
+  | Match | Cons
 
 type path = ident list
 
@@ -48,12 +48,14 @@ type rule_action =
 type rule_constraint =
     expr
 
-type regex_char_class =
-    ident (*for now*)
+type char_class =
+  | CC_named of ident
+  | CC_wildcard
 
 type rule_elem_desc =
   | RE_literal of literal
   | RE_non_term of ident * ident option
+  | RE_named_regex of rule_elem * ident (* regex of char-classes *)
   | RE_constraint of rule_constraint
   | RE_action of rule_action
   | RE_choice of rule_elem * rule_elem
@@ -61,8 +63,8 @@ type rule_elem_desc =
   | RE_star of rule_elem
   | RE_plus of rule_elem
   | RE_opt of rule_elem
-  | RE_char_class of regex_char_class
   | RE_repeat of rule_elem * int
+  | RE_char_class of char_class
 
  and rule_elem =
    { rule_elem: rule_elem_desc;

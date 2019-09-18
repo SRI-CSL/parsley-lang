@@ -49,7 +49,7 @@ let alnum = ['A'-'Z' 'a'-'z' '0'-'9']
 let ident = ['A'-'Z' 'a'-'z' '0'-'9' '_' '@']
 let int_literal = '-'? ['0'-'9']+
 
-let re_char_class = "[:" alnum* ":]"
+let re_char_class = "[:" alnum+ ":]"
 
 rule token = parse
 | newline
@@ -80,6 +80,7 @@ rule token = parse
 | ","  { COMMA }
 | ";"  { SEMICOLON}
 | ":=" { COLONEQ }
+| "::" { COLONCOLON }
 | ":"  { COLON }
 | "+"  { PLUS }
 | "-"  { MINUS }
@@ -96,7 +97,7 @@ rule token = parse
 | "~~" { MATCH }
 | "?"  { QUESTION }
 
-| "$"? alpha ident+
+| "$"? alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
 
 | int_literal
@@ -117,10 +118,12 @@ and eol_comment = parse
 
 and quote = parse
 | "'"
-    { store_token lexbuf }
+    { () }
 
 | newline
-    { new_line lexbuf;
+    { store_token lexbuf;
+      new_line lexbuf;
       quote lexbuf }
 | _
-    { quote lexbuf }
+    { store_token lexbuf;
+      quote lexbuf }

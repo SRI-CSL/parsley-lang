@@ -10,7 +10,7 @@ open Parseerror
 %token BAR COMMA COLON COLONEQ SEMICOLON QUOTE DOT QUESTION
 %token STAR PLUS MINUS DIV
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
-%token MATCH
+%token MATCH COLONCOLON
 
 %token <string Location.loc> LITERAL
 %token <string Location.loc> ID
@@ -20,11 +20,13 @@ open Parseerror
 %start <Ast.format> format
 
 (* operators are increasing precedence order. *)
-%left LT GT LTEQ GTEQ
-%left BAR
-%left STAR DIV QUESTION
-%left PLUS MINUS
-%left LPAREN LBRACK
+
+%left  LT GT LTEQ GTEQ
+%left  BAR
+%right COLONCOLON
+%left  STAR DIV QUESTION
+%left  PLUS MINUS
+%left  LPAREN LBRACK
 
 %{
 let parse_error e loc =
@@ -143,6 +145,8 @@ expr:
   { make_expr (E_binop (Lteq, l, r)) $startpos $endpos }
 | l=expr GTEQ r=expr
   { make_expr (E_binop (Gteq, l, r)) $startpos $endpos }
+| l=expr COLONCOLON r=expr
+  { make_expr (E_binop (Cons, l, r)) $startpos $endpos }
 
 stmt:
 | l=expr COLONEQ r=expr
@@ -152,13 +156,31 @@ action:
 | sl=separated_list(SEMICOLON, stmt)
   { make_action sl $startpos $endpos }
 
-rule_elem:
+cc_regex:
+| c=RE_CHAR_CLASS
+  { make_rule_elem (RE_char_class (CC_named c)) $startpos $endpos }
 | l=LITERAL
   { make_rule_elem (RE_literal l) $startpos $endpos }
+| DOT
+  { make_rule_elem (RE_char_class CC_wildcard) $startpos $endpos }
+| c=cc_regex STAR
+  { make_rule_elem (RE_star c) $startpos $endpos }
+| c=cc_regex PLUS
+  { make_rule_elem (RE_plus c) $startpos $endpos }
+| c=cc_regex QUESTION
+  { make_rule_elem (RE_opt c) $startpos $endpos }
+| LPAREN l=list(cc_regex) RPAREN
+  { make_rule_elem (RE_seq l) $startpos $endpos }
+
+rule_elem:
 | c=RE_CHAR_CLASS
-  { make_rule_elem (RE_char_class c) $startpos $endpos }
+  { make_rule_elem (RE_char_class (CC_named c)) $startpos $endpos }
+| l=LITERAL
+  { make_rule_elem (RE_literal l) $startpos $endpos }
 | v=ident EQ nt=ident
   { make_rule_elem (RE_non_term (nt, Some v)) $startpos $endpos }
+| v=ident EQ LPAREN re=cc_regex RPAREN
+  { make_rule_elem (RE_named_regex (re, v)) $startpos $endpos }
 | nt=ident
   { make_rule_elem (RE_non_term (nt, None)) $startpos $endpos }
 | LBRACK e=expr RBRACK
@@ -177,13 +199,15 @@ rule_elem:
   { make_rule_elem (RE_opt e) $startpos $endpos }
 
 rule:
-| LPARBAR d=param_decls RPARBAR l=list(rule_elem) SEMICOLON
+| LPARBAR d=param_decls RPARBAR l=list(rule_elem)
   { make_rule d l $startpos $endpos }
-| l=list(rule_elem) SEMICOLON
+| l=list(rule_elem)
   { make_rule [] l $startpos $endpos }
 
 nt_defn:
-| n=ident v=option(ident) LBRACE d=param_decls RBRACE r=list(rule)
+| n=ident v=option(ident)
+  LBRACE d=param_decls RBRACE COLONEQ
+  r=separated_nonempty_list(SEMICOLON, rule)
   { make_nt_defn n v d r $startpos $endpos }
 
 use:
