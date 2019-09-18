@@ -11,7 +11,7 @@ format PDFPrimitives {
 
   CommentObj c { val : string } :=
     '%' s=(.*) '\n'
-    { c.val := s } .
+    { c.val := s }.
 
   BooleanObj b { val : bool } :=
     'true'  { b.val := true }
@@ -19,7 +19,7 @@ format PDFPrimitives {
 
   NullObj {} :=
     'null'
-    {} .
+    {}.
 
   // We need a void / unit type in the expression language.  Should
   // one or both sets of {} here be optional?  For an example of how
@@ -29,7 +29,7 @@ format PDFPrimitives {
     'stream'      EOL
     b=([:byte:]*) EOL
     'endstream'
-    { rs.bytes := b } .
+    { rs.bytes := b }.
 
   // We could use syntax like [:hex:], [:alpha:], [:alphanumeric:], [:char:] etc
   // for standard character classes.
@@ -48,37 +48,37 @@ format PDFPrimitives {
         n=LitStringObj
         suffix=([:char:] \ '(')*
       ')'
-       { ls.val = ')') + prefix + n.val + suffix + ') } ;
+       { ls.val := ')' + prefix + n.val + suffix + ')' } ;
 
-    | '('
+      '('
         prefix=([:char:] \ '(')*
         p=LitStringObj
         midfix=([:char:] \ '(')*
         q=LitStringObj
         suffix=([:char:] \ '(')*
       ')'
-      { ls.val = '(' + prefix + p.val + midfix + q.val + ')' } ;
+      { ls.val := '(' + prefix + p.val + midfix + q.val + ')' } ;
 
-    | $epsilon$                  // Parsley keyword
+      $epsilon                   // Parsley keyword
 
     .
 
   // The PDF StringObj is one of the above two string objects.
   StringObj s { val : [u8] } :=
-    h=HexStringObj { s.val = h.val } ;
-  | l=LitStringObj { s.val = l.val } .
+    h=HexStringObj { s.val := h.val } ;
+    l=LitStringObj { s.val := l.val } .
 
   // How can we parameterize whitespace for the following in a single non-terminal?
   // - empty or non-empty
   // - required EOL or optional
   WhitespaceEOL w {} :=
     (' ' | '\t' | '\r' | '\n' | '\0' )*
-    { } .
+    { }.
 
   // $int_of_string() is a function in the Parsley standard library.
-  IntegerObj i { val : i64 }
-         n=[:digit:]+ { i.val := $int_of_string(n));  } ;
-  | '-'  n=[:digit:]+ { i.val := -$int_of_string(n)); } .
+  IntegerObj i { val : i64 } :=
+         n=([:digit:])+ { i.val := $int_of_string(n)  } ;
+    '-'  n=([:digit:])+ { i.val := -$int_of_string(n) } .
 
   // TODO: we might need to have a user-defined type for PDF reals,
   // since they are not defined in terms of IEEE 754, although they
@@ -86,13 +86,11 @@ format PDFPrimitives {
 
   RealObj r { val : double } :=
 
-         n=[:digit:]+ { val := $double_of_string(n);  } ;
-  | '-'  n=[:digit:]+ { val := -$double_of_string(n); } ;
+         n=([:digit:])+ { val := $double_of_string(n)  } ;
+    '-'  n=([:digit:])+ { val := -$double_of_string(n) } ;
 
-  |      n=[:digit:]+ '.' f=[:digit:]+ { val = $double_of_string(n + '.' + f); } ;
-  | '-'  n=[:digit:]+ '.' f=[:digit:]+ { val = -$double_of_string(n + '.' + f); } ;
-
-  .
+         n=([:digit:])+ '.' f=([:digit:])+ { val := $double_of_string(n + '.' + f) } ;
+    '-'  n=([:digit:])+ '.' f=([:digit:])+ { val := -$double_of_string(n + '.' + f) }
 
   // Feedback from Shankar:
   // . case-insensitive operator (to support case-insensitive matching)

@@ -23,7 +23,7 @@ let parse_file fname =
     | Failure f ->
           (let bt = Printexc.get_backtrace () in
            Location.print_curr_pos stderr lexbuf;
-           Printf.fprintf stderr " failure at or just before this location\n";
+           Printf.fprintf stderr " invalid token at or just before this location\n";
            Printf.fprintf stderr " %s\n" bt;
            exit 1)
     | Lexer.Error (e, l) ->

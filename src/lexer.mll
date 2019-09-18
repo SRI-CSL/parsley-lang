@@ -96,6 +96,7 @@ rule token = parse
 | "="  { EQ }
 | "~~" { MATCH }
 | "?"  { QUESTION }
+| "\\" { BACKSLASH }
 
 | "$"? alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
@@ -104,7 +105,6 @@ rule token = parse
     { let s = Lexing.lexeme lexbuf in
       INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
 
-(* TODO: needs a better definition *)
 | re_char_class
     { let s = Lexing.lexeme lexbuf in
       RE_CHAR_CLASS (Location.mk_loc_val s (Location.curr lexbuf)) }

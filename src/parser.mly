@@ -10,7 +10,7 @@ open Parseerror
 %token BAR COMMA COLON COLONEQ SEMICOLON QUOTE DOT QUESTION
 %token STAR PLUS MINUS DIV
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
-%token MATCH COLONCOLON
+%token MATCH COLONCOLON BACKSLASH
 
 %token <string Location.loc> LITERAL
 %token <string Location.loc> ID
@@ -56,6 +56,10 @@ let make_stmt s b e =
 let make_action sl b e =
   { action_stmts = sl;
     action_loc = make_loc b e }
+
+let make_char_class cc b e =
+  { char_class = cc;
+    char_class_loc = make_loc b e }
 
 let make_rule_elem re b e =
   { rule_elem = re;
@@ -161,13 +165,21 @@ action:
 | sl=separated_list(SEMICOLON, stmt)
   { make_action sl $startpos $endpos }
 
-cc_regex:
+char_class:
 | c=RE_CHAR_CLASS
-  { make_rule_elem (RE_char_class (CC_named c)) $startpos $endpos }
+  { make_char_class (CC_named c) $startpos $endpos }
 | l=LITERAL
-  { make_rule_elem (RE_literal l) $startpos $endpos }
+  { make_char_class (CC_literal l) $startpos $endpos }
 | DOT
-  { make_rule_elem (RE_char_class CC_wildcard) $startpos $endpos }
+  { make_char_class CC_wildcard $startpos $endpos }
+| l=char_class BAR r=LITERAL
+  { make_char_class (CC_add (l, r)) $startpos $endpos }
+| l=char_class BACKSLASH r=LITERAL
+  { make_char_class (CC_sub (l, r)) $startpos $endpos }
+
+cc_regex:
+| c=char_class
+  { make_rule_elem (RE_char_class c) $startpos $endpos }
 | c=cc_regex STAR
   { make_rule_elem (RE_star c) $startpos $endpos }
 | c=cc_regex PLUS
@@ -179,7 +191,8 @@ cc_regex:
 
 rule_elem:
 | c=RE_CHAR_CLASS
-  { make_rule_elem (RE_char_class (CC_named c)) $startpos $endpos }
+  { let cc = make_char_class (CC_named c) $startpos $endpos in
+    make_rule_elem (RE_char_class cc) $startpos $endpos }
 | l=LITERAL
   { make_rule_elem (RE_literal l) $startpos $endpos }
 | v=ident EQ nt=ident

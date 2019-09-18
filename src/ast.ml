@@ -53,9 +53,16 @@ type rule_action =
 type rule_constraint =
     expr
 
-type char_class =
+type char_class_desc =
   | CC_named of ident
   | CC_wildcard
+  | CC_literal of literal
+  | CC_add of char_class * literal
+  | CC_sub of char_class * literal
+
+ and char_class =
+   { char_class: char_class_desc;
+     char_class_loc: Location.t }
 
 type rule_elem_desc =
   | RE_literal of literal
