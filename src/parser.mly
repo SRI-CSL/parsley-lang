@@ -10,7 +10,7 @@ open Parseerror
 %token BAR COMMA COLON COLONEQ SEMICOLON QUOTE DOT QUESTION
 %token STAR PLUS MINUS DIV
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
-%token MATCH
+%token MATCH COLONCOLON BACKSLASH
 
 %token <string Location.loc> LITERAL
 %token <string Location.loc> ID
@@ -20,11 +20,14 @@ open Parseerror
 %start <Ast.format> format
 
 (* operators are increasing precedence order. *)
-%left LT GT LTEQ GTEQ
-%left BAR
-%left STAR DIV QUESTION
-%left PLUS MINUS
-%left LPAREN LBRACK
+
+%left  LT GT LTEQ GTEQ
+%left  BAR
+%right COLONCOLON
+%left  STAR DIV QUESTION
+%left  PLUS MINUS
+%left  LPAREN LBRACK
+%nonassoc UMINUS
 
 %{
 let parse_error e loc =
@@ -53,6 +56,10 @@ let make_stmt s b e =
 let make_action sl b e =
   { action_stmts = sl;
     action_loc = make_loc b e }
+
+let make_char_class cc b e =
+  { char_class = cc;
+    char_class_loc = make_loc b e }
 
 let make_rule_elem re b e =
   { rule_elem = re;
@@ -120,6 +127,8 @@ expr:
   { make_expr (E_path p) $startpos $endpos }
 | i=INT_LITERAL
   { make_expr (E_int (make_int_literal i)) $startpos $endpos }
+| l=LITERAL
+  { make_expr (E_literal l) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_tuple l) $startpos $endpos }
 | e=expr LPAREN l=separated_list(COMMA, expr) RPAREN
@@ -127,6 +136,8 @@ expr:
 | e=expr LBRACK i=expr RBRACK
   { make_expr (E_index(e, i)) $startpos $endpos }
 
+| MINUS e=expr %prec UMINUS
+  { make_expr (E_unop (Uminus, e)) $startpos $endpos }
 | l=expr PLUS r=expr
   { make_expr (E_binop (Plus, l, r)) $startpos $endpos }
 | l=expr MINUS r=expr
@@ -143,6 +154,8 @@ expr:
   { make_expr (E_binop (Lteq, l, r)) $startpos $endpos }
 | l=expr GTEQ r=expr
   { make_expr (E_binop (Gteq, l, r)) $startpos $endpos }
+| l=expr COLONCOLON r=expr
+  { make_expr (E_binop (Cons, l, r)) $startpos $endpos }
 
 stmt:
 | l=expr COLONEQ r=expr
@@ -152,13 +165,40 @@ action:
 | sl=separated_list(SEMICOLON, stmt)
   { make_action sl $startpos $endpos }
 
+char_class:
+| c=RE_CHAR_CLASS
+  { make_char_class (CC_named c) $startpos $endpos }
+| l=LITERAL
+  { make_char_class (CC_literal l) $startpos $endpos }
+| DOT
+  { make_char_class CC_wildcard $startpos $endpos }
+| l=char_class BAR r=LITERAL
+  { make_char_class (CC_add (l, r)) $startpos $endpos }
+| l=char_class BACKSLASH r=LITERAL
+  { make_char_class (CC_sub (l, r)) $startpos $endpos }
+
+cc_regex:
+| c=char_class
+  { make_rule_elem (RE_char_class c) $startpos $endpos }
+| c=cc_regex STAR
+  { make_rule_elem (RE_star c) $startpos $endpos }
+| c=cc_regex PLUS
+  { make_rule_elem (RE_plus c) $startpos $endpos }
+| c=cc_regex QUESTION
+  { make_rule_elem (RE_opt c) $startpos $endpos }
+| LPAREN l=list(cc_regex) RPAREN
+  { make_rule_elem (RE_seq l) $startpos $endpos }
+
 rule_elem:
+| c=RE_CHAR_CLASS
+  { let cc = make_char_class (CC_named c) $startpos $endpos in
+    make_rule_elem (RE_char_class cc) $startpos $endpos }
 | l=LITERAL
   { make_rule_elem (RE_literal l) $startpos $endpos }
-| c=RE_CHAR_CLASS
-  { make_rule_elem (RE_char_class c) $startpos $endpos }
 | v=ident EQ nt=ident
   { make_rule_elem (RE_non_term (nt, Some v)) $startpos $endpos }
+| v=ident EQ LPAREN re=cc_regex RPAREN
+  { make_rule_elem (RE_named_regex (re, v)) $startpos $endpos }
 | nt=ident
   { make_rule_elem (RE_non_term (nt, None)) $startpos $endpos }
 | LBRACK e=expr RBRACK
@@ -177,13 +217,15 @@ rule_elem:
   { make_rule_elem (RE_opt e) $startpos $endpos }
 
 rule:
-| LPARBAR d=param_decls RPARBAR l=list(rule_elem) SEMICOLON
+| LPARBAR d=param_decls RPARBAR l=list(rule_elem)
   { make_rule d l $startpos $endpos }
-| l=list(rule_elem) SEMICOLON
+| l=list(rule_elem)
   { make_rule [] l $startpos $endpos }
 
 nt_defn:
-| n=ident v=option(ident) LBRACE d=param_decls RBRACE r=list(rule)
+| n=ident v=option(ident)
+  LBRACE d=param_decls RBRACE COLONEQ
+  r=separated_nonempty_list(SEMICOLON, rule)
   { make_nt_defn n v d r $startpos $endpos }
 
 use:

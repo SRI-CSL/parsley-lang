@@ -5,7 +5,11 @@
   type error =
     | Unterminated_string
 
-  exception Error of error * position
+  exception Error of error * Location.t
+
+  let error_string = function
+    | Unterminated_string ->
+          "unterminated string"
 
   let token_buf = ref (Buffer.create 256)
 
@@ -45,7 +49,7 @@ let alnum = ['A'-'Z' 'a'-'z' '0'-'9']
 let ident = ['A'-'Z' 'a'-'z' '0'-'9' '_' '@']
 let int_literal = '-'? ['0'-'9']+
 
-let re_char_class = "[:" alnum* ":]"
+let re_char_class = "[:" alnum+ ":]"
 
 rule token = parse
 | newline
@@ -76,6 +80,7 @@ rule token = parse
 | ","  { COMMA }
 | ";"  { SEMICOLON}
 | ":=" { COLONEQ }
+| "::" { COLONCOLON }
 | ":"  { COLON }
 | "+"  { PLUS }
 | "-"  { MINUS }
@@ -91,15 +96,15 @@ rule token = parse
 | "="  { EQ }
 | "~~" { MATCH }
 | "?"  { QUESTION }
+| "\\" { BACKSLASH }
 
-| "$"? alpha ident+
+| "$"? alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
 
 | int_literal
     { let s = Lexing.lexeme lexbuf in
       INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
 
-(* TODO: needs a better definition *)
 | re_char_class
     { let s = Lexing.lexeme lexbuf in
       RE_CHAR_CLASS (Location.mk_loc_val s (Location.curr lexbuf)) }
@@ -113,10 +118,12 @@ and eol_comment = parse
 
 and quote = parse
 | "'"
-    { store_token lexbuf }
+    { () }
 
 | newline
-    { new_line lexbuf;
+    { store_token lexbuf;
+      new_line lexbuf;
       quote lexbuf }
 | _
-    { quote lexbuf }
+    { store_token lexbuf;
+      quote lexbuf }

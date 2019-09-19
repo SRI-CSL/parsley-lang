@@ -17,7 +17,10 @@ type param_decl =
 type binop =
   | Lt | Gt | Lteq | Gteq
   | Plus | Minus | Mult | Div
-  | Match
+  | Match | Cons
+
+type unop =
+  | Uminus
 
 type path = ident list
 
@@ -26,8 +29,10 @@ type expr_desc =
   | E_int of int
   | E_tuple of expr list
   | E_apply of expr * expr list
+  | E_unop of unop * expr
   | E_binop of binop * expr * expr
   | E_index of expr * expr
+  | E_literal of literal
 
  and expr =
    { expr: expr_desc;
@@ -48,12 +53,21 @@ type rule_action =
 type rule_constraint =
     expr
 
-type regex_char_class =
-    ident (*for now*)
+type char_class_desc =
+  | CC_named of ident
+  | CC_wildcard
+  | CC_literal of literal
+  | CC_add of char_class * literal
+  | CC_sub of char_class * literal
+
+ and char_class =
+   { char_class: char_class_desc;
+     char_class_loc: Location.t }
 
 type rule_elem_desc =
   | RE_literal of literal
   | RE_non_term of ident * ident option
+  | RE_named_regex of rule_elem * ident (* regex of char-classes *)
   | RE_constraint of rule_constraint
   | RE_action of rule_action
   | RE_choice of rule_elem * rule_elem
@@ -61,8 +75,8 @@ type rule_elem_desc =
   | RE_star of rule_elem
   | RE_plus of rule_elem
   | RE_opt of rule_elem
-  | RE_char_class of regex_char_class
   | RE_repeat of rule_elem * int
+  | RE_char_class of char_class
 
  and rule_elem =
    { rule_elem: rule_elem_desc;
