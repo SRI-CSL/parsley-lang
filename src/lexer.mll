@@ -19,6 +19,8 @@
               [ "format", FORMAT;
                 "use",    USE;
                 "type",   TYPE;
+                "as",     AS;
+                "of",     OF;
               ];
     tbl
 
@@ -78,11 +80,13 @@ rule token = parse
 | "]"  { RBRACK }
 | "."  { DOT }
 | ","  { COMMA }
-| ";"  { SEMICOLON}
 | ":=" { COLONEQ }
 | "::" { COLONCOLON }
 | ":"  { COLON }
+| ";;" { SEMISEMI }
+| ";"  { SEMICOLON}
 | "+"  { PLUS }
+| "->" { ARROW }
 | "-"  { MINUS }
 | "*"  { STAR }
 | "/"  { DIV }
@@ -91,6 +95,7 @@ rule token = parse
 | "<=" { LTEQ }
 | ">=" { GTEQ }
 | "!=" { NEQ }
+| "!"  { EXCLAIM }
 | "<"  { LT }
 | ">"  { GT }
 | "="  { EQ }

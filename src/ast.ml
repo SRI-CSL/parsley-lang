@@ -1,28 +1,36 @@
 type ident   = string Location.loc
 type literal = string Location.loc
+type path = ident list
 
 type type_expr_desc =
-  | TE_id of ident
+  | TE_path of path
   | TE_tuple  of type_expr list
   | TE_list of type_expr
-  | TE_constr of ident * (type_expr list)
+  | TE_constr of path * (type_expr list)
+  | TE_fun of path * (type_expr list)
 
  and type_expr =
    { type_expr: type_expr_desc;
      type_expr_loc: Location.t }
 
+type type_def_desc =
+  | TD_expr of type_expr
+  | TD_variant of (ident * type_expr list) list
+
+ and type_def =
+   { type_def: type_def_desc;
+     type_def_loc: Location.t }
+
 type param_decl =
     (ident * type_expr) Location.loc
 
 type binop =
-  | Lt | Gt | Lteq | Gteq
-  | Plus | Minus | Mult | Div
+  | Lt | Gt | Lteq | Gteq | Eq
+  | Plus | Minus | Mult | Div | Land | Lor
   | Match | Cons
 
 type unop =
-  | Uminus
-
-type path = ident list
+  | Uminus | Not
 
 type expr_desc =
   | E_path of path
@@ -33,6 +41,8 @@ type expr_desc =
   | E_binop of binop * expr * expr
   | E_index of expr * expr
   | E_literal of literal
+  | E_cast of expr * path
+  | E_field of expr * path
 
  and expr =
    { expr: expr_desc;
@@ -75,7 +85,7 @@ type rule_elem_desc =
   | RE_star of rule_elem
   | RE_plus of rule_elem
   | RE_opt of rule_elem
-  | RE_repeat of rule_elem * int
+  | RE_repeat of char_class * int
   | RE_char_class of char_class
 
  and rule_elem =
@@ -102,7 +112,7 @@ type use =
 type decl_desc =
   | Decl_non_term of non_term_defn
   | Decl_use of use
-  | Decl_type of ident * type_expr
+  | Decl_type of ident * type_def
 
 type decl =
     { decl: decl_desc;

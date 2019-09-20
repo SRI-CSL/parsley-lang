@@ -1,0 +1,215 @@
+// Draft sketch of PDF compound object syntax.
+// ===========================================
+
+// <file PDFCompoundObj.ply>
+
+format PDFObj(defs, refs)
+    defs : map<(int64, int64), (IndirectObj, $location)>,
+    refs : map<(int64, int64), $location>
+{
+  // This assumes a library of primitive objects.  These are defined
+  // in a Parsley file called PDFPrimitives.ply
+  use PDFPrimitives:{NameObj, IntegerObj, RawStreamObj} ;;
+
+  // The defs and refs are mutable values that will be passed into the
+  // parser context constructed for the rules in this grammar.  They
+  // have the types specified below.  They are specified as mutable,
+  // so that the semantic actions in the rules in this grammar can
+  // modify them.  The outer grammar will typically be the PDFDocument
+  // grammar, which will own these values.  When the PDFDocument
+  // grammar instantiates the PDFObj grammar, Parsley will ensure that
+  // the types specified for 'defs' and 'refs' match the local
+  // definition below.  The local definitions below allow for separate
+  // compilation.
+
+  // The expression sublanguage for semantic actions has access to a
+  // Parsley standard library, which contains maps, lists, vectors,
+  // sets, etc.  These will be used below.
+
+  // 'defs' contains a map from a (object-number, generation-number)
+  // pair to an indirect PDF object, and the location where it was
+  // defined. The location is specified as a Parsley predefined type.
+
+  // Similarly, 'refs' stores indirect object references, and maps them
+  // to the first location they appeared in the file.  Locations are
+  // typically stored for diagnostics.
+
+  // There is a per-grammar user-defined context structure that is
+  // accessible in the parsing contexts associated with the rules
+  // defined in this grammar, called 'ctxt'.  Global fields of
+  // specified types can be added to this structure during
+  // specification, and accessed via this structure during execution.
+  // An earlier version of the sketch used this feature, but now
+  // doesn't.  But this might be useful in other specs, so leaving
+  // this note here for feedback.
+
+  // We now define a non-terminal for the PDF dictionary object,
+  // DictObj.  Non-terminals are typically defined to have an
+  // attribute named 'val' that contains the value in the
+  // non-terminal.  The value of DictObj maps name objects
+  // (represented by the NameObj primitive) to the compound object
+  // PDFObj, which will be defined below.
+
+  // The syntax below illustrates how the type of the attribute is
+  // specified.  We give the non-terminal a short variable name
+  // so that we can refer to it in constraint checks and semantic
+  // actions.  'typeof' is a Parsley convenience construct that
+  // substitutes the type of the specified attribute.
+
+  // ':=' separates the definition of the non-terminal DictObj from
+  // its right-hand-side production rule.
+
+    DictObj d { val : map<typeof(NameObj.val), PDFObj> } :=
+
+  // Below is the production rule of DictObj.
+
+  //      '<<' ( n=NameObj  o=PDFObj { d.val[n.val] := o } )* '>>' ;;
+
+  // Literals are specified within quotes ('').  Variables are used to
+  // name non-terminals appearing on the right-hand-side, to provide
+  // convenient access to their attributes.  '(' and ')' is a grouping
+  // construct, here used to provide the domain for the Kleene star
+  // operator.  A semantic action appears within '{' and '}', and
+  // specifies computation that should occur after the preceding
+  // portion of the production rule has been matched. Here, we update
+  // the value of the DictObj with a map from the string value of the
+  // NameObj to the matched PDFObj.
+  //
+  // [SEMANTICS: Specify how exactly the semantic actions interleave
+  // with parsing engine computations.]
+
+  // To support checks for distinct fields in the dictionary, we can
+  // use the following rule instead.
+
+        (| s : set<typeof(NameObj.val)> |)
+
+        '<<' ( n=NameObj [ !s.contains(n.val) ] o=PDFObj { d.val[n.val] := o; s := s.add(n.val) } )* '>>' ;;
+
+  // Here, a named boolean-valued constraint is specified within '['
+  // and ']'.  If the constraint evaluates to false, an error
+  // containing the specified string is thrown, with the parsing
+  // location.  The set 's' is a temporary, and is discarded after the
+  // production rule completes, either successfully or with a failure.
+  //
+  // [SEMANTICS: specify when exactly the constraint is computed, and
+  // when the temporary is destroyed.]
+
+  // The PDF array object is defined as below.
+
+    ArrayObj a { val : [PDFObj] } :=
+
+        '[' ( o=PDFObj { a := a.val.append(o) } )* ']' ;;
+
+  // The semantic action simply appends the matched object to the
+  // vector value of a.val.
+
+  // The definition of an indirect object is below, and it has three attributes.
+
+    IndirectObj i { id : int, gen : int, val : PDFObj } :=
+
+        // the constraints check that the matched IntegerObj objects
+        // are appropriate.
+        n=IntegerObj [ n.val >= 0 ]
+        g=IntegerObj [ g.val >= 0 && !defs.has_key((n.val, g.val))]
+
+        'obj' o=PDFObj 'endobj'
+
+        // the semantic action computes the values of the attributes
+        // of IndirectObj.  $location() is a predefined function that
+        // returns the current parsing cursor location, at the end of
+        // the last matching right-hand-side entity in the rule.
+        { i.id  := n.val;
+          i.gen := g.val;
+          i.val := o;
+          defs[(n.val, g.val)] := (i, $location())
+        } ;;
+
+  // References to indirect objects are defined below, similarly.
+
+    ReferenceObj r { id : int, gen : int } :=
+
+        // the constraints check that the matched IntegerObj objects
+        // are appropriate.
+        n=IntegerObj [ n.val > 0 ]
+        g=IntegerObj [ g.val > 0 ]
+
+        'R'
+
+        { r.id  := n.val;
+          r.gen := g.val;
+          refs[(n.val, g.val)] := $location()
+        } ;;
+
+
+    // Stream objects are defined next.  Note that they share a prefix with IndirectObj.
+    StreamObj s { dict : DictObj, stream : RawStreamObj } :=
+
+        // the constraints check that the matched IntegerObj objects
+        // are appropriate.
+        n=IntegerObj [ n.val >= 0 ]
+        g=IntegerObj [ g.val >= 0 && !defs.has_key((n.val, g.val))]
+
+        'obj' d=DictObj s=RawStreamObj 'endobj'
+
+        // The constraints are specified after both the DictObj and
+        // StreamObj are matched, so that any StreamObj parsing errors
+        // can terminate the rule instead of the constraint.
+        [ d.val.contains('Length') && d.val['Length'] ~~ IntegerObj ]
+        [ s.val.length() = (d.val['Length'] as IntegerObj)->val]
+
+        { dict   := d;
+          stream := s
+        } ;;
+
+        // The '~~' construct ensures that the PDFObj in the "Length"
+        // entry of d.val is of the IntegerObj variant.  The 'as'
+        // construct extracts the value of that variant.
+
+  // We now define the general PDF object as a variant.
+
+    PDFObj {} := DictObj ; ArrayObj ; IndirectObj ; ReferenceObj ; StreamObj ; NameObj ; IntegerObj ; RealObj ; StringObj ; NullObj ; Comment ; BooleanObj
+
+  // This will be mapped into the Rust language as an enum variant:
+  // pub enum PDFObj_T {
+  //   DictObj (DictObj_T),
+  //   ArrayObj (ArrayObj_T),
+  //   IntegerObj (Integer_T),
+  //   IndirectObj (Indirect_T),
+  //   ReferenceObj (Reference_T),
+  //
+  //   ..
+  // }
+  //
+  // This eases the Rust implementation of the '~~' and the 'as' constructs above.
+
+  // Status:
+  // - module sublanguage is very preliminary, will be fleshed out
+  //   as needed
+  // - language needs to be extended to define simpler syntax such as
+  //   the PDF primitive objects as well (e.g. using regular
+  //   expressions, etc.)
+  // - static semantics (type checks, well-definedness of attribute
+  //   evaluation, etc) are still to be defined.
+
+  // Feedback from Shankar:
+  // - will need a way of referring to variables in error strings, and string formatting
+  // - grammar parameterization will need to be fleshed out
+  // - need to ensure that attributes have defined values in all cases (static semantics)
+  // - leverage PEG/Packrat greedy matching to ensure unambiguous parsing
+  // - need to flesh out Parsley language predefines like $location() in one place
+  // - use a more declarative syntax instead of an imperative syntax (e.g. instead of list.append(v))
+
+  // Feedback from Peter Wyatt:
+  //
+  // . mapping objects to locations is not that simple, since objects
+  //   can occur in object content streams, which in turn could be
+  //   compressed.  Might need some hierarchical or nested notion of
+  //   "location".
+  //
+  // . need to be clearer about whitespace and token boundaries.
+  //   Should need very little explicit non-empty whitespace
+  //   requirements.  Shankar: should have a way of abstracting
+  //   whitespace via a language directive.
+  //
+  // . CommentObjs can appear literally anywhere, not quite captured here
+}

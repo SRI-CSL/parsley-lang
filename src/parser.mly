@@ -4,13 +4,13 @@ open Ast
 open Parseerror
 %}
 
-%token FORMAT TYPE USE
+%token FORMAT TYPE USE AS OF
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
-%token BAR COMMA COLON COLONEQ SEMICOLON QUOTE DOT QUESTION
+%token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI QUOTE DOT QUESTION ARROW
 %token STAR PLUS MINUS DIV
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
-%token MATCH COLONCOLON BACKSLASH
+%token MATCH COLONCOLON BACKSLASH EXCLAIM
 
 %token <string Location.loc> LITERAL
 %token <string Location.loc> ID
@@ -20,14 +20,16 @@ open Parseerror
 %start <Ast.format> format
 
 (* operators are increasing precedence order. *)
-
-%left  LT GT LTEQ GTEQ
+%right EXCLAIM
+%left  LAND LOR
+%left  LT GT LTEQ GTEQ EQ MATCH
 %left  BAR
 %right COLONCOLON
 %left  STAR DIV QUESTION
 %left  PLUS MINUS
 %left  LPAREN LBRACK
-%nonassoc UMINUS
+%left  ARROW
+%nonassoc UMINUS AS
 
 %{
 let parse_error e loc =
@@ -41,6 +43,10 @@ let make_int_literal s =
 let make_type_expr ty b e =
   { type_expr = ty;
     type_expr_loc = make_loc b e }
+
+let make_type_def td b e =
+  { type_def = td;
+    type_def_loc = make_loc b e }
 
 let make_param_decl id ty b e =
   mk_loc_val (id, ty) (make_loc b e)
@@ -104,15 +110,31 @@ ident:
 | i=ID
   { i }
 
+path:
+| p=separated_nonempty_list(DOT, ident)
+  { p }
+
 type_expr:
-| i=ident
-  { make_type_expr (TE_id i) $startpos $endpos }
+| p=path
+  { make_type_expr (TE_path p) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, type_expr) RPAREN
   { make_type_expr (TE_tuple l) $startpos $endpos }
 | LBRACK t=type_expr RBRACK
   { make_type_expr (TE_list t) $startpos $endpos }
-| i=ident LT l=separated_list(COMMA, type_expr) GT
-  { make_type_expr (TE_constr (i, l)) $startpos $endpos }
+| p=path LT l=separated_list(COMMA, type_expr) GT
+  { make_type_expr (TE_constr (p, l)) $startpos $endpos }
+| p=path LPAREN l=separated_list(COMMA, type_expr) RPAREN
+  { make_type_expr (TE_fun (p, l)) $startpos $endpos }
+
+type_variant:
+| i=ID OF l=separated_list(STAR, type_expr)
+  { (i, l) }
+
+type_def:
+| e=type_expr
+  { make_type_def (TD_expr e) $startpos $endpos }
+| l=separated_nonempty_list(BAR, type_variant)
+  { make_type_def (TD_variant l) $startpos $endpos }
 
 param_decl:
 | i=ident COLON t=type_expr
@@ -123,7 +145,7 @@ param_decls:
   { l }
 
 expr:
-| p=separated_nonempty_list(DOT, ident)
+| p=path
   { make_expr (E_path p) $startpos $endpos }
 | i=INT_LITERAL
   { make_expr (E_int (make_int_literal i)) $startpos $endpos }
@@ -138,6 +160,14 @@ expr:
 
 | MINUS e=expr %prec UMINUS
   { make_expr (E_unop (Uminus, e)) $startpos $endpos }
+| EXCLAIM e=expr
+  { make_expr (E_unop (Not, e)) $startpos $endpos }
+| l=expr LAND r=expr
+  { make_expr (E_binop (Land, l, r)) $startpos $endpos }
+| l=expr LOR r=expr
+  { make_expr (E_binop (Lor, l, r)) $startpos $endpos }
+| l=expr MATCH r=expr
+  { make_expr (E_binop (Match, l, r)) $startpos $endpos }
 | l=expr PLUS r=expr
   { make_expr (E_binop (Plus, l, r)) $startpos $endpos }
 | l=expr MINUS r=expr
@@ -154,8 +184,14 @@ expr:
   { make_expr (E_binop (Lteq, l, r)) $startpos $endpos }
 | l=expr GTEQ r=expr
   { make_expr (E_binop (Gteq, l, r)) $startpos $endpos }
+| l=expr EQ r=expr
+  { make_expr (E_binop (Eq, l, r)) $startpos $endpos }
 | l=expr COLONCOLON r=expr
   { make_expr (E_binop (Cons, l, r)) $startpos $endpos }
+| e=expr AS p=path
+  { make_expr (E_cast (e, p)) $startpos $endpos }
+| e=expr ARROW p=path
+  { make_expr (E_field (e, p)) $startpos $endpos }
 
 stmt:
 | l=expr COLONEQ r=expr
@@ -188,6 +224,8 @@ cc_regex:
   { make_rule_elem (RE_opt c) $startpos $endpos }
 | LPAREN l=list(cc_regex) RPAREN
   { make_rule_elem (RE_seq l) $startpos $endpos }
+| LBRACK c=char_class STAR i=INT_LITERAL RBRACK
+  { make_rule_elem (RE_repeat (c, make_int_literal i)) $startpos $endpos }
 
 rule_elem:
 | c=RE_CHAR_CLASS
@@ -237,14 +275,14 @@ decl:
   { make_decl (Decl_non_term d) $startpos $endpos }
 | u=use
   { make_decl (Decl_use u) $startpos $endpos }
-| TYPE t=ident EQ e=type_expr
+| TYPE t=ident EQ e=type_def
   { make_decl (Decl_type (t, e)) $startpos $endpos }
 
 format:
-| FORMAT i=ident LBRACE d=separated_list(DOT, decl) RBRACE
+| FORMAT i=ident LBRACE d=separated_list(SEMISEMI, decl) RBRACE
   { make_format i [] [] d $startpos $endpos }
 | FORMAT i=ident
     LPAREN ps=separated_list(COMMA, ident) RPAREN
     pds=separated_list(COMMA, param_decl)
-    LBRACE d=separated_list(DOT, decl) RBRACE
+    LBRACE d=separated_list(SEMISEMI, decl) RBRACE
   { make_format i ps pds d $startpos $endpos }

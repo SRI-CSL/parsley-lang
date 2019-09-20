@@ -7,19 +7,19 @@ format PDFPrimitives {
 
   NameObj n { val : string } :=
     '/' s=([:alphanum:]+)
-    { n.val := s }.
+    { n.val := s } ;;
 
   CommentObj c { val : string } :=
     '%' s=(.*) '\n'
-    { c.val := s }.
+    { c.val := s } ;;
 
   BooleanObj b { val : bool } :=
     'true'  { b.val := true }
-  | 'false' { b.val := false } .
+  | 'false' { b.val := false } ;;
 
   NullObj {} :=
     'null'
-    {}.
+    {} ;;
 
   // We need a void / unit type in the expression language.  Should
   // one or both sets of {} here be optional?  For an example of how
@@ -29,7 +29,7 @@ format PDFPrimitives {
     'stream'      EOL
     b=([:byte:]*) EOL
     'endstream'
-    { rs.bytes := b }.
+    { rs.bytes := b } ;;
 
   // We could use syntax like [:hex:], [:alpha:], [:alphanumeric:], [:char:] etc
   // for standard character classes.
@@ -37,7 +37,7 @@ format PDFPrimitives {
     '<'
     ( h1=([:hex:]) h2=([:hex:]) { hs.val := ($int_of_hex(h1)*16 + $int_of_hex(h2)) :: hs.val } )*
     ( h=([:hex:]) { hs.val := $int_of_hex(h1) * 16 :: hs.val} )?
-    '>' { hs.val := List.rev(hs.val) }.
+    '>' { hs.val := List.rev(hs.val) } ;;
 
   // The below syntax essentially implements a simple CFG for strings with
   // balanced parentheses, using recursion.
@@ -61,24 +61,24 @@ format PDFPrimitives {
 
       $epsilon                   // Parsley keyword
 
-    .
+    ;;
 
   // The PDF StringObj is one of the above two string objects.
   StringObj s { val : [u8] } :=
     h=HexStringObj { s.val := h.val } ;
-    l=LitStringObj { s.val := l.val } .
+    l=LitStringObj { s.val := l.val } ;;
 
   // How can we parameterize whitespace for the following in a single non-terminal?
   // - empty or non-empty
   // - required EOL or optional
   WhitespaceEOL w {} :=
     (' ' | '\t' | '\r' | '\n' | '\0' )*
-    { }.
+    { } ;;
 
   // $int_of_string() is a function in the Parsley standard library.
   IntegerObj i { val : i64 } :=
          n=([:digit:])+ { i.val := $int_of_string(n)  } ;
-    '-'  n=([:digit:])+ { i.val := -$int_of_string(n) } .
+    '-'  n=([:digit:])+ { i.val := -$int_of_string(n) } ;;
 
   // TODO: we might need to have a user-defined type for PDF reals,
   // since they are not defined in terms of IEEE 754, although they
