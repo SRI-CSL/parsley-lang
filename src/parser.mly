@@ -93,8 +93,25 @@ let make_decl d b e =
     decl_loc = make_loc b e }
 
 let check_format_params params param_decls =
-  (* TODO *)
-  ()
+  let module S =
+    Set.Make(struct type t = string Location.loc
+                    let compare x y =
+                      compare (value x) (value y)
+             end) in
+  let dset =
+    S.of_list (List.map (fun pd -> fst (value pd)) param_decls) in
+  let pset = S.of_list params in
+  begin
+    (match S.choose_opt (S.diff dset pset) with
+       | Some i -> parse_error (Undeclared_format_param (value i)) (loc i)
+       | None -> ()
+    );
+    (match S.choose_opt (S.diff pset dset) with
+       | Some i -> parse_error (Untyped_format_param (value i)) (loc i)
+       | None -> ()
+    )
+  end
+
 let make_format name params param_decls decls b e =
   check_format_params params param_decls;
   { format_name = name;
