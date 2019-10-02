@@ -1,5 +1,4 @@
 %{
-open Location
 open Ast
 open Parseerror
 %}
@@ -42,72 +41,72 @@ let make_int_literal s =
 
 let make_type_expr ty b e =
   { type_expr = ty;
-    type_expr_loc = make_loc b e }
+    type_expr_loc = Location.make_loc b e }
 
 let make_type_def td b e =
   { type_def = td;
-    type_def_loc = make_loc b e }
+    type_def_loc = Location.make_loc b e }
 
 let make_param_decl id ty b e =
-  mk_loc_val (id, ty) (make_loc b e)
+  Location.mk_loc_val (id, ty) (Location.make_loc b e)
 
 let make_expr exp b e =
   { expr = exp;
-    expr_loc = make_loc b e }
+    expr_loc = Location.make_loc b e }
 
 let make_stmt s b e =
   { stmt = s;
-    stmt_loc = make_loc b e }
+    stmt_loc = Location.make_loc b e }
 
 let make_action sl b e =
   { action_stmts = sl;
-    action_loc = make_loc b e }
+    action_loc = Location.make_loc b e }
 
 let make_char_class cc b e =
   { char_class = cc;
-    char_class_loc = make_loc b e }
+    char_class_loc = Location.make_loc b e }
 
 let make_rule_elem re b e =
   { rule_elem = re;
-    rule_elem_loc = make_loc b e }
+    rule_elem_loc = Location.make_loc b e }
 
 let make_rule t res b e =
   { rule_temps = t;
     rule_rhs = res;
-    rule_loc = make_loc b e }
+    rule_loc = Location.make_loc b e }
 
 let make_nt_defn n v d r b e =
   { non_term_name = n;
     non_term_varname = v;
     non_term_attrs = d;
     non_term_rules = r;
-    non_term_loc = make_loc b e }
+    non_term_loc = Location.make_loc b e }
 
 let make_use m i b e =
   { use_module = m;
     use_idents = i;
-    use_loc = make_loc b e }
+    use_loc = Location.make_loc b e }
 
 let make_decl d b e =
   { decl = d;
-    decl_loc = make_loc b e }
+    decl_loc = Location.make_loc b e }
 
 let check_format_params params param_decls =
   let module S =
     Set.Make(struct type t = string Location.loc
                     let compare x y =
-                      compare (value x) (value y)
+                      compare (Location.value x) (Location.value y)
              end) in
   let dset =
-    S.of_list (List.map (fun pd -> fst (value pd)) param_decls) in
+    S.of_list (List.map (fun pd -> fst (Location.value pd)) param_decls) in
   let pset = S.of_list params in
   begin
     (match S.choose_opt (S.diff dset pset) with
-       | Some i -> parse_error (Undeclared_format_param (value i)) (loc i)
+       | Some i -> parse_error (Undeclared_format_param (Location.value i)) (Location.loc i)
        | None -> ()
     );
     (match S.choose_opt (S.diff pset dset) with
-       | Some i -> parse_error (Untyped_format_param (value i)) (loc i)
+       | Some i -> parse_error (Untyped_format_param (Location.value i)) (Location.loc i)
        | None -> ()
     )
   end
@@ -117,7 +116,7 @@ let make_format name params param_decls decls b e =
   { format_name = name;
     format_param_decls = param_decls;
     format_decls = decls;
-    format_loc = make_loc b e;
+    format_loc = Location.make_loc b e;
   }
 %}
 
