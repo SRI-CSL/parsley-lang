@@ -1,0 +1,46 @@
+format DNSObj(defs, refs)
+    defs : map<(int64, int64), (IndirectObj, CTXT.location)>,
+    refs : map<(int64, int64), CTXT.location>
+{
+len := l=IntObj8 [len.val >= 1 && len.val <= 255]
+{ len.val = l.val } .
+
+label := len ((repeater=IntObj8)*len.val) .
+
+qname := label+ '\x00' .
+qtype := type | qi=IntObj16 [qi.val >= 252 && qi.val <= 255] .
+class := cy=IntObj16 [cy.val >= 1 && cy.val <= 16] .
+qclass := class | qci=IntObj16 [qci.val == 255] .
+type := ty=IntObj16 [ty.val >= 1 && ty.val <= 16].
+ttl := IntObj32 .
+rdata := (len=IntObj16) objs=(IntObj8)* [length(objs)==len] .
+
+domain := subdomain | ' ' .
+
+subdomain := domainlabel+ '.'?
+
+domainlabel := 
+
+header {id: int, qr:int, opcode:int, aa:int, tc:int,
+       rd:int, ra:int, rcode:int,
+       question_count: int, answer_count: int,
+       authority_count: int, additional_count: int
+       }:= id=IntObj16 qr=BitObj opcode=NibbleObj aa=BitObj
+       tc=BitObj rd=BitObj ra=BitObj z=(BitObj)*3 [z.val == 0]
+       rcode=NibbleObj qcount=IntObj16
+       ancount=IntObj16 nscount=IntObj16
+       arcount=IntObj16
+       // Should validate size of the packet using these values
+
+       {id = id.val; qr = qr.val; opcode = opcode.val;
+       aa = aa.val; tc = tc.val; rd = rd.val; ra = ra.val;
+       rcode = rcode.val; question_count = qcount.val;
+       answer_count = ancount.val; authority_count = nscount.val;
+       additional_count = arcount.val}
+       .
+rr := domain type class ttl rdata .
+question := qname qtype qclass .
+
+dns := header question* rr* end .
+
+}
