@@ -2,45 +2,91 @@ format DNSObj(defs, refs)
     defs : map<(int64, int64), (IndirectObj, CTXT.location)>,
     refs : map<(int64, int64), CTXT.location>
 {
-len := l=IntObj8 [len.val >= 1 && len.val <= 255]
-{ len.val = l.val } .
 
-label := len ((repeater=IntObj8)*len.val) .
+/*
 
-qname := label+ '\x00' .
-qtype := type | qi=IntObj16 [qi.val >= 252 && qi.val <= 255] .
-class := cy=IntObj16 [cy.val >= 1 && cy.val <= 16] .
-qclass := class | qci=IntObj16 [qci.val == 255] .
-type := ty=IntObj16 [ty.val >= 1 && ty.val <= 16].
-ttl := IntObj32 .
-rdata := (len=IntObj16) objs=(IntObj8)* [length(objs)==len] .
+* Header
+** Id
+** Flags
+** Num of questions
+** Number of Answer RRs
+** Number of Authority RRs
+** Number of Additional RRs
+* Questions
+* Answers
+* Authority
+* Additional
+* Things we need to add --- 
+	1. Specific Integer types
+	2. BitObj
+	3. NibbleObj
+	4. Support to repeat something n times, like $num_of_repeats()
+*/
 
-domain := subdomain | ' ' .
+domainlabel := [A-Za-z0-9]*
+// In my traces, I see the value \xc0\x0c a lot. "11000000 00001100"
+// First two bits indicate that its a pointer, the rest, translating to
+// Position 12, mean that the actual domain value may be starting in the 12th byte.
+subdomain := (domainlabel '.')* domainlabel
+domain := subdomain | ' ' | pointer=IntegerObj16 . // This can also be a pointer (2 bytes)
 
-subdomain := domainlabel+ '.'?
 
-domainlabel := 
+flags {qr:int, opcode:int, aa: int, tc: int, ra: int, rd:int} := 
+		qr=BitObj 
+		opcode=NibbleObj 
+		aa=BitObj
+       	tc=BitObj 
+		rd=BitObj 
+		ra=BitObj 
+		z=(BitObj{3})  // Repeats exactly 3 times?
+		rcode=NibbleObj
+		[z.val[0] == 0 && z.val[1] == 0 && z.val[2] == 0]
+		{
+		qr = qr.val; opcode = opcode.val;
+       	aa = aa.val; tc = tc.val; rd = rd.val; ra = ra.val;
+		}
+		.
 
 header {id: int, qr:int, opcode:int, aa:int, tc:int,
        rd:int, ra:int, rcode:int,
        question_count: int, answer_count: int,
        authority_count: int, additional_count: int
-       }:= id=IntObj16 qr=BitObj opcode=NibbleObj aa=BitObj
-       tc=BitObj rd=BitObj ra=BitObj z=(BitObj)*3 [z.val == 0]
-       rcode=NibbleObj qcount=IntObj16
-       ancount=IntObj16 nscount=IntObj16
-       arcount=IntObj16
+       }:= 
+		id=IntegerObj16 
+       	flags
+		qcount=IntegerObj16
+       	ancount=IntegerObj16 
+		nscount=IntegerObj16
+       	arcount=IntegerObj16
        // Should validate size of the packet using these values
-
-       {id = id.val; qr = qr.val; opcode = opcode.val;
-       aa = aa.val; tc = tc.val; rd = rd.val; ra = ra.val;
-       rcode = rcode.val; question_count = qcount.val;
+       {id = id.val; qr = flags.qr.val; opcode = flags.opcode.val;
+       	aa = flags.aa.val; tc = flags.tc.val; rd = flags.rd.val; ra = flags.ra.val;
+       rcode = flags.rcode.val; question_count = qcount.val;
        answer_count = ancount.val; authority_count = nscount.val;
        additional_count = arcount.val}
        .
-rr := domain type class ttl rdata .
+label := len=IntegerObj8 repeater=(IntegerObj8{len.val}) // IntegerObj8 needs to repeat those many times
+[len.val >= 1 && len.val <= 255] .
+
+qname := label+ '\x00' . // Query Label needs to end with 00 byte
+qtype := type | qi=IntegerObj16 [qi.val >= 252 && qi.val <= 255] .
+class := cy=IntegerObj16 [cy.val >= 1 && cy.val <= 16] .
+qclass {class:int}:= class {class.val = class.cy.val} | qci=IntegerObj16 [qci.val == 255] {class.val = qci.val} .
+
+type := ty=IntegerObj16 [ty.val >= 1 && ty.val <= 16].
+ttl := IntegerObj32 .
+rdata := len_rdata=IntegerObj16 objs=(IntegerObj8{len_rdata.val}) .
+rr {domain:str, ttl:int,} := 
+		domain type class ttl rdata .
 question := qname qtype qclass .
 
-dns := header question* rr* end .
+dns := header questions=question* rrs=rr* end 
+	// Verify that the number of questions (QDCOUNT) and answers (ACOUNT+NSCOUNT+ARCOUNT) 
+	// match the header values
+	[header.question_count === $num_of_repeats(questions) && 
+	header.answer_count+header.authority_count+header.additional_count == $num_of_repeats(rrs)]
+	.
 
 }
+
+
