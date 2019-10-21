@@ -5,6 +5,9 @@ open Ast
 let print_exception f loc msg =
   Printf.fprintf f "%a: %s\n" Location.print_loc loc msg
 
+let process_ast ast =
+  ()
+
 let parse_file fname =
   let lexbuf = from_channel (open_in fname) in
   let lexbuf = { lexbuf with
@@ -13,7 +16,8 @@ let parse_file fname =
                                 pos_bol   = 0;
                                 pos_cnum  = 0 } } in
   try
-    let _ = Parser.format Lexer.token lexbuf in
+    let ast = Parser.format Lexer.token lexbuf in
+    process_ast ast;
     ()
   with
     | Parser.Error ->
