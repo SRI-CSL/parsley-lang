@@ -68,12 +68,15 @@ header {id: int, qr:int, opcode:int, aa:int, tc:int,
 label := len=IntegerObj8 repeater=(IntegerObj8{len.val}) // IntegerObj8 needs to repeat those many times
 [len.val >= 1 && len.val <= 255] .
 
+type := ty=IntegerObj16 [ty.val >= 1 && ty.val <= 16]. // "A", "NS", "MD", "MF", "CNAME", "SOA", "MB", "MG", "MR", "NULL", "WKS", "PTR", "HINFO", "MINFO", "MX", "TXT"
+class := cy=IntegerObj16 [cy.val >= 1 && cy.val <= 4] . // "IN", "CS", "CH", "HS"
+
+// Some additional values are allowed in the question part, but not in the responses.
+
 qname := label+ '\x00' . // Query Label needs to end with 00 byte
 qtype := type | qi=IntegerObj16 [qi.val >= 252 && qi.val <= 255] .
-class := cy=IntegerObj16 [cy.val >= 1 && cy.val <= 16] .
 qclass {class:int}:= class {class.val = class.cy.val} | qci=IntegerObj16 [qci.val == 255] {class.val = qci.val} .
 
-type := ty=IntegerObj16 [ty.val >= 1 && ty.val <= 16].
 ttl := IntegerObj32 .
 rdata := len_rdata=IntegerObj16 objs=(IntegerObj8{len_rdata.val}) .
 rr {domain:str, ttl:int,} := 
