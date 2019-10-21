@@ -1,6 +1,4 @@
-format DNSObj(defs, refs)
-    defs : map<(int64, int64), (IndirectObj, CTXT.location)>,
-    refs : map<(int64, int64), CTXT.location>
+format DNSObj()
 {
 
 /*
