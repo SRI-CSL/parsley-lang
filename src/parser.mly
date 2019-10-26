@@ -3,13 +3,13 @@ open Ast
 open Parseerror
 %}
 
-%token FORMAT TYPE USE AS OF
+%token FORMAT TYPE USE AS OF CASE
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI QUOTE DOT QUESTION ARROW
 %token STAR PLUS MINUS DIV
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
-%token MATCH COLONCOLON BACKSLASH EXCLAIM
+%token MATCH COLONCOLON BACKSLASH EXCLAIM UNDERSCORE
 
 %token <string Location.loc> LITERAL
 %token <string Location.loc> ID
@@ -53,6 +53,10 @@ let make_param_decl id ty b e =
 let make_expr exp b e =
   { expr = exp;
     expr_loc = Location.make_loc b e }
+
+let make_pattern pat b e =
+  { pattern = pat;
+    pattern_loc = Location.make_loc b e }
 
 let make_stmt s b e =
   { stmt = s;
@@ -208,6 +212,29 @@ expr:
   { make_expr (E_cast (e, p)) $startpos $endpos }
 | e=expr ARROW p=path
   { make_expr (E_field (e, p)) $startpos $endpos }
+| LPAREN CASE e=expr OF b=separated_list(BAR, branch) RPAREN
+  { make_expr (E_case (e, b)) $startpos $endpos }
+
+pattern:
+| UNDERSCORE
+  { make_pattern P_wildcard $startpos $endpos }
+| v=ident a=option(pattern_args)
+  { let pat = match a with
+        | None -> P_var v
+        | Some args -> P_variant (v, args)
+    in make_pattern pat $startpos $endpos }
+| l=LITERAL
+  { make_pattern (P_literal l) $startpos $endpos }
+| LPAREN ps=pattern_args RPAREN
+  { make_pattern (P_tuple ps) $startpos $endpos }
+
+pattern_args:
+| LPAREN ps=separated_list(COMMA, pattern) RPAREN
+  { ps }
+
+branch:
+| p=pattern ARROW e=expr
+  { (p, e) }
 
 stmt:
 | l=expr COLONEQ r=expr

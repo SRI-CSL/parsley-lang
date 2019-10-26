@@ -21,6 +21,7 @@
                 "type",   TYPE;
                 "as",     AS;
                 "of",     OF;
+                "case",   CASE;
               ];
     tbl
 
@@ -79,6 +80,7 @@ rule token = parse
 | "["  { LBRACK }
 | "]"  { RBRACK }
 | "."  { DOT }
+| "_"  { UNDERSCORE }
 | ","  { COMMA }
 | ":=" { COLONEQ }
 | "::" { COLONCOLON }

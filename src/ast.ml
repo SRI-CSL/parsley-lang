@@ -32,6 +32,17 @@ type binop =
 type unop =
   | Uminus | Not
 
+type pattern_desc =
+  | P_wildcard
+  | P_var of ident
+  | P_literal of literal
+  | P_tuple of pattern list
+  | P_variant of ident * pattern list
+
+ and pattern =
+   { pattern: pattern_desc;
+     pattern_loc: Location.t }
+
 type expr_desc =
   | E_path of path
   | E_int of int
@@ -43,6 +54,7 @@ type expr_desc =
   | E_literal of literal
   | E_cast of expr * path
   | E_field of expr * path
+  | E_case of expr * (pattern * expr) list
 
  and expr =
    { expr: expr_desc;
