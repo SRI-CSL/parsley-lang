@@ -3,7 +3,7 @@ open Ast
 open Parseerror
 %}
 
-%token FORMAT TYPE USE AS OF CASE
+%token FORMAT TYPE USE AS OF CASE LET IN
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI QUOTE DOT QUESTION ARROW
@@ -19,6 +19,7 @@ open Parseerror
 %start <Ast.format> format
 
 (* operators are increasing precedence order. *)
+%nonassoc IN
 %right EXCLAIM
 %left  LAND LOR
 %left  LT GT LTEQ GTEQ EQ MATCH
@@ -214,6 +215,8 @@ expr:
   { make_expr (E_field (e, p)) $startpos $endpos }
 | LPAREN CASE e=expr OF b=separated_list(BAR, branch) RPAREN
   { make_expr (E_case (e, b)) $startpos $endpos }
+| LET i=ident EQ e=expr IN b=expr
+  { make_expr (E_let (i, e, b)) $startpos $endpos }
 
 pattern:
 | UNDERSCORE

@@ -22,6 +22,8 @@
                 "as",     AS;
                 "of",     OF;
                 "case",   CASE;
+                "let",    LET;
+                "in",     IN;
               ];
     tbl
 
