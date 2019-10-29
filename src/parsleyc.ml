@@ -1,12 +1,13 @@
 open Lexing
 open Location
 open Ast
+open AstToRustTranslator
 
 let print_exception f loc msg =
   Printf.fprintf f "%a: %s\n" Location.print_loc loc msg
 
 let process_ast ast =
-  ()
+    print_string (AstToRustTranslator.parse_ast ast)
 
 let parse_file fname =
   let lexbuf = from_channel (open_in fname) in
