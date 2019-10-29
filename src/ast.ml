@@ -89,7 +89,7 @@ type char_class_desc =
 
 type rule_elem_desc =
   | RE_literal of literal
-  | RE_non_term of ident * ident option
+  | RE_non_term of ident * ident option * (ident * expr) list option
   | RE_named_regex of rule_elem * ident (* regex of char-classes *)
   | RE_constraint of rule_constraint
   | RE_action of rule_action
@@ -113,7 +113,8 @@ type rule =
 type non_term_defn =
     { non_term_name: ident;
       non_term_varname: ident option;
-      non_term_attrs: param_decl list;
+      non_term_inh_attrs: param_decl list; (* inherited *)
+      non_term_syn_attrs: param_decl list; (* synthesized *)
       non_term_rules: rule list;
       non_term_loc: Location.t }
 
@@ -133,6 +134,5 @@ type decl =
 
 type format =
     { format_name: ident;
-      format_param_decls: param_decl list;
       format_decls: decl list;
       format_loc: Location.t }

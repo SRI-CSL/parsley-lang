@@ -3,45 +3,18 @@
 
 // <file PDFCompoundObj.ply>
 
-format PDFObj(defs, refs)
-    defs : map<(int64, int64), (IndirectObj, $location)>,
-    refs : map<(int64, int64), $location>
+format PDFObj
 {
+
   // This assumes a library of primitive objects.  These are defined
   // in a Parsley file called PDFPrimitives.ply
   use PDFPrimitives:{NameObj, IntegerObj, RawStreamObj} ;;
-
-  // The defs and refs are mutable values that will be passed into the
-  // parser context constructed for the rules in this grammar.  They
-  // have the types specified below.  They are specified as mutable,
-  // so that the semantic actions in the rules in this grammar can
-  // modify them.  The outer grammar will typically be the PDFDocument
-  // grammar, which will own these values.  When the PDFDocument
-  // grammar instantiates the PDFObj grammar, Parsley will ensure that
-  // the types specified for 'defs' and 'refs' match the local
-  // definition below.  The local definitions below allow for separate
-  // compilation.
 
   // The expression sublanguage for semantic actions has access to a
   // Parsley standard library, which contains maps, lists, vectors,
   // sets, etc.  These will be used below.
 
-  // 'defs' contains a map from a (object-number, generation-number)
-  // pair to an indirect PDF object, and the location where it was
-  // defined. The location is specified as a Parsley predefined type.
-
-  // Similarly, 'refs' stores indirect object references, and maps them
-  // to the first location they appeared in the file.  Locations are
-  // typically stored for diagnostics.
-
-  // There is a per-grammar user-defined context structure that is
-  // accessible in the parsing contexts associated with the rules
-  // defined in this grammar, called 'ctxt'.  Global fields of
-  // specified types can be added to this structure during
-  // specification, and accessed via this structure during execution.
-  // An earlier version of the sketch used this feature, but now
-  // doesn't.  But this might be useful in other specs, so leaving
-  // this note here for feedback.
+  type obj_ctxt = map<(int, int), PDFObj>;;
 
   // We now define a non-terminal for the PDF dictionary object,
   // DictObj.  Non-terminals are typically defined to have an
@@ -59,11 +32,11 @@ format PDFObj(defs, refs)
   // ':=' separates the definition of the non-terminal DictObj from
   // its right-hand-side production rule.
 
-    DictObj d { val : map<typeof(NameObj.val), PDFObj> } :=
+    DictObj d (ctxt : obj_ctxt) { val : map<typeof(NameObj.val), PDFObj> } :=
 
   // Below is the production rule of DictObj.
 
-  //      '<<' ( n=NameObj  o=PDFObj { d.val[n.val] := o } )* '>>' ;;
+  //      '<<' ( n=NameObj o=PDFObj<ctxt = d.ctxt> { d.val[n.val] := o } )* '>>' ;;
 
   // Literals are specified within quotes ('').  Variables are used to
   // name non-terminals appearing on the right-hand-side, to provide
@@ -83,7 +56,8 @@ format PDFObj(defs, refs)
 
         (| s : set<typeof(NameObj.val)> |)
 
-        '<<' ( n=NameObj [ !s.contains(n.val) ] o=PDFObj { d.val[n.val] := o; s := s.add(n.val) } )* '>>' ;;
+        '<<' ( n=NameObj [ !s.contains(n.val) ] o=PDFObj<ctxt = d.ctxt>
+	{ d.val[n.val] := o; s := s.add(n.val) } )* '>>' ;;
 
   // Here, a named boolean-valued constraint is specified within '['
   // and ']'.  If the constraint evaluates to false, an error
@@ -96,23 +70,25 @@ format PDFObj(defs, refs)
 
   // The PDF array object is defined as below.
 
-    ArrayObj a { val : [PDFObj] } :=
+    ArrayObj a (ctxt : obj_ctxt) { val : [PDFObj] } :=
 
-        '[' ( o=PDFObj { a := a.val.append(o) } )* ']' ;;
+        '[' ( o=PDFObj<ctxt = a.ctxt> { a := a.val.append(o) } )* ']' ;;
 
   // The semantic action simply appends the matched object to the
   // vector value of a.val.
 
   // The definition of an indirect object is below, and it has three attributes.
 
-    IndirectObj i { id : int, gen : int, val : PDFObj } :=
+  // TODO: add a mutability specifier to the obj_ctxt type.
+
+    IndirectObj i (ctxt : obj_ctxt) { id : int, gen : int, val : PDFObj } :=
 
         // the constraints check that the matched IntegerObj objects
-        // are appropriate.
+        // are appropriate, and that the object id has not been defined before.
         n=IntegerObj [ n.val >= 0 ]
-        g=IntegerObj [ g.val >= 0 && !defs.has_key((n.val, g.val))]
+        g=IntegerObj [ g.val >= 0 && !i.ctxt.contains((n.val, g.val))]
 
-        'obj' o=PDFObj 'endobj'
+        'obj' o=PDFObj<ctxt = i.ctxt> 'endobj'
 
         // the semantic action computes the values of the attributes
         // of IndirectObj.  $location() is a predefined function that
@@ -121,7 +97,7 @@ format PDFObj(defs, refs)
         { i.id  := n.val;
           i.gen := g.val;
           i.val := o;
-          defs[(n.val, g.val)] := (i, $location())
+          i.ctxt[(n.val, g.val)] := i
         } ;;
 
   // References to indirect objects are defined below, similarly.
@@ -136,20 +112,18 @@ format PDFObj(defs, refs)
         'R'
 
         { r.id  := n.val;
-          r.gen := g.val;
-          refs[(n.val, g.val)] := $location()
+          r.gen := g.val
         } ;;
 
-
     // Stream objects are defined next.  Note that they share a prefix with IndirectObj.
-    StreamObj s { dict : DictObj, stream : RawStreamObj } :=
+    StreamObj s (ctxt : obj_ctxt) { dict : DictObj, stream : RawStreamObj } :=
 
         // the constraints check that the matched IntegerObj objects
-        // are appropriate.
+        // are appropriate, and that the stream object has not been defined before.
         n=IntegerObj [ n.val >= 0 ]
-        g=IntegerObj [ g.val >= 0 && !defs.has_key((n.val, g.val))]
+        g=IntegerObj [ g.val >= 0 && !s.ctxt.contains((n.val, g.val))]
 
-        'obj' d=DictObj s=RawStreamObj 'endobj'
+        'obj' d=DictObj<ctxt=s.ctxt> s=RawStreamObj 'endobj'
 
         // The constraints are specified after both the DictObj and
         // StreamObj are matched, so that any StreamObj parsing errors
@@ -167,20 +141,19 @@ format PDFObj(defs, refs)
 
   // We now define the general PDF object as a variant.
 
-    PDFObj {} := DictObj ; ArrayObj ; IndirectObj ; ReferenceObj ; StreamObj ; NameObj ; IntegerObj ; RealObj ; StringObj ; NullObj ; Comment ; BooleanObj
-
-  // This will be mapped into the Rust language as an enum variant:
-  // pub enum PDFObj_T {
-  //   DictObj (DictObj_T),
-  //   ArrayObj (ArrayObj_T),
-  //   IntegerObj (Integer_T),
-  //   IndirectObj (Indirect_T),
-  //   ReferenceObj (Reference_T),
-  //
-  //   ..
-  // }
-  //
-  // This eases the Rust implementation of the '~~' and the 'as' constructs above.
+    PDFObj o (ctxt : obj_ctxt) {} :=
+      DictObj     <ctxt = o.ctxt> ;
+      ArrayObj    <ctxt = o.ctxt> ;
+      IndirectObj <ctxt = o.ctxt> ;
+      StreamObj   <ctxt = o.ctxt> ;
+      ReferenceObj ;
+      NameObj ;
+      IntegerObj ;
+      RealObj ;
+      StringObj ;
+      NullObj ;
+      Comment ;
+      BooleanObj
 
   // Status:
   // - module sublanguage is very preliminary, will be fleshed out

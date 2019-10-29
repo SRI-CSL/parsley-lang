@@ -80,10 +80,11 @@ let make_rule t res b e =
     rule_rhs = res;
     rule_loc = Location.make_loc b e }
 
-let make_nt_defn n v d r b e =
+let make_nt_defn n v inh syn r b e =
   { non_term_name = n;
     non_term_varname = v;
-    non_term_attrs = d;
+    non_term_inh_attrs = inh;
+    non_term_syn_attrs = syn;
     non_term_rules = r;
     non_term_loc = Location.make_loc b e }
 
@@ -96,30 +97,8 @@ let make_decl d b e =
   { decl = d;
     decl_loc = Location.make_loc b e }
 
-let check_format_params params param_decls =
-  let module S =
-    Set.Make(struct type t = string Location.loc
-                    let compare x y =
-                      compare (Location.value x) (Location.value y)
-             end) in
-  let dset =
-    S.of_list (List.map (fun pd -> fst (Location.value pd)) param_decls) in
-  let pset = S.of_list params in
-  begin
-    (match S.choose_opt (S.diff dset pset) with
-       | Some i -> parse_error (Undeclared_format_param (Location.value i)) (Location.loc i)
-       | None -> ()
-    );
-    (match S.choose_opt (S.diff pset dset) with
-       | Some i -> parse_error (Untyped_format_param (Location.value i)) (Location.loc i)
-       | None -> ()
-    )
-  end
-
-let make_format name params param_decls decls b e =
-  check_format_params params param_decls;
+let make_format name decls b e =
   { format_name = name;
-    format_param_decls = param_decls;
     format_decls = decls;
     format_loc = Location.make_loc b e;
   }
@@ -273,18 +252,26 @@ cc_regex:
 | LBRACK c=char_class STAR i=INT_LITERAL RBRACK
   { make_rule_elem (RE_repeat (c, make_int_literal i)) $startpos $endpos }
 
+attr_val:
+| i=ident EQ v=expr
+  { (i, v) }
+
+nt_args:
+| LT inh=separated_list(COMMA, attr_val) GT
+  { inh }
+
 rule_elem:
 | c=RE_CHAR_CLASS
   { let cc = make_char_class (CC_named c) $startpos $endpos in
     make_rule_elem (RE_char_class cc) $startpos $endpos }
 | l=LITERAL
   { make_rule_elem (RE_literal l) $startpos $endpos }
-| v=ident EQ nt=ident
-  { make_rule_elem (RE_non_term (nt, Some v)) $startpos $endpos }
+| v=ident EQ nt=ident inh=option(nt_args)
+  { make_rule_elem (RE_non_term (nt, Some v, inh)) $startpos $endpos }
 | v=ident EQ LPAREN re=cc_regex RPAREN
   { make_rule_elem (RE_named_regex (re, v)) $startpos $endpos }
-| nt=ident
-  { make_rule_elem (RE_non_term (nt, None)) $startpos $endpos }
+| nt=ident inh=option(nt_args)
+  { make_rule_elem (RE_non_term (nt, None, inh)) $startpos $endpos }
 | LBRACK e=expr RBRACK
   { make_rule_elem (RE_constraint e) $startpos $endpos }
 | LBRACE a=action RBRACE
@@ -308,9 +295,18 @@ rule:
 
 nt_defn:
 | n=ident v=option(ident)
-  LBRACE d=param_decls RBRACE COLONEQ
+  LBRACE syn=param_decls RBRACE COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
-  { make_nt_defn n v d r $startpos $endpos }
+  { make_nt_defn n v [] syn r $startpos $endpos }
+| n=ident v=option(ident)
+  LPAREN inh=param_decls RPAREN COLONEQ
+  r=separated_nonempty_list(SEMICOLON, rule)
+  { make_nt_defn n v inh [] r $startpos $endpos }
+| n=ident v=option(ident)
+  LPAREN inh=param_decls RPAREN
+  LBRACE syn=param_decls RBRACE COLONEQ
+  r=separated_nonempty_list(SEMICOLON, rule)
+  { make_nt_defn n v inh syn r $startpos $endpos }
 
 use:
 | USE m=ident COLON LBRACE i=separated_list(COMMA, ident) RBRACE
@@ -326,9 +322,4 @@ decl:
 
 format:
 | FORMAT i=ident LBRACE d=separated_list(SEMISEMI, decl) RBRACE
-  { make_format i [] [] d $startpos $endpos }
-| FORMAT i=ident
-    LPAREN ps=separated_list(COMMA, ident) RPAREN
-    pds=separated_list(COMMA, param_decl)
-    LBRACE d=separated_list(SEMISEMI, decl) RBRACE
-  { make_format i ps pds d $startpos $endpos }
+  { make_format i d $startpos $endpos }
