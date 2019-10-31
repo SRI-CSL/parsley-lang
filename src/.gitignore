@@ -1,2 +1,3 @@
 _build/
-parsleyc
+./parsleyc
+./parsleyc.native
