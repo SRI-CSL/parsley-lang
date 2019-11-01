@@ -214,8 +214,8 @@ expr:
   { make_expr (E_field (e, p)) $startpos $endpos }
 | LPAREN CASE e=expr OF option(BAR) b=separated_list(BAR, branch) RPAREN
   { make_expr (E_case (e, b)) $startpos $endpos }
-| LET i=ident EQ e=expr IN b=expr
-  { make_expr (E_let (i, e, b)) $startpos $endpos }
+| LET p=pattern EQ e=expr IN b=expr
+  { make_expr (E_let (p, e, b)) $startpos $endpos }
 
 pattern:
 | UNDERSCORE
@@ -227,7 +227,7 @@ pattern:
     in make_pattern pat $startpos $endpos }
 | l=LITERAL
   { make_pattern (P_literal l) $startpos $endpos }
-| LPAREN ps=pattern_args RPAREN
+| ps=pattern_args
   { make_pattern (P_tuple ps) $startpos $endpos }
 
 pattern_args:

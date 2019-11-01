@@ -57,7 +57,7 @@ type expr_desc =
   | E_cast of expr * path
   | E_field of expr * path
   | E_case of expr * (pattern * expr) list
-  | E_let of ident * expr * expr
+  | E_let of pattern * expr * expr
 
  and expr =
    { expr: expr_desc;

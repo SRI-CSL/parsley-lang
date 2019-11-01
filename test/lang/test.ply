@@ -7,5 +7,10 @@ library prelude {
      | true  -> b
      | false -> a
     )
+  } ;;
+
+  fun pick (arg : (int, int)) -> int = {
+    let (i, _) = arg in
+    i
   }
 }
