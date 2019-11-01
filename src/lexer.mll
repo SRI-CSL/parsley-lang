@@ -20,6 +20,7 @@
                 "format", FORMAT;
                 "use",    USE;
                 "type",   TYPE;
+                "fun",    FUN;
                 "as",     AS;
                 "of",     OF;
                 "case",   CASE;

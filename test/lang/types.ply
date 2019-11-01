@@ -1,4 +1,11 @@
 library prelude {
   type map ('a, 'b) = [ ('a, 'b) ] ;;
-  type set ('a) = ['a]
+  type set ('a) = ['a] ;;
+
+  fun max (a : int, b: int) -> int = {
+    (case a < b of
+     | true  -> b
+     | false -> a
+    )
+  }
 }

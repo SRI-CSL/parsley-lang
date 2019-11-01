@@ -131,10 +131,18 @@ type type_defn =
       type_defn_body: type_rep;
       type_defn_loc: Location.t }
 
+type fun_defn =
+    { fun_defn_ident: ident;
+      fun_defn_params: param_decl list;
+      fun_defn_res_type: type_expr;
+      fun_defn_body: expr;
+      fun_defn_loc: Location.t }
+
 type decl_desc =
   | Decl_non_term of non_term_defn
   | Decl_use of use
   | Decl_type of type_defn
+  | Decl_fun of fun_defn
 
 type decl =
     { decl: decl_desc;

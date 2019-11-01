@@ -3,7 +3,7 @@ open Ast
 open Parseerror
 %}
 
-%token FORMAT LIBRARY TYPE USE AS OF CASE LET IN
+%token FORMAT LIBRARY TYPE FUN USE AS OF CASE LET IN
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI QUOTE DOT QUESTION ARROW
@@ -94,6 +94,13 @@ let make_type_defn n tvs bd b e =
     type_defn_tvars = tvs;
     type_defn_body = bd;
     type_defn_loc = Location.make_loc b e }
+
+let make_fun_defn n p t bd b e =
+  { fun_defn_ident = n;
+    fun_defn_params = p;
+    fun_defn_res_type = t;
+    fun_defn_body = bd;
+    fun_defn_loc = Location.make_loc b e }
 
 let make_use m i b e =
   { use_module = m;
@@ -205,7 +212,7 @@ expr:
   { make_expr (E_cast (e, p)) $startpos $endpos }
 | e=expr ARROW p=path
   { make_expr (E_field (e, p)) $startpos $endpos }
-| LPAREN CASE e=expr OF b=separated_list(BAR, branch) RPAREN
+| LPAREN CASE e=expr OF option(BAR) b=separated_list(BAR, branch) RPAREN
   { make_expr (E_case (e, b)) $startpos $endpos }
 | LET i=ident EQ e=expr IN b=expr
   { make_expr (E_let (i, e, b)) $startpos $endpos }
@@ -344,6 +351,9 @@ lib_decl:
 | TYPE t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ e=type_rep
   { let td = make_type_defn t tvs e $startpos $endpos in
     make_decl (Decl_type td) $startpos $endpos }
+| FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
+  { let fd = make_fun_defn f p r e $startpos $endpos in
+    make_decl (Decl_fun fd) $startpos $endpos }
 
 toplevel:
 | FORMAT i=ident LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
