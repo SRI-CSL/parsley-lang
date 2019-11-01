@@ -16,7 +16,8 @@
   let keywords =
     let tbl = Hashtbl.create 16 in
     List.iter (fun (key, tok) -> Hashtbl.add tbl key tok)
-              [ "format", FORMAT;
+              [ "library", LIBRARY;
+                "format", FORMAT;
                 "use",    USE;
                 "type",   TYPE;
                 "as",     AS;
@@ -109,6 +110,10 @@ rule token = parse
 
 | "$"? alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
+
+| "'"? alpha ident*
+    { let tv = Lexing.lexeme lexbuf in
+      TVAR (Location.mk_loc_val tv (Location.curr lexbuf)) }
 
 | int_literal
     { let s = Lexing.lexeme lexbuf in

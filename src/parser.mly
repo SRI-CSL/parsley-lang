@@ -3,7 +3,7 @@ open Ast
 open Parseerror
 %}
 
-%token FORMAT TYPE USE AS OF CASE LET IN
+%token FORMAT LIBRARY TYPE USE AS OF CASE LET IN
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI QUOTE DOT QUESTION ARROW
@@ -13,10 +13,11 @@ open Parseerror
 
 %token <string Location.loc> LITERAL
 %token <string Location.loc> ID
+%token <string Location.loc> TVAR
 %token <string Location.loc> INT_LITERAL
 %token <string Location.loc> RE_CHAR_CLASS
 
-%start <Ast.format> format
+%start <Ast.top> toplevel
 
 (* operators are increasing precedence order. *)
 %nonassoc IN
@@ -44,9 +45,9 @@ let make_type_expr ty b e =
   { type_expr = ty;
     type_expr_loc = Location.make_loc b e }
 
-let make_type_def td b e =
-  { type_def = td;
-    type_def_loc = Location.make_loc b e }
+let make_type_rep tr b e =
+  { type_rep = tr;
+    type_rep_loc = Location.make_loc b e }
 
 let make_param_decl id ty b e =
   Location.mk_loc_val (id, ty) (Location.make_loc b e)
@@ -88,6 +89,12 @@ let make_nt_defn n v inh syn r b e =
     non_term_rules = r;
     non_term_loc = Location.make_loc b e }
 
+let make_type_defn n tvs bd b e =
+  { type_defn_ident = n;
+    type_defn_tvars = tvs;
+    type_defn_body = bd;
+    type_defn_loc = Location.make_loc b e }
+
 let make_use m i b e =
   { use_module = m;
     use_idents = i;
@@ -100,8 +107,12 @@ let make_decl d b e =
 let make_format name decls b e =
   { format_name = name;
     format_decls = decls;
-    format_loc = Location.make_loc b e;
-  }
+    format_loc = Location.make_loc b e }
+
+let make_library name decls b e =
+  { lib_name = name;
+    lib_decls = decls;
+    lib_loc = Location.make_loc b e }
 %}
 
 %%
@@ -115,6 +126,8 @@ path:
   { p }
 
 type_expr:
+| tv=TVAR
+  { make_type_expr (TE_tvar tv) $startpos $endpos }
 | p=path
   { make_type_expr (TE_path p) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, type_expr) RPAREN
@@ -124,17 +137,17 @@ type_expr:
 | p=path LT l=separated_list(COMMA, type_expr) GT
   { make_type_expr (TE_constr (p, l)) $startpos $endpos }
 | p=path LPAREN l=separated_list(COMMA, type_expr) RPAREN
-  { make_type_expr (TE_fun (p, l)) $startpos $endpos }
+  { make_type_expr (TE_app (p, l)) $startpos $endpos }
 
 type_variant:
 | i=ID OF l=separated_list(STAR, type_expr)
   { (i, l) }
 
-type_def:
+type_rep:
 | e=type_expr
-  { make_type_def (TD_expr e) $startpos $endpos }
+  { make_type_rep (TR_expr e) $startpos $endpos }
 | l=separated_nonempty_list(BAR, type_variant)
-  { make_type_def (TD_variant l) $startpos $endpos }
+  { make_type_rep (TR_variant l) $startpos $endpos }
 
 param_decl:
 | i=ident COLON t=type_expr
@@ -312,14 +325,28 @@ use:
 | USE m=ident COLON LBRACE i=separated_list(COMMA, ident) RBRACE
   { make_use m i $startpos $endpos }
 
-decl:
+format_decl:
 | d=nt_defn
   { make_decl (Decl_non_term d) $startpos $endpos }
 | u=use
   { make_decl (Decl_use u) $startpos $endpos }
-| TYPE t=ident EQ e=type_def
-  { make_decl (Decl_type (t, e)) $startpos $endpos }
+| TYPE t=ident EQ e=type_rep
+  { let td = make_type_defn t [] e $startpos $endpos in
+    make_decl (Decl_type td) $startpos $endpos }
+| TYPE t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ e=type_rep
+  { let td = make_type_defn t tvs e $startpos $endpos in
+    make_decl (Decl_type td) $startpos $endpos }
 
-format:
-| FORMAT i=ident LBRACE d=separated_list(SEMISEMI, decl) RBRACE
-  { make_format i d $startpos $endpos }
+lib_decl:
+| TYPE t=ident EQ e=type_rep
+  { let td = make_type_defn t [] e $startpos $endpos in
+    make_decl (Decl_type td) $startpos $endpos }
+| TYPE t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ e=type_rep
+  { let td = make_type_defn t tvs e $startpos $endpos in
+    make_decl (Decl_type td) $startpos $endpos }
+
+toplevel:
+| FORMAT i=ident LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
+  { Ply_format (make_format i d $startpos $endpos) }
+| LIBRARY i=ident LBRACE d=separated_list(SEMISEMI, lib_decl) RBRACE
+  { Ply_lib (make_library i d $startpos $endpos) }

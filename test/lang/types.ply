@@ -1,0 +1,4 @@
+library prelude {
+  type map ('a, 'b) = [ ('a, 'b) ] ;;
+  type set ('a) = ['a]
+}

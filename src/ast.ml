@@ -1,25 +1,27 @@
+type tvar    = string Location.loc
 type ident   = string Location.loc
 type literal = string Location.loc
 type path = ident list
 
 type type_expr_desc =
+  | TE_tvar of tvar
   | TE_path of path
   | TE_tuple  of type_expr list
   | TE_list of type_expr
   | TE_constr of path * (type_expr list)
-  | TE_fun of path * (type_expr list)
+  | TE_app of path * (type_expr list)
 
  and type_expr =
    { type_expr: type_expr_desc;
      type_expr_loc: Location.t }
 
-type type_def_desc =
-  | TD_expr of type_expr
-  | TD_variant of (ident * type_expr list) list
+type type_rep_desc =
+  | TR_expr of type_expr
+  | TR_variant of (ident * type_expr list) list
 
- and type_def =
-   { type_def: type_def_desc;
-     type_def_loc: Location.t }
+ and type_rep =
+   { type_rep: type_rep_desc;
+     type_rep_loc: Location.t }
 
 type param_decl =
     (ident * type_expr) Location.loc
@@ -123,10 +125,16 @@ type use =
       use_idents: ident list;
       use_loc: Location.t }
 
+type type_defn =
+    { type_defn_ident: ident;
+      type_defn_tvars: tvar list;
+      type_defn_body: type_rep;
+      type_defn_loc: Location.t }
+
 type decl_desc =
   | Decl_non_term of non_term_defn
   | Decl_use of use
-  | Decl_type of ident * type_def
+  | Decl_type of type_defn
 
 type decl =
     { decl: decl_desc;
@@ -136,3 +144,12 @@ type format =
     { format_name: ident;
       format_decls: decl list;
       format_loc: Location.t }
+
+type library =
+    { lib_name: ident;
+      lib_decls: decl list;
+      lib_loc: Location.t }
+
+type top =
+  | Ply_format of format
+  | Ply_lib of library
