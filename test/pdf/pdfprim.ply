@@ -6,19 +6,19 @@
 format PDFPrimitives {
 
   NameObj n { val : string } :=
-    '/' s=([:alphanum:]+)
+    "/" s=([:alphanum:]+)
     { n.val := s } ;;
 
   CommentObj c { val : string } :=
-    '%' s=(.*) '\n'
+    "%" s=(.*) "\n"
     { c.val := s } ;;
 
   BooleanObj b { val : bool } :=
-    'true'  { b.val := true }
-  | 'false' { b.val := false } ;;
+    "true"  { b.val := true }
+  | "false" { b.val := false } ;;
 
   NullObj {} :=
-    'null'
+    "null"
     {} ;;
 
   // We need a void / unit type in the expression language.  Should
@@ -26,38 +26,38 @@ format PDFPrimitives {
   // this could look like, see EOF in pdfdoc-sketch.txt.
 
   RawStreamObj rs { bytes : [u8] } :=
-    'stream'      EOL
+    "stream"      EOL
     b=([:byte:]*) EOL
-    'endstream'
+    "endstream"
     { rs.bytes := b } ;;
 
   // We could use syntax like [:hex:], [:alpha:], [:alphanumeric:], [:char:] etc
   // for standard character classes.
   HexStringObj hs { val : [u8] } :=
-    '<'
+    "<"
     ( h1=([:hex:]) h2=([:hex:]) { hs.val := ($int_of_hex(h1)*16 + $int_of_hex(h2)) :: hs.val } )*
     ( h=([:hex:]) { hs.val := $int_of_hex(h1) * 16 :: hs.val} )?
-    '>' { hs.val := List.rev(hs.val) } ;;
+    ">" { hs.val := List.rev(hs.val) } ;;
 
   // The below syntax essentially implements a simple CFG for strings with
   // balanced parentheses, using recursion.
   // We could use syntax like ([:char:] \ '(') for set difference.
   LitStringObj ls { val : [u8] } :=
-      '('
-        prefix=([:char:] \ '(')*
+      "("
+        prefix=([:char:] \ "(")*
         n=LitStringObj
-        suffix=([:char:] \ '(')*
-      ')'
-       { ls.val := ')' + prefix + n.val + suffix + ')' } ;
+        suffix=([:char:] \ "(")*
+      ")"
+       { ls.val := ")" + prefix + n.val + suffix + ")" } ;
 
-      '('
-        prefix=([:char:] \ '(')*
+      "("
+        prefix=([:char:] \ "(")*
         p=LitStringObj
-        midfix=([:char:] \ '(')*
+        midfix=([:char:] \ "(")*
         q=LitStringObj
-        suffix=([:char:] \ '(')*
-      ')'
-      { ls.val := '(' + prefix + p.val + midfix + q.val + ')' } ;
+        suffix=([:char:] \ "(")*
+      ")"
+      { ls.val := "(" + prefix + p.val + midfix + q.val + ")" } ;
 
       $epsilon                   // Parsley keyword
 
@@ -72,13 +72,13 @@ format PDFPrimitives {
   // - empty or non-empty
   // - required EOL or optional
   WhitespaceEOL w {} :=
-    (' ' | '\t' | '\r' | '\n' | '\0' )*
+    (" " | "\t" | "\r" | "\n" | "\0" )*
     { } ;;
 
   // $int_of_string() is a function in the Parsley standard library.
   IntegerObj i { val : i64 } :=
          n=([:digit:])+ { i.val := $int_of_string(n)  } ;
-    '-'  n=([:digit:])+ { i.val := -$int_of_string(n) } ;;
+    "-"  n=([:digit:])+ { i.val := -$int_of_string(n) } ;;
 
   // TODO: we might need to have a user-defined type for PDF reals,
   // since they are not defined in terms of IEEE 754, although they
@@ -87,10 +87,10 @@ format PDFPrimitives {
   RealObj r { val : double } :=
 
          n=([:digit:])+ { val := $double_of_string(n)  } ;
-    '-'  n=([:digit:])+ { val := -$double_of_string(n) } ;
+    "-"  n=([:digit:])+ { val := -$double_of_string(n) } ;
 
-         n=([:digit:])+ '.' f=([:digit:])+ { val := $double_of_string(n + '.' + f) } ;
-    '-'  n=([:digit:])+ '.' f=([:digit:])+ { val := -$double_of_string(n + '.' + f) }
+         n=([:digit:])+ "." f=([:digit:])+ { val := $double_of_string(n + "." + f) } ;
+    "-"  n=([:digit:])+ "." f=([:digit:])+ { val := -$double_of_string(n + "." + f) }
 
   // Feedback from Shankar:
   // . case-insensitive operator (to support case-insensitive matching)

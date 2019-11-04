@@ -66,7 +66,7 @@ rule token = parse
     { token lexbuf }
 | "//"
     { eol_comment lexbuf }
-| "'"
+| "\""
     { reset_token_buffer ();
       quote lexbuf;
       let t = get_stored_token () in
@@ -112,7 +112,7 @@ rule token = parse
 | "$"? alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
 
-| "'"? alpha ident*
+| "'" alpha ident*
     { let tv = Lexing.lexeme lexbuf in
       TVAR (Location.mk_loc_val tv (Location.curr lexbuf)) }
 
@@ -132,7 +132,7 @@ and eol_comment = parse
     { eol_comment lexbuf }
 
 and quote = parse
-| "'"
+| "\""
     { () }
 
 | newline

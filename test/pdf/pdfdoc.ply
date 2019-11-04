@@ -47,7 +47,7 @@ Body b (ctxt : obj_ctxt) { body: [PDFObj] } :=
 
 XrefSect x { sects: [XrefSubSect] } :=
 
-    'xref' ( s=XrefSubSect { x.sects := x.sects.append(s) } )* ;;
+    "xref" ( s=XrefSubSect { x.sects := x.sects.append(s) } )* ;;
 
 XrefSubSect x { start: int, count: int, ents: [XrefEnt] } :=
     // The spec is not clear whether there is any leading or trailing non-EOL whitespace
@@ -55,7 +55,7 @@ XrefSubSect x { start: int, count: int, ents: [XrefEnt] } :=
     s=IntegerObj [ s.val >= 0 ]
     c=IntegerObj [ s.val >  0 ]
 
-    '\n'  // EOL-type is not specified in the spec.
+    "\n"  // EOL-type is not specified in the spec.
 
     { x.start := s.val;
       x.count := c.val }
@@ -80,11 +80,11 @@ XrefEnt x { offset: int, gen: int, status: xfree_t } :=
     // [SEMANTICS: Should this function can throw a parsing exception
     // on non-numeric input? ]
 
-    ( 'n' { x.status := Inuse }
-    | 'f' { x.status := Free  }
+    ( "n" { x.status := Inuse }
+    | "f" { x.status := Free  }
     )
 
-    '\r\n' // This is required to be 'a two-character end-of-line
+    "\r\n" // This is required to be 'a two-character end-of-line
            // sequence'.
 
     ;;
@@ -95,20 +95,20 @@ XrefEnt x { offset: int, gen: int, status: xfree_t } :=
 
 Trailer t (ctxt : obj_ctxt) { dict: DictObj } :=
 
-   'trailer' d=DictObj<ctxt = t.ctxt>
+   "trailer" d=DictObj<ctxt = t.ctxt>
 
    { t.dict := d } ;;
 
 StartXref s { val : int } :=
 
-   'startxref'
+   "startxref"
    n=IntegerObj [ n.val > 0 ]
 
    { s.val := n.val } ;;
 
 EOF {} :=
 
-  '%%EOF'
+  "%%EOF"
 
 }
 
