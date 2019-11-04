@@ -1,21 +1,16 @@
 // Draft sketch of PDF compound object syntax.
 // ===========================================
 
-// <file PDFCompoundObj.ply>
+// This assumes a library of primitive objects defined in a separate module.
+use pdfprim:{NameObj, IntegerObj, RawStreamObj}
+
+// The expression sublanguage for semantic actions has access to a
+// Parsley standard library, which contains maps, lists, vectors,
+// sets, etc.  These will be used below.
+type obj_ctxt = map<(int, int), PDFObj>
 
 format PDFObj
 {
-
-  // This assumes a library of primitive objects.  These are defined
-  // in a Parsley file called PDFPrimitives.ply
-  use PDFPrimitives:{NameObj, IntegerObj, RawStreamObj} ;;
-
-  // The expression sublanguage for semantic actions has access to a
-  // Parsley standard library, which contains maps, lists, vectors,
-  // sets, etc.  These will be used below.
-
-  type obj_ctxt = map<(int, int), PDFObj>;;
-
   // We now define a non-terminal for the PDF dictionary object,
   // DictObj.  Non-terminals are typically defined to have an
   // attribute named 'val' that contains the value in the

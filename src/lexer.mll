@@ -16,8 +16,7 @@
   let keywords =
     let tbl = Hashtbl.create 16 in
     List.iter (fun (key, tok) -> Hashtbl.add tbl key tok)
-              [ "library", LIBRARY;
-                "format", FORMAT;
+              [ "format", FORMAT;
                 "use",    USE;
                 "type",   TYPE;
                 "fun",    FUN;
@@ -123,6 +122,9 @@ rule token = parse
 | re_char_class
     { let s = Lexing.lexeme lexbuf in
       RE_CHAR_CLASS (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| eof
+    { EOF }
 
 and eol_comment = parse
 | newline

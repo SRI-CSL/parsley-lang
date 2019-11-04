@@ -138,26 +138,23 @@ type fun_defn =
       fun_defn_body: expr;
       fun_defn_loc: Location.t }
 
-type decl_desc =
-  | Decl_non_term of non_term_defn
-  | Decl_use of use
-  | Decl_type of type_defn
-  | Decl_fun of fun_defn
+type format_decl_desc =
+  | Format_decl_non_term of non_term_defn
 
-type decl =
-    { decl: decl_desc;
-      decl_loc: Location.t }
+type format_decl =
+    { format_decl: format_decl_desc;
+      format_decl_loc: Location.t }
 
 type format =
     { format_name: ident;
-      format_decls: decl list;
+      format_decls: format_decl list;
       format_loc: Location.t }
 
-type library =
-    { lib_name: ident;
-      lib_decls: decl list;
-      lib_loc: Location.t }
+type top_decl =
+  | Decl_use of use
+  | Decl_type of type_defn
+  | Decl_fun of fun_defn
+  | Decl_format of format
 
-type top =
-  | Ply_format of format
-  | Ply_lib of library
+type top_level =
+    { decls: top_decl list }

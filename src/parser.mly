@@ -3,6 +3,7 @@ open Ast
 open Parseerror
 %}
 
+%token EOF
 %token FORMAT LIBRARY TYPE FUN USE AS OF CASE LET IN
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
@@ -17,7 +18,7 @@ open Parseerror
 %token <string Location.loc> INT_LITERAL
 %token <string Location.loc> RE_CHAR_CLASS
 
-%start <Ast.top> toplevel
+%start <Ast.top_level> toplevel
 
 (* operators are increasing precedence order. *)
 %nonassoc IN
@@ -107,19 +108,14 @@ let make_use m i b e =
     use_idents = i;
     use_loc = Location.make_loc b e }
 
-let make_decl d b e =
-  { decl = d;
-    decl_loc = Location.make_loc b e }
+let make_format_decl d b e =
+  { format_decl = d;
+    format_decl_loc = Location.make_loc b e }
 
 let make_format name decls b e =
   { format_name = name;
     format_decls = decls;
     format_loc = Location.make_loc b e }
-
-let make_library name decls b e =
-  { lib_name = name;
-    lib_decls = decls;
-    lib_loc = Location.make_loc b e }
 %}
 
 %%
@@ -328,35 +324,22 @@ nt_defn:
   r=separated_nonempty_list(SEMICOLON, rule)
   { make_nt_defn n v inh syn r $startpos $endpos }
 
-use:
-| USE m=ident COLON LBRACE i=separated_list(COMMA, ident) RBRACE
-  { make_use m i $startpos $endpos }
-
 format_decl:
 | d=nt_defn
-  { make_decl (Decl_non_term d) $startpos $endpos }
-| u=use
-  { make_decl (Decl_use u) $startpos $endpos }
-| TYPE t=ident EQ e=type_rep
-  { let td = make_type_defn t [] e $startpos $endpos in
-    make_decl (Decl_type td) $startpos $endpos }
-| TYPE t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ e=type_rep
-  { let td = make_type_defn t tvs e $startpos $endpos in
-    make_decl (Decl_type td) $startpos $endpos }
+  { make_format_decl (Format_decl_non_term d) $startpos $endpos }
 
-lib_decl:
+top_decl:
+| USE m=ident COLON LBRACE i=separated_list(COMMA, ident) RBRACE
+  { Decl_use (make_use m i $startpos $endpos) }
 | TYPE t=ident EQ e=type_rep
-  { let td = make_type_defn t [] e $startpos $endpos in
-    make_decl (Decl_type td) $startpos $endpos }
+  { Decl_type (make_type_defn t [] e $startpos $endpos) }
 | TYPE t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ e=type_rep
-  { let td = make_type_defn t tvs e $startpos $endpos in
-    make_decl (Decl_type td) $startpos $endpos }
+  { Decl_type (make_type_defn t tvs e $startpos $endpos) }
 | FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
-  { let fd = make_fun_defn f p r e $startpos $endpos in
-    make_decl (Decl_fun fd) $startpos $endpos }
+  { Decl_fun (make_fun_defn f p r e $startpos $endpos) }
+| FORMAT i=ident LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
+  { Decl_format (make_format i d $startpos $endpos) }
 
 toplevel:
-| FORMAT i=ident LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
-  { Ply_format (make_format i d $startpos $endpos) }
-| LIBRARY i=ident LBRACE d=separated_list(SEMISEMI, lib_decl) RBRACE
-  { Ply_lib (make_library i d $startpos $endpos) }
+| decls=list(top_decl) EOF
+  { { decls } }

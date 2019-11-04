@@ -1,14 +1,12 @@
+// Use the constructs sketched in the pdfobj module.  This includes both non-terminals
+// as well as types.
+use pdfobj:{CommentObj, IndirectObj, PDFObj, DictObj, IntegerObj, obj_ctxt}
+
+// Syntax for user type definitions.
+type xref_t = Free of () | Inuse of ()
+
 format PDFDoc
 {
-  // Use the constructs sketched in pdfobj-sketch.txt.  This includes both non-terminals
-  // as well as types.
-
-  use PDFCompoundObj:{CommentObj, IndirectObj, PDFObj, DictObj, IntegerObj, obj_ctxt} ;;
-
-  // Syntax for user type definitions.
-  // We need to define the supported type language.
-  type xref_t = Free of () | Inuse of () ;;
-
   // ctxt is an inherited attributed of Doc below, while the others (header .. startxref)
   // are synthesized attributes.  Inherited attributes are declared within (), while
   // synthesized attributes are declared within {}.
