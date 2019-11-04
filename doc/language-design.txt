@@ -54,6 +54,9 @@ rationales.
     type-checking.  (Grammar type-checking will require calls into
     function expression type-checking, but not the other way around.)
 
+    We might need to later re-visit this choice, if we can easily
+    integrate grammar type-checks with the language type-checks.
+
 * Type/Function/Grammar-Rule declarations are processed strictly in
   the order they are specified by the user.  In particular, there is
   no topological sorting done (such as in Haskell).
