@@ -1,0 +1,75 @@
+This file contains some notes on language design decisions and their
+rationales.
+
+* Separation of code (type and function definitions) and grammars into
+  separate top-level declarations:
+
+  Rationale:
+
+  - The expression language used in actions and constraints will need
+    pre-defined common types and functions (e.g. sets, maps, max/min,
+    etc) typically found in a library prelude.  The Parsley module
+    that contains this is not a data format.
+
+    This motivates separating out such type and function declarations
+    from purely grammatical constructs.
+
+    Another motivation is that user-defined types and functions are
+    expected to be used across multiple grammar modules.  It would
+    help to collect them into re-usable modules that are separate from
+    the grammar modules.
+
+  - The constraint expression language has constructs that require an
+    different type-checking scheme than that used for pure functional
+    constructs.  In particular, it needs to handle:
+
+    . the notion of attributes of non-terminals and their types
+
+    . the difference between inherited and synthesized attributes
+
+    . constraint expressions can include 'match' and 'cast'
+      constructs.  This in particular might require some sort of
+      flow-typing where a predicate on a type is propagated as the
+      production rule is checked.
+
+      e.g. in PDF/StreamObj:
+
+      [ d.val.contains('Length') && d.val['Length'] ~~ IntegerObj ]  (1)
+      [ s.val.length() = (d.val['Length'] as IntegerObj)->val]       (2)
+
+      constraint (1) ensures that d.val['Length'] is castable to
+      IntegerObj (i.e. sets a predicate on d.val that 'Length' is a
+      valid key, and has the specified type), and later in (2) this
+      predicate is used to satisfy the pre-requisite of the access of
+      the 'Length' field and the cast of its value to IntegerObj
+      before accessing the 'val' attribute.
+
+    . There are operators for specific primitives like character classes
+      and perhaps bitvectors that might require custom type-checking.
+      It would be simpler to separate these rules into grammar-specific
+      rules.
+
+    It might therefore help to simplify type-checking to separate type
+    and function definition type-checking from grammar expression
+    type-checking.  (Grammar type-checking will require calls into
+    function expression type-checking, but not the other way around.)
+
+    We might need to later re-visit this choice, if we can easily
+    integrate grammar type-checks with the language type-checks.
+
+* Type/Function/Grammar-Rule declarations are processed strictly in
+  the order they are specified by the user.  In particular, there is
+  no topological sorting done (such as in Haskell).
+
+  Rationale:
+
+  - The Parsley 'compiler' is a source-code generator for Rust/PVS.
+    Both are strongly typed languages, and it is possible for the
+    generated code to contain errors.  For the user/developer to
+    diagnose such errors, it would help if the generated code bore
+    some resemblance to the original Parsley source, in particular if
+    the order in which generated definitions occur match the order in
+    which they were specified.
+
+    (Haskell does not have this problem since it generates binary
+    executable code.)

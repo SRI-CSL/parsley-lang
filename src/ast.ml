@@ -1,25 +1,27 @@
+type tvar    = string Location.loc
 type ident   = string Location.loc
 type literal = string Location.loc
 type path = ident list
 
 type type_expr_desc =
+  | TE_tvar of tvar
   | TE_path of path
   | TE_tuple  of type_expr list
   | TE_list of type_expr
   | TE_constr of path * (type_expr list)
-  | TE_fun of path * (type_expr list)
+  | TE_app of path * (type_expr list)
 
  and type_expr =
    { type_expr: type_expr_desc;
      type_expr_loc: Location.t }
 
-type type_def_desc =
-  | TD_expr of type_expr
-  | TD_variant of (ident * type_expr list) list
+type type_rep_desc =
+  | TR_expr of type_expr
+  | TR_variant of (ident * type_expr list) list
 
- and type_def =
-   { type_def: type_def_desc;
-     type_def_loc: Location.t }
+ and type_rep =
+   { type_rep: type_rep_desc;
+     type_rep_loc: Location.t }
 
 type param_decl =
     (ident * type_expr) Location.loc
@@ -55,7 +57,7 @@ type expr_desc =
   | E_cast of expr * path
   | E_field of expr * path
   | E_case of expr * (pattern * expr) list
-  | E_let of ident * expr * expr
+  | E_let of pattern * expr * expr
 
  and expr =
    { expr: expr_desc;
@@ -123,16 +125,36 @@ type use =
       use_idents: ident list;
       use_loc: Location.t }
 
-type decl_desc =
-  | Decl_non_term of non_term_defn
-  | Decl_use of use
-  | Decl_type of ident * type_def
+type type_defn =
+    { type_defn_ident: ident;
+      type_defn_tvars: tvar list;
+      type_defn_body: type_rep;
+      type_defn_loc: Location.t }
 
-type decl =
-    { decl: decl_desc;
-      decl_loc: Location.t }
+type fun_defn =
+    { fun_defn_ident: ident;
+      fun_defn_params: param_decl list;
+      fun_defn_res_type: type_expr;
+      fun_defn_body: expr;
+      fun_defn_loc: Location.t }
+
+type format_decl_desc =
+  | Format_decl_non_term of non_term_defn
+
+type format_decl =
+    { format_decl: format_decl_desc;
+      format_decl_loc: Location.t }
 
 type format =
     { format_name: ident;
-      format_decls: decl list;
+      format_decls: format_decl list;
       format_loc: Location.t }
+
+type top_decl =
+  | Decl_use of use
+  | Decl_type of type_defn
+  | Decl_fun of fun_defn
+  | Decl_format of format
+
+type top_level =
+    { decls: top_decl list }

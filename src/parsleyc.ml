@@ -16,7 +16,7 @@ let parse_file fname =
                                 pos_bol   = 0;
                                 pos_cnum  = 0 } } in
   try
-    let ast = Parser.format Lexer.token lexbuf in
+    let ast = Parser.toplevel Lexer.token lexbuf in
     process_ast ast;
     ()
   with

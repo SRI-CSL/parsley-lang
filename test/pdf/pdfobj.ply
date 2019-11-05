@@ -1,21 +1,16 @@
 // Draft sketch of PDF compound object syntax.
 // ===========================================
 
-// <file PDFCompoundObj.ply>
+// This assumes a library of primitive objects defined in a separate module.
+use pdfprim:{NameObj, IntegerObj, RawStreamObj}
+
+// The expression sublanguage for semantic actions has access to a
+// Parsley standard library, which contains maps, lists, vectors,
+// sets, etc.  These will be used below.
+type obj_ctxt = map<(int, int), PDFObj>
 
 format PDFObj
 {
-
-  // This assumes a library of primitive objects.  These are defined
-  // in a Parsley file called PDFPrimitives.ply
-  use PDFPrimitives:{NameObj, IntegerObj, RawStreamObj} ;;
-
-  // The expression sublanguage for semantic actions has access to a
-  // Parsley standard library, which contains maps, lists, vectors,
-  // sets, etc.  These will be used below.
-
-  type obj_ctxt = map<(int, int), PDFObj>;;
-
   // We now define a non-terminal for the PDF dictionary object,
   // DictObj.  Non-terminals are typically defined to have an
   // attribute named 'val' that contains the value in the
@@ -56,8 +51,8 @@ format PDFObj
 
         (| s : set<typeof(NameObj.val)> |)
 
-        '<<' ( n=NameObj [ !s.contains(n.val) ] o=PDFObj<ctxt = d.ctxt>
-	{ d.val[n.val] := o; s := s.add(n.val) } )* '>>' ;;
+        "<<" ( n=NameObj [ !s.contains(n.val) ] o=PDFObj<ctxt = d.ctxt>
+	{ d.val[n.val] := o; s := s.add(n.val) } )* ">>" ;;
 
   // Here, a named boolean-valued constraint is specified within '['
   // and ']'.  If the constraint evaluates to false, an error
@@ -72,7 +67,7 @@ format PDFObj
 
     ArrayObj a (ctxt : obj_ctxt) { val : [PDFObj] } :=
 
-        '[' ( o=PDFObj<ctxt = a.ctxt> { a := a.val.append(o) } )* ']' ;;
+        "[" ( o=PDFObj<ctxt = a.ctxt> { a := a.val.append(o) } )* "]" ;;
 
   // The semantic action simply appends the matched object to the
   // vector value of a.val.
@@ -88,7 +83,7 @@ format PDFObj
         n=IntegerObj [ n.val >= 0 ]
         g=IntegerObj [ g.val >= 0 && !i.ctxt.contains((n.val, g.val))]
 
-        'obj' o=PDFObj<ctxt = i.ctxt> 'endobj'
+        "obj" o=PDFObj<ctxt = i.ctxt> "endobj"
 
         // the semantic action computes the values of the attributes
         // of IndirectObj.  $location() is a predefined function that
@@ -109,7 +104,7 @@ format PDFObj
         n=IntegerObj [ n.val > 0 ]
         g=IntegerObj [ g.val > 0 ]
 
-        'R'
+        "R"
 
         { r.id  := n.val;
           r.gen := g.val
@@ -123,13 +118,13 @@ format PDFObj
         n=IntegerObj [ n.val >= 0 ]
         g=IntegerObj [ g.val >= 0 && !s.ctxt.contains((n.val, g.val))]
 
-        'obj' d=DictObj<ctxt=s.ctxt> s=RawStreamObj 'endobj'
+        "obj" d=DictObj<ctxt=s.ctxt> s=RawStreamObj "endobj"
 
         // The constraints are specified after both the DictObj and
         // StreamObj are matched, so that any StreamObj parsing errors
         // can terminate the rule instead of the constraint.
-        [ d.val.contains('Length') && d.val['Length'] ~~ IntegerObj ]
-        [ s.val.length() = (d.val['Length'] as IntegerObj)->val]
+        [ d.val.contains("Length") && d.val["Length"] ~~ IntegerObj ]
+        [ s.val.length() = (d.val["Length"] as IntegerObj)->val]
 
         { dict   := d;
           stream := s

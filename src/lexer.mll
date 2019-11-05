@@ -19,6 +19,7 @@
               [ "format", FORMAT;
                 "use",    USE;
                 "type",   TYPE;
+                "fun",    FUN;
                 "as",     AS;
                 "of",     OF;
                 "case",   CASE;
@@ -64,7 +65,7 @@ rule token = parse
     { token lexbuf }
 | "//"
     { eol_comment lexbuf }
-| "'"
+| "\""
     { reset_token_buffer ();
       quote lexbuf;
       let t = get_stored_token () in
@@ -110,6 +111,10 @@ rule token = parse
 | "$"? alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
 
+| "'" alpha ident*
+    { let tv = Lexing.lexeme lexbuf in
+      TVAR (Location.mk_loc_val tv (Location.curr lexbuf)) }
+
 | int_literal
     { let s = Lexing.lexeme lexbuf in
       INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
@@ -117,6 +122,9 @@ rule token = parse
 | re_char_class
     { let s = Lexing.lexeme lexbuf in
       RE_CHAR_CLASS (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| eof
+    { EOF }
 
 and eol_comment = parse
 | newline
@@ -126,7 +134,7 @@ and eol_comment = parse
     { eol_comment lexbuf }
 
 and quote = parse
-| "'"
+| "\""
     { () }
 
 | newline
