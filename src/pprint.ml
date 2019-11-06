@@ -13,6 +13,7 @@ let pprint_pelem fmt pelem = "";;
 let pprint_location fmt loc = pprint_ploc fmt loc.ploc
 
 (* START *)
+(* 
 let pprint_decl_use decl_use =
   str "decl_use: %s \n" decl_use.use_module.pelem
 
@@ -61,17 +62,40 @@ let pprint_decl_non_term a =
  *   | _ -> "other type" *)
 
 (* END *)
-
+*)
 
 let pprint_ident fmt f = Fmt.string fmt f.pelem;;
 
 let pprint_format_name fmt f = Fmt.string fmt "format_name: "; pprint_ident fmt f.format_name;;
 
-let pprint_format_loc fmt f = pf fmt "format_loc:";;
+let pprint_format_loc fmt f = pf fmt "format_loc: xyz" ;;
+let pprint_format_lob fmt f = pf fmt "format_lob: xyz" ;;
 
-let pprint_format_decl_desc fmt f = pf fmt "placeholder_decL-desc"
+let pprint_non_term_name fmt non_term_defn = pprint_ident fmt non_term_defn.non_term_name
 
-let pprint_format_decl fmt format_decls= Fmt.string fmt "format_decl: "; Fmt.braces (pprint_format_decl_desc ++ Fmt.semi ++ pprint_format_loc) fmt format_decls;;
+let pprint_non_term_varname fmt non_term_defn =
+    match non_term_defn.non_term_varname with
+    | Some varname -> Fmt.string fmt "varname: "; pprint_ident fmt varname;
+    | None -> Fmt.string fmt "varname: "; Fmt.string fmt "none";;
+
+let pprint_rule_elem fmt rule_elem = Fmt.string fmt "rule_elem_placeholder";;
+let pprint_rule fmt rule = Fmt.string fmt "rule rhs:" ; Fmt.brackets (Fmt.list pprint_rule_elem) fmt rule.rule_rhs ;;
+
+let pprint_non_term_inh_attrs fmt non_term_defn = Fmt.string fmt "non_term_rules:"; Fmt.brackets (Fmt.list pprint_rule) fmt non_term_defn.non_term_rules;;
+
+
+let pprint_param_decl fmt param_decl = Fmt.string fmt "skip-param-decl"
+
+let pprint_non_term_inh_attrs fmt non_term_defn = Fmt.string fmt "non_term_inh_attrs: "; Fmt.brackets (Fmt.list pprint_param_decl) fmt non_term_defn.non_term_inh_attrs;;
+
+let pprint_non_term_syn_attrs fmt non_term_defn = Fmt.string fmt "non_term_syn_attrs: "; Fmt.brackets (Fmt.list pprint_param_decl) fmt non_term_defn.non_term_syn_attrs;;
+
+let pprint_non_term_defn fmt non_term_defn = Fmt.string fmt "non_term_defn: " ; Fmt.concat ~sep:(any ";@,") [ pprint_non_term_name; pprint_non_term_varname; pprint_non_term_inh_attrs; pprint_non_term_syn_attrs; ] fmt non_term_defn
+
+let pprint_format_decl_desc fmt = function
+    | Format_decl_non_term x -> pprint_non_term_defn fmt x
+
+let pprint_format_decl fmt format_decl = Fmt.string fmt "format_decl: "; Fmt.braces (pprint_format_decl_desc ++ Fmt.semi ++ pprint_format_loc) fmt format_decl.format_decl;;
 
 let pprint_format_decls_list fmt f = Fmt.string fmt "format_decls_list: "; brackets (Fmt.list ~sep:comma pprint_format_decl) fmt f.format_decls
 
