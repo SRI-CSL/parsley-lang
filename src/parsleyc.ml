@@ -2,11 +2,12 @@ open Lexing
 open Location
 open Ast
 open AstToRustTranslator
+open Pprint
 
 let print_exception f loc msg =
   Printf.fprintf f "%a: %s\n" Location.print_loc loc msg
 
-let process_ast ast = print_string (AstToRustTranslator.parse_ast ast)
+let process_ast ast = (AstToRustTranslator.parse_ast ast)
 
 let parse_file fname =
   let lexbuf = from_channel (open_in fname) in
@@ -17,7 +18,7 @@ let parse_file fname =
                                 pos_cnum  = 0 } } in
   try
     let ast = Parser.toplevel Lexer.token lexbuf in
-    process_ast ast;
+    Pprint.print_ast ast;
     ()
   with
     | Parser.Error ->
