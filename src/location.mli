@@ -9,7 +9,7 @@ val curr: Lexing.lexbuf -> t
 val print_curr_pos: out_channel -> Lexing.lexbuf -> unit
 
 val make_loc: Lexing.position -> Lexing.position -> t
-val make_ghost_loc: Lexing.position -> Lexing.position -> t
+val make_ghost_loc: unit -> t
 val extent: t -> t -> t
 
 type 'a loc = {
