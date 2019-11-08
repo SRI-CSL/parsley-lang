@@ -26,9 +26,12 @@ let _make_loc b e g = {
   loc_ghost = g;
 }
 
-let make_loc b e = _make_loc b e true
+let make_loc b e = _make_loc b e false
 
-let make_ghost_loc b e = _make_loc b e false
+let make_ghost_loc b e = _make_loc b e true
+
+let extent loc1 loc2 =
+  make_ghost_loc loc1.loc_start loc2.loc_end
 
 let get_pos_info pos =
   pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol

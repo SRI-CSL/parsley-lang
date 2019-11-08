@@ -10,6 +10,7 @@ val print_curr_pos: out_channel -> Lexing.lexbuf -> unit
 
 val make_loc: Lexing.position -> Lexing.position -> t
 val make_ghost_loc: Lexing.position -> Lexing.position -> t
+val extent: t -> t -> t
 
 type 'a loc = {
   pelem: 'a;
