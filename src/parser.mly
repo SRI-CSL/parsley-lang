@@ -132,7 +132,7 @@ type_expr:
 | tv=TVAR
   { make_type_expr (TE_tvar tv) $startpos $endpos }
 | p=path
-  { make_type_expr (TE_path p) $startpos $endpos }
+  { make_type_expr (TE_constr (p, [])) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, type_expr) RPAREN
   { make_type_expr (TE_tuple l) $startpos $endpos }
 | LBRACK t=type_expr RBRACK

@@ -1,6 +1,10 @@
 type map ('a, 'b) = [ ('a, 'b) ]
 type set ('a) = ['a]
 
+type tree =
+   Node of tree * int * tree
+ | Leaf of int
+
 fun max (a : int, b: int) -> int = {
   (case a < b of
    | true  -> b
