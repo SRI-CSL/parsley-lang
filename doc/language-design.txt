@@ -73,3 +73,19 @@ rationales.
 
     (Haskell does not have this problem since it generates binary
     executable code.)
+
+* The namespace for union type constructors controls the extent to
+  which constructor names are checked for uniqueness.  E.g.
+
+    type list =
+        Cons of int * list
+      | Nil
+
+  In OCaml, the namespace for Cons and Nil are global (to their module),
+  and can be used without qualification
+
+  In Rust, Cons and Nil are scoped to their type, and can only be used as
+  list::Cons or list::Nil.
+
+  For simplicity, Parsley currently implements a global namespace (no
+  collisions of constructors are allowed).  We can revisit this later.

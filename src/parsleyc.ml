@@ -6,6 +6,7 @@ let print_exception f loc msg =
   Printf.fprintf f "%s: %s\n" (Location.str_of_loc loc) msg
 
 let process_ast ast =
+  Type_check.type_check ast;
   ()
 
 let parse_file fname =
@@ -35,6 +36,9 @@ let parse_file fname =
            exit 1)
     | Parseerror.Error (e, l) ->
           (print_exception stderr l (Parseerror.error_string e);
+           exit 1)
+    | Type_check.Error (e, l) ->
+          (print_exception stderr l (Type_check.error_string e);
            exit 1)
 
 let () =
