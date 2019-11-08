@@ -20,4 +20,4 @@ val mk_loc_val:  'a -> t -> 'a loc
 val value:       'a loc -> 'a
 val loc:         'a loc -> t
 
-val print_loc: out_channel -> t -> unit
+val str_of_loc: t -> string

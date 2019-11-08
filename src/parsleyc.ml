@@ -3,7 +3,7 @@ open Location
 open Ast
 
 let print_exception f loc msg =
-  Printf.fprintf f "%a: %s\n" Location.print_loc loc msg
+  Printf.fprintf f "%s: %s\n" (Location.str_of_loc loc) msg
 
 let process_ast ast =
   ()

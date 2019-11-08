@@ -41,11 +41,11 @@ let print_curr_pos f lexbuf =
   Printf.fprintf f "File \"%s\", line %d, character %d:"
                  file line startchar
 
-let print_loc f loc =
+let str_of_loc loc =
   let file, line, startchar = get_pos_info loc.loc_start in
   let endchar =
     loc.loc_end.pos_cnum - loc.loc_start.pos_cnum + startchar in
-  Printf.fprintf f "File \"%s\", line %d, characters %d-%d:"
+  Printf.sprintf "File \"%s\", line %d, characters %d-%d:"
                  file line startchar endchar
 
 type 'a loc = {
