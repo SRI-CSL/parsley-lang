@@ -1,6 +1,9 @@
 type map ('a, 'b) = [ ('a, 'b) ]
 type set ('a) = ['a]
 
+type PDFObj = int
+type obj_ctxt = map<(int, int), PDFObj>
+
 type tree =
    Node of tree * int * tree
  | Leaf of int
