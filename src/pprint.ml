@@ -68,7 +68,8 @@ let pprint_ident fmt f = Fmt.string fmt f.pelem;;
 
 let pprint_format_name fmt f = Fmt.string fmt "format_name: "; pprint_ident fmt f.format_name;;
 
-let pprint_format_loc fmt f = pf fmt "format_loc: xyz" ;;
+let pprint_loc fmt l = Fmt.pf fmt "loc: xyz" ;;
+let pprint_format_loc fmt f = pprint_loc fmt f.format_loc;;
 let pprint_format_lob fmt f = pf fmt "format_lob: xyz" ;;
 
 let pprint_non_term_name fmt non_term_defn = pprint_ident fmt non_term_defn.non_term_name
@@ -78,7 +79,23 @@ let pprint_non_term_varname fmt non_term_defn =
     | Some varname -> Fmt.string fmt "varname: "; pprint_ident fmt varname;
     | None -> Fmt.string fmt "varname: "; Fmt.string fmt "none";;
 
-let pprint_rule_elem fmt rule_elem = Fmt.string fmt "rule_elem_placeholder";;
+let pprint_str_location fmt x = Fmt.string fmt "placeholder str_loc";;
+let pprint_rule_elem_desc fmt = function
+  | RE_literal x -> pprint_str_location fmt x
+  | RE_non_term x, y, z -> Fmt.string fmt "placeholder"
+  | RE_named_regex x -> Fmt.string fmt "placeholder"
+  | RE_constraint x -> pprint_rule_constraint x
+  | RE_action x -> Fmt.string fmt "placeholder"
+  | RE_choice x -> Fmt.string fmt "placeholder"
+  | RE_seq x -> Fmt.string fmt "placeholder"
+  | RE_star x -> Fmt.string fmt "placeholder"
+  | RE_plus x -> Fmt.string fmt "placeholder"
+  | RE_opt x -> Fmt.string fmt "placeholder"
+  | RE_repeat x -> Fmt.string fmt "placeholder"
+  | RE_char_class x -> Fmt.string fmt "placeholder"
+
+let pprint_rule_elem_loc fmt rule_elem = pprint_loc fmt rule_elem.rule_elem_loc;;
+let pprint_rule_elem fmt rule_elem = Fmt.brackets ( pprint_rule_loc  ++ pprint_rule_elem_desc);;
 let pprint_rule fmt rule = Fmt.string fmt "rule rhs:" ; Fmt.brackets (Fmt.list pprint_rule_elem) fmt rule.rule_rhs ;;
 
 let pprint_non_term_inh_attrs fmt non_term_defn = Fmt.string fmt "non_term_rules:"; Fmt.brackets (Fmt.list pprint_rule) fmt non_term_defn.non_term_rules;;
