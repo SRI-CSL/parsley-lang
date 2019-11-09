@@ -6,7 +6,7 @@ type t = {
 
 val init: Lexing.lexbuf -> string -> unit
 val curr: Lexing.lexbuf -> t
-val print_curr_pos: out_channel -> Lexing.lexbuf -> unit
+val str_of_curr_pos: Lexing.lexbuf -> string
 
 val make_loc: Lexing.position -> Lexing.position -> t
 val make_ghost_loc: unit -> t

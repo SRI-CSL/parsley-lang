@@ -22,13 +22,13 @@ let parse_file fname =
     ()
   with
     | Parser.Error ->
-          (Location.print_curr_pos stderr lexbuf;
-           Printf.fprintf stderr " parser error at or just before this location\n";
+          (Printf.fprintf stderr "%s: parser error at or just before this location\n"
+                          (Location.str_of_curr_pos lexbuf);
            exit 1)
     | Failure f ->
           (let _bt = Printexc.get_backtrace () in
-           Location.print_curr_pos stderr lexbuf;
-           Printf.fprintf stderr " invalid token at or just before this location\n";
+           Printf.fprintf stderr "%s: invalid token at or just before this location\n"
+                          (Location.str_of_curr_pos lexbuf);
            (* Printf.fprintf stderr " %s\n" _bt; *)
            exit 1)
     | Lexer.Error (e, l) ->

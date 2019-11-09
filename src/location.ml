@@ -36,16 +36,16 @@ let extent loc1 loc2 =
 let get_pos_info pos =
   pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol
 
-let print_curr_pos f lexbuf =
+let str_of_curr_pos lexbuf =
   let file, line, startchar = get_pos_info lexbuf.lex_curr_p in
-  Printf.fprintf f "File \"%s\", line %d, character %d:"
+  Printf.sprintf "File \"%s\", line %d, character %d"
                  file line startchar
 
 let str_of_loc loc =
   let file, line, startchar = get_pos_info loc.loc_start in
   let endchar =
     loc.loc_end.pos_cnum - loc.loc_start.pos_cnum + startchar in
-  Printf.sprintf "File \"%s\", line %d, characters %d-%d:"
+  Printf.sprintf "File \"%s\", line %d, characters %d-%d"
                  file line startchar endchar
 
 type 'a loc = {
