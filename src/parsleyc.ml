@@ -18,7 +18,7 @@ let parse_file fname =
                                 pos_cnum  = 0 } } in
   try
     let ast = Parser.toplevel Lexer.token lexbuf in
-    Pprint.print_ast ast;
+    Pprint.print_ast Fmt.stdout ast;
     ()
   with
     | Parser.Error ->
