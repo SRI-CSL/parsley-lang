@@ -133,6 +133,7 @@ type type_defn =
 
 type fun_defn =
     { fun_defn_ident: Ast.ident;
+      fun_defn_tvars: kind TU.Tvar.t list; (* universal tvars *)
       fun_defn_params: param_decl list;
       fun_defn_res_type: type_expr;
       fun_defn_body: expr;

@@ -10,6 +10,7 @@ type type_error =
   | Nonunique_type_var of A.tvar * L.t
   | Nonunique_type_defn of A.path * L.t
   | Nonunique_variant_constr of A.ident * L.t
+  | Nonunique_fun_param of A.ident * L.t
   | Unknown_type_variable of A.tvar
   | Unknown_type_constructor of A.path
   | Predefined_type of A.path
@@ -20,16 +21,19 @@ exception Error of type_error * L.t
 let error_string = function
   | Nonunique_type_var (tv, l) ->
         Printf.sprintf "non-unique type variable %s (previously defined at %s)"
-                       (Location.value tv) (Location.str_of_loc l)
+                       (L.value tv) (L.str_of_loc l)
   | Nonunique_type_defn (p, l) ->
         Printf.sprintf "re-definition of type %s (previously defined at %s)"
-                       (Ast_utils.str_of_path p) (Location.str_of_loc l)
+                       (Ast_utils.str_of_path p) (L.str_of_loc l)
   | Nonunique_variant_constr (c, l) ->
         Printf.sprintf "re-definition of constructor %s (previously defined at %s)"
-                       (Location.value c) (Location.str_of_loc l)
+                       (L.value c) (L.str_of_loc l)
+  | Nonunique_fun_param (p, l) ->
+        Printf.sprintf "non-unique function parameter %s (previously defined at %s)"
+                       (L.value p) (L.str_of_loc l)
   | Unknown_type_variable tv ->
         Printf.sprintf "unknown type variable %s"
-                       (Location.value tv)
+                       (L.value tv)
   | Unknown_type_constructor p ->
         Printf.sprintf "unknown type constructor %s"
                        (Ast_utils.str_of_path p)
@@ -113,8 +117,8 @@ module Ctx = struct
                 (fun ctx (c, _) ->
                  { ctx with
                    t_var_constrs = StringMap.add (L.value c) loc ctx.t_var_constrs }
-                ) ctx constrs in
-    { ctx with t_idents = CE_type_defn ([ident], td) :: ctx.t_idents }
+                ) ctx constrs
+    in { ctx with t_idents = CE_type_defn ([ident], td) :: ctx.t_idents }
 
   (* checks the arity for the use of a type constructor *)
   let lookup_type_arity ctx (path: A.path) : int option =
@@ -135,8 +139,8 @@ module Ctx = struct
               then Some a
               else scan rest
         | _ :: rest ->
-              scan rest in
-    scan ctx.t_idents
+              scan rest
+    in scan ctx.t_idents
 
   (* checks if a type name is predefined *)
   let is_predefined ctx (path: A.path) : bool =
@@ -149,8 +153,8 @@ module Ctx = struct
               then true
               else scan rest
         | _ :: rest ->
-              scan rest in
-    scan ctx.t_idents
+              scan rest
+    in scan ctx.t_idents
 
   (* returns a named type definition if defined *)
   let lookup_type_defn ctx (path: A.path) : TA.type_defn option =
@@ -163,8 +167,8 @@ module Ctx = struct
               then Some td
               else scan rest
         | _ :: rest ->
-              scan rest in
-    scan ctx.t_idents
+              scan rest
+    in scan ctx.t_idents
 
   (* returns the type variable with the given name *)
   let lookup_type_var ctx (tv: A.tvar) : TA.kind TU.Tvar.t option =
@@ -182,7 +186,7 @@ module Ctx = struct
 end
 
 (* convert tvar names into tvars, checking uniqueness *)
-let mk_typed_tvars (tvs : A.tvar list) : (TA.kind TU.Tvar.t) list =
+let mk_typed_tvars (tvs: A.tvar list) : (TA.kind TU.Tvar.t) list =
   let folder (loc_map, tvs) tv =
     let id = L.value tv in
     let idloc = L.loc tv in
@@ -227,8 +231,8 @@ let rec well_typed_type_expr ctx (te: A.type_expr) : TA.type_expr =
                    if found <> expected
                    then type_error e loc
           );
-          let tl' = List.map (fun e -> well_typed_type_expr ctx e) tl
-          in mk_te (TA.TE_constr (p, tl'))
+          let tl' = List.map (fun e -> well_typed_type_expr ctx e) tl in
+          mk_te (TA.TE_constr (p, tl'))
     | A.TE_app (p, tl) ->
           (* TODO: check validity and arity of p.
            * I think this only happens for typeof().  Are there other
@@ -237,8 +241,8 @@ let rec well_typed_type_expr ctx (te: A.type_expr) : TA.type_expr =
           Printf.fprintf stderr
               "Unsupported type application: %s, ignoring for now.\n"
               (AU.str_of_path p);
-          let tl' = List.map (fun e -> well_typed_type_expr ctx e) tl
-          in mk_te (TA.TE_app (p, tl'))
+          let tl' = List.map (fun e -> well_typed_type_expr ctx e) tl in
+          mk_te (TA.TE_app (p, tl'))
 
 (* well-typed check for type definitions; returns the typed-ast
  * version of the definition (if valid)
@@ -277,7 +281,8 @@ let well_typed_type_defn ctx (td: A.type_defn) : TA.type_defn =
           type_rep_loc = body.A.type_rep_loc }) in
   let chked_rep =
     match body.A.type_rep with
-      | A.TR_expr te -> TA.TR_expr (well_typed_type_expr ctx' te)
+      | A.TR_expr te ->
+            TA.TR_expr (well_typed_type_expr ctx' te)
       | A.TR_variant constrs ->
             (* per-constructor handling *)
             let folder (locals, constrs') (c, args) =
@@ -303,9 +308,68 @@ let well_typed_type_defn ctx (td: A.type_defn) : TA.type_defn =
             in
             (* well-typed check for all the constructors *)
             let _, constrs' = List.fold_left folder (StringMap.empty, []) constrs in
-            TA.TR_variant constrs' in
+            TA.TR_variant constrs'
   (* return the typed-ast version *)
-  mk_td tvs (mk_tr chked_rep)
+  in mk_td tvs (mk_tr chked_rep)
+
+(* extract the type variables in a type expression *)
+let tvars_of_type_expr (te: A.type_expr) : A.tvar StringMap.t =
+  let rec traverse acc te =
+    match te.A.type_expr with
+      | A.TE_tvar tv ->
+            (* keep the first occurrence *)
+            (let n = L.value tv in
+             match StringMap.find_opt n acc with
+               | None   -> StringMap.add n tv acc
+               | Some _ -> acc)
+      | A.TE_tuple tel ->
+            List.fold_left (fun ctx e -> traverse ctx e) acc tel
+      | A.TE_list te ->
+            traverse acc te
+      | A.TE_constr (p, tel) ->
+            List.fold_left (fun ctx e -> traverse ctx e) acc tel
+      | A.TE_app (p, tel) ->
+            (* TODO: Do we need some sort of type-expression normalization? *)
+            assert false
+  in traverse StringMap.empty te
+
+let type_check_fun_def ctx fd =
+  (* we need to hoist out the (implicitly) universal tvars from the
+   * types in the param decls; i.e. we need to convert something like
+   *                cons(l: list<'a>, e: 'a) -> list<'a>
+   * into
+   *   forall ('a), cons(l: list<'a>, e: 'a) -> list<'a>
+   *)
+  let folder (pmap, tvs, ctx, args) param_decl =
+    let pi, pt = L.value param_decl in
+    let pname  = L.value pi in
+    let ploc   = L.loc pi in
+    let pmap   =
+      (match StringMap.find_opt pname pmap with
+         | Some l -> type_error (Nonunique_fun_param (pi, l)) ploc
+         | None   -> StringMap.add pname ploc pmap) in
+    let tvs'  = tvars_of_type_expr pt in
+    (* add any new type variables to the context *)
+    let ctx, tvs =
+      StringMap.fold
+        (fun n tv (ctx, tvs) ->
+         match StringMap.find_opt n tvs with
+           | None ->
+                 (* Add a new tvar to tvs and the context. *)
+                 let tv = TU.Tvar.mk_tvar TA.K_type tv in
+                 (Ctx.extend_tvars ctx [tv], StringMap.add n tv tvs)
+           | Some _ ->
+                 ctx, tvs
+        ) tvs' (ctx, tvs) in
+    (* now check that pt is well-typed in the updated context *)
+    let pt' = well_typed_type_expr ctx pt in
+    (pmap, tvs, ctx, (pi, pt') :: args) in
+  let _, tvs, ctx, typed_params =
+    List.fold_left folder (StringMap.empty, StringMap.empty, ctx, []) fd.A.fun_defn_params in
+  (* ensure that the return type is well-typed *)
+  let res_type = well_typed_type_expr ctx fd.A.fun_defn_res_type in
+  (* TODO: type-check the body *)
+  res_type
 
 let type_check toplevel =
   ignore (List.fold_left
@@ -317,8 +381,8 @@ let type_check toplevel =
        | A.Decl_type td ->
              let td' = well_typed_type_defn ctx td in
              Ctx.add_type_defn ctx td'
-       | A.Decl_fun _ ->
-             (* TODO *)
+       | A.Decl_fun fd ->
+             let _ = type_check_fun_def ctx fd in
              ctx
        | A.Decl_format _ ->
              (* TODO *)
