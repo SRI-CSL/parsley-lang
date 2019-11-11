@@ -5,14 +5,14 @@
  * expressions are annotated with their types.
  *)
 
-module U = Typing_utils
+module TU = Typing_utils
 
 type kind = K_type
 
 type var = Var
 
 type type_expr_desc =
-  | TE_tvar of kind U.Tvar.t
+  | TE_tvar of kind TU.Tvar.t
   | TE_tuple of type_expr list
   | TE_list of type_expr
   | TE_constr of Ast.path * (type_expr list)
@@ -35,7 +35,7 @@ type param_decl =
 
 type pattern_desc =
   | P_wildcard
-  | P_var of var U.Tvar.t
+  | P_var of var TU.Tvar.t
   | P_literal of Ast.literal
   | P_tuple of pattern list
   | P_variant of Ast.ident * pattern list
@@ -47,6 +47,7 @@ type pattern_desc =
 type expr_desc =
   | E_path of Ast.path
   | E_int of int
+  | E_constr of Ast.ident * expr list
   | E_tuple of expr list
   | E_apply of expr * expr list
   | E_unop of Ast.unop * expr
@@ -126,7 +127,7 @@ type use =
 
 type type_defn =
     { type_defn_ident: Ast.ident;
-      type_defn_tvars: kind U.Tvar.t list;
+      type_defn_tvars: kind TU.Tvar.t list;
       type_defn_body: type_rep;
       type_defn_loc: Location.t }
 

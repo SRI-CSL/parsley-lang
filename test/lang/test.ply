@@ -1,8 +1,8 @@
 type map ('a, 'b) = [ ('a, 'b) ]
 type set ('a) = ['a]
 
-type PDFObj = int
-type obj_ctxt = map<(int, int), PDFObj>
+type pdfobj = int
+type obj_ctxt = map<(int, int), pdfobj>
 
 type tree =
    Node of tree * int * tree
@@ -10,12 +10,22 @@ type tree =
 
 fun max (a : int, b: int) -> int = {
   (case a < b of
-   | true  -> b
-   | false -> a
+   | True  -> b
+   | False -> a
   )
 }
 
 fun pick (arg : (int, int)) -> int = {
   let (i, _) = arg in
   i
+}
+
+type list('a) =
+   Null
+ | Cons of 'a * list<'a>
+
+fun cons (l : list<'a>, e : 'a) -> list<'a> = {
+  (case l of
+   | Null()     -> e
+   | Cons(h, t) -> Cons(e, l))
 }

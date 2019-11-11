@@ -14,6 +14,7 @@ open Parseerror
 
 %token <string Location.loc> LITERAL
 %token <string Location.loc> ID
+%token <string Location.loc> CONSTR_ID
 %token <string Location.loc> TVAR
 %token <string Location.loc> INT_LITERAL
 %token <string Location.loc> RE_CHAR_CLASS
@@ -143,7 +144,9 @@ type_expr:
   { make_type_expr (TE_app (p, l)) $startpos $endpos }
 
 type_variant:
-| i=ID OF l=separated_list(STAR, type_expr)
+| i=CONSTR_ID
+  { (i, []) }
+| i=CONSTR_ID OF l=separated_list(STAR, type_expr)
   { (i, l) }
 
 type_rep:
@@ -173,7 +176,8 @@ expr:
   { make_expr (E_apply(e, l)) $startpos $endpos }
 | e=expr LBRACK i=expr RBRACK
   { make_expr (E_index(e, i)) $startpos $endpos }
-
+| c=CONSTR_ID LPAREN l=separated_list(COMMA, expr) RPAREN
+  { make_expr (E_constr(c, l)) $startpos $endpos }
 | MINUS e=expr %prec UMINUS
   { make_expr (E_unop (Uminus, e)) $startpos $endpos }
 | EXCLAIM e=expr
@@ -216,10 +220,12 @@ expr:
 pattern:
 | UNDERSCORE
   { make_pattern P_wildcard $startpos $endpos }
-| v=ident a=option(pattern_args)
+| v=ident
+  { make_pattern (P_var v) $startpos $endpos }
+| v=CONSTR_ID a=option(pattern_args)
   { let pat = match a with
-        | None -> P_var v
-        | Some args -> P_variant (v, args)
+        | None   -> P_variant (v, [])
+        | Some l -> P_variant (v, l)
     in make_pattern pat $startpos $endpos }
 | l=LITERAL
   { make_pattern (P_literal l) $startpos $endpos }

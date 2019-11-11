@@ -47,6 +47,7 @@ type pattern_desc =
 type expr_desc =
   | E_path of path
   | E_int of int
+  | E_constr of ident * expr list
   | E_tuple of expr list
   | E_apply of expr * expr list
   | E_unop of unop * expr
