@@ -25,6 +25,9 @@
                 "case",   CASE;
                 "let",    LET;
                 "in",     IN;
+
+                "$typeof",  TYPEOF;
+                "$epsilon", EPSILON;
               ];
     tbl
 
@@ -111,7 +114,7 @@ rule token = parse
 
 | upper ident*
     { let id = Lexing.lexeme lexbuf in
-      CONSTR_ID (Location.mk_loc_val id (Location.curr lexbuf)) }
+      UID (Location.mk_loc_val id (Location.curr lexbuf)) }
 | "$"? alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
 

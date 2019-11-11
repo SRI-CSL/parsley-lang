@@ -9,6 +9,7 @@ type type_expr_desc =
   | TE_list of type_expr
   | TE_constr of path * type_expr list
   | TE_app of path * type_expr list
+  | TE_typeof of path
 
  and type_expr =
    { type_expr: type_expr_desc;
@@ -28,7 +29,7 @@ type param_decl =
 type binop =
   | Lt | Gt | Lteq | Gteq | Eq
   | Plus | Minus | Mult | Div | Land | Lor
-  | Match | Cons
+  | Cons
 
 type unop =
   | Uminus | Not
@@ -58,6 +59,7 @@ type expr_desc =
   | E_field of expr * path
   | E_case of expr * (pattern * expr) list
   | E_let of pattern * expr * expr
+  | E_match of expr * path
 
  and expr =
    { expr: expr_desc;
@@ -102,6 +104,7 @@ type rule_elem_desc =
   | RE_opt of rule_elem
   | RE_repeat of char_class * int
   | RE_char_class of char_class
+  | RE_epsilon
 
  and rule_elem =
    { rule_elem: rule_elem_desc;
