@@ -89,3 +89,30 @@ rationales.
 
   For simplicity, Parsley currently implements a global namespace (no
   collisions of constructors are allowed).  We can revisit this later.
+
+* User-defined types may contain non-terminal types before the
+  non-terminals are defined. e.g.
+
+    type obj_ctxt = map<(int, int), $typeof(PDFObj)>
+
+  To support this, we have an 'nterm' top-level declaration
+
+    nterm {PDFObj}
+    type obj_ctxt = map<(int, int), $typeof(PDFObj)>
+
+  This does not allow access to the attributes of the non-terminal, as in
+
+    nterm {PDFObj}
+    type obj_ctxt = map<(int, int), $typeof(PDFObj.val)>
+
+  This is to simplify type-checking, otherwise we would need to check for
+  cyclic definitions as in
+
+    nterm {PDFObj}
+    type obj_ctxt = map<(int, int), $typeof(PDFObj.val)>
+
+    format PDF {
+      PDFObj { val: obj_ctxt } := ...
+    }
+
+  This cycle could involve multiple non-terminals and their attributes.

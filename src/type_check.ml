@@ -44,7 +44,7 @@ let error_string = function
         Printf.sprintf "unknown non-terminal %s"
                        (Ast_utils.str_of_path p)
   | Undefined_attribute (a, nt) ->
-        Printf.sprintf "no attribute %s defined for non-terminal %s"
+        Printf.sprintf "no definition available for attribute %s of non-terminal %s"
                        (L.value a) (L.value nt)
   | Invalid_path_attribute (a, nt) ->
         Printf.sprintf "attribute %s of non-terminal %s does not resolve to a non-terminal"
@@ -71,6 +71,8 @@ module Ctx = struct
     | CE_type_defn of A.path * TA.type_defn
     (* user function definition *)
     | CE_fun_defn of A.path * TA.fun_defn
+    (* non-term forward declaration *)
+    | CE_non_term_decl of A.ident
     (* non-term definition *)
     | CE_non_term_defn of TA.non_term_defn
     (* type definition variable: used for recursive types *)
@@ -114,6 +116,10 @@ module Ctx = struct
   let extend_type_ident ctx (p: A.path) (a: int) : t =
     let ent = CE_type_defn_var (p, a) in
     { ctx with t_idents = ent :: ctx.t_idents }
+
+  let extend_nterm_decls ctx (d: A.ident list) : t =
+    let ents = List.map (fun e -> CE_non_term_decl e) d in
+    { ctx with t_idents = ents @ ctx.t_idents }
 
   let add_type_defn ctx (td: TA.type_defn) : t =
     let ident = td.TA.type_defn_ident in
@@ -211,6 +217,25 @@ module Ctx = struct
         | _ :: rest ->
               scan rest
     in scan ctx.t_idents
+
+  (* returns whether a non-term has been declared or defined with the given name *)
+  let is_declared_non_term ctx (p: A.path) : bool  =
+    let rec scan ents =
+      match ents with
+        | [] ->
+              false
+        | CE_non_term_defn nt :: rest ->
+              if AU.path_equals [nt.TA.non_term_name] p
+              then true
+              else scan rest
+        | CE_non_term_decl n :: rest ->
+              if AU.path_equals [n] p
+              then true
+              else scan rest
+        | _ :: rest ->
+              scan rest
+    in scan ctx.t_idents
+
 end
 
 (* resolves the path argument starting from a given non-terminal *)
@@ -296,9 +321,10 @@ let rec well_typed_type_expr ctx (te: A.type_expr) : TA.type_expr =
                    assert false
              | [a] ->
                    (* A single element path to typeof() must resolve to a non-terminal. *)
-                   let ntd = Ctx.lookup_non_term ctx [a] in
-                   TA.({ type_expr     = TE_non_term [ntd.non_term_name];
-                         type_expr_loc = L.loc a })
+                   if Ctx.is_declared_non_term ctx [a]
+                   then TA.({ type_expr     = TE_non_term [a];
+                              type_expr_loc = L.loc a })
+                   else type_error (Unknown_non_terminal [a]) (L.loc a)
              | a :: path ->
                    let ntd = Ctx.lookup_non_term ctx [a] in
                    resolve_path ctx ntd path)
@@ -443,6 +469,8 @@ let type_check toplevel =
        | A.Decl_fun fd ->
              let _ = type_check_fun_def ctx fd in
              ctx
+       | A.Decl_nterm d ->
+             Ctx.extend_nterm_decls ctx d.A.nterms
        | A.Decl_format _ ->
              (* TODO *)
              ctx

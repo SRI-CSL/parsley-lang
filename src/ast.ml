@@ -140,6 +140,10 @@ type fun_defn =
       fun_defn_body: expr;
       fun_defn_loc: Location.t }
 
+type nterm_decl =
+    { nterms: ident list;
+      nterms_loc: Location.t }
+
 type format_decl_desc =
   | Format_decl_non_term of non_term_defn
 
@@ -156,6 +160,7 @@ type top_decl =
   | Decl_use of use
   | Decl_type of type_defn
   | Decl_fun of fun_defn
+  | Decl_nterm of nterm_decl
   | Decl_format of format
 
 type top_level =

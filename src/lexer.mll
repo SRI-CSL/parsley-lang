@@ -20,6 +20,7 @@
                 "use",    USE;
                 "type",   TYPE;
                 "fun",    FUN;
+                "nterm",  NTERM;
                 "as",     AS;
                 "of",     OF;
                 "case",   CASE;

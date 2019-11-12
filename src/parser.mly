@@ -4,7 +4,7 @@ open Parseerror
 %}
 
 %token EOF
-%token FORMAT LIBRARY TYPE FUN USE AS OF CASE LET IN
+%token FORMAT LIBRARY TYPE FUN NTERM USE AS OF CASE LET IN
 %token TYPEOF EPSILON
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
@@ -109,6 +109,10 @@ let make_use m i b e =
   { use_module = m;
     use_idents = i;
     use_loc = Location.make_loc b e }
+
+let make_nterm_decl d b e =
+  { nterms = d;
+    nterms_loc = Location.make_loc b e }
 
 let make_format_decl d b e =
   { format_decl = d;
@@ -355,6 +359,8 @@ top_decl:
   { Decl_type (make_type_defn t tvs e $startpos $endpos) }
 | FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
   { Decl_fun (make_fun_defn f p r e $startpos $endpos) }
+| NTERM LBRACE d=separated_list(COMMA, UID) RBRACE
+  { Decl_nterm (make_nterm_decl d $startpos $endpos) }
 | FORMAT i=UID LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
   { Decl_format (make_format i d $startpos $endpos) }
 

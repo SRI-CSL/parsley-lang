@@ -7,6 +7,10 @@ use pdfprim:{NameObj, IntegerObj, RawStreamObj}
 // Dummy map definition (until modules and backend-syntax work).
 type map('a, 'b) = [('a, 'b)]
 
+// Since we are using the PDFObj non-terminal below before its
+// definition, we need to declare it.
+nterm {PDFObj}
+
 // The expression sublanguage for semantic actions has access to a
 // Parsley standard library, which contains maps, lists, vectors,
 // sets, etc.  These will be used below.
