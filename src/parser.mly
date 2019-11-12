@@ -145,8 +145,8 @@ type_expr:
   { make_type_expr (TE_constr (p, l)) $startpos $endpos }
 | TYPEOF LPAREN nt=UID RPAREN
   { make_type_expr (TE_typeof [nt]) $startpos $endpos }
-| TYPEOF LPAREN p=path RPAREN
-  { make_type_expr (TE_typeof p) $startpos $endpos }
+| TYPEOF LPAREN nt=UID DOT p=separated_nonempty_list(DOT, ident) RPAREN
+  { make_type_expr (TE_typeof (nt::p)) $startpos $endpos }
 
 type_variant:
 | i=UID
