@@ -21,3 +21,15 @@ let path_loc p =
 
 let str_of_path p =
   String.concat "." (List.map (fun i -> Location.value i) p)
+
+let param_lookup id param_decls =
+  let rec scan decls =
+    match decls with
+      | [] ->
+            None
+      | decl :: rest ->
+            let param, te = Location.value decl in
+            if Location.value id = Location.value param
+            then Some te
+            else scan rest
+  in scan param_decls

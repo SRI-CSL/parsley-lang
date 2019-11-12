@@ -13,6 +13,9 @@ type type_error =
   | Nonunique_fun_param of A.ident * L.t
   | Unknown_type_variable of A.tvar
   | Unknown_type_constructor of A.path
+  | Unknown_non_terminal of A.path
+  | Undefined_attribute of (* attr *) A.ident * (* non-terminal *) A.ident
+  | Invalid_path_attribute of (* attr *) A.ident * (* non-terminal *) A.ident
   | Predefined_type of A.path
   | Incorrect_tycon_arity of A.path * (* expected *) int * (* found *) int
 
@@ -37,6 +40,15 @@ let error_string = function
   | Unknown_type_constructor p ->
         Printf.sprintf "unknown type constructor %s"
                        (Ast_utils.str_of_path p)
+  | Unknown_non_terminal p ->
+        Printf.sprintf "unknown non-terminal %s"
+                       (Ast_utils.str_of_path p)
+  | Undefined_attribute (a, nt) ->
+        Printf.sprintf "no attribute %s defined for non-terminal %s"
+                       (L.value a) (L.value nt)
+  | Invalid_path_attribute (a, nt) ->
+        Printf.sprintf "attribute %s of non-terminal %s does not resolve to a non-terminal"
+                       (L.value a) (L.value nt)
   | Predefined_type p ->
         Printf.sprintf "cannot re-define predefined type %s"
                        (Ast_utils.str_of_path p)
@@ -59,6 +71,8 @@ module Ctx = struct
     | CE_type_defn of A.path * TA.type_defn
     (* user function definition *)
     | CE_fun_defn of A.path * TA.fun_defn
+    (* non-term definition *)
+    | CE_non_term_defn of TA.non_term_defn
     (* type definition variable: used for recursive types *)
     | CE_type_defn_var of A.path * int
 
@@ -183,7 +197,50 @@ module Ctx = struct
         | _ :: rest ->
               scan rest
     in scan ctx.t_idents
+
+  (* returns the non-term definition with the given name *)
+  let lookup_non_term ctx (p: A.path) : TA.non_term_defn =
+    let rec scan ents =
+      match ents with
+        | [] ->
+              type_error (Unknown_non_terminal p) (AU.path_loc p)
+        | CE_non_term_defn nt :: rest ->
+              if AU.path_equals [nt.TA.non_term_name] p
+              then nt
+              else scan rest
+        | _ :: rest ->
+              scan rest
+    in scan ctx.t_idents
 end
+
+(* resolves the path argument starting from a given non-terminal *)
+let resolve_path ctx (ntd: TA.non_term_defn) (p: A.path) : TA.type_expr =
+  (* p is a path to an attribute *)
+  let get_attr_type ntd attr =
+    match (match AU.param_lookup attr ntd.TA.non_term_inh_attrs with
+             | Some d ->  Some d
+             | None   ->  AU.param_lookup attr ntd.TA.non_term_syn_attrs
+          ) with
+      | None ->
+            type_error (Undefined_attribute (attr, ntd.TA.non_term_name))
+                       (L.loc attr)
+      | Some d ->
+            d in
+  let rec resolve ntd p =
+    match p with
+      | []  -> (* we should always have non-empty paths *)
+            assert false
+      | [a] ->
+            get_attr_type ntd a
+      | a :: path ->
+            (match (get_attr_type ntd a).TA.type_expr with
+               | TA.TE_non_term ntp ->
+                     resolve (Ctx.lookup_non_term ctx ntp) path
+               | _ ->
+                     type_error (Invalid_path_attribute (a, ntd.TA.non_term_name))
+                                (L.loc a)
+            )
+  in resolve ntd p
 
 (* convert tvar names into tvars, checking uniqueness *)
 let mk_typed_tvars (tvs: A.tvar list) : (TA.kind TU.Tvar.t) list =
@@ -234,15 +291,17 @@ let rec well_typed_type_expr ctx (te: A.type_expr) : TA.type_expr =
           let tl' = List.map (fun e -> well_typed_type_expr ctx e) tl in
           mk_te (TA.TE_constr (p, tl'))
     | A.TE_typeof p ->
-          (* TODO.
-           * Note: p might resolve to a non-term, or an attribute of
-           * a non-term.  In the latter case, we should use the type
-           * of the attribute.
-           *)
-          Printf.fprintf stderr
-              "Warning: type-check of $typeof (for %s) is not yet implemented.\n"
-              (AU.str_of_path p);
-          mk_te (TA.TE_non_term p)
+          (match p with
+             | []  ->  (* we should always have non-empty paths *)
+                   assert false
+             | [a] ->
+                   (* A single element path to typeof() must resolve to a non-terminal. *)
+                   let ntd = Ctx.lookup_non_term ctx [a] in
+                   TA.({ type_expr     = TE_non_term [ntd.non_term_name];
+                         type_expr_loc = L.loc a })
+             | a :: path ->
+                   let ntd = Ctx.lookup_non_term ctx [a] in
+                   resolve_path ctx ntd path)
 
 (* well-typed check for type definitions; returns the typed-ast
  * version of the definition (if valid)
