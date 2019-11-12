@@ -4,6 +4,9 @@
 // This assumes a library of primitive objects defined in a separate module.
 use pdfprim:{NameObj, IntegerObj, RawStreamObj}
 
+// Dummy map definition (until modules and backend-syntax work).
+type map('a, 'b) = [('a, 'b)]
+
 // The expression sublanguage for semantic actions has access to a
 // Parsley standard library, which contains maps, lists, vectors,
 // sets, etc.  These will be used below.

@@ -4,6 +4,9 @@ use pdfobj:{CommentObj, IndirectObj, PDFObj, DictObj, IntegerObj, obj_ctxt}
 
 // Syntax for user type definitions.
 type xref_t = Free of () | Inuse of ()
+type option('a) =
+    Some of 'a
+  | None
 
 format PDFDoc
 {
@@ -26,7 +29,7 @@ format PDFDoc
     } ;;
 
 Header h { version: $typeof(CommentObj),
-           binary: option($typeof(CommentObj)) } :=
+           binary: option<$typeof(CommentObj)> } :=
 
     v=CommentObj b=CommentObj?
     // '?' is a builtin that creates an option-type

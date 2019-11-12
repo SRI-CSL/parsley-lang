@@ -233,16 +233,11 @@ let rec well_typed_type_expr ctx (te: A.type_expr) : TA.type_expr =
           );
           let tl' = List.map (fun e -> well_typed_type_expr ctx e) tl in
           mk_te (TA.TE_constr (p, tl'))
-    | A.TE_app (p, tl) ->
-          (* TODO: check validity and arity of p.
-           * I think this only happens for typeof().  Are there other
-           * cases?
-           *)
+    | A.TE_typeof p ->
           Printf.fprintf stderr
-              "Unsupported type application: %s, ignoring for now.\n"
+              "Type-check of $typeof (for %s) is not yet implemented.\n"
               (AU.str_of_path p);
-          let tl' = List.map (fun e -> well_typed_type_expr ctx e) tl in
-          mk_te (TA.TE_app (p, tl'))
+          assert false
 
 (* well-typed check for type definitions; returns the typed-ast
  * version of the definition (if valid)
@@ -328,9 +323,9 @@ let tvars_of_type_expr (te: A.type_expr) : A.tvar StringMap.t =
             traverse acc te
       | A.TE_constr (p, tel) ->
             List.fold_left (fun ctx e -> traverse ctx e) acc tel
-      | A.TE_app (p, tel) ->
-            (* TODO: Do we need some sort of type-expression normalization? *)
-            assert false
+      | A.TE_typeof p ->
+            (* non-terminals are not (yet?) polymorphic *)
+            acc
   in traverse StringMap.empty te
 
 let type_check_fun_def ctx fd =

@@ -8,7 +8,6 @@ type type_expr_desc =
   | TE_tuple  of type_expr list
   | TE_list of type_expr
   | TE_constr of path * type_expr list
-  | TE_app of path * type_expr list
   | TE_typeof of path
 
  and type_expr =

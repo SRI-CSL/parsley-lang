@@ -143,8 +143,6 @@ type_expr:
   { make_type_expr (TE_list t) $startpos $endpos }
 | p=path LT l=separated_list(COMMA, type_expr) GT
   { make_type_expr (TE_constr (p, l)) $startpos $endpos }
-| p=path LPAREN l=separated_list(COMMA, type_expr) RPAREN
-  { make_type_expr (TE_app (p, l)) $startpos $endpos }
 | TYPEOF LPAREN nt=UID RPAREN
   { make_type_expr (TE_typeof [nt]) $startpos $endpos }
 | TYPEOF LPAREN p=path RPAREN
