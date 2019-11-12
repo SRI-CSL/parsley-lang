@@ -59,6 +59,14 @@ let error_string = function
 let type_error e loc =
   raise (Error (e, loc))
 
+(* the well-typed signature for a function, without the body *)
+type fun_sig =
+    { fun_sig_ident: Ast.ident;
+      fun_sig_tvars: TA.kind TU.Tvar.t list; (* universal tvars *)
+      fun_sig_params: TA.param_decl list;
+      fun_sig_res_type: TA.type_expr;
+      fun_sig_loc: Location.t }
+
 module Ctx = struct
   type typing_ctx_entry =
     (* predefined base types with arities *)
@@ -69,8 +77,8 @@ module Ctx = struct
     | CE_pvar of TA.var TU.Tvar.t option
     (* user type definition *)
     | CE_type_defn of A.path * TA.type_defn
-    (* user function definition *)
-    | CE_fun_defn of A.path * TA.fun_defn
+    (* user function signature *)
+    | CE_fun_sig of A.path * fun_sig
     (* non-term forward declaration *)
     | CE_non_term_decl of A.ident
     (* non-term definition *)
@@ -139,6 +147,10 @@ module Ctx = struct
                    t_var_constrs = StringMap.add (L.value c) loc ctx.t_var_constrs }
                 ) ctx constrs
     in { ctx with t_idents = CE_type_defn ([ident], td) :: ctx.t_idents }
+
+  let add_fun_sig ctx (fs: fun_sig) : t =
+    let ent = CE_fun_sig ([fs.fun_sig_ident], fs) in
+    { ctx with t_idents = ent :: ctx.t_idents }
 
   (* checks the arity for the use of a type constructor *)
   let lookup_type_arity ctx (path: A.path) : int option =
@@ -418,7 +430,7 @@ let tvars_of_type_expr (te: A.type_expr) : A.tvar StringMap.t =
             acc
   in traverse StringMap.empty te
 
-let type_check_fun_def ctx fd =
+let type_check_fun_sig ctx (fd: A.fun_defn) : fun_sig =
   (* we need to hoist out the (implicitly) universal tvars from the
    * types in the param decls; i.e. we need to convert something like
    *                cons(l: list<'a>, e: 'a) -> list<'a>
@@ -426,6 +438,7 @@ let type_check_fun_def ctx fd =
    *   forall ('a), cons(l: list<'a>, e: 'a) -> list<'a>
    *)
   let folder (pmap, tvs, ctx, args) param_decl =
+    let pdloc  = L.loc param_decl in
     let pi, pt = L.value param_decl in
     let pname  = L.value pi in
     let ploc   = L.loc pi in
@@ -448,13 +461,16 @@ let type_check_fun_def ctx fd =
         ) tvs' (ctx, tvs) in
     (* now check that pt is well-typed in the updated context *)
     let pt' = well_typed_type_expr ctx pt in
-    (pmap, tvs, ctx, (pi, pt') :: args) in
+    (pmap, tvs, ctx, (L.mk_loc_val (pi, pt') pdloc) :: args) in
   let _, tvs, ctx, typed_params =
     List.fold_left folder (StringMap.empty, StringMap.empty, ctx, []) fd.A.fun_defn_params in
   (* ensure that the return type is well-typed *)
   let res_type = well_typed_type_expr ctx fd.A.fun_defn_res_type in
-  (* TODO: type-check the body *)
-  res_type
+  { fun_sig_ident    = fd.A.fun_defn_ident;
+    fun_sig_tvars    = List.map (fun (k, v) -> v) (StringMap.bindings tvs);
+    fun_sig_params   = List.rev typed_params;
+    fun_sig_res_type = res_type;
+    fun_sig_loc      = fd.A.fun_defn_loc }
 
 let type_check toplevel =
   ignore (List.fold_left
@@ -467,8 +483,8 @@ let type_check toplevel =
              let td' = well_typed_type_defn ctx td in
              Ctx.add_type_defn ctx td'
        | A.Decl_fun fd ->
-             let _ = type_check_fun_def ctx fd in
-             ctx
+             let fs = type_check_fun_sig ctx fd in
+             Ctx.add_fun_sig ctx fs
        | A.Decl_nterm d ->
              Ctx.extend_nterm_decls ctx d.A.nterms
        | A.Decl_format _ ->
