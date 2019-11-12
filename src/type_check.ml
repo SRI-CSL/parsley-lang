@@ -234,10 +234,15 @@ let rec well_typed_type_expr ctx (te: A.type_expr) : TA.type_expr =
           let tl' = List.map (fun e -> well_typed_type_expr ctx e) tl in
           mk_te (TA.TE_constr (p, tl'))
     | A.TE_typeof p ->
+          (* TODO.
+           * Note: p might resolve to a non-term, or an attribute of
+           * a non-term.  In the latter case, we should use the type
+           * of the attribute.
+           *)
           Printf.fprintf stderr
-              "Type-check of $typeof (for %s) is not yet implemented.\n"
+              "Warning: type-check of $typeof (for %s) is not yet implemented.\n"
               (AU.str_of_path p);
-          assert false
+          mk_te (TA.TE_non_term p)
 
 (* well-typed check for type definitions; returns the typed-ast
  * version of the definition (if valid)

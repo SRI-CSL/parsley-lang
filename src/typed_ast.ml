@@ -16,6 +16,7 @@ type type_expr_desc =
   | TE_tuple of type_expr list
   | TE_list of type_expr
   | TE_constr of Ast.path * (type_expr list)
+  | TE_non_term of Ast.path
 
  and type_expr =
    { type_expr: type_expr_desc;

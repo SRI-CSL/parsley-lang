@@ -3,7 +3,7 @@
 use pdfobj:{CommentObj, IndirectObj, PDFObj, DictObj, IntegerObj, obj_ctxt}
 
 // Syntax for user type definitions.
-type xref_t = Free of () | Inuse of ()
+type xref_t = Free | Inuse
 type option('a) =
     Some of 'a
   | None
