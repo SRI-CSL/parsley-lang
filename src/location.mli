@@ -20,4 +20,5 @@ val mk_loc_val:  'a -> t -> 'a loc
 val value:       'a loc -> 'a
 val loc:         'a loc -> t
 
-val str_of_loc: t -> string
+val str_of_loc:      t -> string (* full location, including file name *)
+val str_of_file_loc: t -> string (* location without file name *)

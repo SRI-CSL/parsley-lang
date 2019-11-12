@@ -20,8 +20,8 @@ exception Error of type_error * L.t
 
 let error_string = function
   | Nonunique_type_var (tv, l) ->
-        Printf.sprintf "non-unique type variable %s (previously defined at %s)"
-                       (L.value tv) (L.str_of_loc l)
+        Printf.sprintf "non-unique type variable %s (previously defined on %s)"
+                       (L.value tv) (L.str_of_file_loc l)
   | Nonunique_type_defn (p, l) ->
         Printf.sprintf "re-definition of type %s (previously defined at %s)"
                        (Ast_utils.str_of_path p) (L.str_of_loc l)
@@ -29,8 +29,8 @@ let error_string = function
         Printf.sprintf "re-definition of constructor %s (previously defined at %s)"
                        (L.value c) (L.str_of_loc l)
   | Nonunique_fun_param (p, l) ->
-        Printf.sprintf "non-unique function parameter %s (previously defined at %s)"
-                       (L.value p) (L.str_of_loc l)
+        Printf.sprintf "non-unique function parameter %s (previously defined on %s)"
+                       (L.value p) (L.str_of_file_loc l)
   | Unknown_type_variable tv ->
         Printf.sprintf "unknown type variable %s"
                        (L.value tv)

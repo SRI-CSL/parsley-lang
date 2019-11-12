@@ -48,6 +48,13 @@ let str_of_loc loc =
   Printf.sprintf "File \"%s\", line %d, characters %d-%d"
                  file line startchar endchar
 
+let str_of_file_loc loc =
+  let _file, line, startchar = get_pos_info loc.loc_start in
+  let endchar =
+    loc.loc_end.pos_cnum - loc.loc_start.pos_cnum + startchar in
+  Printf.sprintf "line %d, characters %d-%d"
+                 line startchar endchar
+
 type 'a loc = {
   pelem: 'a;
   ploc:  t;
