@@ -591,8 +591,10 @@ let typeof_deps_type_expr (te : A.type_expr) : typeof_dep list =
       | A.TE_typeof p ->
             let nt, attr = AU.path_into_nterm_attr p in
             (match attr with
-               | None -> Tydep_nterm nt :: acc
-               | Some a -> Tydep_nterm_attr (nt, a) :: acc
+               | None ->
+                     Tydep_nterm nt :: acc
+               | Some a ->
+                     Tydep_nterm nt :: Tydep_nterm_attr (nt, a) :: acc
             )
   in helper [] te
 
