@@ -195,20 +195,7 @@ module Ctx = struct
     let rec replace earlier ents =
       match ents with
         | [] ->
-              (* if not present, put the definition in the front of
-               * the context.
-               *)
               CE_non_term_type ntd :: (List.rev earlier)
-        | (CE_predefined_type _ as e) :: rest ->
-              replace (e :: earlier) rest
-        | (CE_tvar _ as e) :: rest ->
-              replace (e :: earlier) rest
-        | (CE_pvar _ as e) :: rest ->
-              replace (e :: earlier) rest
-        | (CE_type_defn _ as e) :: rest ->
-              replace (e :: earlier) rest
-        | (CE_fun_sig _ as e) :: rest ->
-              replace (e :: earlier) rest
         | (CE_non_term_decl nt as e) :: rest ->
               if AU.path_equals [nt] ntd.nterm_name
               then (List.rev earlier) @ (CE_non_term_type ntd :: rest)
@@ -216,7 +203,7 @@ module Ctx = struct
         | (CE_non_term_type d as e) :: rest ->
               assert (AU.path_equals d.nterm_name ntd.nterm_name = false);
               replace (e :: earlier) rest
-        | (CE_type_defn_var _ as e) :: rest ->
+        | e :: rest ->
               replace (e :: earlier) rest in
     let t_idents = replace [] ctx.t_idents in
     { ctx with t_idents }
