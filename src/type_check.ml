@@ -3,8 +3,28 @@ module AU = Ast_utils
 module TA = Typed_ast
 module TU = Typing_utils
 module L  = Location
+module DG = Depgraph
 
 module StringMap = AU.StringMap
+
+(* nodes in dependency graph *)
+type typeof_dep =
+  | Tydep_nterm of A.path
+  | Tydep_nterm_attr of A.path * A.ident
+
+let nterm_of_dep = function
+  | Tydep_nterm p -> p
+  | Tydep_nterm_attr (p, _) -> p
+
+let path_of_dep = function
+  | Tydep_nterm p -> p
+  | Tydep_nterm_attr (p, a) -> p @ [a]
+
+let loc_of_dep d =
+    AU.path_loc (nterm_of_dep d)
+
+let str_of_dep d =
+  AU.str_of_path (path_of_dep d)
 
 type type_error =
   | Nonunique_type_var of A.tvar * L.t
@@ -14,10 +34,12 @@ type type_error =
   | Unknown_type_variable of A.tvar
   | Unknown_type_constructor of A.path
   | Unknown_non_terminal of A.path
-  | Undefined_attribute of (* attr *) A.ident * (* non-terminal *) A.ident
-  | Invalid_path_attribute of (* attr *) A.ident * (* non-terminal *) A.ident
+  | Undefined_attribute of (* attr *) A.ident * (* non-terminal *) A.path
+  | Invalid_path_attribute of (* attr *) A.ident * (* non-terminal *) A.path
   | Predefined_type of A.path
   | Incorrect_tycon_arity of A.path * (* expected *) int * (* found *) int
+  | Cyclic_typeof_dependency of typeof_dep list
+  | Undefined_path of A.path
 
 exception Error of type_error * L.t
 
@@ -45,16 +67,21 @@ let error_string = function
                        (Ast_utils.str_of_path p)
   | Undefined_attribute (a, nt) ->
         Printf.sprintf "no definition available for attribute %s of non-terminal %s"
-                       (L.value a) (L.value nt)
+                       (L.value a) (Ast_utils.str_of_path nt)
   | Invalid_path_attribute (a, nt) ->
         Printf.sprintf "attribute %s of non-terminal %s does not resolve to a non-terminal"
-                       (L.value a) (L.value nt)
+                       (L.value a) (Ast_utils.str_of_path nt)
   | Predefined_type p ->
         Printf.sprintf "cannot re-define predefined type %s"
                        (Ast_utils.str_of_path p)
   | Incorrect_tycon_arity (p, exp, fnd) ->
         Printf.sprintf "%d args expected for %s, found %d"
                        exp (Ast_utils.str_of_path p) fnd
+  | Cyclic_typeof_dependency c ->
+        "cyclic typeof dependency detected:"
+        ^ (String.concat " -> " (List.map str_of_dep c))
+  | Undefined_path p ->
+        Printf.sprintf "undefined path %s" (AU.str_of_path p)
 
 let type_error e loc =
   raise (Error (e, loc))
@@ -66,6 +93,13 @@ type fun_sig =
       fun_sig_params: TA.param_decl list;
       fun_sig_res_type: TA.type_expr;
       fun_sig_loc: Location.t }
+
+(* the type of a non-terminal, without the grammar rules *)
+type nterm_type =
+    { nterm_name: Ast.path;
+      nterm_inh_attrs: TA.param_decl list;
+      nterm_syn_attrs: TA.param_decl list;
+      nterm_loc: Location.t }
 
 module Ctx = struct
   type typing_ctx_entry =
@@ -82,7 +116,7 @@ module Ctx = struct
     (* non-term forward declaration *)
     | CE_non_term_decl of A.ident
     (* non-term definition *)
-    | CE_non_term_defn of TA.non_term_defn
+    | CE_non_term_type of nterm_type
     (* type definition variable: used for recursive types *)
     | CE_type_defn_var of A.path * int
 
@@ -152,6 +186,34 @@ module Ctx = struct
     let ent = CE_fun_sig ([fs.fun_sig_ident], fs) in
     { ctx with t_idents = ent :: ctx.t_idents }
 
+  let add_nterm_type ctx (ntd: nterm_type) : t =
+    (* replace the declaration if present *)
+    let rec replace earlier ents =
+      match ents with
+        | [] ->
+              List.rev (CE_non_term_type ntd :: earlier)
+        | (CE_predefined_type _ as e) :: rest ->
+              replace (e :: earlier) rest
+        | (CE_tvar _ as e) :: rest ->
+              replace (e :: earlier) rest
+        | (CE_pvar _ as e) :: rest ->
+              replace (e :: earlier) rest
+        | (CE_type_defn _ as e) :: rest ->
+              replace (e :: earlier) rest
+        | (CE_fun_sig _ as e) :: rest ->
+              replace (e :: earlier) rest
+        | (CE_non_term_decl nt as e) :: rest ->
+              if AU.path_equals [nt] ntd.nterm_name
+              then (List.rev earlier) @ (CE_non_term_type ntd :: rest)
+              else replace (e :: earlier) rest
+        | (CE_non_term_type d as e) :: rest ->
+              assert (AU.path_equals d.nterm_name ntd.nterm_name = false);
+              replace (e :: earlier) rest
+        | (CE_type_defn_var _ as e) :: rest ->
+              replace (e :: earlier) rest in
+    let t_idents = replace [] ctx.t_idents in
+    { ctx with t_idents }
+
   (* checks the arity for the use of a type constructor *)
   let lookup_type_arity ctx (path: A.path) : int option =
     let rec scan ents =
@@ -216,14 +278,14 @@ module Ctx = struct
               scan rest
     in scan ctx.t_idents
 
-  (* returns the non-term definition with the given name *)
-  let lookup_non_term ctx (p: A.path) : TA.non_term_defn =
+  (* returns the non-term type definition with the given name *)
+  let lookup_non_term ctx (p: A.path) : nterm_type =
     let rec scan ents =
       match ents with
         | [] ->
               type_error (Unknown_non_terminal p) (AU.path_loc p)
-        | CE_non_term_defn nt :: rest ->
-              if AU.path_equals [nt.TA.non_term_name] p
+        | CE_non_term_type nt :: rest ->
+              if AU.path_equals nt.nterm_name p
               then nt
               else scan rest
         | _ :: rest ->
@@ -236,8 +298,8 @@ module Ctx = struct
       match ents with
         | [] ->
               false
-        | CE_non_term_defn nt :: rest ->
-              if AU.path_equals [nt.TA.non_term_name] p
+        | CE_non_term_type nt :: rest ->
+              if AU.path_equals nt.nterm_name p
               then true
               else scan rest
         | CE_non_term_decl n :: rest ->
@@ -251,15 +313,15 @@ module Ctx = struct
 end
 
 (* resolves the path argument starting from a given non-terminal *)
-let resolve_path ctx (ntd: TA.non_term_defn) (p: A.path) : TA.type_expr =
+let resolve_path ctx (ntd: nterm_type) (p: A.path) : TA.type_expr =
   (* p is a path to an attribute *)
   let get_attr_type ntd attr =
-    match (match AU.param_lookup attr ntd.TA.non_term_inh_attrs with
+    match (match AU.param_lookup attr ntd.nterm_inh_attrs with
              | Some d ->  Some d
-             | None   ->  AU.param_lookup attr ntd.TA.non_term_syn_attrs
+             | None   ->  AU.param_lookup attr ntd.nterm_syn_attrs
           ) with
       | None ->
-            type_error (Undefined_attribute (attr, ntd.TA.non_term_name))
+            type_error (Undefined_attribute (attr, ntd.nterm_name))
                        (L.loc attr)
       | Some d ->
             d in
@@ -274,7 +336,7 @@ let resolve_path ctx (ntd: TA.non_term_defn) (p: A.path) : TA.type_expr =
                | TA.TE_non_term ntp ->
                      resolve (Ctx.lookup_non_term ctx ntp) path
                | _ ->
-                     type_error (Invalid_path_attribute (a, ntd.TA.non_term_name))
+                     type_error (Invalid_path_attribute (a, ntd.nterm_name))
                                 (L.loc a)
             )
   in resolve ntd p
@@ -430,6 +492,10 @@ let tvars_of_type_expr (te: A.type_expr) : A.tvar StringMap.t =
             acc
   in traverse StringMap.empty te
 
+
+(* well-typed check for type signatures of function definitions;
+ * returns the function signature (if valid)
+ *)
 let type_check_fun_sig ctx (fd: A.fun_defn) : fun_sig =
   (* we need to hoist out the (implicitly) universal tvars from the
    * types in the param decls; i.e. we need to convert something like
@@ -472,22 +538,189 @@ let type_check_fun_sig ctx (fd: A.fun_defn) : fun_sig =
     fun_sig_res_type = res_type;
     fun_sig_loc      = fd.A.fun_defn_loc }
 
+
+(* well-typed check for types of non-terminal definitions;
+ * returns the non-terminal type (if valid).
+ *
+ * This requires that all typeof dependencies of the non-terminal
+ * have had their type definitions added to the context.
+ *)
+let type_check_nterm_type ctx (nt: A.non_term_defn) : nterm_type =
+  let tc_attr pd =
+    let aid, ate = L.value pd in
+    let ate = well_typed_type_expr ctx ate in
+    L.mk_loc_val (aid, ate) (L.loc pd) in
+  let nterm_inh_attrs = List.map tc_attr nt.A.non_term_inh_attrs in
+  let nterm_syn_attrs = List.map tc_attr nt.A.non_term_syn_attrs in
+  { nterm_name = [nt.A.non_term_name];
+    nterm_inh_attrs;
+    nterm_syn_attrs;
+    nterm_loc = nt.A.non_term_loc }
+
+
+(* Construction of the typeof dependency graph for non-terminal types. *)
+
+module Ordered_Typeof_dep = struct
+  type t = typeof_dep
+  let compare a b =
+    match a, b with
+      | Tydep_nterm a, Tydep_nterm b ->
+            AU.path_compare a b
+      | Tydep_nterm a, Tydep_nterm_attr (b, ba) ->
+            AU.path_compare a (b @ [ba])
+      | Tydep_nterm_attr (a, aa), Tydep_nterm b ->
+            AU.path_compare (a @ [aa]) b
+      | Tydep_nterm_attr (a, aa), Tydep_nterm_attr (b, ba) ->
+            AU.path_compare (a @ [aa]) (b @ [ba])
+end
+
+module TD_depgraph = Depgraph.Make(Ordered_Typeof_dep)
+
+(* compute the typeof() dependencies of a type expression. *)
+let typeof_deps_type_expr (te : A.type_expr) : typeof_dep list =
+  let rec helper acc te =
+    match te.A.type_expr with
+      | A.TE_tvar _ -> acc
+      | A.TE_tuple tel -> List.fold_left helper acc tel
+      | A.TE_list te -> helper acc te
+      | A.TE_constr (p, tel) -> List.fold_left helper acc tel
+      | A.TE_typeof p ->
+            let nt, attr = AU.path_into_nterm_attr p in
+            (match attr with
+               | None -> Tydep_nterm nt :: acc
+               | Some a -> Tydep_nterm_attr (nt, a) :: acc
+            )
+  in helper [] te
+
+(* compute the typeof() dependencies of a non-terminal.
+ * There is an implicit typeof dependency between the type of a non-terminal
+ * and the types of its attributes.
+ *)
+let typeof_deps_non_term (dg : TD_depgraph.t) (nt : A.non_term_defn) : TD_depgraph.t =
+  let ntpath = [nt.A.non_term_name] in
+  let ntnode = Tydep_nterm ntpath in
+  let add_dep dg node dep =
+    TD_depgraph.add_link dg node dep in
+  let process_attr dg attr =
+    let aname, atype = L.value attr in
+    let anode = Tydep_nterm_attr (ntpath, aname) in
+    let dg = add_dep dg ntnode anode in
+    List.fold_left (fun dg dep -> add_dep dg anode dep)
+                   dg (typeof_deps_type_expr atype) in
+  let dg = List.fold_left process_attr dg nt.A.non_term_inh_attrs in
+  List.fold_left process_attr dg nt.A.non_term_syn_attrs
+
+(*
+
+  The tentative type-checking strategy is to use a bi-directional
+  typing algorithm, with the following passes:
+
+  - The first pass ensures that all type expressions
+    (type-definitions, function type signatures) are well-formed.
+
+    This populates the context with the types of function symbols, and
+    the definitions of all predefined and user-defined types.
+
+    During this pass, we construct the $typeof() dependency graph for
+    each non-terminal definition.
+
+  - The second pass ensures that the types of each non-terminal node
+    are well-formed.  This is done in dependency order, using a
+    topological sort of the dependency graph.
+
+  - The next pass then checks the function bodies against this
+    context, using the checking mode of the bidirectional algorithm.
+
+  - Each non-terminal definition in the formats are then checked.  The
+    exact algorithm here needs to be developed.  It would need to:
+
+    . all constraint expressions have the boolean type
+
+    . perform the usual attribute usage and dependency checks
+
+    . ensure that all attributes are fully initialized before any use,
+      and all synthesized attributes are assigned a value at the end
+      of the RHS.
+
+ *)
+
 let type_check toplevel =
-  ignore (List.fold_left
-    (fun ctx d ->
-     match d with
-       | A.Decl_use _ ->
-             (* TODO *)
-             ctx
-       | A.Decl_type td ->
-             let td' = well_typed_type_defn ctx td in
-             Ctx.add_type_defn ctx td'
-       | A.Decl_fun fd ->
-             let fs = type_check_fun_sig ctx fd in
-             Ctx.add_fun_sig ctx fs
-       | A.Decl_nterm d ->
-             Ctx.extend_nterm_decls ctx d.A.nterms
-       | A.Decl_format _ ->
-             (* TODO *)
-             ctx
-    ) (Ctx.init ()) toplevel.A.decls)
+  (* update context with type and function signatures, while
+   * collecting non-terminal type definitions and constructing their
+   * dependency graph.
+   *)
+  let ctx, dgraph, ntdefs =
+    List.fold_left
+      (fun (ctx, dgraph, ntdefs) d ->
+       match d with
+         | A.Decl_use _ ->
+               (* TODO *)
+               ctx, dgraph, ntdefs
+         | A.Decl_type td ->
+               let td' = well_typed_type_defn ctx td in
+               (Ctx.add_type_defn ctx td'), dgraph, ntdefs
+         | A.Decl_fun fd ->
+               let fs = type_check_fun_sig ctx fd in
+               (Ctx.add_fun_sig ctx fs), dgraph, ntdefs
+         | A.Decl_nterm d ->
+               (Ctx.extend_nterm_decls ctx d.A.nterms), dgraph, ntdefs
+         | A.Decl_format f ->
+               (* update the dependency graph *)
+               let dgraph, ntdefs =
+                 List.fold_left
+                   (fun (dg, df) fd ->
+                    match fd.A.format_decl with
+                      | A.Format_decl_non_term d ->
+                            (* TODO: use paths for non-terminal names
+                             * with format name prefixes *)
+                            let p = [d.A.non_term_name] in
+                            let nm = AU.str_of_path p in
+                            let dg = typeof_deps_non_term dg d in
+                            let df = StringMap.add nm d df in
+                            dg, df
+                   ) (dgraph, ntdefs) f.A.format_decls in
+               (* note: we could eagerly check for cyclic dependencies
+                * here for better error location information, at the
+                * expense of redundant checking.
+                *)
+               ctx, dgraph, ntdefs
+      )
+      (Ctx.init (), TD_depgraph.init, StringMap.empty)
+      toplevel.A.decls in
+  (* sort the non-terminal dependencies *)
+  let sorted =
+    try TD_depgraph.topo_sort dgraph
+    with
+      | TD_depgraph.Node_not_present d ->
+            type_error (Undefined_path (path_of_dep d)) (loc_of_dep d)
+      | TD_depgraph.Cycle c ->
+            (* this is a global error, but we need to ascribe a
+             * location to it.  for now, use the location of the first
+             * dependency in the cycle.
+             *)
+            let loc = loc_of_dep (List.hd c) in
+            type_error (Cyclic_typeof_dependency c) loc in
+  (* perform the well-formed check for non-terminal types in order *)
+  let ctx =
+    List.fold_left
+      (fun ctx dep ->
+       match dep with
+         | Tydep_nterm p ->
+               let nm = AU.str_of_path p in
+               let ntd =
+                 (match StringMap.find_opt nm ntdefs with
+                    | Some df ->
+                          df
+                    | None ->
+                          let err = Undefined_path p in
+                          let loc = loc_of_dep dep in
+                          type_error err loc) in
+               let ntt = type_check_nterm_type ctx ntd in
+               Ctx.add_nterm_type ctx ntt
+         | Tydep_nterm_attr _ ->
+               (* these should always have the corresponding nterm
+                * node which are processed above
+                *)
+               ctx
+      ) ctx (List.rev sorted)
+  in ignore ctx
