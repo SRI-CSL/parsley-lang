@@ -137,12 +137,16 @@ module Ctx = struct
   }
 
   let init () : t =
-    let mk_predefined id =
+    (* populate with predefined base types *)
+    let mk_predef_loc id =
       L.mk_loc_val id (L.make_ghost_loc ()) in
-    { (* populate with predefined base types *)
-      t_idents = [
-        CE_predefined_type ([mk_predefined "int"], 0)
-      ];
+    let predef_types =
+      [ "bool", 0; "int", 0; "u8", 0; "i64", 0; "double", 0;
+        "string", 0
+      ] in
+    let mk_predef_ent (nm, arity) =
+      CE_predefined_type ([mk_predef_loc nm], arity) in
+    { t_idents = List.map mk_predef_ent predef_types;
       t_var_constrs = StringMap.empty }
 
   (* new identifiers go to the front of the list, so that they are
