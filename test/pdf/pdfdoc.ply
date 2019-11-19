@@ -17,7 +17,7 @@ format PDFDoc
   // A non-terminal in a production rule is provided the values of its inherited attributes
   // within <>, as in the calls to Body and Trailer below.
 
-  Doc d (ctxt : obj_ctxt) { header: $typeof(Header), body: $typeof(Body), xref: [$typeof(Xref)], trailer: [$typeof(Trailer)], startxref: int } :=
+  Doc d (ctxt : obj_ctxt) { header: $typeof(Header), body: $typeof(Body), xref: [$typeof(XrefSect)], trailer: [$typeof(Trailer)], startxref: int } :=
 
     h=Header b=Body<ctxt = d.ctxt> x=Xref t=Trailer<ctxt = d.ctxt> s=StartXref e=EOF
 
@@ -63,7 +63,7 @@ XrefSubSect x { start: int, count: int, ents: [$typeof(XrefEnt)] } :=
 
     ( e=XrefEnt [ x.ents.len() < x.count() ] { x.ents := x.ents.append(e) } )* ;;
 
-XrefEnt x { offset: int, gen: int, status: xfree_t } :=
+XrefEnt x { offset: int, gen: int, status: xref_t } :=
 
     o=([[:digit:]*10]) g=([[:digit:]*5])
 
