@@ -195,7 +195,10 @@ module Ctx = struct
     let rec replace earlier ents =
       match ents with
         | [] ->
-              List.rev (CE_non_term_type ntd :: earlier)
+              (* if not present, put the definition in the front of
+               * the context.
+               *)
+              CE_non_term_type ntd :: (List.rev earlier)
         | (CE_predefined_type _ as e) :: rest ->
               replace (e :: earlier) rest
         | (CE_tvar _ as e) :: rest ->
