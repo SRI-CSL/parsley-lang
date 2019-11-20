@@ -78,7 +78,7 @@ let error_string = function
         Printf.sprintf "%d args expected for %s, found %d"
                        exp (Ast_utils.str_of_path p) fnd
   | Cyclic_typeof_dependency c ->
-        "cyclic typeof dependency detected:"
+        "cyclic typeof dependency detected: "
         ^ (String.concat " -> " (List.map str_of_dep c))
   | Undefined_path p ->
         Printf.sprintf "undefined path %s" (AU.str_of_path p)
@@ -580,11 +580,12 @@ let typeof_deps_type_expr (te : A.type_expr) : typeof_dep list =
       | A.TE_constr (p, tel) -> List.fold_left helper acc tel
       | A.TE_typeof p ->
             let nt, attr = AU.path_into_nterm_attr p in
+            (* ordering for type-checking only depends on
+             * typeof dependencies via attributes.
+             *)
             (match attr with
-               | None ->
-                     Tydep_nterm nt :: acc
-               | Some a ->
-                     Tydep_nterm nt :: Tydep_nterm_attr (nt, a) :: acc
+               | Some a -> Tydep_nterm_attr (nt, a) :: acc
+               | None -> acc
             )
   in helper [] te
 
