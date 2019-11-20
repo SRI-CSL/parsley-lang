@@ -6,10 +6,23 @@ format Examples {
   // value is done by the library function $int_of_byte().
   DepVec dv { val: [u8] } :=
     c=([:byte:]) v=([[:byte:]*$int_of_byte(c)])
-    { dv.val := v }
+    { dv.val := v } ;;
 
-  // The current syntax only supports such constructions for data
-  // captured by character classes; but does not yet support it for
-  // general non-terminals.
+  // This data-dependent vector count also applies for non-terminals.
+
+  NonTerm nt { val: u8 } :=
+    c=([:byte:])
+    { nt.val := c } ;;
+
+  DepNTVec dv { val: [u8] } :=
+    c=([:byte:]) v=([NonTerm * $int_of_byte(c)])
+    { dv.val := v } ;;
+
+  // The dependent count can be an attribute of a previously parsed
+  // non-terminal.
+
+  NTDepNTVec dv { val: [u8] } :=
+    c=NonTerm v=([NonTerm * c.val])
+    { dv.val := v }
 
 }

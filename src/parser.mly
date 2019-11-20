@@ -269,6 +269,14 @@ char_class:
 | l=char_class BACKSLASH r=LITERAL
   { make_char_class (CC_sub (l, r)) $startpos $endpos }
 
+attr_val:
+| i=ident EQ v=expr
+  { (i, v) }
+
+nt_args:
+| LT inh=separated_list(COMMA, attr_val) GT
+  { inh }
+
 cc_regex:
 | c=char_class
   { make_rule_elem (RE_char_class c) $startpos $endpos }
@@ -281,15 +289,9 @@ cc_regex:
 | LPAREN l=list(cc_regex) RPAREN
   { make_rule_elem (RE_seq l) $startpos $endpos }
 | LBRACK c=char_class STAR e=expr RBRACK
-  { make_rule_elem (RE_repeat (c, e)) $startpos $endpos }
-
-attr_val:
-| i=ident EQ v=expr
-  { (i, v) }
-
-nt_args:
-| LT inh=separated_list(COMMA, attr_val) GT
-  { inh }
+  { make_rule_elem (RE_cclass_repeat (c, e)) $startpos $endpos }
+| LBRACK nt=UID inh=option(nt_args) STAR e=expr RBRACK
+  { make_rule_elem (RE_nterm_repeat (nt, inh, e)) $startpos $endpos }
 
 rule_elem:
 | EPSILON
