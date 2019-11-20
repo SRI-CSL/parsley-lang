@@ -280,8 +280,8 @@ cc_regex:
   { make_rule_elem (RE_opt c) $startpos $endpos }
 | LPAREN l=list(cc_regex) RPAREN
   { make_rule_elem (RE_seq l) $startpos $endpos }
-| LBRACK c=char_class STAR i=INT_LITERAL RBRACK
-  { make_rule_elem (RE_repeat (c, make_int_literal i)) $startpos $endpos }
+| LBRACK c=char_class STAR e=expr RBRACK
+  { make_rule_elem (RE_repeat (c, e)) $startpos $endpos }
 
 attr_val:
 | i=ident EQ v=expr

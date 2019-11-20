@@ -101,7 +101,7 @@ type rule_elem_desc =
   | RE_star of rule_elem
   | RE_plus of rule_elem
   | RE_opt of rule_elem
-  | RE_repeat of char_class * int
+  | RE_repeat of char_class * expr
   | RE_char_class of char_class
   | RE_epsilon
 

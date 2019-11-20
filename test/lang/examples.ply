@@ -1,0 +1,15 @@
+format Examples {
+
+  // Example of a common dependent type:
+  // 'c' captures a byte that represents the length of a vector of
+  // bytes, captured by 'v'.  The conversion of 'c' into the integer length
+  // value is done by the library function $int_of_byte().
+  DepVec dv { val: [u8] } :=
+    c=([:byte:]) v=([[:byte:]*$int_of_byte(c)])
+    { dv.val := v }
+
+  // The current syntax only supports such constructions for data
+  // captured by character classes; but does not yet support it for
+  // general non-terminals.
+
+}
