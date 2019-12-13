@@ -2,8 +2,11 @@ open Fmt
 open Location
 open Ast
 open Stdlib
+open Lexing
 
 let print_string str fmt _ =  string fmt str;;
+
+let get_pos_info pos = pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol
 
 let pprint_ploc fmt l =
     let x, y, z = get_pos_info l.loc_start
@@ -60,6 +63,8 @@ let rec pprint_expr_desc fmt = function
           (list (fun fmt (p, e) -> pprint_pattern fmt p; pprint_expr fmt e)) fmt pe_list) fmt (e, pe_list)
   | E_let (p,e,e1) ->
           pf fmt "pattern * expr * expr"; pprint_pattern fmt p; pprint_expr fmt e; pprint_expr fmt e1;
+  | E_constr (i, e) -> pf fmt "placeholder ie list printer"
+  | E_match (e, p) -> pf fmt "placeholder (expr, path) printer"
 and pprint_expr fmt x =
   pf fmt "expr: ";
   brackets
@@ -109,24 +114,23 @@ let rec pprint_rule_elem fmt rule_elem =
       | RE_star x -> pprint_rule_elem fmt x
       | RE_plus x -> pprint_rule_elem fmt x
       | RE_opt x -> pprint_rule_elem fmt x
-      | RE_repeat (ch, i) -> pprint_char_class fmt ch; pf fmt "%d" i
-      | RE_char_class x -> pf fmt "placeholder char class" ;;
+      | RE_cclass_repeat (ch, e) -> pprint_char_class fmt ch; pprint_expr fmt e
+      | RE_nterm_repeat (i, ie_list_option, expr) -> pf fmt "placeholder"
+      | RE_char_class x -> pf fmt "placeholder char class"
+      | RE_epsilon -> pf fmt "RE_epsilon"
 
 let pprint_tvar fmt t = pf fmt "tvar: "; pprint_str_location fmt t;;
 
 let rec pprint_type_expr_desc fmt = function
   | TE_tvar x -> pf fmt "TE_tvar: "; pprint_tvar fmt x
-  | TE_path x -> pf fmt "TE_path: ";  pprint_path fmt x
+  | TE_typeof x -> pf fmt "TE_path: ";  pprint_path fmt x
   | TE_tuple x -> pf fmt "TE_tuple: "; brackets (list pprint_type_expr) fmt x
   | TE_list x -> pf fmt "TE_list: "; pprint_type_expr fmt x
   | TE_constr (x, y) ->
           pf fmt "TE_constr: ";
           pprint_path fmt x;
           brackets (list pprint_type_expr) fmt y;
-  | TE_app (x, y) ->
-          pprint_path fmt x;
-          brackets (list pprint_type_expr) fmt y
-      and pprint_type_expr fmt x =
+    and pprint_type_expr fmt x =
           braces
     (fun fmt t ->
         pprint_type_expr_desc fmt t.type_expr;
@@ -207,7 +211,8 @@ let pprint_top_decl fmt = function
     | Decl_use x -> pf fmt "decl use"
     | Decl_type y -> pf fmt "decl type"
     | Decl_fun z -> pf fmt "decl fun"
-    | Decl_format a -> pf fmt " decl_format: " ; pprint_decl_format fmt a;;
+    | Decl_format a -> pf fmt " decl_format: " ; pprint_decl_format fmt a
+    | Decl_nterm x -> pf fmt "placeholder ntermdecl printer";;
 
 let print_ast fmt ast =
     pf fmt " ast: ";

@@ -34,7 +34,7 @@ let extent loc1 loc2 =
   make_loc loc1.loc_start loc2.loc_end
 
 let get_pos_info pos =
-  pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol
+    pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol
 
 let str_of_curr_pos lexbuf =
   let file, line, startchar = get_pos_info lexbuf.lex_curr_p in

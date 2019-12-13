@@ -16,10 +16,6 @@ let rust_includes = "\n use std::error::Error;
 let rust_parser_function_start = "fn parse_file(test_file: &str) {\n"
 let rust_parser_function_end = "\n}\n"
 
-let tmp_fun x =
-  let a,b,c = get_pos_info x.ploc.loc_start in
-  Printf.sprintf "%s %d %d" a b c;;
-
 let comment_format_name ast =
   Printf.sprintf "// generating rust parser for %s format \n" ast.format_name.pelem;;
 
@@ -31,4 +27,5 @@ let generate_rust_parser_function_code ast = (comment_format_name ast)
 
 (* let parse_ast ast = pr "@[%s@]@." "hey";; ();;(\* (Stdlib.List.hd (ast.format_decls)).decl;; *\) *)
 
+(*Pprint.print_ast Fmt.stdout ast;*)
 let parse_ast ast = pr "%s" "hey ";; (* (Stdlib.List.hd (ast.format_decls)).decl;; *)

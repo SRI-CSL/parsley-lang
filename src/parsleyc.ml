@@ -7,9 +7,9 @@ open Pprint
 let print_exception f loc msg =
   Printf.fprintf f "%s: %s\n" (Location.str_of_loc loc) msg
 
+(*(AstToRustTranslator.parse_ast ast)*)
 let process_ast ast =
   Type_check.type_check ast;
-  (*(AstToRustTranslator.parse_ast ast)*)
   ()
 
 let parse_file fname =
@@ -21,7 +21,7 @@ let parse_file fname =
                                 pos_cnum  = 0 } } in
   try
     let ast = Parser.toplevel Lexer.token lexbuf in
-    Pprint.print_ast Fmt.stdout ast;
+    process_ast ast;
     ()
   with
     | Parser.Error ->
