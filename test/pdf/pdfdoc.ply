@@ -3,7 +3,10 @@
 use pdfobj:{CommentObj, IndirectObj, PDFObj, DictObj, IntegerObj, obj_ctxt}
 
 // Syntax for user type definitions.
-type xref_t = Free of () | Inuse of ()
+type xref_t = Free | Inuse
+type option('a) =
+    Some of 'a
+  | None
 
 format PDFDoc
 {
@@ -14,7 +17,7 @@ format PDFDoc
   // A non-terminal in a production rule is provided the values of its inherited attributes
   // within <>, as in the calls to Body and Trailer below.
 
-  Doc d (ctxt : obj_ctxt) { header: Header, body: Body, xref: [Xref], trailer: [Trailer], startxref: int } :=
+  Doc d (ctxt : obj_ctxt) { header: $typeof(Header), body: $typeof(Body), xref: [$typeof(XrefSect)], trailer: [$typeof(Trailer)], startxref: int } :=
 
     h=Header b=Body<ctxt = d.ctxt> x=Xref t=Trailer<ctxt = d.ctxt> s=StartXref e=EOF
 
@@ -25,8 +28,8 @@ format PDFDoc
       d.startxref := s.val
     } ;;
 
-Header h { version: typeof(CommentObj),
-           binary: option(typeof(CommentObj)) } :=
+Header h { version: $typeof(CommentObj),
+           binary: option<$typeof(CommentObj)> } :=
 
     v=CommentObj b=CommentObj?
     // '?' is a builtin that creates an option-type
@@ -35,7 +38,7 @@ Header h { version: typeof(CommentObj),
       binary  := b  // type-checks since b is an option value
     } ;;
 
-Body b (ctxt : obj_ctxt) { body: [PDFObj] } :=
+Body b (ctxt : obj_ctxt) { body: [$typeof(PDFObj)] } :=
 
     ( o=PDFObj<ctxt = b.ctxt> [ o ~~ IndirectObj ] { b.body := b.body.append(o) } )* ;;
 
@@ -43,11 +46,11 @@ Body b (ctxt : obj_ctxt) { body: [PDFObj] } :=
     // indirect objects.  Note that the parsing action here is
     // entirely contained within the Kleene star group.
 
-XrefSect x { sects: [XrefSubSect] } :=
+XrefSect x { sects: [$typeof(XrefSubSect)] } :=
 
     "xref" ( s=XrefSubSect { x.sects := x.sects.append(s) } )* ;;
 
-XrefSubSect x { start: int, count: int, ents: [XrefEnt] } :=
+XrefSubSect x { start: int, count: int, ents: [$typeof(XrefEnt)] } :=
     // The spec is not clear whether there is any leading or trailing non-EOL whitespace
 
     s=IntegerObj [ s.val >= 0 ]
@@ -60,7 +63,7 @@ XrefSubSect x { start: int, count: int, ents: [XrefEnt] } :=
 
     ( e=XrefEnt [ x.ents.len() < x.count() ] { x.ents := x.ents.append(e) } )* ;;
 
-XrefEnt x { offset: int, gen: int, status: xfree_t } :=
+XrefEnt x { offset: int, gen: int, status: xref_t } :=
 
     o=([[:digit:]*10]) g=([[:digit:]*5])
 
@@ -70,7 +73,7 @@ XrefEnt x { offset: int, gen: int, status: xfree_t } :=
 
     { x.offset := $string_to_int(o);
       x.gen    := $string_to_int(g);
-      x.status := Inuse
+      x.status := Inuse()
     }
 
     // $string_to_int() is a Parsley built-in to convert strings into
@@ -78,8 +81,8 @@ XrefEnt x { offset: int, gen: int, status: xfree_t } :=
     // [SEMANTICS: Should this function can throw a parsing exception
     // on non-numeric input? ]
 
-    ( "n" { x.status := Inuse }
-    | "f" { x.status := Free  }
+    ( "n" { x.status := Inuse() }
+    | "f" { x.status := Free()  }
     )
 
     "\r\n" // This is required to be 'a two-character end-of-line
@@ -91,7 +94,7 @@ XrefEnt x { offset: int, gen: int, status: xfree_t } :=
     // is explicitly designed to enable succinct specifications.
     // The ';' in the concrete syntax terminates the production rule.
 
-Trailer t (ctxt : obj_ctxt) { dict: DictObj } :=
+Trailer t (ctxt : obj_ctxt) { dict: $typeof(DictObj) } :=
 
    "trailer" d=DictObj<ctxt = t.ctxt>
 

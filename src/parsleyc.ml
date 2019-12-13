@@ -5,9 +5,12 @@ open AstToRustTranslator
 open Pprint
 
 let print_exception f loc msg =
-  Printf.fprintf f "%a: %s\n" Location.print_loc loc msg
+  Printf.fprintf f "%s: %s\n" (Location.str_of_loc loc) msg
 
-let process_ast ast = (AstToRustTranslator.parse_ast ast)
+let process_ast ast =
+  Type_check.type_check ast;
+  (*(AstToRustTranslator.parse_ast ast)*)
+  ()
 
 let parse_file fname =
   let lexbuf = from_channel (open_in fname) in
@@ -22,13 +25,13 @@ let parse_file fname =
     ()
   with
     | Parser.Error ->
-          (Location.print_curr_pos stderr lexbuf;
-           Printf.fprintf stderr " parser error at or just before this location\n";
+          (Printf.fprintf stderr "%s: parser error at or just before this location\n"
+                          (Location.str_of_curr_pos lexbuf);
            exit 1)
     | Failure f ->
           (let _bt = Printexc.get_backtrace () in
-           Location.print_curr_pos stderr lexbuf;
-           Printf.fprintf stderr " invalid token at or just before this location\n";
+           Printf.fprintf stderr "%s: invalid token at or just before this location\n"
+                          (Location.str_of_curr_pos lexbuf);
            (* Printf.fprintf stderr " %s\n" _bt; *)
            exit 1)
     | Lexer.Error (e, l) ->
@@ -36,6 +39,9 @@ let parse_file fname =
            exit 1)
     | Parseerror.Error (e, l) ->
           (print_exception stderr l (Parseerror.error_string e);
+           exit 1)
+    | Type_check.Error (e, l) ->
+          (print_exception stderr l (Type_check.error_string e);
            exit 1)
 
 let () =

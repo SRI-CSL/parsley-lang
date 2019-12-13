@@ -4,7 +4,8 @@ open Parseerror
 %}
 
 %token EOF
-%token FORMAT LIBRARY TYPE FUN USE AS OF CASE LET IN
+%token FORMAT LIBRARY TYPE FUN NTERM USE AS OF CASE LET IN
+%token TYPEOF EPSILON
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI QUOTE DOT QUESTION ARROW
@@ -14,6 +15,7 @@ open Parseerror
 
 %token <string Location.loc> LITERAL
 %token <string Location.loc> ID
+%token <string Location.loc> UID
 %token <string Location.loc> TVAR
 %token <string Location.loc> INT_LITERAL
 %token <string Location.loc> RE_CHAR_CLASS
@@ -108,6 +110,10 @@ let make_use m i b e =
     use_idents = i;
     use_loc = Location.make_loc b e }
 
+let make_nterm_decl d b e =
+  { nterms = d;
+    nterms_loc = Location.make_loc b e }
+
 let make_format_decl d b e =
   { format_decl = d;
     format_decl_loc = Location.make_loc b e }
@@ -127,23 +133,29 @@ ident:
 path:
 | p=separated_nonempty_list(DOT, ident)
   { p }
+| u=UID DOT p=separated_nonempty_list(DOT, ident)
+  { u :: p }
 
 type_expr:
 | tv=TVAR
   { make_type_expr (TE_tvar tv) $startpos $endpos }
 | p=path
-  { make_type_expr (TE_path p) $startpos $endpos }
+  { make_type_expr (TE_constr (p, [])) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, type_expr) RPAREN
   { make_type_expr (TE_tuple l) $startpos $endpos }
 | LBRACK t=type_expr RBRACK
   { make_type_expr (TE_list t) $startpos $endpos }
 | p=path LT l=separated_list(COMMA, type_expr) GT
   { make_type_expr (TE_constr (p, l)) $startpos $endpos }
-| p=path LPAREN l=separated_list(COMMA, type_expr) RPAREN
-  { make_type_expr (TE_app (p, l)) $startpos $endpos }
+| TYPEOF LPAREN nt=UID RPAREN
+  { make_type_expr (TE_typeof [nt]) $startpos $endpos }
+| TYPEOF LPAREN nt=UID DOT p=separated_nonempty_list(DOT, ident) RPAREN
+  { make_type_expr (TE_typeof (nt::p)) $startpos $endpos }
 
 type_variant:
-| i=ID OF l=separated_list(STAR, type_expr)
+| i=UID
+  { (i, []) }
+| i=UID OF l=separated_list(STAR, type_expr)
   { (i, l) }
 
 type_rep:
@@ -173,7 +185,8 @@ expr:
   { make_expr (E_apply(e, l)) $startpos $endpos }
 | e=expr LBRACK i=expr RBRACK
   { make_expr (E_index(e, i)) $startpos $endpos }
-
+| c=UID LPAREN l=separated_list(COMMA, expr) RPAREN
+  { make_expr (E_constr(c, l)) $startpos $endpos }
 | MINUS e=expr %prec UMINUS
   { make_expr (E_unop (Uminus, e)) $startpos $endpos }
 | EXCLAIM e=expr
@@ -182,8 +195,8 @@ expr:
   { make_expr (E_binop (Land, l, r)) $startpos $endpos }
 | l=expr LOR r=expr
   { make_expr (E_binop (Lor, l, r)) $startpos $endpos }
-| l=expr MATCH r=expr
-  { make_expr (E_binop (Match, l, r)) $startpos $endpos }
+| e=expr MATCH nt=UID
+  { make_expr (E_match (e, [nt])) $startpos $endpos }
 | l=expr PLUS r=expr
   { make_expr (E_binop (Plus, l, r)) $startpos $endpos }
 | l=expr MINUS r=expr
@@ -204,8 +217,8 @@ expr:
   { make_expr (E_binop (Eq, l, r)) $startpos $endpos }
 | l=expr COLONCOLON r=expr
   { make_expr (E_binop (Cons, l, r)) $startpos $endpos }
-| e=expr AS p=path
-  { make_expr (E_cast (e, p)) $startpos $endpos }
+| e=expr AS nt=UID
+  { make_expr (E_cast (e, [nt])) $startpos $endpos }
 | e=expr ARROW p=path
   { make_expr (E_field (e, p)) $startpos $endpos }
 | LPAREN CASE e=expr OF option(BAR) b=separated_list(BAR, branch) RPAREN
@@ -216,10 +229,12 @@ expr:
 pattern:
 | UNDERSCORE
   { make_pattern P_wildcard $startpos $endpos }
-| v=ident a=option(pattern_args)
+| v=ident
+  { make_pattern (P_var v) $startpos $endpos }
+| v=UID a=option(pattern_args)
   { let pat = match a with
-        | None -> P_var v
-        | Some args -> P_variant (v, args)
+        | None   -> P_variant (v, [])
+        | Some l -> P_variant (v, l)
     in make_pattern pat $startpos $endpos }
 | l=LITERAL
   { make_pattern (P_literal l) $startpos $endpos }
@@ -254,6 +269,14 @@ char_class:
 | l=char_class BACKSLASH r=LITERAL
   { make_char_class (CC_sub (l, r)) $startpos $endpos }
 
+attr_val:
+| i=ident EQ v=expr
+  { (i, v) }
+
+nt_args:
+| LT inh=separated_list(COMMA, attr_val) GT
+  { inh }
+
 cc_regex:
 | c=char_class
   { make_rule_elem (RE_char_class c) $startpos $endpos }
@@ -265,28 +288,24 @@ cc_regex:
   { make_rule_elem (RE_opt c) $startpos $endpos }
 | LPAREN l=list(cc_regex) RPAREN
   { make_rule_elem (RE_seq l) $startpos $endpos }
-| LBRACK c=char_class STAR i=INT_LITERAL RBRACK
-  { make_rule_elem (RE_repeat (c, make_int_literal i)) $startpos $endpos }
-
-attr_val:
-| i=ident EQ v=expr
-  { (i, v) }
-
-nt_args:
-| LT inh=separated_list(COMMA, attr_val) GT
-  { inh }
+| LBRACK c=char_class STAR e=expr RBRACK
+  { make_rule_elem (RE_cclass_repeat (c, e)) $startpos $endpos }
+| LBRACK nt=UID inh=option(nt_args) STAR e=expr RBRACK
+  { make_rule_elem (RE_nterm_repeat (nt, inh, e)) $startpos $endpos }
 
 rule_elem:
+| EPSILON
+  { make_rule_elem RE_epsilon $startpos $endpos }
 | c=RE_CHAR_CLASS
   { let cc = make_char_class (CC_named c) $startpos $endpos in
     make_rule_elem (RE_char_class cc) $startpos $endpos }
 | l=LITERAL
   { make_rule_elem (RE_literal l) $startpos $endpos }
-| v=ident EQ nt=ident inh=option(nt_args)
+| v=ident EQ nt=UID inh=option(nt_args)
   { make_rule_elem (RE_non_term (nt, Some v, inh)) $startpos $endpos }
 | v=ident EQ LPAREN re=cc_regex RPAREN
   { make_rule_elem (RE_named_regex (re, v)) $startpos $endpos }
-| nt=ident inh=option(nt_args)
+| nt=UID inh=option(nt_args)
   { make_rule_elem (RE_non_term (nt, None, inh)) $startpos $endpos }
 | LBRACK e=expr RBRACK
   { make_rule_elem (RE_constraint e) $startpos $endpos }
@@ -310,15 +329,15 @@ rule:
   { make_rule [] l $startpos $endpos }
 
 nt_defn:
-| n=ident v=option(ident)
+| n=UID v=option(ident)
   LBRACE syn=param_decls RBRACE COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
   { make_nt_defn n v [] syn r $startpos $endpos }
-| n=ident v=option(ident)
+| n=UID v=option(ident)
   LPAREN inh=param_decls RPAREN COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
   { make_nt_defn n v inh [] r $startpos $endpos }
-| n=ident v=option(ident)
+| n=UID v=option(ident)
   LPAREN inh=param_decls RPAREN
   LBRACE syn=param_decls RBRACE COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
@@ -328,8 +347,13 @@ format_decl:
 | d=nt_defn
   { make_format_decl (Format_decl_non_term d) $startpos $endpos }
 
+use_def:
+| d=UID
+| d=ident
+  { d }
+
 top_decl:
-| USE m=ident COLON LBRACE i=separated_list(COMMA, ident) RBRACE
+| USE m=ident COLON LBRACE i=separated_list(COMMA, use_def) RBRACE
   { Decl_use (make_use m i $startpos $endpos) }
 | TYPE t=ident EQ e=type_rep
   { Decl_type (make_type_defn t [] e $startpos $endpos) }
@@ -337,7 +361,9 @@ top_decl:
   { Decl_type (make_type_defn t tvs e $startpos $endpos) }
 | FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
   { Decl_fun (make_fun_defn f p r e $startpos $endpos) }
-| FORMAT i=ident LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
+| NTERM LBRACE d=separated_list(COMMA, UID) RBRACE
+  { Decl_nterm (make_nterm_decl d $startpos $endpos) }
+| FORMAT i=UID LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
   { Decl_format (make_format i d $startpos $endpos) }
 
 toplevel:

@@ -4,10 +4,17 @@
 // This assumes a library of primitive objects defined in a separate module.
 use pdfprim:{NameObj, IntegerObj, RawStreamObj}
 
+// Dummy map definition (until modules and backend-syntax work).
+type map('a, 'b) = [('a, 'b)]
+
+// Since we are using the PDFObj non-terminal below before its
+// definition, we need to declare it.
+nterm {PDFObj}
+
 // The expression sublanguage for semantic actions has access to a
 // Parsley standard library, which contains maps, lists, vectors,
 // sets, etc.  These will be used below.
-type obj_ctxt = map<(int, int), PDFObj>
+type obj_ctxt = map<(int, int), $typeof(PDFObj)>
 
 format PDFObj
 {
@@ -27,7 +34,7 @@ format PDFObj
   // ':=' separates the definition of the non-terminal DictObj from
   // its right-hand-side production rule.
 
-    DictObj d (ctxt : obj_ctxt) { val : map<typeof(NameObj.val), PDFObj> } :=
+    DictObj d (ctxt : obj_ctxt) { val : map<$typeof(NameObj.val), $typeof(PDFObj)> } :=
 
   // Below is the production rule of DictObj.
 
@@ -49,7 +56,7 @@ format PDFObj
   // To support checks for distinct fields in the dictionary, we can
   // use the following rule instead.
 
-        (| s : set<typeof(NameObj.val)> |)
+        (| s : set<$typeof(NameObj.val)> |)
 
         "<<" ( n=NameObj [ !s.contains(n.val) ] o=PDFObj<ctxt = d.ctxt>
 	{ d.val[n.val] := o; s := s.add(n.val) } )* ">>" ;;
@@ -65,7 +72,7 @@ format PDFObj
 
   // The PDF array object is defined as below.
 
-    ArrayObj a (ctxt : obj_ctxt) { val : [PDFObj] } :=
+    ArrayObj a (ctxt : obj_ctxt) { val : [$typeof(PDFObj)] } :=
 
         "[" ( o=PDFObj<ctxt = a.ctxt> { a := a.val.append(o) } )* "]" ;;
 
@@ -76,7 +83,7 @@ format PDFObj
 
   // TODO: add a mutability specifier to the obj_ctxt type.
 
-    IndirectObj i (ctxt : obj_ctxt) { id : int, gen : int, val : PDFObj } :=
+    IndirectObj i (ctxt : obj_ctxt) { id : int, gen : int, val : $typeof(PDFObj) } :=
 
         // the constraints check that the matched IntegerObj objects
         // are appropriate, and that the object id has not been defined before.
@@ -111,7 +118,7 @@ format PDFObj
         } ;;
 
     // Stream objects are defined next.  Note that they share a prefix with IndirectObj.
-    StreamObj s (ctxt : obj_ctxt) { dict : DictObj, stream : RawStreamObj } :=
+    StreamObj s (ctxt : obj_ctxt) { dict : $typeof(DictObj), stream : $typeof(RawStreamObj) } :=
 
         // the constraints check that the matched IntegerObj objects
         // are appropriate, and that the stream object has not been defined before.

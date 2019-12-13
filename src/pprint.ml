@@ -38,19 +38,28 @@ let pprint_non_term_varname fmt non_term_defn =
 
 let pprint_path = brackets (list pprint_ident);;
 
+let pprint_pattern fmt p = pf fmt "TODO: pattern"
+let pprint_binop fmt b = pf fmt "TODO binop"
+let pprint_unop fmt u = pf fmt "TODO unop"
+
 let rec pprint_expr_desc fmt = function
   | E_path x -> pf fmt "E_path:"; brackets pprint_path fmt x
   | E_int x -> pf fmt "E_int: "; pf fmt "%d" x;
   | E_tuple x -> braces (list pprint_expr) fmt x
-  | E_apply (x , y) -> pf fmt "E_apply:"; brackets (fun fmt z -> pprint_expr fmt x; braces (list pprint_expr) fmt y) fmt y
-  | E_unop (u, e) -> pf fmt "E_unop"
-  | E_binop (b, e1, e2 ) -> pf fmt "binop * expr * expr"
+  | E_apply (x , y) -> pf fmt "E_apply:"; brackets (fun fmt _ -> pprint_expr fmt x; braces (list pprint_expr) fmt y) fmt y
+  | E_unop (u, e) -> pf fmt "E_unop"; pprint_unop fmt u; pprint_expr fmt e
+  | E_binop (b, e1, e2 ) -> pf fmt "binop * expr * expr"; pprint_binop fmt b; pprint_expr fmt e1; pprint_expr fmt e2;
   | E_index (e,e1) -> pf fmt "expr * expr"
   | E_literal x -> pf fmt "E_literal: "; brackets pprint_str_location fmt x
-  | E_cast (e, p) -> pf fmt "E_cast:expr * path"
-  | E_field (e, p) -> pf fmt "E-field: expr * path"
-  | E_case (e, pe) -> pf fmt "E_case: expr * (pattern * expr) list"
-  | E_let (p,e,e1) -> pf fmt "pattern * expr * expr"
+  | E_cast (e, p) -> pf fmt "E_cast:" ; brackets (fun fmt _ -> pprint_expr fmt e;
+            pprint_path fmt p) fmt (e, p)
+  | E_field (e, p) -> pf fmt "E-field: expr * path"; brackets (fun fmt _ -> pprint_expr fmt e; pprint_path fmt p) fmt (e, p)
+  | E_case (e, pe_list) ->
+          pf fmt "E_case: expr * (pattern * expr) list";
+          (fun fmt (e, pe_List) -> pprint_expr fmt e;
+          (list (fun fmt (p, e) -> pprint_pattern fmt p; pprint_expr fmt e)) fmt pe_list) fmt (e, pe_list)
+  | E_let (p,e,e1) ->
+          pf fmt "pattern * expr * expr"; pprint_pattern fmt p; pprint_expr fmt e; pprint_expr fmt e1;
 and pprint_expr fmt x =
   pf fmt "expr: ";
   brackets
@@ -61,7 +70,7 @@ and pprint_expr fmt x =
 
 let pprint_rule_constraint = pprint_expr
 
-let pprint_rule_loc fmt rule_loc = pf fmt "rule loc placeholder";;
+let pprint_rule_loc = pprint_loc
 
 let pprint_rule_temps fmt x = pf fmt "rule_tmps";;
 
@@ -76,6 +85,7 @@ let pprint_rule_action fmt t =
     pprint_loc fmt t.action_loc ;
     pf fmt  ", ";
     (brackets (list pprint_stmt)) fmt t.action_stmts;;
+let pprint_char_class fmt t = pf fmt "placeholder"
 
 let rec pprint_rule_elem fmt rule_elem =
     pf fmt "rule elem:";
@@ -86,7 +96,7 @@ let rec pprint_rule_elem fmt rule_elem =
   fmt rule_elem
   and pprint_rule_elem_desc fmt = function
       | RE_literal x -> pf fmt "RE_literal: "; pprint_str_location fmt x
-      | RE_non_term (x, y, z) -> pf fmt "RE_nonterm_placeholder"
+      | RE_non_term (i1, i2, ie) -> pf fmt "RE_nonterm_placeholder"
       | RE_named_regex (rule_elem, ident) ->
           braces
           (fun fmt t ->
@@ -94,20 +104,18 @@ let rec pprint_rule_elem fmt rule_elem =
               pprint_ident fmt ident;) fmt fmt;
       | RE_constraint x -> pprint_rule_constraint fmt x
       | RE_action x -> pf fmt "RE_action: "; pprint_rule_action fmt x
-      | RE_choice (x, y) -> pf fmt "placeholder choice"
-      | RE_seq x -> pf fmt "placeholder seq"
-      | RE_star x -> pf fmt "placeholder star"
-      | RE_plus x -> pf fmt "placeholder plus"
-      | RE_opt x -> pf fmt "placeholder opt"
-      | RE_repeat (x, y)-> pf fmt "placeholder repeat"
-      | RE_char_class x -> pf fmt "placeholder chear class"
-;;
-
+      | RE_choice (x, y) -> pprint_rule_elem fmt x; pprint_rule_elem fmt y
+      | RE_seq t -> brackets (list pprint_rule_elem) fmt t
+      | RE_star x -> pprint_rule_elem fmt x
+      | RE_plus x -> pprint_rule_elem fmt x
+      | RE_opt x -> pprint_rule_elem fmt x
+      | RE_repeat (ch, i) -> pprint_char_class fmt ch; pf fmt "%d" i
+      | RE_char_class x -> pf fmt "placeholder char class" ;;
 
 let pprint_tvar fmt t = pf fmt "tvar: "; pprint_str_location fmt t;;
 
 let rec pprint_type_expr_desc fmt = function
-    | TE_tvar x -> pf fmt "TE_tvar: "; pprint_tvar fmt x
+  | TE_tvar x -> pf fmt "TE_tvar: "; pprint_tvar fmt x
   | TE_path x -> pf fmt "TE_path: ";  pprint_path fmt x
   | TE_tuple x -> pf fmt "TE_tuple: "; brackets (list pprint_type_expr) fmt x
   | TE_list x -> pf fmt "TE_list: "; pprint_type_expr fmt x

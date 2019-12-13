@@ -26,24 +26,34 @@ let _make_loc b e g = {
   loc_ghost = g;
 }
 
-let make_loc b e = _make_loc b e true
+let make_loc b e = _make_loc b e false
 
-let make_ghost_loc b e = _make_loc b e false
+let make_ghost_loc () = _make_loc Lexing.dummy_pos Lexing.dummy_pos true
+
+let extent loc1 loc2 =
+  make_loc loc1.loc_start loc2.loc_end
 
 let get_pos_info pos =
   pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol
 
-let print_curr_pos f lexbuf =
+let str_of_curr_pos lexbuf =
   let file, line, startchar = get_pos_info lexbuf.lex_curr_p in
-  Printf.fprintf f "File \"%s\", line %d, character %d:"
+  Printf.sprintf "File \"%s\", line %d, character %d"
                  file line startchar
 
-let print_loc f loc =
+let str_of_loc loc =
   let file, line, startchar = get_pos_info loc.loc_start in
   let endchar =
     loc.loc_end.pos_cnum - loc.loc_start.pos_cnum + startchar in
-  Printf.fprintf f "File \"%s\", line %d, characters %d-%d:"
+  Printf.sprintf "File \"%s\", line %d, characters %d-%d"
                  file line startchar endchar
+
+let str_of_file_loc loc =
+  let _file, line, startchar = get_pos_info loc.loc_start in
+  let endchar =
+    loc.loc_end.pos_cnum - loc.loc_start.pos_cnum + startchar in
+  Printf.sprintf "line %d, characters %d-%d"
+                 line startchar endchar
 
 type 'a loc = {
   pelem: 'a;

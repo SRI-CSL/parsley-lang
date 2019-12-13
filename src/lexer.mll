@@ -20,11 +20,15 @@
                 "use",    USE;
                 "type",   TYPE;
                 "fun",    FUN;
+                "nterm",  NTERM;
                 "as",     AS;
                 "of",     OF;
                 "case",   CASE;
                 "let",    LET;
                 "in",     IN;
+
+                "$typeof",  TYPEOF;
+                "$epsilon", EPSILON;
               ];
     tbl
 
@@ -48,6 +52,7 @@
 
 let newline = ('\013'* '\010')
 let blank = [' ' '\009' '\012']
+let upper = ['A'-'Z']
 let alpha = ['A'-'Z' 'a'-'z']
 let digit = ['0'-'9']
 let alnum = ['A'-'Z' 'a'-'z' '0'-'9']
@@ -108,6 +113,9 @@ rule token = parse
 | "?"  { QUESTION }
 | "\\" { BACKSLASH }
 
+| upper ident*
+    { let id = Lexing.lexeme lexbuf in
+      UID (Location.mk_loc_val id (Location.curr lexbuf)) }
 | "$"? alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
 
