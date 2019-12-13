@@ -2,11 +2,15 @@ open Lexing
 open Location
 open Ast
 
+let opt_do_type_check = ref true
+let input_files = ref []
+
 let print_exception f loc msg =
   Printf.fprintf f "%s: %s\n" (Location.str_of_loc loc) msg
 
 let process_ast ast =
-  Type_check.type_check ast;
+  if !opt_do_type_check then
+    Type_check.type_check ast;
   ()
 
 let parse_file fname =
@@ -41,5 +45,18 @@ let parse_file fname =
           (print_exception stderr l (Type_check.error_string e);
            exit 1)
 
+
+
+let options = Arg.align ([
+                    ( "-no-tc",
+                      Arg.Clear opt_do_type_check,
+                      " disable type checking" );
+                ])
+let usage = Printf.sprintf
+              "Usage: %s <options> <file.ply> <file.ply> ..." (Sys.argv.(0))
+
 let () =
-  parse_file Sys.argv.(1)
+  Arg.parse options (fun s -> input_files := (!input_files) @ [s]) usage;
+  if List.length !input_files = 0
+  then Printf.eprintf "%s\n" usage
+  else List.iter parse_file !input_files
