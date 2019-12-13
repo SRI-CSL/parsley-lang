@@ -48,6 +48,7 @@ Body b (ctxt : obj_ctxt) { body: [$typeof(PDFObj)] } :=
 
 XrefSect x { sects: [$typeof(XrefSubSect)] } :=
 
+    // TODO: handle disabling implicit whitespace here
     "xref" ( s=XrefSubSect { x.sects := x.sects.append(s) } )* ;;
 
 XrefSubSect x { start: int, count: int, ents: [$typeof(XrefEnt)] } :=
