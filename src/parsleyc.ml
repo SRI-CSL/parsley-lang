@@ -45,13 +45,12 @@ let parse_file fname =
           (print_exception stderr l (Type_check.error_string e);
            exit 1)
 
-
-
 let options = Arg.align ([
                     ( "-no-tc",
                       Arg.Clear opt_do_type_check,
                       " disable type checking" );
                 ])
+
 let usage = Printf.sprintf
               "Usage: %s <options> <file.ply> <file.ply> ..." (Sys.argv.(0))
 

@@ -184,7 +184,7 @@ expr:
 | e=expr LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_apply(e, l)) $startpos $endpos }
 | e=expr LBRACK i=expr RBRACK
-  { make_expr (E_index(e, i)) $startpos $endpos }
+  { make_expr (E_binop(Index, e, i)) $startpos $endpos }
 | c=UID LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_constr(c, l)) $startpos $endpos }
 | MINUS e=expr %prec UMINUS

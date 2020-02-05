@@ -28,7 +28,7 @@ type param_decl =
 type binop =
   | Lt | Gt | Lteq | Gteq | Eq
   | Plus | Minus | Mult | Div | Land | Lor
-  | Cons
+  | Cons | Index
 
 type unop =
   | Uminus | Not
@@ -52,7 +52,6 @@ type expr_desc =
   | E_apply of expr * expr list
   | E_unop of unop * expr
   | E_binop of binop * expr * expr
-  | E_index of expr * expr
   | E_literal of literal
   | E_cast of expr * path
   | E_field of expr * path

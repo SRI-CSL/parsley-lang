@@ -52,7 +52,6 @@ type expr_desc =
   | E_apply of expr * expr list
   | E_unop of Ast.unop * expr
   | E_binop of Ast.binop * expr * expr
-  | E_index of expr * expr
   | E_literal of Ast.literal
   | E_cast of expr * Ast.path
   | E_field of expr * Ast.path
