@@ -13,4 +13,4 @@ $(DOC).pdf: $(TEX_SRC) Makefile
 	pdflatex $(DOC).tex
 
 clean:
-	rm -f $(DOC).pdf $(DOC).{aux,bbl,blg,log} figs/*.{aux,bbl,blg,log}
+	rm -f $(DOC).pdf $(DOC).{aux,bbl,blg,log,out} figs/*.{aux,bbl,blg,log,out} texput.log
