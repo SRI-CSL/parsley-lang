@@ -57,78 +57,10 @@ The expression sublanguage used in attribute updates and constraints
 is a strongly typed polymorphic functional language supporting
 user-defined types and functions.  It includes a standard library of
 common types and utility functions.  The expression and data type
-sublanguage is  designed to ensure that recursive and
-iterative computations always terminate.
+sublanguage is designed to ensure that recursive and iterative
+computations always terminate.
 
-\section{Abstract syntax}
-
-\begin{figure}
-  \begin{tabular}{l c l l}
-    Paths        & $p$      & ::= & $x\ |\ x.p$ \\
-    Constants    & c        & ::= & 0,1,\ldots\ $|$\ 'A', 'B', \ldots\ $|$\ \ldots \\
-    Attributes   & $l$      & ::= & $l^i\ |\ l^s$ \\
-    Base types   & $\nu$    & ::= & $ \texttt{unit}\ |\ \texttt{uint8}\ |\ \texttt{int32}\ |\ \ldots\ $ \\
-    Types        & $\tau$   & ::= & $\alpha\ |\ \nu\ |\ (\tau_i)\ |\ \tau\rightarrow\tau\ |\ \texttt{typeof}(N)$ \\
-                 &          &     & $|\ \sum_i C_i\tau_i\ |\ \prod_i \{l_i:\tau_i\}\ $ \\
-    Schemes      & $\sigma$ & ::= & $\forall\alpha.\tau$ \\
-    Expressions  & $e$      & ::= & $p\ |\ \textrm{c}\ |\ (e_i)\ |\ e\ e\ |\ e\ \texttt{op}\ e\ |\ e.l\ |\ \ldots\ $ \\
-    Statements   & $s$      & ::= & $ p = e $ \\
-                 &          &     & \\
-    Constraints  & $\phi$   & ::= & $ e $ \\
-    Actions      & $a$      & ::= & $ {s_i} $ \\
-    Rules        & $r$      & ::= & $ \epsilon\ |\ \textrm{c}\ |\ \phi\ |\ (x=)^?N\{l_i=e_i\}$ \\
-                 &          &     & $|\ r\ r\ |\ r\ /\ r\ |\ r^{*e?}\ |\ !r\ |\ !^Rr\ |\ a$ \\
-    Productions  & $P$      & ::= & $ N\{l_i:\tau_i\} := r$ \\
-    Format       & $F$      & ::= & $ \{ \tau_i, N\{l_i:\tau_i\}, P_i \}$ \\
-  \end{tabular}
-  \caption{Abstract Syntax of the Parsley specification language}
-  \label{f:parsley-syntax}
-\end{figure}
-
-\todo{add missing expressions.}
-
-The abstract syntax elements of Parsley are displayed in
-Figure~\ref{f:parsley-syntax}, where $\alpha$ ranges over type
-variables, $x$ over identifiers, $op$ over standard arithmetic and
-boolean operators, and $l$ over inherited $l^i$ and synthesized $l^s$
-attributes.  Paths are used to  access attributes from named syntax
-elements: $x.l$ accesses the $l$ attribute of the $x$-named occurrence
-of non-terminal $(x=N)$ in a rule $r$, enabling attributes to be used
-in constraint expressions and action statements.  Paths are also used
-to support the module system (not shown) enabling cross-module use of
-types and syntax elements.
-
-The type system is a conventional polymorphic functional type system
-with records. Constraints are expressions with Boolean type.  The
-Parsley library has standard data types such as polymorphic lists,
-sets, and maps.  The expression language is also conventional, with
-some elements such as pattern matching and let binding constructs (not
-shown).  A record type $\texttt{typeof}(N)$ is used to represent a
-non-terminal $N$, with the record fields corresponding to the
-attributes of the non-terminal.
-
-The core grammatical constructs are the actions, rules, productions,
-and formats.  These are based on parsing expression grammars (PEGs)
-\cite{ford2004popl}, extended with an attribute system and
-constraints to capture context sensitivity.  Rules correspond closely to
-the expressions of PEGs, but with some extensions.  $r\ r$ denotes the
-PEG sequence operator, while $r\ /\ r$ is the PEG ordered choice.  The
-$!r$ construct is the \emph{not} syntactic predicate in PEG.  The
-$N\{l_i=e_i\}$ rule expands the $N$ non-terminal after initializing
-its inherited attributes. $r^{*e?}$ denotes the Kleene star, but with
-an optional bound $e$ that is context sensitive.  A constraint $\phi$
-is a Parsley extension of PEG, and could be thought of as a
-\emph{contextual} predicate: it checks the context, typically using
-the attribute values of syntactic elements in the current context, and
-decides whether the current parsing alternative can continue.  The
-action rule $a$ typically sets the values of synthesized attributes
-of the non-terminal of the current production and continues the parse.
-
-Parsley is equipped with a module system that enables splitting a
-specification into multiple files, allowing data specifications to be
-re-used in different contexts.
-
-\subsection*{Extensions under development}
+\section{Language Use}
 
 \begin{figure*}[!ht]
   \centering
@@ -136,6 +68,174 @@ re-used in different contexts.
   \label{f:pipeline}
   \caption{Parsley in context.}
 \end{figure*}
+
+The typical use of a Parsley specification is via the workflow
+illustrated in Figure~\ref{f:pipeline}.
+
+The Parsley compiler performs type and semantic checks on a given
+Parsley specification.  The type checks correspond to standard
+polymorphic type checking~\cite{Dunfield13:bidir}\cite{zhao19:bidir},
+with rules to handle grammar productions.  In addition, attribute
+usage checks are performed, such as for $L$-attributedness (see
+below).
+
+The compiler generates prover definitions that are used to perform
+safety checks: for example, the use of data-dependent constructs to
+use an data value as an array index without a constraint check.  We
+are developing the safety properties that can be used by the PVS
+theorem prover to verify that the Parsley specification is a `safe'
+grammar.
+
+We are also defining the parsing automaton that will be generated by
+the compiler.  This automaton needs to interleave constraint and
+attribute computation with parsing actions that construct the internal
+data representation and manipulate the parsing buffer.  When used for
+efficiently parsing data, especially network protocols, attribute
+computations have to be done on partially constructed parse trees
+(unlike the typical use of attribute grammars in programming
+languages, where the entire parse tree of a program can be available
+before processing).  In our experience of using Parsley to define data
+formats, the computations in constraints and attribute updates require
+access to a parsing context (via inherited attributes) that is best
+handled by $L$-attributed grammars, which are compatible with the
+top-down processing of the ``core'' PEG specification.  $L$-attributed
+grammars are attribute grammars where attributes in the nodes in the
+parse tree to the left of the current node have been assigned their
+final values.  This eases the implementation of PEG backtracking, as
+assigned attribute values do not need to be unwound.  The generated
+automaton is compiled into a library that can be linked into
+application code.  We plan to use a Rust code generator to ensure that
+the library is type and memory safe, and can be linked into C
+applications, and is compatible with other languages using the
+appropriate wrappers.
+
+The data representation constructed by the automaton contains a {\em
+  proof of parse}.  We are building on the approach used in
+~\cite{Blaudeau_2020}, which formalized PEG parsing and the generation
+of PEG parsers.  These parsers annotate the constructed data
+representation with grammar metadata that can be used to verify that
+the representation is a valid parse of the given input data for the
+given Parsley specification.  This verification is done in an
+independent verifier, which is simple enough to include in the
+application itself.
+
+\subsection*{Unresolved issues}
+
+The API between the application and the parsing library will dictate
+crucial implementation choices, and hence impact the code generation
+pipeline.  This API might differ across applications parsing the same
+format, and these types of API often differ across different types of
+formats (e.g. streaming network formats versus document formats).
+
+A crucial requirement is to ensure that the parsing automaton is not
+Turing-complete; i.e. arbitrary input data cannot cause
+Turing-complete computation within the parsing library.  We are
+attempting to provide formal guarantees that this will be the case.
+
+\section{Abstract syntax}
+
+The abstract syntax of Parsley is shown in
+Figure~\ref{f:parsley-syntax}, and has two layers: the expression
+sublanguage is shown first, followed by the grammar sublanguage.
+
+\begin{figure}
+  \begin{tabular}{l c l l}
+    Paths        & $p$      & ::= & $ x\ |\ p.x $ \\
+    Constants    & c        & ::= & 0,1,\ldots\ $|$\ 'A', 'B', \ldots\ $|$\ \ldots \\
+    Attributes   & $l$      & ::= & $ l^i\ |\ l^s $ \\
+    Base types   & $\nu$    & ::= & $ \texttt{unit}\ |\ \texttt{uint8}\ |\ \texttt{int32}\ |\ \ldots $ \\
+    Types        & $\tau$   & ::= & $ \alpha\ |\ \nu\ |\ (\tau_i)\ |\ \tau\rightarrow\tau\ |\ \texttt{typeof}(N)\ |\ \sum_i C_i\tau_i\ |\ \prod_i \{l_i:\tau_i\} $ \\
+    Schemes      & $\sigma$ & ::= & $ \forall\alpha.\tau $ \\
+    Expressions  & $e$      & ::= & $ p\ |\ \textrm{c}\ |\ C_i\ e\ |\ (e_i)\ |\ e\ e\ |\ e\ \texttt{op}\ e\ |\ (e : \tau)\ |\ e.l $ \\
+                 &          &     & $|\ \textrm{case}\ e\ \{\rho_i, e_i\}\ |\ \textrm{let}\ \rho=e\ \textrm{in}\ e\ |\ e\ \sim\ C |\ f\ e $ \\
+    Patterns     & $\rho$   & ::= & $ x\ |\ (\rho_i)\ |\ C\rho $ \\
+    Functions    & $f$      & ::= & $ x := (x_i:\tau_i)\rightarrow\tau\ \{e\} $ \\
+    Statements   & $s$      & ::= & $ p = e $ \\
+                 &          &     & \\
+    Constraints  & $\phi$   & ::= & $ e $ \\
+    Actions      & $a$      & ::= & $ \{s_i\} $ \\
+    Rules        & $r$      & ::= & $ \epsilon\ |\ \textrm{c}\ |\ (x=)^?N\{l_i=e_i\}\ |\ \phi\ r $ \\
+                 &          &     & $|\ r\ r\ |\ r\ /\ r\ |\ r^{*e?}\ |\ !r\ |\ !^Rr\ |\ a $ \\
+    Productions  & $P$      & ::= & $ N\{l_i:\tau_i\} := r $ \\
+    Format       & $F$      & ::= & $ \{ \tau_i, N\{l_i:\tau_i\}, P_i \} $ \\
+  \end{tabular}
+  \caption{Abstract Syntax of the Parsley specification language}
+  \label{f:parsley-syntax}
+\end{figure}
+
+\subsection*{Expression sublanguage}
+
+In Figure~\ref{f:parsley-syntax}, $\alpha$ ranges over type variables,
+$x$ over identifiers, $op$ over standard arithmetic and boolean
+operators, and $l$ over inherited $l^i$ and synthesized $l^s$
+attributes.  Paths $p$ are used to access identifiers across modules.
+
+The type system is a conventional polymorphic functional type system
+with records.  It is equipped with a set of standard base types, type
+constructors like tuples $(\tau_i)$, functions $\tau\rightarrow\tau$,
+sums $\sum_iC_i\tau_i$ and records $\prod_i\{l_i:\tau_i\}$, and
+polymorphic type schemes $\forall\alpha.\tau$.  The Parsley library
+has standard data types such as polymorphic lists, sets, and maps.
+
+The expression language is also standard, with tuples $(e_i)$, sums
+$C_i e_i$, function application $e\ e$, attribute or record field
+selection $e.l$, type constraints $(e:\tau)$, and let bindings and
+case expressions that bind patterns within expressions.  The
+$e\ \sim\ C$ is a boolean expression that tests if $e$ is a sum with
+the $C$ constructor; this is a useful primitive within grammar
+constraints.
+
+Parsley supports user-defined functions $f$ but require specification
+of input and output types.
+
+Statements are the only imperative constructs, and consist of
+assignments to (synthesized) attributes.
+
+\subsection*{Grammar sublanguage}
+
+We now come to the grammatical constructions: the productions, rules,
+and actions.  These are based on parsing expression grammars (PEGs)
+\cite{ford2004popl}, extended with an attribute system and constraints
+to capture context sensitivity.  A grammar production defines the
+parsing expression for a non-terminal $N$.  Each $N$ is typed as a
+record named $\texttt{typeof}(N)$ with its attributes as the record
+fields.  The elements of a parsing expression are rules that are
+combined with parsing combinators.  Actions $a$ are used to update
+parsing state during parsing, and consist of a sequence of statements
+where synthesized attributes are assigned.  The primitive rules are
+$\epsilon$, which successfully matches without consuming any input,
+and literals $\textrm{c}$, which match if the input has a $c$ prefix,
+upon which that prefix is consumed.  The $N\{l_i=e_i\}$ rule matches
+if its production matches an input prefix given its inherited
+attributes initialized as specified.  The $x=N$ construct allows
+naming the matched value (of type $\texttt{typeof}(N)$), to enable
+access to the values of its attributes as $x.l$ in expressions
+appearing within any subsequent constraints, actions, or
+initializations of inherited attributes.
+
+These primitive rules can be combined with combinators, as in PEG, but
+with some extensions.  $r\ r$ denotes the PEG sequence operator, while
+$r\ /\ r$ is the PEG ordered choice.  The $!r$ construct is the
+\emph{not} syntactic predicate in PEG.  $r^{*e?}$ denotes the Kleene
+star, but with an optional bound $e$ that is context sensitive.  If
+the bound is present, it limits the number of times that $r$ is
+matched.
+
+A parsing rule $r$ can be guarded with a constraint expression $\phi$,
+written as $\phi\ r$: the boolean expression $\phi$ is evaluated
+before deciding to proceed parsing with rule $r$.  This is a Parsley
+extension of PEG, and could be thought of as a \emph{contextual}
+predicate: $\phi$ can check the current parsing state, using the
+attribute values of syntactic elements in its context.  If the guard
+fails, the parsing backtracks to the next alternative.
+
+Parsley is equipped with a module system that enables splitting a
+specification into multiple files, allowing data specifications to be
+re-used in different contexts.  Paths are used to support the module
+system (not shown) enabling cross-module use of types and syntax
+elements.
+
+\subsection*{Extensions under development}
 
 The Parsley language is a work-in-progress, and is being adapted as we
 attempt to use it to capture more data formats.  The parsing of a PDF
