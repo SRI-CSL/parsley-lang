@@ -284,8 +284,8 @@ valid ways.
 \section{Type system}
 
 Figure~\ref{f:ctxt} defines a typing context, and shows the mutually
-recursive well-formed judgments for a context $\vdash\Gamma$ and a
-type $\Gamma\vdash\tau$.
+recursive judgement rules for a well-formed context, $\vdash\Gamma$,
+and a well-formed type, $\Gamma\vdash\tau$.
 
 \begin{figure}
     \begin{tabular}{l c l l}
@@ -302,19 +302,21 @@ type $\Gamma\vdash\tau$.
   $$ \prfaxiom{\Gamma\vdash\nu}\qquad
      \prftree{\prfassumption{\alpha\in\Gamma}}
              {\Gamma\vdash\alpha}\qquad
-     \prftree{\prfassumption{\Gamma\vdash\tau_i}}
+     \prftree{\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
              {\Gamma\vdash(\tau_i)}\qquad
      \prftree{\prfassumption{\Gamma\vdash\tau_a}}{\prfassumption{\Gamma\vdash\tau_b}}
              {\Gamma\vdash\tau_a\rightarrow\tau_b}\qquad
      \prftree{\prfassumption{N\in\Gamma}}
-             {\texttt{typeof}(N)} $$
-  $$ \prftree{\prfassumption{C_i=C_j\Rightarrow i=j}}{\prfassumption{\Gamma\vdash\tau_i}}
+             {\Gamma\vdash\texttt{typeof}(N)} $$
+  $$ \prftree{\prfassumption{\forall i,j:C_i=C_j\Rightarrow i=j}}
+             {\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
              {\Gamma\vdash\sum_i C_i\tau_i}\qquad
-     \prftree{\prfassumption{\Gamma\vdash\tau_i}}{\prfassumption{l_i=l_j\Rightarrow i=j}}
+     \prftree{\prfassumption{\forall i,j:l_i=l_j\Rightarrow i=j}}
+             {\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
              {\Gamma\vdash\{l_i:\tau_i\}}\qquad
-     \prftree{\prfassumption{\beta\notin\Gamma; \Gamma,\beta\vdash[\alpha\rightarrow\beta]\tau}}
+     \prftree{\prfassumption{\Gamma,\beta\vdash\tau[\beta/\alpha]\ \textrm{fresh}(\beta) }}
              {\Gamma\vdash\forall\alpha.\tau} $$
-  \caption{Typing judgements}
+  \caption{Well-formed contexts and types}
   \label{f:ctxt}
 \end{figure}
 
