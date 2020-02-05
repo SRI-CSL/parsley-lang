@@ -12,7 +12,33 @@
 
 \newcommand{\todo}[1]{{\color{red}[TODO: #1]}}
 
+\title{The Parsley Data Definition Language}
+
 \begin{document}
+\maketitle
+
+\begin{abstract}
+  Any program that reads formatted input relies on parsing software to
+  check the input for validity and transform it into a representation
+  suitable for further processing.  Many security vulnerabilities can
+  be attributed to poorly defined grammars, incorrect parsing, and
+  sloppy input validation.  In contrast to programming languages,
+  grammars for even common data formats such as DNS and PDF are
+  typically context-sensitive and heterogenous.  However, as in
+  programming languages, a standard notation or {\em language} to
+  express these data format grammars can address poor or ambiguous
+  definitions, and the automated generation of correct-by-construction
+  parsers from such grammar specifications can yield correct and type-
+  and memory-safe data parsing routines.
+
+  This document describes the design of Parsley, a declarative data
+  format definition language that combines grammars and constraints in
+  a modular way.  It describes the syntax, type system and semantics
+  of the language.  It will eventually describe its compiler, which
+  will generate an executable parsing library from a Parsley
+  specification, and other outputs to enable the verification of the
+  correctness of generated parser.
+\end{abstract}
 
 \section{Language Design}
 
