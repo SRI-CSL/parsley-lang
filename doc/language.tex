@@ -314,8 +314,8 @@ and a well-formed type, $\Gamma\vdash\tau$.
              {\Gamma\vdash\sum_i C_i\tau_i}\qquad
      \prftree{\prfassumption{\forall i,j:l_i=l_j\Rightarrow i=j}}
              {\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
-             {\Gamma\vdash\{l_i:\tau_i\}}\qquad
-     \prftree{\prfassumption{\Gamma,\beta\vdash\tau[\beta/\alpha]\ \textrm{fresh}(\beta) }}
+             {\Gamma\vdash\{l_i:\tau_i\}} $$
+  $$ \prftree{\prfassumption{\Gamma,\beta\vdash\tau[\beta/\alpha]\ \textrm{fresh}(\beta) }}
              {\Gamma\vdash\forall\alpha.\tau} $$
   \caption{Well-formed contexts and types}
   \label{f:ctxt}
