@@ -286,7 +286,10 @@ valid ways.
 
 Figure~\ref{f:ctxt} defines a typing context, and shows the mutually
 recursive judgement rules for a well-formed context, $\vdash\Gamma$,
-and a well-formed type, $\Gamma\vdash\tau$.
+and a well-formed type, $\Gamma\vdash\tau$.  The definition of a
+well-formed context follows the ordered algorithmic context model
+of~\cite{zhao2018,zhao19:bidir,Dunfield13:bidir}, which provides
+convenient scoping of type variables introduced during type-checking.
 
 \begin{figure}
     \begin{tabular}{l c l l}
