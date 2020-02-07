@@ -42,6 +42,7 @@
 \end{abstract}
 
 \section{Language Design}
+\label{s:design}
 
 The language has the following design goals:
 
@@ -88,6 +89,7 @@ sublanguage is designed to ensure that recursive and iterative
 computations always terminate.
 
 \section{Language Use}
+\label{s:use}
 
 \begin{figure*}[!ht]
   \centering
@@ -160,6 +162,7 @@ Turing-complete computation within the parsing library.  We are
 attempting to provide formal guarantees that this will be the case.
 
 \section{Abstract syntax}
+\label{s:syntax}
 
 The abstract syntax of Parsley is shown in
 Figure~\ref{f:parsley-syntax}, and has two layers: the expression
@@ -171,12 +174,12 @@ sublanguage is shown first, followed by the grammar sublanguage.
     Constants    & c        & ::= & 0,1,\ldots\ $|$\ 'A', 'B', \ldots\ $|$\ \ldots \\
     Attributes   & $l$      & ::= & $ l^i\ |\ l^s $ \\
     Base types   & $\nu$    & ::= & $ \texttt{unit}\ |\ \texttt{uint8}\ |\ \texttt{int32}\ |\ \ldots $ \\
-    Types        & $\tau$   & ::= & $ \alpha\ |\ \nu\ |\ (\tau_i)\ |\ \tau\rightarrow\tau\ |\ \texttt{typeof}(N)\ |\ \sum_i C_i\tau_i\ |\ \prod_i \{l_i:\tau_i\} $ \\
-    Schemes      & $\sigma$ & ::= & $ \forall\alpha.\tau $ \\
+    Monotypes    & $\tau$   & ::= & $ \alpha\ |\ \nu\ |\ (\tau_i)\ |\ \tau\rightarrow\tau\ |\ \sum_i C_i\tau_i\ |\ \{l_i:\tau_i\}\ |\ \texttt{typeof}(N) $ \\
+    Types        & $\sigma$ & ::= & $ \tau\ |\ \forall\alpha.\sigma\ |\ \sigma\rightarrow\sigma $ \\
     Expressions  & $e$      & ::= & $ p\ |\ \textrm{c}\ |\ C_i\ e\ |\ (e_i)\ |\ e\ e\ |\ e\ \texttt{op}\ e\ |\ (e : \tau)\ |\ e.l $ \\
                  &          &     & $|\ \textrm{case}\ e\ \{\rho_i, e_i\}\ |\ \textrm{let}\ \rho=e\ \textrm{in}\ e\ |\ e\ \sim\ C |\ f\ e $ \\
     Patterns     & $\rho$   & ::= & $ x\ |\ (\rho_i)\ |\ C\rho $ \\
-    Functions    & $f$      & ::= & $ x := (x_i:\tau_i)\rightarrow\tau\ \{e\} $ \\
+    Functions    & $f$      & ::= & $ x := (x_i:\sigma_i)\rightarrow\sigma\ \{e\} $ \\
     Statements   & $s$      & ::= & $ p = e $ \\
                  &          &     & \\
     Constraints  & $\phi$   & ::= & $ e $ \\
@@ -191,6 +194,7 @@ sublanguage is shown first, followed by the grammar sublanguage.
 \end{figure}
 
 \subsection*{Expression sublanguage}
+\label{ss:lang:expr}
 
 In Figure~\ref{f:parsley-syntax}, $\alpha$ ranges over type variables,
 $x$ over identifiers, $op$ over standard arithmetic and boolean
@@ -200,7 +204,7 @@ attributes.  Paths $p$ are used to access identifiers across modules.
 The type system is a conventional polymorphic functional type system
 with records.  It is equipped with a set of standard base types, type
 constructors like tuples $(\tau_i)$, functions $\tau\rightarrow\tau$,
-sums $\sum_iC_i\tau_i$ and records $\prod_i\{l_i:\tau_i\}$, and
+sums $\sum_iC_i\tau_i$ and records $\{l_i:\tau_i\}$, and
 polymorphic type schemes $\forall\alpha.\tau$.  The Parsley library
 has standard data types such as polymorphic lists, sets, and maps.
 
@@ -212,13 +216,15 @@ $e\ \sim\ C$ is a boolean expression that tests if $e$ is a sum with
 the $C$ constructor; this is a useful primitive within grammar
 constraints.
 
-Parsley supports user-defined functions $f$ but require specification
-of input and output types.
+Parsley supports user-defined higher-ranked polymorphic functions $f$,
+where the function arguments have polymorphic types.  The supporting
+type system is described in \S\ref{s:typesys}.
 
 Statements are the only imperative constructs, and consist of
 assignments to (synthesized) attributes.
 
 \subsection*{Grammar sublanguage}
+\label{ss:lang:grammar}
 
 We now come to the grammatical constructions: the productions, rules,
 and actions.  These are based on parsing expression grammars (PEGs)
@@ -283,22 +289,38 @@ parsing: ensuring that offsets derived from untrusted data are used in
 valid ways.
 
 \section{Type system}
+\label{s:typesys}
+
+The polymorphic type system used in Parsley supports higher-ranked
+polymorphism with type-inference, using a bidirectional scheme based
+on~\cite{Dunfield13:bidir}.  It requires type annotations for
+polymorphic function arguments, and only allows predicative type
+inference.  This system relies a polymorphic subtyping scheme
+(\cite{odersky96}) to guide instantiation of polymorphic quantifiers.
+We extend this system to the Parsley grammar language as described
+below.
 
 Figure~\ref{f:ctxt} defines a typing context, and shows the mutually
-recursive judgement rules for a well-formed context, $\vdash\Gamma$,
-and a well-formed type, $\Gamma\vdash\tau$.  The definition of a
-well-formed context follows the ordered algorithmic context model
+recursive rules for a well-formed context judgement, $\vdash\Gamma$,
+and a well-formed type judgement, $\Gamma\vdash\tau$.  The definition
+of a well-formed context follows the ordered algorithmic context model
 of~\cite{zhao2018,zhao19:bidir,Dunfield13:bidir}, which provides
 convenient scoping of type variables introduced during type-checking.
 
 \begin{figure}
-    \begin{tabular}{l c l l}
-    Typing contexts        & $\Gamma$      & ::= & $\cdot\ |\ \Gamma, \alpha\ |\ \Gamma, x: \tau\ |\ \Gamma, N: \{l_i:\tau_i\}$ \\
+  \begin{tabular}{l c l l l}
+    Typing context            & $\Gamma$ & ::= & $ \cdot $                       & empty context \\
+                              &          &     & $|\ \Gamma, x: \tau $           & program variable \\
+                              &          &     & $|\ \Gamma, N: \{l_i:\tau_i\} $ & non-terminal \\
+                              &          &     & $|\ \Gamma, \alpha $            & universal type variable \\
+                              &          &     & $|\ \Gamma, \beta  $            & existential type variable\\
   \end{tabular}
-
+  $$ $$
   $$ \boxed{\vdash\Gamma} \qquad \boxed{\Gamma\vdash\tau} $$
   $$ \prftree{\prfassumption{\alpha\notin\Gamma}}
              {\vdash\Gamma, \alpha}\qquad
+     \prftree{\prfassumption{\beta\notin\Gamma}}
+             {\vdash\Gamma, \beta}\qquad
      \prftree{\prfassumption{x\notin\Gamma}}{\prfassumption{\Gamma\vdash\tau}}
              {\vdash\Gamma, x:\tau}\qquad
      \prftree{\prfassumption{N\notin\Gamma}}{\prfassumption{\Gamma\vdash\{l_i:\tau_i\}}}
@@ -306,25 +328,82 @@ convenient scoping of type variables introduced during type-checking.
   $$ \prfaxiom{\Gamma\vdash\nu}\qquad
      \prftree{\prfassumption{\alpha\in\Gamma}}
              {\Gamma\vdash\alpha}\qquad
-     \prftree{\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
-             {\Gamma\vdash(\tau_i)}\qquad
-     \prftree{\prfassumption{\Gamma\vdash\tau_a}}{\prfassumption{\Gamma\vdash\tau_b}}
-             {\Gamma\vdash\tau_a\rightarrow\tau_b}\qquad
+     \prftree{\prfassumption{\beta\in\Gamma}}
+             {\Gamma\vdash\beta}\qquad
      \prftree{\prfassumption{N\in\Gamma}}
              {\Gamma\vdash\texttt{typeof}(N)} $$
+  $$ \prftree{\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
+             {\Gamma\vdash(\tau_i)}\qquad
+     \prftree{\prfassumption{\Gamma\vdash\tau_a}}{\prfassumption{\Gamma\vdash\tau_b}}
+             {\Gamma\vdash\tau_a\rightarrow\tau_b} $$
   $$ \prftree{\prfassumption{\forall i,j:C_i=C_j\Rightarrow i=j}}
              {\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
              {\Gamma\vdash\sum_i C_i\tau_i}\qquad
      \prftree{\prfassumption{\forall i,j:l_i=l_j\Rightarrow i=j}}
              {\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
              {\Gamma\vdash\{l_i:\tau_i\}} $$
-  $$ \prftree{\prfassumption{\Gamma,\beta\vdash\tau[\beta/\alpha]\ \textrm{fresh}(\beta) }}
+  $$ \prftree{\prfassumption{\Gamma,\alpha\vdash\tau}}
              {\Gamma\vdash\forall\alpha.\tau} $$
   \caption{Well-formed contexts and types}
   \label{f:ctxt}
 \end{figure}
 
 \todo{adding paths and path resolution.}
+
+Figure~\ref{f:subtyping} shows the polymorphic subtyping relation in
+Parsley, deriving from the worklist approach of
+in~\cite{zhao2018,zhao19:bidir}.  This has a simpler presentation than
+the one in~\cite{Dunfield13:bidir} since it does not use output
+contexts, and has the advantage of being formally verified.  In this
+approach, the worklist $\Omega$ represents a list of outstanding
+subtyping judgements of the form $\sigma_1\leq\sigma_2$.  Each rule
+takes the judgement at the head of the worklist, either solves it or
+breaks into smaller judgements that it pushes onto the worklist, and
+repeats until the worklist is empty.  In order to solve for unknown
+types, the process introduces {\em existential type variables} $\beta$
+into the context, and when such a variable is solved, the solution is
+immediately substituted into the worklist before proceeding.
+
+\begin{figure}
+  $$ \boxed{\Gamma\vdash\Omega} $$
+  $$ $$
+  $$ \prfaxiom{\Gamma\vdash\cdot} $$
+  $$ \prftree{\prfassumption{\Gamma\vdash\Omega}}
+             {\prfassumption{\Gamma\vdash\nu\leq\nu;\Omega}}\qquad
+     \prftree{\prfassumption{\alpha\in\Gamma}}
+             {\prfassumption{\Gamma\vdash\Omega}}
+             {\Gamma\vdash\alpha\leq\alpha;\Omega}\qquad
+     \prftree{\prfassumption{\beta\in\Gamma}}
+             {\prfassumption{\Gamma\vdash\Omega}}
+             {\Gamma\vdash\beta\leq\beta;\Omega} $$
+  $$ \prftree{\prfassumption{\texttt{len}(\tau_i)=\texttt{len}(\tau'_i)}}
+             {\prfassumption{\Gamma\vdash[\tau_i\leq\tau'_i\ \forall i];\Omega}}
+             {\Gamma\vdash(\tau_i)\leq(\tau'_i);\Omega} $$
+  $$ \prftree{\prfassumption{\forall i:C_i=C'_i}}
+             {\prfassumption{\Gamma\vdash[\tau_i\leq\tau'_i\ \forall i];\Omega}}
+             {\Gamma\vdash(\sum_iC_i\tau_i\leq\sum_iC'_i\tau'_i);\Omega}\qquad
+     \prftree{\prfassumption{\forall i:l_i=l'_i}}
+             {\prfassumption{\Gamma\vdash[\tau_i\leq\tau'_i\ \forall i];\Omega}}
+             {\Gamma\vdash(\{l_i:\tau_i\}\leq\{l'_i:\tau'_i\});\Omega} $$
+  $$ \prftree{\prfassumption{N:\{l_i:\tau_i\}\in\Gamma}}
+             {\prfassumption{\Gamma\vdash\{l_i:\tau_i\}\leq\sigma};\Omega}
+             {\Gamma\vdash\texttt{typeof}(N)\leq\sigma;\Omega}\qquad
+     \prftree{\prfassumption{N:\{l_i:\tau_i\}\in\Gamma}}
+             {\prfassumption{\Gamma\vdash\sigma\leq\{l_i:\tau_i\};\Omega}}
+             {\Gamma\vdash\sigma\leq\texttt{typeof}(N);\Omega} $$
+  $$ \prftree{\prfassumption{\Gamma\vdash\sigma'_1\leq\sigma_1;\sigma_2\leq\sigma'_2;\Omega}}
+             {\Gamma\vdash\sigma_1\rightarrow\sigma_2\leq\sigma'_1\rightarrow\sigma'_2;\Omega} $$
+  $$ \prftree{\prfassumption{\texttt{fresh}\ \beta'}}
+             {\prfassumption{\Gamma,\beta'\vdash[\beta'/\alpha]\sigma\leq\sigma'}}
+             {\Gamma\vdash\forall\alpha.\sigma\leq\sigma'}\qquad
+     \prftree{\prfassumption{\texttt{fresh}\ \alpha}}
+             {\prfassumption{\Gamma,\alpha\vdash\sigma\leq\sigma'}}
+             {\Gamma\vdash\sigma\leq\forall\alpha.\sigma'} $$
+  \caption{The algorithmic subtyping relation}
+  \label{f:subtyping}
+\end{figure}
+
+
 
 \section*{Acknowledgments}
 This work was supported by DARPA under agreement number HR001119C0075.
