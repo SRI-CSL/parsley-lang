@@ -350,19 +350,20 @@ convenient scoping of type variables introduced during type-checking.
 
 \todo{adding paths and path resolution.}
 
-Figure~\ref{f:subtyping} shows the polymorphic subtyping relation in
-Parsley, deriving from the worklist approach of
-in~\cite{zhao2018,zhao19:bidir}.  This has a simpler presentation than
-the one in~\cite{Dunfield13:bidir} since it does not use output
-contexts, and has the advantage of being formally verified.  In this
-approach, the worklist $\Omega$ represents a list of outstanding
-subtyping judgements of the form $\sigma_1\leq\sigma_2$.  Each rule
-takes the judgement at the head of the worklist, either solves it or
-breaks into smaller judgements that it pushes onto the worklist, and
-repeats until the worklist is empty.  In order to solve for unknown
-types, the process introduces {\em existential type variables} $\beta$
-into the context, and when such a variable is solved, the solution is
-immediately substituted into the worklist before proceeding.
+Figures~\ref{f:subtyping1} and \ref{f:subtyping2} shows the
+polymorphic subtyping relation in Parsley, deriving from the worklist
+approach of in~\cite{zhao2018,zhao19:bidir}.  This has a simpler
+presentation than the one in~\cite{Dunfield13:bidir} since it does not
+use output contexts, and has the advantage of being formally verified.
+In this approach, the worklist $\Omega$ represents a list of
+outstanding subtyping judgements of the form $\sigma_1\leq\sigma_2$.
+Each rule takes the judgement at the head of the worklist, either
+solves it or breaks into smaller judgements that it pushes onto the
+worklist, and repeats until the worklist is empty.  In order to solve
+for unknown types, the process introduces {\em existential type
+  variables} $\beta$ into the context, and when such a variable is
+solved, the solution is immediately substituted into the worklist
+before proceeding.
 
 \begin{figure}
   $$ \boxed{\Gamma\vdash\Omega} $$
@@ -399,11 +400,52 @@ immediately substituted into the worklist before proceeding.
      \prftree{\prfassumption{\texttt{fresh}\ \alpha}}
              {\prfassumption{\Gamma,\alpha\vdash\sigma\leq\sigma'}}
              {\Gamma\vdash\sigma\leq\forall\alpha.\sigma'} $$
-  \caption{The algorithmic subtyping relation}
-  \label{f:subtyping}
+  $$ \prftree{\prfassumption{\beta\notin FV(\sigma_1)\cup FV(\sigma_2)}}
+             {\prfassumption{\Gamma[\beta_1,\beta_2]\vdash\beta_1\rightarrow\beta_2\leq\sigma_1\rightarrow\sigma_2;[\beta_1\rightarrow\beta_2/\beta]\Omega}}
+             {\Gamma[\beta]\vdash\beta\leq\sigma_1\rightarrow\sigma_2;\Omega} $$
+  $$ \prftree{\prfassumption{\beta\notin FV(\sigma_1)\cup FV(\sigma_2)}}
+             {\prfassumption{\Gamma[\beta_1,\beta_2]\vdash\sigma_1\rightarrow\sigma_2\leq\beta_1\rightarrow\beta_2;[\beta_1\rightarrow\beta_2/\beta]\Omega}}
+             {\Gamma[\beta]\vdash\sigma_1\rightarrow\sigma_2\leq\beta;\Omega} $$
+  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\beta_i]]\vdash[\beta_i\leq\sigma_i];[(\beta_i)/\beta]\Omega}}
+             {\Gamma[\beta]\vdash\beta\leq(\sigma_i);\Omega} $$
+  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\beta_i]]\vdash[\sigma_i\leq\beta_i];[(\beta_i)/\beta]\Omega}}
+             {\Gamma[\beta]\vdash(\sigma_i)\leq\beta;\Omega} $$
+  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\beta_i]]\vdash[\beta_i\leq\sigma_i];[\{l_i:\beta_i\}/\beta]\Omega}}
+             {\Gamma[\beta]\vdash\beta\leq\{l_i:\sigma_i\};\Omega} $$
+  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\beta_i]]\vdash[\sigma_i\leq\beta_i];[\{l_i:\beta_i\}/\beta]\Omega}}
+             {\Gamma[\beta]\vdash\{l_i:\sigma_i\}\leq\beta;\Omega} $$
+  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\beta_i]]\vdash[\beta_i\leq\sigma_i];[\sum_iC_i\beta_i/\beta]\Omega}}
+             {\Gamma[\beta]\vdash\beta\leq\sum_iC_i\sigma_i;\Omega} $$
+  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\beta_i]]\vdash[\sigma_i\leq\beta_i];[\sum_iC_i\beta_i\}/\beta]\Omega}}
+             {\Gamma[\beta]\vdash\sum_iC_i\sigma_i\leq\beta;\Omega} $$
+  \caption{The algorithmic subtyping relation (part 1)}
+  \label{f:subtyping1}
 \end{figure}
 
-
+\begin{figure}
+  $$ \boxed{\Gamma\vdash\Omega} $$
+  $$ $$
+  $$ \prftree{\prfassumption{\Gamma[\beta_1][]\vdash[\beta_1/\beta_2]\Omega}}
+             {\Gamma[\beta_1][\beta_2]\vdash\beta_1\leq\beta_2;\Omega}\qquad
+     \prftree{\prfassumption{\Gamma[\beta_1][]\vdash[\beta_1/\beta_2]\Omega}}
+             {\Gamma[\beta_1][\beta_2]\vdash\beta_2\leq\beta_1;\Omega} $$
+  $$ \prftree{\prfassumption{\Gamma[\alpha][]\vdash[\alpha/\beta]\Omega}}
+             {\Gamma[\alpha][\beta]\vdash\alpha\leq\beta;\Omega}\qquad
+     \prftree{\prfassumption{\Gamma[\alpha][]\vdash[\alpha/\beta]\Omega}}
+             {\Gamma[\alpha][\beta]\vdash\beta\leq\alpha;\Omega} $$
+  $$ \prftree{\prfassumption{\Gamma[]\vdash[\nu/\beta]\Omega}}
+             {\Gamma[\beta]\vdash\nu\leq\beta;\Omega}\qquad
+     \prftree{\prfassumption{\Gamma[]\vdash[\nu/\beta]\Omega}}
+             {\Gamma[\beta]\vdash\beta\leq\nu;\Omega} $$
+  \caption{The algorithmic subtyping relation (part 2)}
+  \label{f:subtyping2}
+\end{figure}
 
 \section*{Acknowledgments}
 This work was supported by DARPA under agreement number HR001119C0075.
