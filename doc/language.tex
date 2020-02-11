@@ -12,6 +12,10 @@
 
 \newcommand{\todo}[1]{{\color{red}[TODO: #1]}}
 
+% notation
+\newcommand{\utv}{\alpha}             % universal type variable
+\newcommand{\etv}{\widehat{\beta}}    % existential type variable
+
 \title{The Parsley Data Definition Language}
 \author{The Parsley Team}
 
@@ -177,8 +181,8 @@ sublanguage is shown first, followed by the grammar sublanguage.
     Constants    & c        & ::= & 0,1,\ldots\ $|$\ `A', `B', \ldots\ $|$\ \ldots \\
     Attributes   & $l$      & ::= & $ l^i\ |\ l^s $ \\
     Base types   & $\nu$    & ::= & $ \texttt{unit}\ |\ \texttt{uint8}\ |\ \texttt{int32}\ |\ \ldots $ \\
-    Monotypes    & $\tau$   & ::= & $ \alpha\ |\ \nu\ |\ (\tau_i)\ |\ \tau\rightarrow\tau\ |\ \sum_i C_i\tau_i\ |\ \{l_i:\tau_i\}\ |\ \texttt{typeof}(N) $ \\
-    Types        & $\sigma$ & ::= & $ \tau\ |\ \forall\alpha.\sigma\ |\ \sigma\rightarrow\sigma $ \\
+    Monotypes    & $\tau$   & ::= & $ \utv\ |\ \nu\ |\ (\tau_i)\ |\ \tau\rightarrow\tau\ |\ \sum_i C_i\tau_i\ |\ \{l_i:\tau_i\}\ |\ \texttt{typeof}(N) $ \\
+    Types        & $\sigma$ & ::= & $ \tau\ |\ \forall\utv.\sigma\ |\ \sigma\rightarrow\sigma $ \\
     Expressions  & $e$      & ::= & $ p\ |\ \textrm{c}\ |\ C_i\ e\ |\ (e_i)\ |\ e\ e\ |\ e\ \texttt{op}\ e\ |\ (e : \tau)\ |\ e.l $ \\
                  &          &     & $|\ \textrm{case}\ e\ \{\rho_i, e_i\}\ |\ \textrm{let}\ \rho=e\ \textrm{in}\ e\ |\ e\ \sim\ C |\ f\ e $ \\
     Patterns     & $\rho$   & ::= & $ x\ |\ (\rho_i)\ |\ C\rho $ \\
@@ -200,7 +204,7 @@ sublanguage is shown first, followed by the grammar sublanguage.
 \label{ss:lang:expr}
 
 In Figure~\ref{f:parsley-syntax}, $x$ over identifiers, $l$ over
-inherited $l^i$ and synthesized $l^s$ attributes, $\alpha$ ranges over
+inherited $l^i$ and synthesized $l^s$ attributes, $\utv$ ranges over
 type variables, and $op$ over standard arithmetic and boolean
 operators.  Paths $p$ are used to access identifiers across modules.
 
@@ -208,7 +212,7 @@ The type system is a conventional polymorphic type system
 with records.  It is equipped with a set of standard base types $\nu$, type
 constructors like tuples $(\tau_i)$, functions $\tau\rightarrow\tau$,
 sums $\sum_iC_i\tau_i$, records $\{l_i:\tau_i\}$ and
-polymorphic type schemes $\forall\alpha.\tau$.  The Parsley library
+polymorphic type schemes $\forall\utv.\tau$.  The Parsley library
 defines standard data types such as polymorphic lists, sets, and maps.
 
 The expression language is also standard, with tuples $(e_i)$, sums
@@ -317,38 +321,38 @@ convenient scoping of type variables introduced during type-checking.
     Typing context            & $\Gamma$ & ::= & $ \cdot $                       & empty context \\
                               &          &     & $|\ \Gamma, x: \tau $           & program variable \\
                               &          &     & $|\ \Gamma, N: \{l_i:\tau_i\} $ & non-terminal \\
-                              &          &     & $|\ \Gamma, \alpha $            & universal type variable \\
-                              &          &     & $|\ \Gamma, \beta  $            & existential type variable\\
+                              &          &     & $|\ \Gamma, \utv $              & universal type variable \\
+                              &          &     & $|\ \Gamma, \etv  $             & existential type variable\\
   \end{tabular}
   $$ $$
   $$ \boxed{\vdash\Gamma} \qquad \boxed{\Gamma\vdash\tau} $$
-  $$ \prftree{\prfassumption{\alpha\notin\Gamma}}
-             {\vdash\Gamma, \alpha}\qquad
-     \prftree{\prfassumption{\beta\notin\Gamma}}
-             {\vdash\Gamma, \beta}\qquad
-     \prftree{\prfassumption{x\notin\Gamma}}{\prfassumption{\Gamma\vdash\tau}}
+  $$ \prftree[r]{$\mathtt{wf_c uvar}$}{\prfassumption{\utv\notin\Gamma}}
+             {\vdash\Gamma, \utv}\qquad
+     \prftree[r]{$\mathtt{wf_c evar}$}{\prfassumption{\etv\notin\Gamma}}
+             {\vdash\Gamma, \etv}\qquad
+     \prftree[r]{$\mathtt{wf_c pvar}$}{\prfassumption{x\notin\Gamma}}{\prfassumption{\Gamma\vdash\tau}}
              {\vdash\Gamma, x:\tau}\qquad
-     \prftree{\prfassumption{N\notin\Gamma}}{\prfassumption{\Gamma\vdash\{l_i:\tau_i\}}}
+     \prftree[r]{$\mathtt{wf_c N}$}{\prfassumption{N\notin\Gamma}}{\prfassumption{\Gamma\vdash\{l_i:\tau_i\}}}
              {\vdash\Gamma, N:\{l_i:\tau_i\}} $$
-  $$ \prfaxiom{\Gamma\vdash\nu}\qquad
-     \prftree{\prfassumption{\alpha\in\Gamma}}
-             {\Gamma\vdash\alpha}\qquad
-     \prftree{\prfassumption{\beta\in\Gamma}}
-             {\Gamma\vdash\beta}\qquad
-     \prftree{\prfassumption{N\in\Gamma}}
+  $$ \prfbyaxiom{$\mathtt{wf_t \nu}$}{\Gamma\vdash\nu}\qquad
+     \prftree[r]{$\mathtt{wf_t tvar}$}{\prfassumption{\utv\in\Gamma}}
+             {\Gamma\vdash\utv}\qquad
+     \prftree[r]{$\mathtt{wf_t evar}$}{\prfassumption{\etv\in\Gamma}}
+             {\Gamma\vdash\etv}\qquad
+     \prftree[r]{$\mathtt{wf_t typeof}$}{\prfassumption{N\in\Gamma}}
              {\Gamma\vdash\texttt{typeof}(N)} $$
-  $$ \prftree{\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
+  $$ \prftree[r]{$\mathtt{wf_t tup}$}{\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
              {\Gamma\vdash(\tau_i)}\qquad
-     \prftree{\prfassumption{\Gamma\vdash\tau_a}}{\prfassumption{\Gamma\vdash\tau_b}}
+     \prftree[r]{$\mathtt{wf_t \rightarrow}$}{\prfassumption{\Gamma\vdash\tau_a}}{\prfassumption{\Gamma\vdash\tau_b}}
              {\Gamma\vdash\tau_a\rightarrow\tau_b} $$
-  $$ \prftree{\prfassumption{\forall i,j:C_i=C_j\Rightarrow i=j}}
+  $$ \prftree[r]{$\mathtt{wf_t \sum}$}{\prfassumption{\forall i,j:C_i=C_j\Rightarrow i=j}}
              {\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
              {\Gamma\vdash\sum_i C_i\tau_i}\qquad
-     \prftree{\prfassumption{\forall i,j:l_i=l_j\Rightarrow i=j}}
+     \prftree[r]{$\mathtt{wf_t rec}$}{\prfassumption{\forall i,j:l_i=l_j\Rightarrow i=j}}
              {\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
              {\Gamma\vdash\{l_i:\tau_i\}} $$
-  $$ \prftree{\prfassumption{\Gamma,\alpha\vdash\tau}}
-             {\Gamma\vdash\forall\alpha.\tau} $$
+  $$ \prftree[r]{$\mathtt{wf_t \forall}$}{\prfassumption{\Gamma,\utv\vdash\tau}}
+             {\Gamma\vdash\forall\utv.\tau} $$
   \caption{Well-formed contexts and types}
   \label{f:ctxt}
 \end{figure}
@@ -366,7 +370,7 @@ Each rule takes the judgment at the head of the worklist, either
 solves it or breaks into smaller judgments that it pushes onto the
 worklist, and repeats until the worklist is empty.  In order to solve
 for unknown types, the process introduces {\em existential type
-  variables} $\beta$ into the context, and when such a variable is
+  variables} $\etv$ into the context, and when such a variable is
 solved, the solution is immediately substituted into the worklist
 before proceeding.
 
@@ -376,12 +380,12 @@ before proceeding.
   $$ \prfaxiom{\Gamma\vdash\cdot} $$
   $$ \prftree{\prfassumption{\Gamma\vdash\Omega}}
              {\prfassumption{\Gamma\vdash\nu\leq\nu;\Omega}}\qquad
-     \prftree{\prfassumption{\alpha\in\Gamma}}
+     \prftree{\prfassumption{\utv\in\Gamma}}
              {\prfassumption{\Gamma\vdash\Omega}}
-             {\Gamma\vdash\alpha\leq\alpha;\Omega}\qquad
-     \prftree{\prfassumption{\beta\in\Gamma}}
+             {\Gamma\vdash\utv\leq\utv;\Omega}\qquad
+     \prftree{\prfassumption{\etv\in\Gamma}}
              {\prfassumption{\Gamma\vdash\Omega}}
-             {\Gamma\vdash\beta\leq\beta;\Omega} $$
+             {\Gamma\vdash\etv\leq\etv;\Omega} $$
   $$ \prftree{\prfassumption{\texttt{len}(\tau_i)=\texttt{len}(\tau'_i)}}
              {\prfassumption{\Gamma\vdash[\tau_i\leq\tau'_i\ \forall i];\Omega}}
              {\Gamma\vdash(\tau_i)\leq(\tau'_i);\Omega} $$
@@ -399,36 +403,36 @@ before proceeding.
              {\Gamma\vdash\sigma\leq\texttt{typeof}(N);\Omega} $$
   $$ \prftree{\prfassumption{\Gamma\vdash\sigma'_1\leq\sigma_1;\sigma_2\leq\sigma'_2;\Omega}}
              {\Gamma\vdash\sigma_1\rightarrow\sigma_2\leq\sigma'_1\rightarrow\sigma'_2;\Omega} $$
-  $$ \prftree{\prfassumption{\texttt{fresh}\ \beta'}}
-             {\prfassumption{\Gamma,\beta'\vdash[\beta'/\alpha]\sigma\leq\sigma'}}
-             {\Gamma\vdash\forall\alpha.\sigma\leq\sigma'}\qquad
-     \prftree{\prfassumption{\texttt{fresh}\ \alpha}}
-             {\prfassumption{\Gamma,\alpha\vdash\sigma\leq\sigma'}}
-             {\Gamma\vdash\sigma\leq\forall\alpha.\sigma'} $$
-  $$ \prftree{\prfassumption{\beta\notin FV(\sigma_1)\cup FV(\sigma_2)}}
-             {\prfassumption{\Gamma[\beta_1,\beta_2]\vdash\beta_1\rightarrow\beta_2\leq\sigma_1\rightarrow\sigma_2;[\beta_1\rightarrow\beta_2/\beta]\Omega}}
-             {\Gamma[\beta]\vdash\beta\leq\sigma_1\rightarrow\sigma_2;\Omega} $$
-  $$ \prftree{\prfassumption{\beta\notin FV(\sigma_1)\cup FV(\sigma_2)}}
-             {\prfassumption{\Gamma[\beta_1,\beta_2]\vdash\sigma_1\rightarrow\sigma_2\leq\beta_1\rightarrow\beta_2;[\beta_1\rightarrow\beta_2/\beta]\Omega}}
-             {\Gamma[\beta]\vdash\sigma_1\rightarrow\sigma_2\leq\beta;\Omega} $$
-  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
-             {\prfassumption{\Gamma[[\beta_i]]\vdash[\beta_i\leq\sigma_i];[(\beta_i)/\beta]\Omega}}
-             {\Gamma[\beta]\vdash\beta\leq(\sigma_i);\Omega} $$
-  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
-             {\prfassumption{\Gamma[[\beta_i]]\vdash[\sigma_i\leq\beta_i];[(\beta_i)/\beta]\Omega}}
-             {\Gamma[\beta]\vdash(\sigma_i)\leq\beta;\Omega} $$
-  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
-             {\prfassumption{\Gamma[[\beta_i]]\vdash[\beta_i\leq\sigma_i];[\{l_i:\beta_i\}/\beta]\Omega}}
-             {\Gamma[\beta]\vdash\beta\leq\{l_i:\sigma_i\};\Omega} $$
-  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
-             {\prfassumption{\Gamma[[\beta_i]]\vdash[\sigma_i\leq\beta_i];[\{l_i:\beta_i\}/\beta]\Omega}}
-             {\Gamma[\beta]\vdash\{l_i:\sigma_i\}\leq\beta;\Omega} $$
-  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
-             {\prfassumption{\Gamma[[\beta_i]]\vdash[\beta_i\leq\sigma_i];[\sum_iC_i\beta_i/\beta]\Omega}}
-             {\Gamma[\beta]\vdash\beta\leq\sum_iC_i\sigma_i;\Omega} $$
-  $$ \prftree{\prfassumption{\beta\notin\cup_iFV(\sigma_i)}}
-             {\prfassumption{\Gamma[[\beta_i]]\vdash[\sigma_i\leq\beta_i];[\sum_iC_i\beta_i\}/\beta]\Omega}}
-             {\Gamma[\beta]\vdash\sum_iC_i\sigma_i\leq\beta;\Omega} $$
+  $$ \prftree{\prfassumption{\texttt{fresh}\ \etv'}}
+             {\prfassumption{\Gamma,\etv'\vdash[\etv'/\utv]\sigma\leq\sigma'}}
+             {\Gamma\vdash\forall\utv.\sigma\leq\sigma'}\qquad
+     \prftree{\prfassumption{\texttt{fresh}\ \utv}}
+             {\prfassumption{\Gamma,\utv\vdash\sigma\leq\sigma'}}
+             {\Gamma\vdash\sigma\leq\forall\utv.\sigma'} $$
+  $$ \prftree{\prfassumption{\etv\notin FV(\sigma_1)\cup FV(\sigma_2)}}
+             {\prfassumption{\Gamma[\etv_1,\etv_2]\vdash\etv_1\rightarrow\etv_2\leq\sigma_1\rightarrow\sigma_2;[\etv_1\rightarrow\etv_2/\etv]\Omega}}
+             {\Gamma[\etv]\vdash\etv\leq\sigma_1\rightarrow\sigma_2;\Omega} $$
+  $$ \prftree{\prfassumption{\etv\notin FV(\sigma_1)\cup FV(\sigma_2)}}
+             {\prfassumption{\Gamma[\etv_1,\etv_2]\vdash\sigma_1\rightarrow\sigma_2\leq\etv_1\rightarrow\etv_2;[\etv_1\rightarrow\etv_2/\etv]\Omega}}
+             {\Gamma[\etv]\vdash\sigma_1\rightarrow\sigma_2\leq\etv;\Omega} $$
+  $$ \prftree{\prfassumption{\etv\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\etv_i]]\vdash[\etv_i\leq\sigma_i];[(\etv_i)/\etv]\Omega}}
+             {\Gamma[\etv]\vdash\etv\leq(\sigma_i);\Omega} $$
+  $$ \prftree{\prfassumption{\etv\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\etv_i]]\vdash[\sigma_i\leq\etv_i];[(\etv_i)/\etv]\Omega}}
+             {\Gamma[\etv]\vdash(\sigma_i)\leq\etv;\Omega} $$
+  $$ \prftree{\prfassumption{\etv\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\etv_i]]\vdash[\etv_i\leq\sigma_i];[\{l_i:\etv_i\}/\etv]\Omega}}
+             {\Gamma[\etv]\vdash\etv\leq\{l_i:\sigma_i\};\Omega} $$
+  $$ \prftree{\prfassumption{\etv\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\etv_i]]\vdash[\sigma_i\leq\etv_i];[\{l_i:\etv_i\}/\etv]\Omega}}
+             {\Gamma[\etv]\vdash\{l_i:\sigma_i\}\leq\etv;\Omega} $$
+  $$ \prftree{\prfassumption{\etv\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\etv_i]]\vdash[\etv_i\leq\sigma_i];[\sum_iC_i\etv_i/\etv]\Omega}}
+             {\Gamma[\etv]\vdash\etv\leq\sum_iC_i\sigma_i;\Omega} $$
+  $$ \prftree{\prfassumption{\etv\notin\cup_iFV(\sigma_i)}}
+             {\prfassumption{\Gamma[[\etv_i]]\vdash[\sigma_i\leq\etv_i];[\sum_iC_i\etv_i\}/\etv]\Omega}}
+             {\Gamma[\etv]\vdash\sum_iC_i\sigma_i\leq\etv;\Omega} $$
   \caption{The algorithmic subtyping relation (part 1)}
   \label{f:subtyping1}
 \end{figure}
@@ -436,18 +440,18 @@ before proceeding.
 \begin{figure}
   $$ \boxed{\Gamma\vdash\Omega} $$
   $$ $$
-  $$ \prftree{\prfassumption{\Gamma[\beta_1][]\vdash[\beta_1/\beta_2]\Omega}}
-             {\Gamma[\beta_1][\beta_2]\vdash\beta_1\leq\beta_2;\Omega}\qquad
-     \prftree{\prfassumption{\Gamma[\beta_1][]\vdash[\beta_1/\beta_2]\Omega}}
-             {\Gamma[\beta_1][\beta_2]\vdash\beta_2\leq\beta_1;\Omega} $$
-  $$ \prftree{\prfassumption{\Gamma[\alpha][]\vdash[\alpha/\beta]\Omega}}
-             {\Gamma[\alpha][\beta]\vdash\alpha\leq\beta;\Omega}\qquad
-     \prftree{\prfassumption{\Gamma[\alpha][]\vdash[\alpha/\beta]\Omega}}
-             {\Gamma[\alpha][\beta]\vdash\beta\leq\alpha;\Omega} $$
-  $$ \prftree{\prfassumption{\Gamma[]\vdash[\nu/\beta]\Omega}}
-             {\Gamma[\beta]\vdash\nu\leq\beta;\Omega}\qquad
-     \prftree{\prfassumption{\Gamma[]\vdash[\nu/\beta]\Omega}}
-             {\Gamma[\beta]\vdash\beta\leq\nu;\Omega} $$
+  $$ \prftree{\prfassumption{\Gamma[\etv_1][]\vdash[\etv_1/\etv_2]\Omega}}
+             {\Gamma[\etv_1][\etv_2]\vdash\etv_1\leq\etv_2;\Omega}\qquad
+     \prftree{\prfassumption{\Gamma[\etv_1][]\vdash[\etv_1/\etv_2]\Omega}}
+             {\Gamma[\etv_1][\etv_2]\vdash\etv_2\leq\etv_1;\Omega} $$
+  $$ \prftree{\prfassumption{\Gamma[\utv][]\vdash[\utv/\etv]\Omega}}
+             {\Gamma[\utv][\etv]\vdash\utv\leq\etv;\Omega}\qquad
+     \prftree{\prfassumption{\Gamma[\utv][]\vdash[\utv/\etv]\Omega}}
+             {\Gamma[\utv][\etv]\vdash\etv\leq\utv;\Omega} $$
+  $$ \prftree{\prfassumption{\Gamma[]\vdash[\nu/\etv]\Omega}}
+             {\Gamma[\etv]\vdash\nu\leq\etv;\Omega}\qquad
+     \prftree{\prfassumption{\Gamma[]\vdash[\nu/\etv]\Omega}}
+             {\Gamma[\etv]\vdash\etv\leq\nu;\Omega} $$
   \caption{The algorithmic subtyping relation (part 2)}
   \label{f:subtyping2}
 \end{figure}
