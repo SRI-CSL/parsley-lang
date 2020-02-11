@@ -174,7 +174,7 @@ sublanguage is shown first, followed by the grammar sublanguage.
 \begin{figure}
   \begin{tabular}{l c l l}
     Paths        & $p$      & ::= & $ x\ |\ p.x $ \\
-    Constants    & c        & ::= & 0,1,\ldots\ $|$\ 'A', 'B', \ldots\ $|$\ \ldots \\
+    Constants    & c        & ::= & 0,1,\ldots\ $|$\ `A', `B', \ldots\ $|$\ \ldots \\
     Attributes   & $l$      & ::= & $ l^i\ |\ l^s $ \\
     Base types   & $\nu$    & ::= & $ \texttt{unit}\ |\ \texttt{uint8}\ |\ \texttt{int32}\ |\ \ldots $ \\
     Monotypes    & $\tau$   & ::= & $ \alpha\ |\ \nu\ |\ (\tau_i)\ |\ \tau\rightarrow\tau\ |\ \sum_i C_i\tau_i\ |\ \{l_i:\tau_i\}\ |\ \texttt{typeof}(N) $ \\
@@ -199,17 +199,17 @@ sublanguage is shown first, followed by the grammar sublanguage.
 \subsection*{Expression sublanguage}
 \label{ss:lang:expr}
 
-In Figure~\ref{f:parsley-syntax}, $\alpha$ ranges over type variables,
-$x$ over identifiers, $op$ over standard arithmetic and boolean
-operators, and $l$ over inherited $l^i$ and synthesized $l^s$
-attributes.  Paths $p$ are used to access identifiers across modules.
+In Figure~\ref{f:parsley-syntax}, $x$ over identifiers, $l$ over
+inherited $l^i$ and synthesized $l^s$ attributes, $\alpha$ ranges over
+type variables, and $op$ over standard arithmetic and boolean
+operators.  Paths $p$ are used to access identifiers across modules.
 
-The type system is a conventional polymorphic functional type system
-with records.  It is equipped with a set of standard base types, type
+The type system is a conventional polymorphic type system
+with records.  It is equipped with a set of standard base types $\nu$, type
 constructors like tuples $(\tau_i)$, functions $\tau\rightarrow\tau$,
-sums $\sum_iC_i\tau_i$ and records $\{l_i:\tau_i\}$, and
+sums $\sum_iC_i\tau_i$, records $\{l_i:\tau_i\}$ and
 polymorphic type schemes $\forall\alpha.\tau$.  The Parsley library
-has standard data types such as polymorphic lists, sets, and maps.
+defines standard data types such as polymorphic lists, sets, and maps.
 
 The expression language is also standard, with tuples $(e_i)$, sums
 $C_i e_i$, function application $e\ e$, attribute or record field
@@ -229,25 +229,26 @@ assignments to (synthesized) attributes.
 \subsection*{Grammar sublanguage}
 \label{ss:lang:grammar}
 
-We now come to the grammatical constructions: the productions, rules,
-and actions.  These are based on parsing expression grammars (PEGs)
-\cite{ford2004popl}, extended with an attribute system and constraints
-to capture context sensitivity.  A grammar production defines the
-parsing expression for a non-terminal $N$.  Each $N$ is typed as a
-record named $\texttt{typeof}(N)$ with its attributes as the record
-fields.  The elements of a parsing expression are rules that are
-combined with parsing combinators.  Actions $a$ are used to update
+We now come to the grammatical constructions: productions, rules, and
+actions.  These are based on parsing expression grammars (PEGs)
+\cite{ford2004popl}, but are extended with an attribute system and
+constraints to capture context sensitivity.  A grammar production
+defines the parsing expression for a non-terminal $N$.  Each $N$ is
+typed as a record named $\texttt{typeof}(N)$ with its attributes as
+the record fields.  Rules $r$ are elemental parsing expressions and
+are combined with parsing combinators.  Actions $a$ are used to update
 parsing state during parsing, and consist of a sequence of statements
 where synthesized attributes are assigned.  The primitive rules are
 $\epsilon$, which successfully matches without consuming any input,
 and literals $\textrm{c}$, which match if the input has a $c$ prefix,
 upon which that prefix is consumed.  The $N\{l_i=e_i\}$ rule matches
 if its production matches an input prefix given its inherited
-attributes initialized as specified.  The $x=N$ construct allows
-naming the matched value (of type $\texttt{typeof}(N)$), to enable
-access to the values of its attributes as $x.l$ in expressions
-appearing within any subsequent constraints, actions, or
-initializations of inherited attributes.
+attributes $l_i$ are initialized as specified with expressions $e_i$
+evaluated within the parsing context at that point.  The $x=N$
+construct names the matched value (of type $\texttt{typeof}(N)$), and
+enables access to the values of its attributes as $x.l$ in expressions
+appearing within any subsequent constraints, actions, or attribute
+initializations.
 
 These primitive rules can be combined with combinators, as in PEG, but
 with some extensions.  $r\ r$ denotes the PEG sequence operator, while
@@ -262,14 +263,14 @@ written as $\phi\ r$: the boolean expression $\phi$ is evaluated
 before deciding to proceed parsing with rule $r$.  This is a Parsley
 extension of PEG, and could be thought of as a \emph{contextual}
 predicate: $\phi$ can check the current parsing state, using the
-attribute values of syntactic elements in its context.  If the guard
-fails, the parsing backtracks to the next alternative.
+attribute values of syntactic elements in its context.  If this guard
+fails, parsing backtracks to the most recent choice point, and
+continues with the next alternative.
 
 Parsley is equipped with a module system that enables splitting a
-specification into multiple files, allowing data specifications to be
-re-used in different contexts.  Paths are used to support the module
-system (not shown) enabling cross-module use of types and syntax
-elements.
+specification into multiple files, and allows data specifications to
+be re-used in different contexts.  Paths support the module system
+(not shown) by enabling cross-module use of types and syntax elements.
 
 \subsection*{Extensions under development}
 
@@ -297,16 +298,17 @@ valid ways.
 The polymorphic type system used in Parsley supports higher-ranked
 polymorphism with type-inference, using a bidirectional scheme based
 on~\cite{Dunfield13:bidir}.  It requires type annotations for
-polymorphic function arguments, and only allows predicative type
-inference.  This system relies a polymorphic subtyping scheme
-(\cite{odersky96}) to guide instantiation of polymorphic quantifiers.
+polymorphic function arguments, and allows only predicative type
+inference.  This system relies on a polymorphic subtyping scheme
+\cite{odersky96} to guide instantiation of polymorphic quantifiers.
 We extend this system to the Parsley grammar language as described
 below.
 
-Figure~\ref{f:ctxt} defines a typing context, and shows the mutually
-recursive rules for a well-formed context judgment, $\vdash\Gamma$,
-and a well-formed type judgment, $\Gamma\vdash\tau$.  The definition
-of a well-formed context follows the ordered algorithmic context model
+Figure~\ref{f:ctxt} defines a typing context $\Gamma$, and shows the
+mutually recursive rules for a well-formed context judgment,
+$\vdash\Gamma$, and a well-formed type judgment, $\Gamma\vdash\tau$.
+The definition of a well-formed context follows the ordered
+algorithmic context model
 of~\cite{zhao2018,zhao19:bidir,Dunfield13:bidir}, which provides
 convenient scoping of type variables introduced during type-checking.
 
