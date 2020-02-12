@@ -179,11 +179,12 @@ sublanguage is shown first, followed by the grammar sublanguage.
   \begin{tabular}{l c l l}
     Paths        & $p$      & ::= & $ x \mid p.x $ \\
     Constants    & c        & ::= & 0,1,\ldots\ $|$\ `A', `B', \ldots\ $|$\ \ldots \\
+    Constructors & C        &     & \\
     Attributes   & $l$      & ::= & $ l^i \mid l^s $ \\
     Base types   & $\nu$    & ::= & $ \texttt{unit} \mid \texttt{uint8} \mid \texttt{int32} \mid \ldots $ \\
     Monotypes    & $\tau$   & ::= & $ \utv \mid \nu \mid (\tau_i) \mid \tau\rightarrow\tau \mid \sum_i C_i\tau_i \mid \{l_i:\tau_i\} \mid \texttt{typeof}(N) $ \\
     Types        & $\sigma$ & ::= & $ \tau \mid \forall\utv.\sigma \mid \sigma\rightarrow\sigma $ \\
-    Expressions  & $e$      & ::= & $ p \mid \textrm{c} \mid C_i e \mid (e_i) \mid e\ e \mid e\ \texttt{op}\ e \mid (e : \tau) \mid e.l $ \\
+    Expressions  & $e$      & ::= & $ p \mid \textrm{c} \mid C e \mid (e_i) \mid e\ e \mid e\ \texttt{op}\ e \mid (e : \tau) \mid e.l $ \\
                  &          &     & $\mid \textrm{case}\ e\ \{\rho_i, e_i\} \mid \textrm{let}\ \rho=e\ \textrm{in}\ e \mid e \sim C \mid f\ e $ \\
     Patterns     & $\rho$   & ::= & $ x \mid (\rho_i) \mid C\rho $ \\
     Functions    & $f$      & ::= & $ x := (x_i:\sigma_i)\rightarrow\sigma \{e\} $ \\
@@ -308,13 +309,14 @@ inference.  This system relies on a polymorphic subtyping scheme
 We extend this system to the Parsley grammar language as described
 below.
 
-Figures~\ref{f:defs:wf:types:worklists} and \ref{f:wf:judgments} define the algorithmic
-worklist $\Gamma$, and show the mutually recursive rules for a
-well-formed context judgment, $\vdash\Gamma$, and a well-formed type
-judgment, $\Gamma\vdash\tau$.  These definitions follow the ordered
-algorithmic worklist model of~\cite{zhao2018,zhao19:bidir}, which
-provides convenient scoping of type variables introduced during
-type-checking.
+Figures~\ref{f:defs:wf:types:worklists} and \ref{f:wf:judgments}
+define the algorithmic worklist $\Gamma$, and show the mutually
+recursive rules for a well-formed context judgment, $\vdash\Gamma$,
+and a well-formed type judgment, $\Gamma\vdash\tau$.  These
+definitions follow the ordered algorithmic worklist model
+of~\cite{zhao2018,zhao19:bidir}, which provides convenient scoping of
+type variables introduced during type-checking.
+Figure~\ref{f:wf:expressions} defines well-formed expressions.
 
 \begin{figure}
   \begin{tabular}{l c l l l}
@@ -400,9 +402,65 @@ type-checking.
              {\prfassumption{\Gamma\vdash\sigma}}{\prfassumption{\Gamma\vdash e}}
              {\prfassumption{\Gamma,a\vdash\omega}}
              {\Gamma\vdash\sigma\bullet e\rightsquigarrow_a\omega} $$
-
   \caption{Well-formed judgments}
   \label{f:wf:judgments}
+\end{figure}
+
+\begin{figure}
+  $$ \boxed{\Gamma\vdash C}\ \textrm{Well-formed constructors} $$
+  $$ \prftree[r]{$\mathtt{wf_C}$}
+             {\prfassumption{\sum_i C_i\tau_i\in\Gamma}}{\prfassumption{C\in\{C_i\}}}
+             {\Gamma\vdash C} $$
+  $$ \boxed{\Gamma\vdash l}\ \textrm{Well-formed labels} $$
+  $$ \prftree[r]{$\mathtt{wf_l}$}
+             {\prfassumption{\{l_i:\tau_i\}\in\Gamma}}{\prfassumption{l\in\{l_i\}}}
+             {\Gamma\vdash l} $$
+  $$ \boxed{\Gamma\vdash l}\ \textrm{Well-formed patterns} $$
+  $$ \prfbyaxiom{$\mathtt{wf_\rho var}$}
+             {\Gamma\vdash x}\qquad
+     \prftree[r]{$\mathtt{wf_\rho tup}$}
+             {\prfassumption{\Gamma\vdash\rho_i\ \forall i}}
+             {\Gamma\vdash (\rho_i)}\qquad
+     \prftree[r]{$\mathtt{wf_\rho C}$}
+             {\prfassumption{\Gamma\vdash C}}{\prfassumption{\Gamma\vdash\rho}}
+             {\Gamma\vdash C\rho} $$
+  $$ \boxed{\Gamma\vdash e}\ \textrm{Well-formed expressions} $$
+  $$ \prftree[r]{$\mathtt{wf_e pvar}$}
+             {\prfassumption{x:\sigma\in\Gamma}}
+             {\Gamma\vdash x}\qquad
+     \prfbyaxiom{$\mathtt{wf_e \nu}$}
+             {\Gamma\vdash \mathrm{c}}\qquad
+     \prftree[r]{$\mathtt{wf_e app}$}
+             {\prfassumption{\Gamma\vdash e_1}}{\prfassumption{\Gamma\vdash e_2}}
+             {\Gamma\vdash e_1\ e_2} $$
+  $$ \prftree[r]{$\mathtt{wf_e tup}$}
+             {\prfassumption{\Gamma\vdash e_i\ \forall i}}
+             {\Gamma\vdash (e_i)}\qquad
+     \prftree[r]{$\mathtt{wf_e anno}$}
+             {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma\vdash\tau}}
+             {\Gamma\vdash (e : \tau)}\qquad
+     \prftree[r]{$\mathtt{wf_e op}$}
+             {\prfassumption{\Gamma\vdash e_1}}{\prfassumption{\Gamma\vdash e_2}}
+             {\Gamma\vdash e_1\ \texttt{op}\ e_2} $$
+  $$ \prftree[r]{$\mathtt{wf_e attr}$}
+             {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma\vdash l}}
+             {\Gamma\vdash e.l}\qquad
+     \prftree[r]{$\mathtt{wf_e sum}$}
+             {\prfassumption{\Gamma\vdash C}}{\prfassumption{\Gamma\vdash e}}
+             {\Gamma\vdash C e}\qquad
+     \prftree[r]{$\mathtt{wf_e match}$}
+             {\prfassumption{\Gamma\vdash C}}{\prfassumption{\Gamma\vdash e}}
+             {\Gamma\vdash e \sim C} $$
+  $$ \prftree[r]{$\mathtt{wf_e case}$}
+             {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma\vdash\rho_i\ \forall i}}
+             {\prfassumption{\Gamma,[\mathrm{bind}(\rho_i)]\vdash e_i\ \forall i}}
+             {\Gamma\vdash\textrm{case}\ e\ \{\rho_i, e_i\}} $$
+  $$ \prftree[r]{$\mathtt{wf_e let}$}
+             {\prfassumption{\Gamma\vdash e_1}}{\prfassumption{\Gamma\vdash\rho}}
+             {\prfassumption{\Gamma,[\mathrm{bind}(\rho)]\vdash e_2}}
+             {\Gamma\vdash\textrm{let}\ \rho=e_1\ \textrm{in}\ e_2} $$
+  \caption{Well-formed expressions}
+  \label{f:wf:expressions}
 \end{figure}
 
 \todo{adding paths and path resolution.}
