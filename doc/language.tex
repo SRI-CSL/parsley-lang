@@ -177,22 +177,22 @@ sublanguage is shown first, followed by the grammar sublanguage.
 
 \begin{figure}
   \begin{tabular}{l c l l}
-    Paths        & $p$      & ::= & $ x\ |\ p.x $ \\
+    Paths        & $p$      & ::= & $ x \mid p.x $ \\
     Constants    & c        & ::= & 0,1,\ldots\ $|$\ `A', `B', \ldots\ $|$\ \ldots \\
-    Attributes   & $l$      & ::= & $ l^i\ |\ l^s $ \\
-    Base types   & $\nu$    & ::= & $ \texttt{unit}\ |\ \texttt{uint8}\ |\ \texttt{int32}\ |\ \ldots $ \\
-    Monotypes    & $\tau$   & ::= & $ \utv\ |\ \nu\ |\ (\tau_i)\ |\ \tau\rightarrow\tau\ |\ \sum_i C_i\tau_i\ |\ \{l_i:\tau_i\}\ |\ \texttt{typeof}(N) $ \\
-    Types        & $\sigma$ & ::= & $ \tau\ |\ \forall\utv.\sigma\ |\ \sigma\rightarrow\sigma $ \\
-    Expressions  & $e$      & ::= & $ p\ |\ \textrm{c}\ |\ C_i\ e\ |\ (e_i)\ |\ e\ e\ |\ e\ \texttt{op}\ e\ |\ (e : \tau)\ |\ e.l $ \\
-                 &          &     & $|\ \textrm{case}\ e\ \{\rho_i, e_i\}\ |\ \textrm{let}\ \rho=e\ \textrm{in}\ e\ |\ e\ \sim\ C |\ f\ e $ \\
-    Patterns     & $\rho$   & ::= & $ x\ |\ (\rho_i)\ |\ C\rho $ \\
-    Functions    & $f$      & ::= & $ x := (x_i:\sigma_i)\rightarrow\sigma\ \{e\} $ \\
+    Attributes   & $l$      & ::= & $ l^i \mid l^s $ \\
+    Base types   & $\nu$    & ::= & $ \texttt{unit} \mid \texttt{uint8} \mid \texttt{int32} \mid \ldots $ \\
+    Monotypes    & $\tau$   & ::= & $ \utv \mid \nu \mid (\tau_i) \mid \tau\rightarrow\tau \mid \sum_i C_i\tau_i \mid \{l_i:\tau_i\} \mid \texttt{typeof}(N) $ \\
+    Types        & $\sigma$ & ::= & $ \tau \mid \forall\utv.\sigma \mid \sigma\rightarrow\sigma $ \\
+    Expressions  & $e$      & ::= & $ p \mid \textrm{c} \mid C_i e \mid (e_i) \mid e\ e \mid e\ \texttt{op}\ e \mid (e : \tau) \mid e.l $ \\
+                 &          &     & $\mid \textrm{case}\ e\ \{\rho_i, e_i\} \mid \textrm{let}\ \rho=e\ \textrm{in}\ e \mid e \sim C \mid f\ e $ \\
+    Patterns     & $\rho$   & ::= & $ x \mid (\rho_i) \mid C\rho $ \\
+    Functions    & $f$      & ::= & $ x := (x_i:\sigma_i)\rightarrow\sigma \{e\} $ \\
     Statements   & $s$      & ::= & $ p = e $ \\
                  &          &     & \\
     Constraints  & $\phi$   & ::= & $ e $ \\
     Actions      & $a$      & ::= & $ \{s_i\} $ \\
-    Rules        & $r$      & ::= & $ \epsilon\ |\ \textrm{c}\ |\ (x=)^?N\{l_i=e_i\}\ |\ \phi\ r $ \\
-                 &          &     & $|\ r\ r\ |\ r\ /\ r\ |\ r^{*e?}\ |\ !r\ |\ !^Rr\ |\ a $ \\
+    Rules        & $r$      & ::= & $ \epsilon \mid \textrm{c} \mid (x=)^?N\{l_i=e_i\} \mid \phi r $ \\
+                 &          &     & $\mid r r \mid r / r \mid r^{*e?} \mid !r \mid !^Rr \mid a $ \\
     Productions  & $P$      & ::= & $ N\{l_i:\tau_i\} := r $ \\
     Format       & $F$      & ::= & $ \{ \tau_i, N\{l_i:\tau_i\}, P_i \} $ \\
   \end{tabular}
@@ -308,53 +308,101 @@ inference.  This system relies on a polymorphic subtyping scheme
 We extend this system to the Parsley grammar language as described
 below.
 
-Figure~\ref{f:ctxt} defines a typing context $\Gamma$, and shows the
-mutually recursive rules for a well-formed context judgment,
-$\vdash\Gamma$, and a well-formed type judgment, $\Gamma\vdash\tau$.
-The definition of a well-formed context follows the ordered
-algorithmic context model
-of~\cite{zhao2018,zhao19:bidir,Dunfield13:bidir}, which provides
-convenient scoping of type variables introduced during type-checking.
+Figures~\ref{f:defs:wf:types:worklists} and \ref{f:wf:judgments} define the algorithmic
+worklist $\Gamma$, and show the mutually recursive rules for a
+well-formed context judgment, $\vdash\Gamma$, and a well-formed type
+judgment, $\Gamma\vdash\tau$.  These definitions follow the ordered
+algorithmic worklist model of~\cite{zhao2018,zhao19:bidir}, which
+provides convenient scoping of type variables introduced during
+type-checking.
 
 \begin{figure}
   \begin{tabular}{l c l l l}
-    Typing context            & $\Gamma$ & ::= & $ \cdot $                       & empty context \\
-                              &          &     & $|\ \Gamma, x: \tau $           & program variable \\
-                              &          &     & $|\ \Gamma, N: \{l_i:\tau_i\} $ & non-terminal \\
-                              &          &     & $|\ \Gamma, \utv $              & universal type variable \\
-                              &          &     & $|\ \Gamma, \etv  $             & existential type variable\\
+    Existential variables     & $\etv$   &     &                                   & \\
+    Monotypes                 & $\tau$   & ::= & $ \utv\ \ldots $                  & as in Figure~\ref{f:parsley-syntax} \\
+    Algorithmic types         & $\sigma$ & ::= & $ \etv $                          & \\
+                              &          &     & $ \mid \tau\ \ldots $             & as in Figure~\ref{f:parsley-syntax} \\
+                              &          &     &                                   & \\
+    Judgment chain            & $\omega$ & ::= & $ \sigma_1\leq\sigma_2 $          & subtyping judgment \\
+                              &          &     & $ e\Leftarrow\sigma $             & checking judgment \\
+                              &          &     & $ e\Rightarrow_a\omega $          & inference judgment \\
+                              &          &     & $ \sigma\bullet e\rightsquigarrow_a\omega $ & application inference judgment \\
+                              &          &     &                                   & \\
+    Worklist                  & $\Gamma$ &     & $ \cdot $                         & empty context \\
+                              &          &     & $ \mid\Gamma, x: \tau $           & program variable \\
+                              &          &     & $ \mid\Gamma, N: \{l_i:\tau_i\} $ & non-terminal \\
+                              &          &     & $ \mid\Gamma, \utv $              & universal type variable \\
+                              &          &     & $ \mid\Gamma, \etv  $             & existential type variable\\
+                              &          &     & $ \mid\Gamma\Vdash\omega $        & work \\
+
   \end{tabular}
-  $$ $$
-  $$ \boxed{\vdash\Gamma} \qquad \boxed{\Gamma\vdash\tau} $$
-  $$ \prftree[r]{$\mathtt{wf_c uvar}$}{\prfassumption{\utv\notin\Gamma}}
+  $$ \boxed{\vdash\Gamma}\ \textrm{Well-formed worklist} $$
+  $$ \prftree[r]{$\mathtt{wf_w uvar}$}
+             {\prfassumption{\utv\notin\Gamma}}
              {\vdash\Gamma, \utv}\qquad
-     \prftree[r]{$\mathtt{wf_c evar}$}{\prfassumption{\etv\notin\Gamma}}
+     \prftree[r]{$\mathtt{wf_w evar}$}
+             {\prfassumption{\etv\notin\Gamma}}
              {\vdash\Gamma, \etv}\qquad
-     \prftree[r]{$\mathtt{wf_c pvar}$}{\prfassumption{x\notin\Gamma}}{\prfassumption{\Gamma\vdash\tau}}
-             {\vdash\Gamma, x:\tau}\qquad
-     \prftree[r]{$\mathtt{wf_c N}$}{\prfassumption{N\notin\Gamma}}{\prfassumption{\Gamma\vdash\{l_i:\tau_i\}}}
-             {\vdash\Gamma, N:\{l_i:\tau_i\}} $$
+     \prftree[r]{$\mathtt{wf_w pvar}$}
+             {\prfassumption{x\notin\Gamma}}{\prfassumption{\Gamma\vdash\sigma}}
+             {\vdash\Gamma, x:\sigma} $$
+  $$ \prftree[r]{$\mathtt{wf_w N}$}
+             {\prfassumption{N\notin\Gamma}}{\prfassumption{\Gamma\vdash\{l_i:\tau_i\}}}
+             {\vdash\Gamma, N:\{l_i:\tau_i\}}\qquad
+     \prftree[r]{$\mathtt{wf_\omega}$}
+             {\prfassumption{\vdash\Gamma}}{\prfassumption{\Gamma\vdash\omega}}
+             {\vdash\Gamma\Vdash\omega} $$
+
+  $$ \boxed{\Gamma\vdash\sigma}\ \textrm{Well-formed type}  $$
   $$ \prfbyaxiom{$\mathtt{wf_t \nu}$}{\Gamma\vdash\nu}\qquad
-     \prftree[r]{$\mathtt{wf_t tvar}$}{\prfassumption{\utv\in\Gamma}}
+     \prftree[r]{$\mathtt{wf_t tvar}$}
+             {\prfassumption{\utv\in\Gamma}}
              {\Gamma\vdash\utv}\qquad
-     \prftree[r]{$\mathtt{wf_t evar}$}{\prfassumption{\etv\in\Gamma}}
+     \prftree[r]{$\mathtt{wf_t evar}$}
+             {\prfassumption{\etv\in\Gamma}}
              {\Gamma\vdash\etv}\qquad
-     \prftree[r]{$\mathtt{wf_t typeof}$}{\prfassumption{N\in\Gamma}}
+     \prftree[r]{$\mathtt{wf_t typeof}$}
+             {\prfassumption{N\in\Gamma}}
              {\Gamma\vdash\texttt{typeof}(N)} $$
-  $$ \prftree[r]{$\mathtt{wf_t tup}$}{\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
-             {\Gamma\vdash(\tau_i)}\qquad
-     \prftree[r]{$\mathtt{wf_t \rightarrow}$}{\prfassumption{\Gamma\vdash\tau_a}}{\prfassumption{\Gamma\vdash\tau_b}}
-             {\Gamma\vdash\tau_a\rightarrow\tau_b} $$
-  $$ \prftree[r]{$\mathtt{wf_t \sum}$}{\prfassumption{\forall i,j:C_i=C_j\Rightarrow i=j}}
+  $$ \prftree[r]{$\mathtt{wf_t \forall}$}
+             {\prfassumption{\Gamma,\utv\vdash\sigma}}
+             {\Gamma\vdash\forall\utv.\sigma}\qquad
+     \prftree[r]{$\mathtt{wf_t \rightarrow}$}
+             {\prfassumption{\Gamma\vdash\sigma_1}}{\prfassumption{\Gamma\vdash\sigma_2}}
+             {\Gamma\vdash\sigma_1\rightarrow\sigma_2}\qquad
+     \prftree[r]{$\mathtt{wf_t tup}$}
+             {\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
+             {\Gamma\vdash(\tau_i)} $$
+  $$ \prftree[r]{$\mathtt{wf_t \sum}$}
+             {\prfassumption{\forall i,j:C_i=C_j\Rightarrow i=j}}
              {\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
              {\Gamma\vdash\sum_i C_i\tau_i}\qquad
-     \prftree[r]{$\mathtt{wf_t rec}$}{\prfassumption{\forall i,j:l_i=l_j\Rightarrow i=j}}
+     \prftree[r]{$\mathtt{wf_t rec}$}
+             {\prfassumption{\forall i,j:l_i=l_j\Rightarrow i=j}}
              {\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
              {\Gamma\vdash\{l_i:\tau_i\}} $$
-  $$ \prftree[r]{$\mathtt{wf_t \forall}$}{\prfassumption{\Gamma,\utv\vdash\tau}}
-             {\Gamma\vdash\forall\utv.\tau} $$
-  \caption{Well-formed contexts and types}
-  \label{f:ctxt}
+  \caption{Well-formed types and worklists}
+  \label{f:defs:wf:types:worklists}
+\end{figure}
+
+\begin{figure}
+  $$ \boxed{\Gamma\vdash\omega}\ \textrm{Well-formed judgment} $$
+  $$ \prftree[r]{$\mathtt{wf_\omega \leq}$}
+             {\prfassumption{\Gamma\vdash\sigma_1}}{\prfassumption{\Gamma\vdash\sigma_2}}
+             {\Gamma\vdash\sigma_1\leq\sigma_2}\qquad
+     \prftree[r]{$\mathtt{wf_\omega\Leftarrow}$}
+             {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma\vdash\sigma}}
+             {\Gamma\vdash e\Leftarrow\sigma}\qquad
+     \prftree[r]{$\mathtt{wf_\omega\Rightarrow}$}
+             {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma,a\vdash\omega}}
+             {\Gamma\vdash e\Rightarrow_a\omega} $$
+  $$ \prftree[r]{$\mathtt{wf_\rightsquigarrow}$}
+             {\prfassumption{\Gamma\vdash\sigma}}{\prfassumption{\Gamma\vdash e}}
+             {\prfassumption{\Gamma,a\vdash\omega}}
+             {\Gamma\vdash\sigma\bullet e\rightsquigarrow_a\omega} $$
+
+  \caption{Well-formed judgments}
+  \label{f:wf:judgments}
 \end{figure}
 
 \todo{adding paths and path resolution.}
