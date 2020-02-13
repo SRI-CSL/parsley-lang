@@ -329,8 +329,8 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
                               &          &     &                                   & \\
     Judgment chain            & $\omega$ & ::= & $ \sigma_1\leq\sigma_2 $          & subtyping judgment \\
                               &          &     & $ e\Leftarrow\sigma $             & checking judgment \\
-                              &          &     & $ e\Rightarrow_a\omega $          & inference judgment \\
-                              &          &     & $ \sigma\bullet e\rightsquigarrow_a\omega $ & application inference judgment \\
+                              &          &     & $ e\Rightarrow_\utv\omega $       & inference judgment \\
+                              &          &     & $ \sigma\bullet e\rightsquigarrow_\utv\omega $ & application inference judgment \\
                               &          &     &                                   & \\
     Worklist                  & $\Gamma$ & ::= & $ \cdot $                         & empty context \\
                               &          &     & $ \mid\Gamma, x: \tau $           & program variable \\
@@ -399,11 +399,11 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
              {\Gamma\vdash e\Leftarrow\sigma}\qquad
      \prftree[r]{$\mathtt{wf_\omega\Rightarrow}$}
              {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma,a\vdash\omega}}
-             {\Gamma\vdash e\Rightarrow_a\omega} $$
+             {\Gamma\vdash e\Rightarrow_\utv\omega} $$
   $$ \prftree[r]{$\mathtt{wf_\rightsquigarrow}$}
              {\prfassumption{\Gamma\vdash\sigma}}{\prfassumption{\Gamma\vdash e}}
              {\prfassumption{\Gamma,a\vdash\omega}}
-             {\Gamma\vdash\sigma\bullet e\rightsquigarrow_a\omega} $$
+             {\Gamma\vdash\sigma\bullet e\rightsquigarrow_\utv\omega} $$
   \caption{Well-formed judgments}
   \label{f:wf:judgments}
 \end{figure}
@@ -495,7 +495,7 @@ the worklist within the variable's scope before proceeding.
       \Gamma\Vdash \sigma_1\rightarrow\sigma_2\leq \sigma'_1\rightarrow\sigma'_2
         &\typrule \Gamma\Vdash\sigma_2\leq\sigma'_2\Vdash\sigma'_1\leq\sigma_1 \\
       \Gamma\Vdash \forall\utv.\sigma\leq\sigma'
-        &\typrule \Gamma,\etv\Vdash [\etv/\utv]\sigma\leq\sigma' \qquad\text{when } \sigma'\neq\forall\utv.\sigma'' \\
+        &\typrule \Gamma,\etv\Vdash [\etv/\utv]\sigma\leq\sigma' \quad\text{when } \sigma'\neq\forall\utv.\sigma'' \\
       \Gamma\Vdash \sigma\leq\forall\utv.\sigma'
         &\typrule \Gamma,\utv\Vdash \sigma\leq\sigma' \\
       \Gamma[\etv]\Vdash \etv\leq\sigma\rightarrow\sigma'
@@ -512,6 +512,24 @@ the worklist within the variable's scope before proceeding.
       \Gamma[\utv][\etv]\Vdash \etv\leq\utv &\typrule [\utv/\etv](\Gamma[\utv][]) \\
       \Gamma[\etv]\Vdash \nu\leq\etv &\typrule [\nu/\etv](\Gamma[]) \\
       \Gamma[\etv]\Vdash \etv\leq\nu &\typrule [\nu/\etv](\Gamma[]) \\
+      \Gamma\Vdash e\Leftarrow\sigma
+        &\typrule \Gamma\Vdash e\Rightarrow_\utv \utv\leq\sigma \quad\text{when $\sigma\neq\forall\utv.\sigma'$} \\
+      \Gamma\Vdash e\Leftarrow\forall\utv.\sigma
+        &\typrule \Gamma,\utv\Vdash e\Leftarrow\sigma \\
+      \Gamma\Vdash x\Rightarrow_\utv\omega
+        &\typrule \Gamma\Vdash [\sigma/\utv]\omega \quad\text{when $x:\sigma\in\Gamma$} \\
+      \Gamma\Vdash (e : \sigma)\Rightarrow_\utv\omega
+        &\typrule \Gamma\Vdash[\sigma/\utv]\omega\Vdash e\Leftarrow\sigma \\
+      \Gamma\Vdash \mathrm{c}\Rightarrow_\utv\omega
+        &\typrule \Gamma\Vdash[\nu/\utv]\omega \\
+      \Gamma\Vdash e_1\ e_2\Rightarrow_\utv\omega
+        &\typrule \Gamma\Vdash e_1\Rightarrow_{\utv'}(\utv'\bullet e_2\rightsquigarrow_\utv\omega) \\
+      \Gamma\Vdash \forall\utv.\sigma\bullet e\rightsquigarrow_\utv\omega
+        &\typrule \Gamma,\etv\Vdash[\etv/\utv]\sigma\bullet e\rightsquigarrow_\utv\omega \\
+      \Gamma\Vdash \sigma\rightarrow\sigma'\bullet e \rightsquigarrow_\utv\omega
+        &\typrule \Gamma\Vdash [\sigma'/\utv]\omega \Vdash e\Leftarrow\sigma \\
+      \Gamma[\etv]\Vdash \etv\bullet e\rightsquigarrow_\utv\omega
+        &\typrule [\etv_1\rightarrow\etv_2](\Gamma[\etv_1,\etv_2]\Vdash\etv_1\rightarrow\etv_2\bullet e\rightsquigarrow_\utv\omega)
     \end{aligned}
   \end{gather*}
   \caption{Typing rules}
