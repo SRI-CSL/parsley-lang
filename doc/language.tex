@@ -185,7 +185,7 @@ sublanguage is shown first, followed by the grammar sublanguage.
     Monotypes    & $\tau$   & ::= & $ \utv \mid \nu \mid (\tau_i) \mid \tau\rightarrow\tau \mid \sum_i C_i\tau_i \mid \{l_i:\tau_i\} \mid \texttt{typeof}(N) $ \\
     Types        & $\sigma$ & ::= & $ \tau \mid \forall\utv.\sigma \mid \sigma\rightarrow\sigma $ \\
     Expressions  & $e$      & ::= & $ p \mid \textrm{c} \mid C e \mid (e_i) \mid e\ e \mid e\ \texttt{op}\ e \mid (e : \tau) \mid e.l $ \\
-                 &          &     & $\mid \textrm{case}\ e\ \{\rho_i, e_i\} \mid \textrm{let}\ \rho=e\ \textrm{in}\ e \mid e \sim C \mid f\ e $ \\
+                 &          &     & $\mid \textrm{case }e\ \{\rho_i, e_i\} \mid \textrm{let }\rho=e\textrm{ in }e \mid e \sim C \mid f\ e $ \\
     Patterns     & $\rho$   & ::= & $ x \mid (\rho_i) \mid C\rho $ \\
     Functions    & $f$      & ::= & $ x := (x_i:\sigma_i)\rightarrow\sigma \{e\} $ \\
     Statements   & $s$      & ::= & $ p = e $ \\
@@ -467,15 +467,16 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
 
 \todo{adding paths and path resolution.}
 
-Figure~\ref{f:typecheck} shows the typing rules for Parsley, deriving
-again from the worklist approach of~\cite{zhao2018,zhao19:bidir}.
-The main typing rules take the judgment at the head of the worklist,
-and either solve it or break it into smaller judgments that are pushed
-onto the worklist; this repeats until the worklist is empty.  In order
-to solve for unknown types, the process introduces {\em existential
-  type variables} $\etv$ into the context, and when such a variable is
-solved, the solution is immediately substituted into the portion of
-the worklist within the variable's scope before proceeding.
+Figures~\ref{f:typecheck:std} and ~\ref{f:typecheck:parsley} show the
+typing rules for Parsley, deriving again from the worklist approach
+of~\cite{zhao2018,zhao19:bidir}.  The main typing rules take the
+judgment at the head of the worklist, and either solve it or break it
+into smaller judgments that are pushed onto the worklist; this repeats
+until the worklist is empty.  In order to solve for unknown types, the
+process introduces {\em existential type variables} $\etv$ into the
+context, and when such a variable is solved, the solution is
+immediately substituted into the portion of the worklist within the
+variable's scope before proceeding.
 
 \newcommand\rstep[1]{~\longrightarrow_{\makebox[0pt][l]{$\scriptstyle #1$}\phantom{~~}}}
 \newcounter{ruleCounter}
@@ -532,8 +533,47 @@ the worklist within the variable's scope before proceeding.
         &\typrule [\etv_1\rightarrow\etv_2](\Gamma[\etv_1,\etv_2]\Vdash\etv_1\rightarrow\etv_2\bullet e\rightsquigarrow_\utv\omega)
     \end{aligned}
   \end{gather*}
-  \caption{Typing rules}
-  \label{f:typecheck}
+  \caption{Typing rules (standard)}
+  \label{f:typecheck:std}
+\end{figure}
+
+\begin{figure}
+  \begin{gather*}
+    \begin{aligned}
+      \Gamma\Vdash (\sigma_i)\leq(\sigma'_j)
+        &\typrule \Gamma \{\Vdash \sigma_i\leq\sigma'_i\}_i \\
+        &\qquad\qquad\text{when }\textrm{len}(\sigma_i)=\textrm{len}(\sigma'_j) \\
+      \Gamma[\etv]\Vdash \etv\leq(\sigma_i)
+        &\typrule [(\etv_i)/\etv](\Gamma[[\etv_i]]\Vdash (\etv_i)\leq(\sigma_i)) \\
+        &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+      \Gamma[\etv]\Vdash (\sigma_i)\leq\etv
+        &\typrule [(\etv_i)/\etv](\Gamma[[\etv_i]]\Vdash (\sigma_i)\leq(\etv_i)) \\
+        &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+      \Gamma\Vdash \{l_i:\sigma_i\}\leq\{l'_j:\sigma'_j\}
+        &\typrule \Gamma \{\Vdash \sigma_i\leq\sigma'_i\}_i \\
+        &\qquad\qquad\text{when }\{l'_j\}\subseteq\{l_i\} \\
+      \Gamma[\etv]\Vdash \etv\leq\{l_i:\sigma_i\}
+        &\typrule [\{l_i:\etv_i\}/\etv](\Gamma[[\etv_i]]\Vdash \{l_i:\etv_i\}\leq\{l_i:\sigma_i\}) \\
+        &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+      \Gamma[\etv]\Vdash \{l_i:\sigma_i\}\leq\etv
+        &\typrule [\{l_i:\etv_i\}/\etv](\Gamma[[\etv_i]]\Vdash \{l_i:\sigma_i\}\leq\{l_i:\etv_i\}) \\
+        &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+      \Gamma\Vdash e_1\ \texttt{op}\ e_1\Rightarrow_\utv\omega
+        &\typrule \Gamma\Vdash (\texttt{op}\ e_1)\ e_2\Rightarrow_\utv\omega \\
+      \Gamma\Vdash (e_i)\Rightarrow_\utv\omega
+        &\typrule \Gamma\Vdash e_1\Rightarrow_{\utv_1}(\ldots(e_n\Rightarrow_{\utv_n}[(\utv_i)/\utv]\omega)\ldots) \\
+      \Gamma\Vdash e.l\Rightarrow_\utv\omega
+        &\typrule \Gamma,\etv\Vdash [\etv/\utv]\omega\Vdash e\Rightarrow_{\utv'} \utv'\leq \{l:\etv\} \\
+      % check this, especially ordering of \etv_1 and \etv_2 in context!
+      \Gamma\Vdash \textrm{let }x=e_1\textrm{ in }e_2\Rightarrow_\utv\omega
+        &\typrule \Gamma,\etv_2,\etv_1\Vdash [\etv_2/\utv]\omega, x:\etv_1 \Vdash e_2\Leftarrow\etv_2\Vdash e_1\Leftarrow\etv_1 \\
+      % TODO:
+      % . patterns
+      % . variants + case
+    \end{aligned}
+  \end{gather*}
+  \caption{Typing rules (Parsley-specific)}
+  \label{f:typecheck:parsley}
 \end{figure}
 
 \section*{Acknowledgments}
