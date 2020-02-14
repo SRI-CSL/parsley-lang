@@ -185,7 +185,7 @@ sublanguage is shown first, followed by the grammar sublanguage.
     Monotypes    & $\tau$   & ::= & $ \utv \mid \nu \mid (\tau_i) \mid \tau\rightarrow\tau \mid \sum_i C_i\tau_i \mid \{l_i:\tau_i\} \mid \texttt{typeof}(N) $ \\
     Types        & $\sigma$ & ::= & $ \tau \mid \forall\utv.\sigma \mid \sigma\rightarrow\sigma $ \\
     Expressions  & $e$      & ::= & $ p \mid \textrm{c} \mid C e \mid (e_i) \mid e\ e \mid e\ \texttt{op}\ e \mid (e : \tau) \mid e.l $ \\
-                 &          &     & $\mid \textrm{case }e\ \{\rho_i, e_i\} \mid \textrm{let }\rho=e\textrm{ in }e \mid e \sim C \mid f\ e $ \\
+                 &          &     & $\mid \textrm{case }e\ \{\rho_i, e_i\} \mid \textrm{let }x=e\textrm{ in }e \mid e \sim C \mid f\ e $ \\
     Patterns     & $\rho$   & ::= & $ x \mid (\rho_i) \mid C\rho $ \\
     Functions    & $f$      & ::= & $ x := (x_i:\sigma_i)\rightarrow\sigma \{e\} $ \\
     Statements   & $s$      & ::= & $ p = e $ \\
@@ -322,22 +322,22 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
 
 \begin{figure}
   \begin{tabular}{l c l l l}
-    Existential variables     & $\etv$   &     &                                   & \\
-    Monotypes                 & $\tau$   & ::= & $ \utv\ \ldots $                  & as in Figure~\ref{f:parsley-syntax} \\
-    Algorithmic types         & $\sigma$ & ::= & $ \etv $                          & \\
-                              &          &     & $ \mid \tau\ \ldots $             & as in Figure~\ref{f:parsley-syntax} \\
-                              &          &     &                                   & \\
-    Judgment chain            & $\omega$ & ::= & $ \sigma_1\leq\sigma_2 $          & subtyping judgment \\
-                              &          &     & $ e\Leftarrow\sigma $             & checking judgment \\
-                              &          &     & $ e\Rightarrow_\utv\omega $       & inference judgment \\
-                              &          &     & $ \sigma\bullet e\rightsquigarrow_\utv\omega $ & application inference judgment \\
-                              &          &     &                                   & \\
-    Worklist                  & $\Gamma$ & ::= & $ \cdot $                         & empty context \\
-                              &          &     & $ \mid\Gamma, x: \tau $           & program variable \\
-                              &          &     & $ \mid\Gamma, N: \{l_i:\tau_i\} $ & non-terminal \\
-                              &          &     & $ \mid\Gamma, \utv $              & universal type variable \\
-                              &          &     & $ \mid\Gamma, \etv  $             & existential type variable\\
-                              &          &     & $ \mid\Gamma\Vdash\omega $        & work \\
+    Existential variables & $\etv$   &     &                                   & \\
+    Monotypes             & $\tau$   & ::= & $ \utv\ \ldots $                  & as in Figure~\ref{f:parsley-syntax} \\
+    Algorithmic types     & $\sigma$ & ::= & $ \etv $                          & \\
+                          &          &     & $ \mid \tau\ \ldots $             & as in Figure~\ref{f:parsley-syntax} \\
+                          &          &     &                                   & \\
+    Judgment chain        & $\omega$ & ::= & $ \sigma_1\leq\sigma_2 $          & subtyping judgment \\
+                          &          &     & $ e\Leftarrow\sigma $             & checking judgment \\
+                          &          &     & $ e\Rightarrow_\utv\omega $       & inference judgment \\
+                          &          &     & $ \sigma\bullet e\rightsquigarrow_\utv\omega $ & application inference judgment \\
+                          &          &     &                                   & \\
+    Worklist              & $\Gamma$ & ::= & $ \cdot $                         & empty context \\
+                          &          &     & $ \mid\Gamma, x: \tau $           & program variable \\
+                          &          &     & $ \mid\Gamma, N: \{l_i:\tau_i\} $ & non-terminal \\
+                          &          &     & $ \mid\Gamma, \utv $              & universal type variable \\
+                          &          &     & $ \mid\Gamma, \etv  $             & existential type variable\\
+                          &          &     & $ \mid\Gamma\Vdash\omega $        & work \\
 
   \end{tabular}
   $$ \boxed{\vdash\Gamma}\ \textrm{Well-formed worklist} $$
@@ -475,8 +475,7 @@ into smaller judgments that are pushed onto the worklist; this repeats
 until the worklist is empty.  In order to solve for unknown types, the
 process introduces {\em existential type variables} $\etv$ into the
 context, and when such a variable is solved, the solution is
-immediately substituted into the portion of the worklist within the
-variable's scope before proceeding.
+immediately substituted into the worklist before proceeding.
 
 \newcommand\rstep[1]{~\longrightarrow_{\makebox[0pt][l]{$\scriptstyle #1$}\phantom{~~}}}
 \newcounter{ruleCounter}
@@ -538,6 +537,7 @@ variable's scope before proceeding.
 \end{figure}
 
 \begin{figure}
+  $$ \boxed{\Gamma\vdash\Gamma'}\ \textrm{$\Gamma$ reduces to $\Gamma'$} $$
   \begin{gather*}
     \begin{aligned}
       \Gamma\Vdash (\sigma_i)\leq(\sigma'_j)
