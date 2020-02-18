@@ -576,6 +576,25 @@ immediately substituted into the worklist before proceeding.
   \label{f:typecheck:parsley}
 \end{figure}
 
+\section*{TODOs}
+
+The following are still being worked on in the type-system
+specification:
+\begin{itemize}
+\item pattern matching, case statements
+\item recursive types
+\item recursive functions
+\item modules, path resolution
+\item grammar rules
+\end{itemize}
+
+The type rules are formulated for algorithmic type-checking, although
+what we really need for an implementation is an algorithm for type
+elaboration of the abstract syntax.  We could formulate this as an
+extension of the type-checking algorithm.
+
+The dynamic semantics will then need addressing.
+
 \section*{Acknowledgments}
 This work was supported by DARPA under agreement number HR001119C0075.
 The views and conclusions contained herein are those of the authors
