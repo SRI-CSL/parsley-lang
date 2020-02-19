@@ -186,7 +186,7 @@ sublanguage is shown first, followed by the grammar sublanguage.
     Types        & $\sigma$ & ::= & $ \tau \mid \forall\utv.\sigma \mid \sigma\rightarrow\sigma $ \\
     Expressions  & $e$      & ::= & $ p \mid \textrm{c} \mid C e \mid (e_i) \mid e\ e \mid e\ \texttt{op}\ e \mid (e : \tau) \mid e.l $ \\
                  &          &     & $\mid \textrm{case }e\ \{\rho_i, e_i\} \mid \textrm{let }x=e\textrm{ in }e \mid e \sim C \mid f\ e $ \\
-    Patterns     & $\rho$   & ::= & $ x \mid (\rho_i) \mid C\rho $ \\
+    Patterns     & $\rho$   & ::= & $ x \mid (\rho_i) \mid C\rho $ \\ % TODO: record patterns
     Functions    & $f$      & ::= & $ x := (x_i:\sigma_i)\rightarrow\sigma \{e\} $ \\
     Statements   & $s$      & ::= & $ p = e $ \\
                  &          &     & \\
@@ -333,6 +333,8 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
                           &          &     & $ \sigma\bullet e\rightsquigarrow_\utv\omega $ & application inference judgment \\
                           &          &     &                                   & \\
     Worklist              & $\Gamma$ & ::= & $ \cdot $                         & empty context \\
+                          &          &     & $ \mid\Gamma, C: \sigma$          & value constructor \\
+                          &          &     & $ \mid\Gamma, l: \sigma$          & record destructor \\
                           &          &     & $ \mid\Gamma, x: \tau $           & program variable \\
                           &          &     & $ \mid\Gamma, N: \{l_i:\tau_i\} $ & non-terminal \\
                           &          &     & $ \mid\Gamma, \utv $              & universal type variable \\
@@ -409,29 +411,22 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
 \end{figure}
 
 \begin{figure}
-  $$ \boxed{\Gamma\vdash C}\ \textrm{Well-formed constructors} $$
-  $$ \prftree[r]{$\mathtt{wf_C}$}
-             {\prfassumption{\sum_i C_i\tau_i\in\Gamma}}{\prfassumption{C\in\{C_i\}}}
-             {\Gamma\vdash C} $$
-  $$ \boxed{\Gamma\vdash l}\ \textrm{Well-formed labels} $$
-  $$ \prftree[r]{$\mathtt{wf_l}$}
-             {\prfassumption{\{l_i:\tau_i\}\in\Gamma}}{\prfassumption{l\in\{l_i\}}}
-             {\Gamma\vdash l} $$
-  $$ \boxed{\Gamma\vdash l}\ \textrm{Well-formed patterns} $$
+  $$ \boxed{\Gamma\vdash \rho}\ \textrm{Well-formed patterns} $$
   $$ \prfbyaxiom{$\mathtt{wf_\rho var}$}
              {\Gamma\vdash x}\qquad
      \prftree[r]{$\mathtt{wf_\rho tup}$}
              {\prfassumption{\Gamma\vdash\rho_i\ \forall i}}
+             {\prfassumption{\{\mathrm{binders}(\rho_i)\}\textrm{ distinct}}}
              {\Gamma\vdash (\rho_i)}\qquad
      \prftree[r]{$\mathtt{wf_\rho C}$}
-             {\prfassumption{\Gamma\vdash C}}{\prfassumption{\Gamma\vdash\rho}}
+             {\prfassumption{C\in\Gamma}}{\prfassumption{\Gamma\vdash\rho}}
              {\Gamma\vdash C\rho} $$
   $$ \boxed{\Gamma\vdash e}\ \textrm{Well-formed expressions} $$
   $$ \prftree[r]{$\mathtt{wf_e pvar}$}
              {\prfassumption{x:\sigma\in\Gamma}}
              {\Gamma\vdash x}\qquad
      \prfbyaxiom{$\mathtt{wf_e \nu}$}
-             {\Gamma\vdash \mathrm{c}}\qquad
+             {\Gamma\vdash \textrm{c}}\qquad
      \prftree[r]{$\mathtt{wf_e app}$}
              {\prfassumption{\Gamma\vdash e_1}}{\prfassumption{\Gamma\vdash e_2}}
              {\Gamma\vdash e_1\ e_2} $$
@@ -445,21 +440,21 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
              {\prfassumption{\Gamma\vdash e_1}}{\prfassumption{\Gamma\vdash e_2}}
              {\Gamma\vdash e_1\ \texttt{op}\ e_2} $$
   $$ \prftree[r]{$\mathtt{wf_e attr}$}
-             {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma\vdash l}}
+             {\prfassumption{\Gamma\vdash e}}{\prfassumption{l\in\Gamma}}
              {\Gamma\vdash e.l}\qquad
      \prftree[r]{$\mathtt{wf_e sum}$}
-             {\prfassumption{\Gamma\vdash C}}{\prfassumption{\Gamma\vdash e}}
+             {\prfassumption{C\in\Gamma}}{\prfassumption{\Gamma\vdash e}}
              {\Gamma\vdash C e}\qquad
      \prftree[r]{$\mathtt{wf_e match}$}
              {\prfassumption{\Gamma\vdash C}}{\prfassumption{\Gamma\vdash e}}
              {\Gamma\vdash e \sim C} $$
   $$ \prftree[r]{$\mathtt{wf_e case}$}
              {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma\vdash\rho_i\ \forall i}}
-             {\prfassumption{\Gamma,[\mathrm{bind}(\rho_i)]\vdash e_i\ \forall i}}
+             {\prfassumption{\Gamma,[\mathrm{binders}(\rho_i)]\vdash e_i\ \forall i}}
              {\Gamma\vdash\textrm{case}\ e\ \{\rho_i, e_i\}} $$
   $$ \prftree[r]{$\mathtt{wf_e let}$}
              {\prfassumption{\Gamma\vdash e_1}}{\prfassumption{\Gamma\vdash\rho}}
-             {\prfassumption{\Gamma,[\mathrm{bind}(\rho)]\vdash e_2}}
+             {\prfassumption{\Gamma,[\mathrm{binders}(\rho)]\vdash e_2}}
              {\Gamma\vdash\textrm{let}\ \rho=e_1\ \textrm{in}\ e_2} $$
   \caption{Well-formed expressions}
   \label{f:wf:expressions}
