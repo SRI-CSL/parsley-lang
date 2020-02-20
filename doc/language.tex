@@ -327,10 +327,17 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
     Algorithmic types     & $\sigma$ & ::= & $ \etv $                          & \\
                           &          &     & $ \mid \tau\ \ldots $             & as in Figure~\ref{f:parsley-syntax} \\
                           &          &     &                                   & \\
-    Judgment chain        & $\omega$ & ::= & $ \sigma_1\leq\sigma_2 $          & subtyping judgment \\
+    Judgment              & $\iota$  & ::= & $ \sigma_1\leq\sigma_2 $          & subtyping judgment \\
                           &          &     & $ e\Leftarrow\sigma $             & checking judgment \\
-                          &          &     & $ e\Rightarrow_\utv\omega $       & inference judgment \\
-                          &          &     & $ \sigma\bullet e\rightsquigarrow_\utv\omega $ & application inference judgment \\
+                          &          &     & $ \mathrm{cover}(\{\rho_i\}, \tau) $ & pattern check \\
+
+                          &          &     &                                   & \\
+    Judgment chain        & $\omega$ & ::= & $ \iota $                         & single judgment \\
+                          &          &     & $ \iota, \omega $                 & judgment sequence \\
+                          &          &     & $ e\Rightarrow_\utv\omega $       & type inference \\
+                          &          &     & $ \sigma\bullet e\rightsquigarrow_\utv\omega $ & application inference \\
+                          &          &     & $ (\{\rho_i\},\tau)\Rightarrow_\alpha\omega $ & pattern type refinement \\
+
                           &          &     &                                   & \\
     Worklist              & $\Gamma$ & ::= & $ \cdot $                         & empty context \\
                           &          &     & $ \mid\Gamma, C: \sigma$          & value constructor \\
@@ -339,7 +346,7 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
                           &          &     & $ \mid\Gamma, N: \{l_i:\tau_i\} $ & non-terminal \\
                           &          &     & $ \mid\Gamma, \utv $              & universal type variable \\
                           &          &     & $ \mid\Gamma, \etv  $             & existential type variable\\
-                          &          &     & $ \mid\Gamma\Vdash\omega $        & work \\
+                          &          &     & $ \mid\Gamma\Vdash\omega $        & judgment work \\
 
   \end{tabular}
   $$ \boxed{\vdash\Gamma}\ \textrm{Well-formed worklist} $$
