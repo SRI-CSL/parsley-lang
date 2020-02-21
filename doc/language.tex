@@ -335,9 +335,9 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
     Judgment chain        & $\omega$ & ::= & $ \iota $                         & single judgment \\
                           &          &     & $ \iota, \omega $                 & judgment sequence \\
                           &          &     & $ e\Rightarrow_\utv\omega $       & type inference \\
-                          &          &     & $ \sigma\bullet e\rightsquigarrow_\utv\omega $ & application inference \\
-                          &          &     & $ (\{\rho_i\},\tau)\Rightarrow_\alpha\omega $ & pattern type refinement \\
-
+                          &          &     & $ \sigma\bullet e\rightsquigarrow_\utv\omega $  & application inference \\
+                          &          &     & $ (\{\rho_i\},\tau)\Rightarrow_\utv\omega $     & pattern type refinement \\
+                          &          &     & $ (\rho,\tau)\oplus e\Rightarrow_\utv\omega $   & patterned type inference \\
                           &          &     &                                   & \\
     Worklist              & $\Gamma$ & ::= & $ \cdot $                         & empty context \\
                           &          &     & $ \mid\Gamma, C: \sigma$          & value constructor \\
@@ -569,9 +569,10 @@ immediately substituted into the worklist before proceeding.
       % check this, especially ordering of \etv_1 and \etv_2 in context!
       \Gamma\Vdash \textrm{let }x=e_1\textrm{ in }e_2\Rightarrow_\utv\omega
         &\typrule \Gamma,\etv_2,\etv_1\Vdash [\etv_2/\utv]\omega, x:\etv_1 \Vdash e_2\Leftarrow\etv_2\Vdash e_1\Leftarrow\etv_1 \\
-      % TODO:
-      % . patterns
-      % . variants + case
+      \Gamma\Vdash \textrm{case }e\ \{\rho_i, e_i\}\Rightarrow_\utv\omega
+        &\typrule \Gamma\Vdash e\Rightarrow_{\utv'}(\{\rho_i\},\utv')\Rightarrow_{\utv''}\mathrm{cover}(\{\rho_i\},\utv''),\omega' \\
+        &\qquad\qquad\text{where }\omega'=(\rho_1,\utv'')\oplus e_1\Rightarrow_{\utv_1}\ldots(\rho_n,\utv'')\oplus e_n\Rightarrow_{\utv_n}\omega'' \\
+        &\qquad\qquad\text{and }\omega''=\utv_1\leq\utv_2,\ldots,\utv_{n-1}\leq\utv_n,\utv_n\leq\utv\Rightarrow_\utv\omega
     \end{aligned}
   \end{gather*}
   \caption{Typing rules (Parsley-specific)}
