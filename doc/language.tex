@@ -568,9 +568,9 @@ immediately substituted into the worklist before proceeding.
     \Gamma\Vdash \textrm{let }x=e_1\textrm{ in }e_2\Rightarrow_\utv\omega
       &\typrule \Gamma,\etv_2,\etv_1\Vdash [\etv_2/\utv]\omega, x:\etv_1 \Vdash e_2\Leftarrow\etv_2\Vdash e_1\Leftarrow\etv_1 \\
     \Gamma\Vdash \textrm{case }e\ \{\rho_i, e_i\}\Rightarrow_\utv\omega
-      &\typrule \Gamma\Vdash e\Rightarrow_{\utv'}(\{\rho_i\},\utv')\Rightarrow_{\utv''}\mathrm{cover}(\{\rho_i\},\utv''),\omega' \notag\\
+      &\typrule \Gamma,\etv\Vdash e\Rightarrow_{\utv'}(\{\rho_i\},\utv')\Rightarrow_{\utv''}\mathrm{cover}(\{\rho_i\},\utv''),\omega' \notag\\
       &\qquad\qquad\text{where }\omega'=(\rho_1,\utv'')\oplus e_1\Rightarrow_{\utv_1}\ldots(\rho_n,\utv'')\oplus e_n\Rightarrow_{\utv_n}\omega'' \notag\\
-      &\qquad\qquad\text{and }\omega''=\utv_1\leq\utv_2,\ldots,\utv_{n-1}\leq\utv_n,\utv_n\leq\utv\Rightarrow_\utv\omega
+      &\qquad\qquad\text{and }\omega''=\utv_1\leq\etv,\ldots,\utv_{n-1}\leq\etv, [\etv/\utv]\omega
   \end{align}
   \caption{Typing rules (Parsley-specific)}
   \label{f:typecheck:parsley}
