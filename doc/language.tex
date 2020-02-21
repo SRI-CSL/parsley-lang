@@ -14,7 +14,8 @@
 
 % notation
 \newcommand{\utv}{\alpha}             % universal type variable
-\newcommand{\etv}{\widehat{\beta}}    % existential type variable
+\newcommand{\etv}{{\widehat{\beta}}}  % existential type variable
+\newcommand{\stv}{{\grave{\zeta}}}    % substitution type variable
 
 \title{The Parsley Data Definition Language}
 \author{The Parsley Team}
@@ -304,27 +305,17 @@ The polymorphic type system used in Parsley supports higher-ranked
 polymorphism with type-inference, using a bidirectional scheme based
 on~\cite{Dunfield13:bidir}.  It requires type annotations for
 polymorphic function arguments, and allows only predicative type
-inference.  This system relies on a polymorphic subtyping scheme
-\cite{odersky96} to guide instantiation of polymorphic quantifiers.
-We extend this system to the Parsley grammar language as described
-below.
-
-Figures~\ref{f:defs:wf:types:worklists} and \ref{f:wf:judgments}
-define the algorithmic worklist $\Gamma$, and show the mutually
-recursive rules for a well-formed context judgment, $\vdash\Gamma$,
-and a well-formed type judgment, $\Gamma\vdash\tau$.  The worklist
-$\Gamma$ integrates the traditional binding context and the pending
-judgments into a single entity, easing the tracking and management of
-variable scoping.  These definitions follow the ordered algorithmic
-worklist model of~\cite{zhao2018,zhao19:bidir}, which provides
-convenient scoping of type variables introduced during type-checking.
-Figure~\ref{f:wf:expressions} defines well-formed expressions.
+inference.  This system relies on a standard polymorphic subtyping
+scheme \cite{odersky96} to guide instantiation of polymorphic
+quantifiers.  We extend this system to the Parsley grammar language as
+described below.
 
 \begin{figure}
   \begin{tabular}{l c l l l}
     Existential variables & $\etv$   &     &                                   & \\
+    Inference variables   & $\stv$   &     &                                   & \\
     Monotypes             & $\tau$   & ::= & $ \utv\ \ldots $                  & as in Figure~\ref{f:parsley-syntax} \\
-    Algorithmic types     & $\sigma$ & ::= & $ \etv $                          & \\
+    Algorithmic types     & $\sigma$ & ::= & $ \etv \mid \stv $                & \\
                           &          &     & $ \mid \tau\ \ldots $             & as in Figure~\ref{f:parsley-syntax} \\
                           &          &     &                                   & \\
     Judgment              & $\iota$  & ::= & $ \sigma_1\leq\sigma_2 $          & subtyping judgment \\
@@ -334,10 +325,10 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
                           &          &     &                                   & \\
     Judgment chain        & $\omega$ & ::= & $ \iota $                         & single judgment \\
                           &          &     & $ \iota, \omega $                 & judgment sequence \\
-                          &          &     & $ e\Rightarrow_\utv\omega $       & type inference \\
-                          &          &     & $ \sigma\bullet e\rightsquigarrow_\utv\omega $  & application inference \\
-                          &          &     & $ (\{\rho_i\},\tau)\Rightarrow_\utv\omega $     & pattern type refinement \\
-                          &          &     & $ (\rho,\tau)\oplus e\Rightarrow_\utv\omega $   & patterned type inference \\
+                          &          &     & $ e\Rightarrow_\etv\omega $       & type inference \\
+                          &          &     & $ \sigma\bullet e\rightsquigarrow_\stv\omega $  & application inference \\
+                          &          &     & $ (\{\rho_i\},\tau)\Rightarrow_\stv\omega $     & pattern type refinement \\
+                          &          &     & $ (\rho,\tau)\oplus e\Rightarrow_\stv\omega $   & patterned type inference \\
                           &          &     &                                   & \\
     Worklist              & $\Gamma$ & ::= & $ \cdot $                         & empty context \\
                           &          &     & $ \mid\Gamma, C: \sigma$          & value constructor \\
@@ -349,8 +340,84 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
                           &          &     & $ \mid\Gamma\Vdash\omega $        & judgment work \\
 
   \end{tabular}
+  \caption{Entities in the Parsley type-checking algorithm}
+  \label{f:ts:defs}
+\end{figure}
+
+The presentation of the Parsley type system follows the worklist
+approach of~\cite{zhao2018,zhao19:bidir}, which provides convenient
+scoping of type variables introduced during type-checking, with a few
+differences explained below.  Figure~\ref{f:ts:defs}
+describes the basic entities and their well-formedness criteria.
+Existential type variables $\etv$ are introduced to solve for types
+that need to be guessed in the declarative system
+of~\cite{Dunfield13:bidir}.
+
+Parsley also adds inference type variables $\stv$ represent the types
+generated by the inference judgments described below, and are
+essentially location markers within judgments where inferred types
+need to be substituted once they are known.  Crucially, these
+variables do not appear in the bindings of the worklist context, and
+when judgments are checked, they cannot contain these inference type
+variables since they should have been substituted away.  The monotypes
+$\tau$ of Figure~\ref{f:parsley-syntax} are extended with these two
+type variables.\footnote{Substitution type variables and universal
+  type variables are not differentiated
+  in~\cite{zhao2018,zhao19:bidir}; both are represented with the same
+  notation.  We find that explicitly clarifying their difference helps
+  avoid confusion and resulting bugs in an executable implemention of
+  the typing algorithm.}
+
+The basic checking judgments $\iota$ are the standard subtyping
+judgment $\sigma_1\leq\sigma_2$, that checks whether $\sigma_1$ is a
+subtype of $\sigma_2$, the type checking judgment $e\Leftarrow\sigma$
+that checks that the expression $e$ has the type $\sigma$, and the
+pattern check judgment $\mathrm{cover}(\{\rho_i\},\tau$ that checks
+that the patterns $\{\rho_i\}$ form an exhaustive but non-redundant
+match for the forms of the values of $\tau$.
+
+The typing algorithm collects pending judgments into judgment chains
+$\omega$, which are sequences of basic judgments $\iota$ or inference
+judgments.  The type inference judgment $e\Rightarrow_\stv\omega$
+synthesizes the type of $e$ and substitutes that for $\stv$ within the
+judgment chain $\omega$.  The application inference judgment
+$\sigma\bullet e\rightsquigarrow_\stv\omega$ synthesizes the type of
+the application of a function of type $\sigma$ to the argument $e$ and
+substitutes that result type for $\stv$ within $\omega$.
+
+Parsley adds additional inference judgments to handle pattern
+matching.  The pattern type refinement
+$(\{\rho_i\},\tau)\Rightarrow_\stv\omega$ specializes $\tau$ given
+that the patterns $\{\rho_i\}$ are supposed to match it, and
+substitutes that specialized result for $\stv$ within $\omega$.  The
+patterned type inference judgment $(\rho,\tau)\oplus e\Rightarrow_\stv\omega$
+matches the pattern $\rho$ to type $\tau$ to
+give the types for the binding variables within $\rho$, extends the
+typing context with those variable bindings to infer the type of $e$,
+and substitutes that inferred type for $\stv$ within $\omega$.
+
+The worklist $\Gamma$ has the constituents of a traditional typing
+context, with bindings for value constructors $C:\sigma$, record
+fields $l:\sigma$, program variables $x:\tau$, universal type
+variables $\utv$, and existential type variables $\etv$.  Parsley also
+adds the types of non-terminals $N$, which are represented by record
+types.  In addition, $\Gamma$ contains embedded judgment chains
+$\omega$ that need to be checked within their preceding contexts.
+This is the key to simplifying the binding context management for the
+type checking algorithm.  Note that $\Gamma$ does not contain
+substitution type variables $\stv$, as explained earlier.
+
+Figure~\ref{f:ts:wf} shows the mutually recursive rules for
+well-formedness of these entities of the type system.  Note that
+substitution variables are substituted away when checking for
+well-formed judgment chains $\Gamma\Vdash\omega$.
+
+Figure~\ref{f:wf:expressions} defines well-formed expressions.
+
+\begin{figure}
   $$ \boxed{\vdash\Gamma}\ \textrm{Well-formed worklist} $$
-  $$ \prftree[r]{$\mathtt{wf_w uvar}$}
+  $$ \prfbyaxiom{$\mathtt{wf_w\cdot}$}{\Vdash\cdot}\qquad
+     \prftree[r]{$\mathtt{wf_w uvar}$}
              {\prfassumption{\utv\notin\Gamma}}
              {\vdash\Gamma, \utv}\qquad
      \prftree[r]{$\mathtt{wf_w evar}$}
@@ -394,11 +461,7 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
              {\prfassumption{\forall i,j:l_i=l_j\Rightarrow i=j}}
              {\prfassumption{\Gamma\vdash\tau_i\ \forall i}}
              {\Gamma\vdash\{l_i:\tau_i\}} $$
-  \caption{Well-formed types and worklists}
-  \label{f:defs:wf:types:worklists}
-\end{figure}
 
-\begin{figure}
   $$ \boxed{\Gamma\vdash\omega}\ \textrm{Well-formed judgment} $$
   $$ \prftree[r]{$\mathtt{wf_\omega \leq}$}
              {\prfassumption{\Gamma\vdash\sigma_1}}{\prfassumption{\Gamma\vdash\sigma_2}}
@@ -407,14 +470,33 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
              {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma\vdash\sigma}}
              {\Gamma\vdash e\Leftarrow\sigma}\qquad
      \prftree[r]{$\mathtt{wf_\omega\Rightarrow}$}
-             {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma,a\vdash\omega}}
-             {\Gamma\vdash e\Rightarrow_\utv\omega} $$
-  $$ \prftree[r]{$\mathtt{wf_\rightsquigarrow}$}
+             {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma,\etv\vdash[\etv/\stv]\omega}}
+             {\Gamma\vdash e\Rightarrow_\stv\omega} $$
+  $$ \prftree[r]{$\mathtt{wf_\omega cover}$}
+             {\prfassumption{\Gamma\vdash\rho_i\ \forall i}}
+             {\prfassumption{\Gamma\vdash\tau}}
+             {\Gamma\vdash\mathrm{cover}(\{\rho_i\}, \tau)}\qquad
+     \prftree[r]{$\mathtt{wf_\omega seq}$}
+             {\prfassumption{\Gamma\vdash\iota}}
+             {\prfassumption{\Gamma\vdash\omega}}
+             {\Gamma\vdash\iota,\omega} $$
+  $$ \prftree[r]{$\mathtt{wf_\omega \rightsquigarrow_\stv}$}
              {\prfassumption{\Gamma\vdash\sigma}}{\prfassumption{\Gamma\vdash e}}
-             {\prfassumption{\Gamma,a\vdash\omega}}
-             {\Gamma\vdash\sigma\bullet e\rightsquigarrow_\utv\omega} $$
-  \caption{Well-formed judgments}
-  \label{f:wf:judgments}
+             {\prfassumption{\Gamma,\etv\vdash[\etv/\stv]\omega}}
+             {\Gamma\vdash\sigma\bullet e\rightsquigarrow_\stv\omega}\qquad
+     \prftree[r]{$\mathtt{wf_\omega (\{\rho_i\},\tau)}$}
+             {\prfassumption{\Gamma\vdash\rho_i\ \forall i}}
+             {\prfassumption{\Gamma\vdash\tau}}
+             {\prfassumption{\Gamma,\etv\vdash[\etv/\stv]\omega}}
+             {\Gamma\vdash(\{\rho_i\},\tau)\Rightarrow_\stv\omega} $$
+  $$ \prftree[r]{$\mathtt{wf_\omega \oplus}$}
+             {\prfassumption{\Gamma\vdash\rho}}
+             {\prfassumption{\Gamma\vdash\tau}}
+             {\prfassumption{\Gamma\vdash\ e}}
+             {\Gamma\vdash(\rho,\tau)\oplus e\Rightarrow_\stv\omega}
+             $$
+  \caption{Well-formed types, judgments and worklists}
+  \label{f:ts:wf}
 \end{figure}
 
 \begin{figure}
@@ -515,23 +597,23 @@ immediately substituted into the worklist before proceeding.
     \Gamma[\etv]\Vdash \nu\leq\etv &\typrule [\nu/\etv](\Gamma[]) \\
     \Gamma[\etv]\Vdash \etv\leq\nu &\typrule [\nu/\etv](\Gamma[]) \\
     \Gamma\Vdash e\Leftarrow\sigma
-      &\typrule \Gamma\Vdash e\Rightarrow_\utv \utv\leq\sigma \quad\text{when $\sigma\neq\forall\utv.\sigma'$} \\
+      &\typrule \Gamma\Vdash e\Rightarrow_\stv \stv\leq\sigma \quad\text{when $\sigma\neq\forall\utv.\sigma'$} \\
     \Gamma\Vdash e\Leftarrow\forall\utv.\sigma
       &\typrule \Gamma,\utv\Vdash e\Leftarrow\sigma \\
-    \Gamma\Vdash x\Rightarrow_\utv\omega
-      &\typrule \Gamma\Vdash [\sigma/\utv]\omega \quad\text{when $x:\sigma\in\Gamma$} \\
-    \Gamma\Vdash (e : \sigma)\Rightarrow_\utv\omega
-      &\typrule \Gamma\Vdash[\sigma/\utv]\omega\Vdash e\Leftarrow\sigma \\
-    \Gamma\Vdash \mathrm{c}\Rightarrow_\utv\omega
-      &\typrule \Gamma\Vdash[\nu/\utv]\omega \\
-    \Gamma\Vdash e_1\ e_2\Rightarrow_\utv\omega
-      &\typrule \Gamma\Vdash e_1\Rightarrow_{\utv'}(\utv'\bullet e_2\rightsquigarrow_\utv\omega) \\
-    \Gamma\Vdash \forall\utv.\sigma\bullet e\rightsquigarrow_\utv\omega
-      &\typrule \Gamma,\etv\Vdash[\etv/\utv]\sigma\bullet e\rightsquigarrow_\utv\omega \\
-    \Gamma\Vdash \sigma\rightarrow\sigma'\bullet e \rightsquigarrow_\utv\omega
-      &\typrule \Gamma\Vdash [\sigma'/\utv]\omega \Vdash e\Leftarrow\sigma \\
-    \Gamma[\etv]\Vdash \etv\bullet e\rightsquigarrow_\utv\omega
-      &\typrule [\etv_1\rightarrow\etv_2](\Gamma[\etv_1,\etv_2]\Vdash\etv_1\rightarrow\etv_2\bullet e\rightsquigarrow_\utv\omega)
+    \Gamma\Vdash x\Rightarrow_\stv\omega
+      &\typrule \Gamma\Vdash [\sigma/\stv]\omega \quad\text{when $x:\sigma\in\Gamma$} \\
+    \Gamma\Vdash (e : \sigma)\Rightarrow_\stv\omega
+      &\typrule \Gamma\Vdash[\sigma/\stv]\omega\Vdash e\Leftarrow\sigma \\
+    \Gamma\Vdash \mathrm{c}\Rightarrow_\stv\omega
+      &\typrule \Gamma\Vdash[\nu/\stv]\omega \\
+    \Gamma\Vdash e_1\ e_2\Rightarrow_\stv\omega
+      &\typrule \Gamma\Vdash e_1\Rightarrow_{\stv'}(\stv'\bullet e_2\rightsquigarrow_\stv\omega) \\
+    \Gamma\Vdash \forall\utv.\sigma\bullet e\rightsquigarrow_\stv\omega
+      &\typrule \Gamma,\etv\Vdash[\etv/\utv]\sigma\bullet e\rightsquigarrow_\stv\omega \\
+    \Gamma\Vdash \sigma\rightarrow\sigma'\bullet e \rightsquigarrow_\stv\omega
+      &\typrule \Gamma\Vdash [\sigma'/\stv]\omega \Vdash e\Leftarrow\sigma \\
+    \Gamma[\etv]\Vdash \etv\bullet e\rightsquigarrow_\stv\omega
+      &\typrule [\etv_1\rightarrow\etv_2](\Gamma[\etv_1,\etv_2]\Vdash\etv_1\rightarrow\etv_2\bullet e\rightsquigarrow_\stv\omega)
   \end{align}
   \caption{Typing rules (standard)}
   \label{f:typecheck:std}
@@ -558,19 +640,19 @@ immediately substituted into the worklist before proceeding.
     \Gamma[\etv]\Vdash \{l_i:\sigma_i\}\leq\etv
       &\typrule [\{l_i:\etv_i\}/\etv](\Gamma[[\etv_i]]\Vdash \{l_i:\sigma_i\}\leq\{l_i:\etv_i\}) \notag\\
       &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
-    \Gamma\Vdash e_1\ \texttt{op}\ e_1\Rightarrow_\utv\omega
-      &\typrule \Gamma\Vdash (\texttt{op}\ e_1)\ e_2\Rightarrow_\utv\omega \\
-    \Gamma\Vdash (e_i)\Rightarrow_\utv\omega
-      &\typrule \Gamma\Vdash e_1\Rightarrow_{\utv_1}(\ldots(e_n\Rightarrow_{\utv_n}[(\utv_i)/\utv]\omega)\ldots) \\
-    \Gamma\Vdash e.l\Rightarrow_\utv\omega
-      &\typrule \Gamma,\etv\Vdash [\etv/\utv]\omega\Vdash e\Rightarrow_{\utv'} \utv'\leq \{l:\etv\} \\
+    \Gamma\Vdash e_1\ \texttt{op}\ e_1\Rightarrow_\stv\omega
+      &\typrule \Gamma\Vdash (\texttt{op}\ e_1)\ e_2\Rightarrow_\stv\omega \\
+    \Gamma\Vdash (e_i)\Rightarrow_\stv\omega
+      &\typrule \Gamma\Vdash e_1\Rightarrow_{\stv_1}(\ldots(e_n\Rightarrow_{\stv_n}[(\stv_i)/\stv]\omega)\ldots) \\
+    \Gamma\Vdash e.l\Rightarrow_\stv\omega
+      &\typrule \Gamma,\etv\Vdash [\etv/\stv]\omega\Vdash e\Rightarrow_{\stv'} \stv'\leq \{l:\etv\} \\
     % check this, especially ordering of \etv_1 and \etv_2 in context!
-    \Gamma\Vdash \textrm{let }x=e_1\textrm{ in }e_2\Rightarrow_\utv\omega
-      &\typrule \Gamma,\etv_2,\etv_1\Vdash [\etv_2/\utv]\omega, x:\etv_1 \Vdash e_2\Leftarrow\etv_2\Vdash e_1\Leftarrow\etv_1 \\
-    \Gamma\Vdash \textrm{case }e\ \{\rho_i, e_i\}\Rightarrow_\utv\omega
-      &\typrule \Gamma,\etv\Vdash e\Rightarrow_{\utv'}(\{\rho_i\},\utv')\Rightarrow_{\utv''}\mathrm{cover}(\{\rho_i\},\utv''),\omega' \notag\\
-      &\qquad\qquad\text{where }\omega'=(\rho_1,\utv'')\oplus e_1\Rightarrow_{\utv_1}\ldots(\rho_n,\utv'')\oplus e_n\Rightarrow_{\utv_n}\omega'' \notag\\
-      &\qquad\qquad\text{and }\omega''=\utv_1\leq\etv,\ldots,\utv_{n-1}\leq\etv, [\etv/\utv]\omega
+    \Gamma\Vdash \textrm{let }x=e_1\textrm{ in }e_2\Rightarrow_\stv\omega
+      &\typrule \Gamma,\etv_2,\etv_1\Vdash [\etv_2/\stv]\omega, x:\etv_1 \Vdash e_2\Leftarrow\etv_2\Vdash e_1\Leftarrow\etv_1 \\
+    \Gamma\Vdash \textrm{case }e\ \{\rho_i, e_i\}\Rightarrow_\stv\omega
+      &\typrule \Gamma,\etv\Vdash e\Rightarrow_{\stv'}(\{\rho_i\},\stv')\Rightarrow_{\stv''}\mathrm{cover}(\{\rho_i\},\stv''),\omega' \notag\\
+      &\qquad\qquad\text{where }\omega'=(\rho_1,\stv'')\oplus e_1\Rightarrow_{\stv_1}\ldots(\rho_n,\stv'')\oplus e_n\Rightarrow_{\stv_n}\omega'' \notag\\
+      &\qquad\qquad\text{and }\omega''=\stv_1\leq\etv,\ldots,\stv_{n-1}\leq\etv, [\etv/\stv]\omega
   \end{align}
   \caption{Typing rules (Parsley-specific)}
   \label{f:typecheck:parsley}
@@ -581,7 +663,9 @@ immediately substituted into the worklist before proceeding.
 The following are still being worked on in the type-system
 specification:
 \begin{itemize}
-\item pattern matching, case statements
+\item judgment sequences
+\item pattern matching
+\item type definitions
 \item recursive types
 \item recursive functions
 \item modules, path resolution
