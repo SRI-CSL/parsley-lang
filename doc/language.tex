@@ -622,6 +622,8 @@ immediately substituted into the worklist before proceeding.
 \begin{figure}
   $$ \boxed{\Gamma\vdash\Gamma'}\ \textrm{$\Gamma$ reduces to $\Gamma'$} $$
   \begin{align}
+    \Gamma\Vdash \iota, \omega
+      &\typrule \Gamma\Vdash\omega\Vdash\iota \label{typ:seq} \\
     \Gamma\Vdash (\sigma_i)\leq(\sigma'_j)
       &\typrule \Gamma \{\Vdash \sigma_i\leq\sigma'_i\}_i \notag\\
       &\qquad\qquad\text{when }\textrm{len}(\sigma_i)=\textrm{len}(\sigma'_j) \\
