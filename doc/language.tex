@@ -479,102 +479,99 @@ process introduces {\em existential type variables} $\etv$ into the
 context, and when such a variable is solved, the solution is
 immediately substituted into the worklist before proceeding.
 
-\newcommand\rstep[1]{~\longrightarrow_{\makebox[0pt][l]{$\scriptstyle #1$}\phantom{~~}}}
+%\newcommand\rstep[1]{~\longrightarrow_{\makebox[0pt][l]{$\scriptstyle #1$}\phantom{~~}}}
+\newcommand\rstep[1]{~\longrightarrow}
 \newcounter{ruleCounter}
-\newcommand\typrule{\stepcounter{ruleCounter}\rstep{\arabic{ruleCounter}}}
+\newcommand\typrule{\refstepcounter{ruleCounter}\rstep{\arabic{ruleCounter}}}
 
 \begin{figure}
   $$ \boxed{\Gamma\vdash\Gamma'}\ \textrm{$\Gamma$ reduces to $\Gamma'$} $$
-  \begin{gather*}
-    \begin{aligned}
-      \Gamma,a    &\typrule \Gamma \qquad
-      \Gamma,\utv  \typrule \Gamma \qquad
-      \Gamma,\etv  \typrule \Gamma
-      \\
-      \Gamma\Vdash \nu\leq\nu   &\typrule \Gamma \\
-      \Gamma\Vdash \utv\leq\utv &\typrule \Gamma \\
-      \Gamma\Vdash \etv\leq\etv &\typrule \Gamma \\
-      \Gamma\Vdash \sigma_1\rightarrow\sigma_2\leq \sigma'_1\rightarrow\sigma'_2
-        &\typrule \Gamma\Vdash\sigma_2\leq\sigma'_2\Vdash\sigma'_1\leq\sigma_1 \\
-      \Gamma\Vdash \forall\utv.\sigma\leq\sigma'
-        &\typrule \Gamma,\etv\Vdash [\etv/\utv]\sigma\leq\sigma' \quad\text{when } \sigma'\neq\forall\utv.\sigma'' \\
-      \Gamma\Vdash \sigma\leq\forall\utv.\sigma'
-        &\typrule \Gamma,\utv\Vdash \sigma\leq\sigma' \\
-      \Gamma[\etv]\Vdash \etv\leq\sigma\rightarrow\sigma'
-        &\typrule [\etv_1\rightarrow\etv_2/\etv](\Gamma[\etv_1,\etv_2]\Vdash
-                                 \etv_1\rightarrow\etv_2\leq\sigma\rightarrow\sigma') \\
-        &\qquad\qquad\text{when }\etv\notin FV(\sigma)\cup FV(\sigma') \\
-      \Gamma[\etv]\Vdash \sigma\rightarrow\sigma'\leq\etv
-        &\typrule [\etv_1\rightarrow\etv_2/\etv](\Gamma[\etv_1,\etv_2]\Vdash
-                                 \sigma\rightarrow\sigma'\leq\etv_1\rightarrow\etv_2) \\
-        &\qquad\qquad\text{when }\etv\notin FV(\sigma)\cup FV(\sigma') \\
-      \Gamma[\etv][\etv']\Vdash \etv\leq\etv' &\typrule [\etv/\etv'](\Gamma[\etv][]) \\
-      \Gamma[\etv][\etv']\Vdash \etv'\leq\etv &\typrule [\etv/\etv'](\Gamma[\etv][]) \\
-      \Gamma[\utv][\etv]\Vdash \utv\leq\etv &\typrule [\utv/\etv](\Gamma[\utv][]) \\
-      \Gamma[\utv][\etv]\Vdash \etv\leq\utv &\typrule [\utv/\etv](\Gamma[\utv][]) \\
-      \Gamma[\etv]\Vdash \nu\leq\etv &\typrule [\nu/\etv](\Gamma[]) \\
-      \Gamma[\etv]\Vdash \etv\leq\nu &\typrule [\nu/\etv](\Gamma[]) \\
-      \Gamma\Vdash e\Leftarrow\sigma
-        &\typrule \Gamma\Vdash e\Rightarrow_\utv \utv\leq\sigma \quad\text{when $\sigma\neq\forall\utv.\sigma'$} \\
-      \Gamma\Vdash e\Leftarrow\forall\utv.\sigma
-        &\typrule \Gamma,\utv\Vdash e\Leftarrow\sigma \\
-      \Gamma\Vdash x\Rightarrow_\utv\omega
-        &\typrule \Gamma\Vdash [\sigma/\utv]\omega \quad\text{when $x:\sigma\in\Gamma$} \\
-      \Gamma\Vdash (e : \sigma)\Rightarrow_\utv\omega
-        &\typrule \Gamma\Vdash[\sigma/\utv]\omega\Vdash e\Leftarrow\sigma \\
-      \Gamma\Vdash \mathrm{c}\Rightarrow_\utv\omega
-        &\typrule \Gamma\Vdash[\nu/\utv]\omega \\
-      \Gamma\Vdash e_1\ e_2\Rightarrow_\utv\omega
-        &\typrule \Gamma\Vdash e_1\Rightarrow_{\utv'}(\utv'\bullet e_2\rightsquigarrow_\utv\omega) \\
-      \Gamma\Vdash \forall\utv.\sigma\bullet e\rightsquigarrow_\utv\omega
-        &\typrule \Gamma,\etv\Vdash[\etv/\utv]\sigma\bullet e\rightsquigarrow_\utv\omega \\
-      \Gamma\Vdash \sigma\rightarrow\sigma'\bullet e \rightsquigarrow_\utv\omega
-        &\typrule \Gamma\Vdash [\sigma'/\utv]\omega \Vdash e\Leftarrow\sigma \\
-      \Gamma[\etv]\Vdash \etv\bullet e\rightsquigarrow_\utv\omega
-        &\typrule [\etv_1\rightarrow\etv_2](\Gamma[\etv_1,\etv_2]\Vdash\etv_1\rightarrow\etv_2\bullet e\rightsquigarrow_\utv\omega)
-    \end{aligned}
-  \end{gather*}
+  \begin{align}
+    \Gamma,a    &\typrule \Gamma \qquad
+    \Gamma,\utv  \typrule \Gamma \qquad
+    \Gamma,\etv  \typrule \Gamma        \label{typ:gc}
+    \\
+    \Gamma\Vdash \nu\leq\nu   &\typrule \Gamma \label{typ:solve:trivial:start} \\
+    \Gamma\Vdash \utv\leq\utv &\typrule \Gamma \\
+    \Gamma\Vdash \etv\leq\etv &\typrule \Gamma \label{typ:solve:trivial:end} \\
+    \Gamma\Vdash \sigma_1\rightarrow\sigma_2\leq \sigma'_1\rightarrow\sigma'_2
+      &\typrule \Gamma\Vdash\sigma_2\leq\sigma'_2\Vdash\sigma'_1\leq\sigma_1 \\
+    \Gamma\Vdash \forall\utv.\sigma\leq\sigma'
+      &\typrule \Gamma,\etv\Vdash [\etv/\utv]\sigma\leq\sigma' \quad\text{when } \sigma'\neq\forall\utv.\sigma'' \\
+    \Gamma\Vdash \sigma\leq\forall\utv.\sigma'
+      &\typrule \Gamma,\utv\Vdash \sigma\leq\sigma' \\
+    \Gamma[\etv]\Vdash \etv\leq\sigma\rightarrow\sigma'
+      &\typrule [\etv_1\rightarrow\etv_2/\etv](\Gamma[\etv_1,\etv_2]\Vdash
+                               \etv_1\rightarrow\etv_2\leq\sigma\rightarrow\sigma') \notag\\
+      &\qquad\qquad\text{when }\etv\notin FV(\sigma)\cup FV(\sigma') \\
+    \Gamma[\etv]\Vdash \sigma\rightarrow\sigma'\leq\etv
+      &\typrule [\etv_1\rightarrow\etv_2/\etv](\Gamma[\etv_1,\etv_2]\Vdash
+                               \sigma\rightarrow\sigma'\leq\etv_1\rightarrow\etv_2) \notag\\
+      &\qquad\qquad\text{when }\etv\notin FV(\sigma)\cup FV(\sigma') \\
+    \Gamma[\etv][\etv']\Vdash \etv\leq\etv' &\typrule [\etv/\etv'](\Gamma[\etv][]) \\
+    \Gamma[\etv][\etv']\Vdash \etv'\leq\etv &\typrule [\etv/\etv'](\Gamma[\etv][]) \\
+    \Gamma[\utv][\etv]\Vdash \utv\leq\etv &\typrule [\utv/\etv](\Gamma[\utv][]) \\
+    \Gamma[\utv][\etv]\Vdash \etv\leq\utv &\typrule [\utv/\etv](\Gamma[\utv][]) \\
+    \Gamma[\etv]\Vdash \nu\leq\etv &\typrule [\nu/\etv](\Gamma[]) \\
+    \Gamma[\etv]\Vdash \etv\leq\nu &\typrule [\nu/\etv](\Gamma[]) \\
+    \Gamma\Vdash e\Leftarrow\sigma
+      &\typrule \Gamma\Vdash e\Rightarrow_\utv \utv\leq\sigma \quad\text{when $\sigma\neq\forall\utv.\sigma'$} \\
+    \Gamma\Vdash e\Leftarrow\forall\utv.\sigma
+      &\typrule \Gamma,\utv\Vdash e\Leftarrow\sigma \\
+    \Gamma\Vdash x\Rightarrow_\utv\omega
+      &\typrule \Gamma\Vdash [\sigma/\utv]\omega \quad\text{when $x:\sigma\in\Gamma$} \\
+    \Gamma\Vdash (e : \sigma)\Rightarrow_\utv\omega
+      &\typrule \Gamma\Vdash[\sigma/\utv]\omega\Vdash e\Leftarrow\sigma \\
+    \Gamma\Vdash \mathrm{c}\Rightarrow_\utv\omega
+      &\typrule \Gamma\Vdash[\nu/\utv]\omega \\
+    \Gamma\Vdash e_1\ e_2\Rightarrow_\utv\omega
+      &\typrule \Gamma\Vdash e_1\Rightarrow_{\utv'}(\utv'\bullet e_2\rightsquigarrow_\utv\omega) \\
+    \Gamma\Vdash \forall\utv.\sigma\bullet e\rightsquigarrow_\utv\omega
+      &\typrule \Gamma,\etv\Vdash[\etv/\utv]\sigma\bullet e\rightsquigarrow_\utv\omega \\
+    \Gamma\Vdash \sigma\rightarrow\sigma'\bullet e \rightsquigarrow_\utv\omega
+      &\typrule \Gamma\Vdash [\sigma'/\utv]\omega \Vdash e\Leftarrow\sigma \\
+    \Gamma[\etv]\Vdash \etv\bullet e\rightsquigarrow_\utv\omega
+      &\typrule [\etv_1\rightarrow\etv_2](\Gamma[\etv_1,\etv_2]\Vdash\etv_1\rightarrow\etv_2\bullet e\rightsquigarrow_\utv\omega)
+  \end{align}
   \caption{Typing rules (standard)}
   \label{f:typecheck:std}
 \end{figure}
 
 \begin{figure}
   $$ \boxed{\Gamma\vdash\Gamma'}\ \textrm{$\Gamma$ reduces to $\Gamma'$} $$
-  \begin{gather*}
-    \begin{aligned}
-      \Gamma\Vdash (\sigma_i)\leq(\sigma'_j)
-        &\typrule \Gamma \{\Vdash \sigma_i\leq\sigma'_i\}_i \\
-        &\qquad\qquad\text{when }\textrm{len}(\sigma_i)=\textrm{len}(\sigma'_j) \\
-      \Gamma[\etv]\Vdash \etv\leq(\sigma_i)
-        &\typrule [(\etv_i)/\etv](\Gamma[[\etv_i]]\Vdash (\etv_i)\leq(\sigma_i)) \\
-        &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
-      \Gamma[\etv]\Vdash (\sigma_i)\leq\etv
-        &\typrule [(\etv_i)/\etv](\Gamma[[\etv_i]]\Vdash (\sigma_i)\leq(\etv_i)) \\
-        &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
-      \Gamma\Vdash \{l_i:\sigma_i\}\leq\{l'_j:\sigma'_j\}
-        &\typrule \Gamma \{\Vdash \sigma_i\leq\sigma'_i\}_i \\
-        &\qquad\qquad\text{when }\{l'_j\}\subseteq\{l_i\} \\
-      \Gamma[\etv]\Vdash \etv\leq\{l_i:\sigma_i\}
-        &\typrule [\{l_i:\etv_i\}/\etv](\Gamma[[\etv_i]]\Vdash \{l_i:\etv_i\}\leq\{l_i:\sigma_i\}) \\
-        &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
-      \Gamma[\etv]\Vdash \{l_i:\sigma_i\}\leq\etv
-        &\typrule [\{l_i:\etv_i\}/\etv](\Gamma[[\etv_i]]\Vdash \{l_i:\sigma_i\}\leq\{l_i:\etv_i\}) \\
-        &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
-      \Gamma\Vdash e_1\ \texttt{op}\ e_1\Rightarrow_\utv\omega
-        &\typrule \Gamma\Vdash (\texttt{op}\ e_1)\ e_2\Rightarrow_\utv\omega \\
-      \Gamma\Vdash (e_i)\Rightarrow_\utv\omega
-        &\typrule \Gamma\Vdash e_1\Rightarrow_{\utv_1}(\ldots(e_n\Rightarrow_{\utv_n}[(\utv_i)/\utv]\omega)\ldots) \\
-      \Gamma\Vdash e.l\Rightarrow_\utv\omega
-        &\typrule \Gamma,\etv\Vdash [\etv/\utv]\omega\Vdash e\Rightarrow_{\utv'} \utv'\leq \{l:\etv\} \\
-      % check this, especially ordering of \etv_1 and \etv_2 in context!
-      \Gamma\Vdash \textrm{let }x=e_1\textrm{ in }e_2\Rightarrow_\utv\omega
-        &\typrule \Gamma,\etv_2,\etv_1\Vdash [\etv_2/\utv]\omega, x:\etv_1 \Vdash e_2\Leftarrow\etv_2\Vdash e_1\Leftarrow\etv_1 \\
-      \Gamma\Vdash \textrm{case }e\ \{\rho_i, e_i\}\Rightarrow_\utv\omega
-        &\typrule \Gamma\Vdash e\Rightarrow_{\utv'}(\{\rho_i\},\utv')\Rightarrow_{\utv''}\mathrm{cover}(\{\rho_i\},\utv''),\omega' \\
-        &\qquad\qquad\text{where }\omega'=(\rho_1,\utv'')\oplus e_1\Rightarrow_{\utv_1}\ldots(\rho_n,\utv'')\oplus e_n\Rightarrow_{\utv_n}\omega'' \\
-        &\qquad\qquad\text{and }\omega''=\utv_1\leq\utv_2,\ldots,\utv_{n-1}\leq\utv_n,\utv_n\leq\utv\Rightarrow_\utv\omega
-    \end{aligned}
-  \end{gather*}
+  \begin{align}
+    \Gamma\Vdash (\sigma_i)\leq(\sigma'_j)
+      &\typrule \Gamma \{\Vdash \sigma_i\leq\sigma'_i\}_i \notag\\
+      &\qquad\qquad\text{when }\textrm{len}(\sigma_i)=\textrm{len}(\sigma'_j) \\
+    \Gamma[\etv]\Vdash \etv\leq(\sigma_i)
+      &\typrule [(\etv_i)/\etv](\Gamma[[\etv_i]]\Vdash (\etv_i)\leq(\sigma_i)) \notag\\
+      &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+    \Gamma[\etv]\Vdash (\sigma_i)\leq\etv
+      &\typrule [(\etv_i)/\etv](\Gamma[[\etv_i]]\Vdash (\sigma_i)\leq(\etv_i)) \notag\\
+      &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+    \Gamma\Vdash \{l_i:\sigma_i\}\leq\{l'_j:\sigma'_j\}
+      &\typrule \Gamma \{\Vdash \sigma_i\leq\sigma'_i\}_i \notag\\
+      &\qquad\qquad\text{when }\{l'_j\}\subseteq\{l_i\} \\
+    \Gamma[\etv]\Vdash \etv\leq\{l_i:\sigma_i\}
+      &\typrule [\{l_i:\etv_i\}/\etv](\Gamma[[\etv_i]]\Vdash \{l_i:\etv_i\}\leq\{l_i:\sigma_i\}) \notag\\
+      &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+    \Gamma[\etv]\Vdash \{l_i:\sigma_i\}\leq\etv
+      &\typrule [\{l_i:\etv_i\}/\etv](\Gamma[[\etv_i]]\Vdash \{l_i:\sigma_i\}\leq\{l_i:\etv_i\}) \notag\\
+      &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+    \Gamma\Vdash e_1\ \texttt{op}\ e_1\Rightarrow_\utv\omega
+      &\typrule \Gamma\Vdash (\texttt{op}\ e_1)\ e_2\Rightarrow_\utv\omega \\
+    \Gamma\Vdash (e_i)\Rightarrow_\utv\omega
+      &\typrule \Gamma\Vdash e_1\Rightarrow_{\utv_1}(\ldots(e_n\Rightarrow_{\utv_n}[(\utv_i)/\utv]\omega)\ldots) \\
+    \Gamma\Vdash e.l\Rightarrow_\utv\omega
+      &\typrule \Gamma,\etv\Vdash [\etv/\utv]\omega\Vdash e\Rightarrow_{\utv'} \utv'\leq \{l:\etv\} \\
+    % check this, especially ordering of \etv_1 and \etv_2 in context!
+    \Gamma\Vdash \textrm{let }x=e_1\textrm{ in }e_2\Rightarrow_\utv\omega
+      &\typrule \Gamma,\etv_2,\etv_1\Vdash [\etv_2/\utv]\omega, x:\etv_1 \Vdash e_2\Leftarrow\etv_2\Vdash e_1\Leftarrow\etv_1 \\
+    \Gamma\Vdash \textrm{case }e\ \{\rho_i, e_i\}\Rightarrow_\utv\omega
+      &\typrule \Gamma\Vdash e\Rightarrow_{\utv'}(\{\rho_i\},\utv')\Rightarrow_{\utv''}\mathrm{cover}(\{\rho_i\},\utv''),\omega' \notag\\
+      &\qquad\qquad\text{where }\omega'=(\rho_1,\utv'')\oplus e_1\Rightarrow_{\utv_1}\ldots(\rho_n,\utv'')\oplus e_n\Rightarrow_{\utv_n}\omega'' \notag\\
+      &\qquad\qquad\text{and }\omega''=\utv_1\leq\utv_2,\ldots,\utv_{n-1}\leq\utv_n,\utv_n\leq\utv\Rightarrow_\utv\omega
+  \end{align}
   \caption{Typing rules (Parsley-specific)}
   \label{f:typecheck:parsley}
 \end{figure}
