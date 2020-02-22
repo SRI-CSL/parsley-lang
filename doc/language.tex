@@ -597,11 +597,11 @@ immediately substituted into the worklist before proceeding.
     \Gamma[\etv]\Vdash \etv\leq\sigma\rightarrow\sigma'
       &\typrule [\etv_1\rightarrow\etv_2/\etv](\Gamma[\etv_1,\etv_2]\Vdash
                                \etv_1\rightarrow\etv_2\leq\sigma\rightarrow\sigma') \notag\\
-      &\qquad\qquad\text{when }\etv\notin FV(\sigma)\cup FV(\sigma') \\
+      &\qquad\text{when }\etv\notin FV(\sigma)\cup FV(\sigma') \\
     \Gamma[\etv]\Vdash \sigma\rightarrow\sigma'\leq\etv
       &\typrule [\etv_1\rightarrow\etv_2/\etv](\Gamma[\etv_1,\etv_2]\Vdash
                                \sigma\rightarrow\sigma'\leq\etv_1\rightarrow\etv_2) \notag\\
-      &\qquad\qquad\text{when }\etv\notin FV(\sigma)\cup FV(\sigma') \\
+      &\qquad\text{when }\etv\notin FV(\sigma)\cup FV(\sigma') \\
     \Gamma[\etv][\etv']\Vdash \etv\leq\etv' &\typrule [\etv/\etv'](\Gamma[\etv][]) \\
     \Gamma[\etv][\etv']\Vdash \etv'\leq\etv &\typrule [\etv/\etv'](\Gamma[\etv][]) \\
     \Gamma[\utv][\etv]\Vdash \utv\leq\etv &\typrule [\utv/\etv](\Gamma[\utv][]) \\
@@ -638,22 +638,22 @@ immediately substituted into the worklist before proceeding.
       &\typrule \Gamma\Vdash\omega\Vdash\iota \label{typ:seq} \\
     \Gamma\Vdash (\sigma_i)\leq(\sigma'_j)
       &\typrule \Gamma\,@\,\{\Vdash \sigma_i\leq\sigma'_i\}_i \notag\\
-      &\qquad\qquad\text{when }\textrm{len}(\sigma_i)=\textrm{len}(\sigma'_j) \\
+      &\qquad\text{when }\textrm{len}(\sigma_i)=\textrm{len}(\sigma'_j) \\
     \Gamma[\etv]\Vdash \etv\leq(\sigma_i)
       &\typrule [(\etv_i)/\etv](\Gamma[[\etv_i]]\Vdash (\etv_i)\leq(\sigma_i)) \notag\\
-      &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+      &\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
     \Gamma[\etv]\Vdash (\sigma_i)\leq\etv
       &\typrule [(\etv_i)/\etv](\Gamma[[\etv_i]]\Vdash (\sigma_i)\leq(\etv_i)) \notag\\
-      &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+      &\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
     \Gamma\Vdash \{l_i:\sigma_i\}\leq\{l'_j:\sigma'_j\}
       &\typrule \Gamma\,@\,\{\Vdash \sigma_i\leq\sigma'_i\}_i \notag\\
-      &\qquad\qquad\text{when }\{l'_j\}\subseteq\{l_i\} \\
+      &\qquad\text{when }\{l'_j\}\subseteq\{l_i\} \\
     \Gamma[\etv]\Vdash \etv\leq\{l_i:\sigma_i\}
       &\typrule [\{l_i:\etv_i\}/\etv](\Gamma[[\etv_i]]\Vdash \{l_i:\etv_i\}\leq\{l_i:\sigma_i\}) \notag\\
-      &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+      &\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
     \Gamma[\etv]\Vdash \{l_i:\sigma_i\}\leq\etv
       &\typrule [\{l_i:\etv_i\}/\etv](\Gamma[[\etv_i]]\Vdash \{l_i:\sigma_i\}\leq\{l_i:\etv_i\}) \notag\\
-      &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
+      &\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
     \Gamma\Vdash e_1\ \texttt{op}\ e_1\Rightarrow_\stv\omega
       &\typrule \Gamma\Vdash (\texttt{op}\ e_1)\ e_2\Rightarrow_\stv\omega \\
     \Gamma\Vdash (e_i)\Rightarrow_\stv\omega
@@ -665,11 +665,11 @@ immediately substituted into the worklist before proceeding.
       &\typrule \Gamma,\etv_2,\etv_1\Vdash [\etv_2/\stv]\omega, x:\etv_1 \Vdash e_2\Leftarrow\etv_2\Vdash e_1\Leftarrow\etv_1 \\
     \Gamma\Vdash \textrm{case }e\ \{\rho_i, e_i\}\Rightarrow_\stv\omega
       &\typrule \Gamma,\etv\Vdash e\Rightarrow_{\stv'}(\{\rho_i\},\stv')\Rightarrow_{\stv''}\mathrm{cover}(\{\rho_i\},\stv''),\omega' \notag\\
-      &\qquad\qquad\text{where }\omega'=(\rho_1,\stv'')\oplus e_1\Rightarrow_{\stv_1}\ldots(\rho_n,\stv'')\oplus e_n\Rightarrow_{\stv_n}\omega'' \notag\\
-      &\qquad\qquad\text{and }\omega''=\stv_1\leq\etv,\ldots,\stv_{n-1}\leq\etv, [\etv/\stv]\omega \\
+      &\qquad\text{where }\omega'=(\rho_1,\stv'')\oplus e_1\Rightarrow_{\stv_1}\ldots(\rho_n,\stv'')\oplus e_n\Rightarrow_{\stv_n}\omega'' \notag\\
+      &\qquad\text{and }\omega''=\stv_1\leq\etv,\ldots,\stv_{n-1}\leq\etv, [\etv/\stv]\omega \\
     \Gamma\Vdash f\ e_1 \ldots e_n\Rightarrow_\stv\omega
       &\typrule \Gamma\Vdash[\sigma/\stv]\omega\,@\,\{\Vdash e_i\Leftarrow \sigma_i\} \notag\\
-      &\qquad\qquad\text{where }f:(\sigma_i)\rightarrow\sigma\in\Gamma\text{ and }n=\mathrm{len}(\sigma_i)
+      &\qquad\text{where }f:(\sigma_i)\rightarrow\sigma\in\Gamma\text{ and }n=\mathrm{len}(\sigma_i)
   \end{align}
   \caption{Expression typing rules (Parsley-specific)}
   \label{f:typecheck:parsley}
