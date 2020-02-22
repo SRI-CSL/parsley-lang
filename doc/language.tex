@@ -188,7 +188,7 @@ sublanguage is shown first, followed by the grammar sublanguage.
     Expressions  & $e$      & ::= & $ p \mid \textrm{c} \mid C e \mid (e_i) \mid e\ e \mid e\ \texttt{op}\ e \mid (e : \tau) \mid e.l $ \\
                  &          &     & $\mid \textrm{case }e\ \{\rho_i, e_i\} \mid \textrm{let }x=e\textrm{ in }e \mid e \sim C \mid f\ e $ \\
     Patterns     & $\rho$   & ::= & $ x \mid (\rho_i) \mid C\rho $ \\ % TODO: record patterns
-    Functions    & $f$      & ::= & $ x := (x_i:\sigma_i)\rightarrow\sigma \{e\} $ \\
+    Functions    & $f$      & ::= & $ f := (x_i:\sigma_i)\rightarrow\sigma \{e\} $ \\
     Statements   & $s$      & ::= & $ p = e $ \\
                  &          &     & \\
     Constraints  & $\phi$   & ::= & $ e $ \\
@@ -412,8 +412,6 @@ well-formedness of these entities of the type system.  Note that
 substitution variables are substituted away when checking for
 well-formed judgment chains $\Gamma\Vdash\omega$.
 
-Figure~\ref{f:wf:expressions} defines well-formed expressions.
-
 \begin{figure}
   $$ \boxed{\vdash\Gamma}\ \textrm{Well-formed worklist} $$
   $$ \prfbyaxiom{$\mathtt{wf_w\cdot}$}{\Vdash\cdot}\qquad
@@ -493,11 +491,20 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
              {\prfassumption{\Gamma\vdash\rho}}
              {\prfassumption{\Gamma\vdash\tau}}
              {\prfassumption{\Gamma\vdash\ e}}
-             {\Gamma\vdash(\rho,\tau)\oplus e\Rightarrow_\stv\omega}
-             $$
+             {\Gamma\vdash(\rho,\tau)\oplus e\Rightarrow_\stv\omega} $$
   \caption{Well-formed types, judgments and worklists}
   \label{f:ts:wf}
 \end{figure}
+
+Figure~\ref{f:wf:expressions} shows the standard rules for well-formed
+patterns and expressions.  The set of binding variables in a pattern
+$\rho$ is denoted by $\mathrm{binders}(\rho)$.  Well-formed patterns
+are linear, and the $\mathtt{wf_\rho tup}$ rule ensures that all
+variables bound by a pattern are distinct.  In the $\mathtt{wf_e
+  case}$ rule, the construct $\overline{\mathtt{binders}(\rho)}$ pairs
+each pattern variable with a fresh existential variable, providing an
+ordered list of variable bindings with which to extend the context
+$\Gamma$.
 
 \begin{figure}
   $$ \boxed{\Gamma\vdash \rho}\ \textrm{Well-formed patterns} $$
@@ -505,7 +512,7 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
              {\Gamma\vdash x}\qquad
      \prftree[r]{$\mathtt{wf_\rho tup}$}
              {\prfassumption{\Gamma\vdash\rho_i\ \forall i}}
-             {\prfassumption{\{\mathrm{binders}(\rho_i)\}\textrm{ distinct}}}
+             {\prfassumption{\{\cup_i\mathrm{binders}(\rho_i)\}\textrm{ distinct}}}
              {\Gamma\vdash (\rho_i)}\qquad
      \prftree[r]{$\mathtt{wf_\rho C}$}
              {\prfassumption{C\in\Gamma}}{\prfassumption{\Gamma\vdash\rho}}
@@ -539,11 +546,11 @@ Figure~\ref{f:wf:expressions} defines well-formed expressions.
              {\Gamma\vdash e \sim C} $$
   $$ \prftree[r]{$\mathtt{wf_e case}$}
              {\prfassumption{\Gamma\vdash e}}{\prfassumption{\Gamma\vdash\rho_i\ \forall i}}
-             {\prfassumption{\Gamma,[\mathrm{binders}(\rho_i)]\vdash e_i\ \forall i}}
+             {\prfassumption{\Gamma\,@\,\overline{\mathrm{binders}(\rho_i)}\vdash e_i\ \forall i}}
              {\Gamma\vdash\textrm{case}\ e\ \{\rho_i, e_i\}} $$
   $$ \prftree[r]{$\mathtt{wf_e let}$}
              {\prfassumption{\Gamma\vdash e_1}}{\prfassumption{\Gamma\vdash\rho}}
-             {\prfassumption{\Gamma,[\mathrm{binders}(\rho)]\vdash e_2}}
+             {\prfassumption{\Gamma\,@\,\overline{\mathrm{binders}(\rho)}\vdash e_2}}
              {\Gamma\vdash\textrm{let}\ \rho=e_1\ \textrm{in}\ e_2} $$
   \caption{Well-formed expressions}
   \label{f:wf:expressions}
@@ -625,7 +632,7 @@ immediately substituted into the worklist before proceeding.
     \Gamma\Vdash \iota, \omega
       &\typrule \Gamma\Vdash\omega\Vdash\iota \label{typ:seq} \\
     \Gamma\Vdash (\sigma_i)\leq(\sigma'_j)
-      &\typrule \Gamma \{\Vdash \sigma_i\leq\sigma'_i\}_i \notag\\
+      &\typrule \Gamma\,@\,\{\Vdash \sigma_i\leq\sigma'_i\}_i \notag\\
       &\qquad\qquad\text{when }\textrm{len}(\sigma_i)=\textrm{len}(\sigma'_j) \\
     \Gamma[\etv]\Vdash \etv\leq(\sigma_i)
       &\typrule [(\etv_i)/\etv](\Gamma[[\etv_i]]\Vdash (\etv_i)\leq(\sigma_i)) \notag\\
@@ -634,7 +641,7 @@ immediately substituted into the worklist before proceeding.
       &\typrule [(\etv_i)/\etv](\Gamma[[\etv_i]]\Vdash (\sigma_i)\leq(\etv_i)) \notag\\
       &\qquad\qquad\text{when }\etv\notin\cup_i FV(\sigma_i) \\
     \Gamma\Vdash \{l_i:\sigma_i\}\leq\{l'_j:\sigma'_j\}
-      &\typrule \Gamma \{\Vdash \sigma_i\leq\sigma'_i\}_i \notag\\
+      &\typrule \Gamma\,@\,\{\Vdash \sigma_i\leq\sigma'_i\}_i \notag\\
       &\qquad\qquad\text{when }\{l'_j\}\subseteq\{l_i\} \\
     \Gamma[\etv]\Vdash \etv\leq\{l_i:\sigma_i\}
       &\typrule [\{l_i:\etv_i\}/\etv](\Gamma[[\etv_i]]\Vdash \{l_i:\etv_i\}\leq\{l_i:\sigma_i\}) \notag\\
@@ -665,8 +672,7 @@ immediately substituted into the worklist before proceeding.
 The following are still being worked on in the type-system
 specification:
 \begin{itemize}
-\item judgment sequences
-\item pattern matching
+\item pattern matching details
 \item type definitions
 \item recursive types
 \item recursive functions
