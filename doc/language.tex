@@ -552,6 +552,11 @@ $\Gamma$.
              {\prfassumption{\Gamma\vdash e_1}}{\prfassumption{\Gamma\vdash\rho}}
              {\prfassumption{\Gamma\,@\,\overline{\mathrm{binders}(\rho)}\vdash e_2}}
              {\Gamma\vdash\textrm{let}\ \rho=e_1\ \textrm{in}\ e_2} $$
+  $$ \prftree[r]{$\mathtt{wf_e fapp}$}
+             {\prfassumption{f:(\sigma_i)\rightarrow\sigma\in\Gamma}}
+             {\prfassumption{\Gamma\vdash e_i\ \forall i}}
+             {\prfassumption{\mathrm{len}(\sigma_i) = \mathrm{len}(e_i)} = n}
+             {\Gamma\vdash f e_1 \ldots e_n} $$
   \caption{Well-formed expressions}
   \label{f:wf:expressions}
 \end{figure}
@@ -622,7 +627,7 @@ immediately substituted into the worklist before proceeding.
     \Gamma[\etv]\Vdash \etv\bullet e\rightsquigarrow_\stv\omega
       &\typrule [\etv_1\rightarrow\etv_2](\Gamma[\etv_1,\etv_2]\Vdash\etv_1\rightarrow\etv_2\bullet e\rightsquigarrow_\stv\omega)
   \end{align}
-  \caption{Typing rules (standard)}
+  \caption{Expression typing rules (standard)}
   \label{f:typecheck:std}
 \end{figure}
 
@@ -661,9 +666,12 @@ immediately substituted into the worklist before proceeding.
     \Gamma\Vdash \textrm{case }e\ \{\rho_i, e_i\}\Rightarrow_\stv\omega
       &\typrule \Gamma,\etv\Vdash e\Rightarrow_{\stv'}(\{\rho_i\},\stv')\Rightarrow_{\stv''}\mathrm{cover}(\{\rho_i\},\stv''),\omega' \notag\\
       &\qquad\qquad\text{where }\omega'=(\rho_1,\stv'')\oplus e_1\Rightarrow_{\stv_1}\ldots(\rho_n,\stv'')\oplus e_n\Rightarrow_{\stv_n}\omega'' \notag\\
-      &\qquad\qquad\text{and }\omega''=\stv_1\leq\etv,\ldots,\stv_{n-1}\leq\etv, [\etv/\stv]\omega
+      &\qquad\qquad\text{and }\omega''=\stv_1\leq\etv,\ldots,\stv_{n-1}\leq\etv, [\etv/\stv]\omega \\
+    \Gamma\Vdash f\ e_1 \ldots e_n\Rightarrow_\stv\omega
+      &\typrule \Gamma\Vdash[\sigma/\stv]\omega\,@\,\{\Vdash e_i\Leftarrow \sigma_i\} \notag\\
+      &\qquad\qquad\text{where }f:(\sigma_i)\rightarrow\sigma\in\Gamma\text{ and }n=\mathrm{len}(\sigma_i)
   \end{align}
-  \caption{Typing rules (Parsley-specific)}
+  \caption{Expression typing rules (Parsley-specific)}
   \label{f:typecheck:parsley}
 \end{figure}
 
@@ -676,8 +684,8 @@ specification:
 \item type definitions
 \item recursive types
 \item recursive functions
-\item modules, path resolution
 \item grammar rules
+\item modules, path resolution
 \end{itemize}
 
 The type rules are formulated for algorithmic type-checking, although
