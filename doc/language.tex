@@ -55,46 +55,67 @@ The language has the following design goals:
 \item A useful foundational set of parser primitives and combinators,
 \item A capacity to capture context-sensitivity and data-dependency
   via a constraint system, and
-\item  A module system that enables nested grammars and composes with
-  the constraint system.
+\item A module system that enables nested grammars and composes with
+  the constraint system, and
+\item A formalizable static and dynamic semantics for parsing.
 \end{itemize}
 
-We employ the following techniques to achieve these goals:
+The language is not intended to explicitly support aspects not directly
+related to parsing, such as specifying protocol state machines for
+network protocols, or rendering state for document formats.
+
+We now explain how the above goals motivate our language design
+choices.
 
 \begin{itemize}
 \item The core structure of a Parsley specification is provided by a
   {\em parsing expression grammar (PEG)} \cite{ford2004popl},
-  specified in notation similar to {\em extended BNF (EBNF)} for
-  grammar productions.  Although {\em context-free grammars (CFGs)}
-  use the EBNF notation, there are critical differences in the PEG
-  notation: (a) the choice combinator in PEGs is ordered, as opposed
-  to non-deterministic in CFGs, and (b) the PEG notation includes
-  syntactic predicates that do not occur in CFGs.  The choice of a PEG
-  core provides us a core set of primitives and combinators we can
-  build on.
+  concretely specified in notation similar to {\em extended BNF
+    (EBNF)} for grammar productions.  Although {\em context-free
+    grammars (CFGs)} also use the EBNF notation, there are critical
+  differences in its adaptation for PEGs: (a) the choice
+  combinator in PEGs is ordered, as opposed to non-deterministic in
+  CFGs, and (b) the PEG notation includes syntactic predicates that do
+  not occur in CFGs.  The choice of a PEG core provides us our base set of
+  primitives and combinators.  This choice is motivated by its
+  deterministic execution and amenability to
+  formalization~\cite{Blaudeau_2020}~\cite{trx}.
 
 \item Context management is provided by a fairly traditional
-  attribute-grammar system, where the expression language for
-  attribute computations is purely functional and strongly-typed.  In
-  Parsley, non-terminals have user-defined attributes, while terminals
-  have a default attribute value of type byte or byte-string.  This
-  provides us with the tools needed to capture context-sensitivity.
+  attribute-grammar system, with a fully specified expression language
+  for attribute computations.  In Parsley, non-terminals have
+  user-defined attributes, while terminals have a default attribute
+  value of type byte or byte-string.  This system provides Parsley
+  with a mechanism to capture context-sensitivity.
 
 \item Additional context-sensitivity is provided by a constraint
   system that guards further processing within a non-terminal
   production.  The constraint language uses the attribute system to
-  perform context-sensitive checks, and cleanly enables data-dependent
-  parsing.
+  perform context-sensitive checks, and employs primitives in the
+  constraint expression language to perform data-dependent parsing.
+  This constraint system is motivated by the inadequacy of the
+  standard PEG constructs for data-dependent context sensitive parsing
+  (e.g. detecting cyclic relationships when parsing the objects in a
+  PDF file.)
 
-\item A module system allows the composition of independent grammars.
+\item Parsley includes a module system to enable the composition of
+  independent grammars.  This is designed to allow the integration of
+  various different packet formats into a single networking stack, and
+  various different image and font formats into a single document
+  format (such as PDF).
+
 \end{itemize}
 
-The expression sublanguage used in attribute updates and constraints
-is a strongly typed polymorphic functional language supporting
-user-defined types and functions.  It includes a standard library of
-common types and utility functions.  The expression and data type
-sublanguage is designed to ensure that recursive and iterative
-computations always terminate.
+These choices have resulted in two sublanguages constituting Parsley:
+an expression sublanguage and a grammar sublanguage.  The expression
+sublanguage used in attribute updates and constraints is a strongly
+typed polymorphic functional language supporting user-defined types
+and functions.  It includes a standard library of common types and
+utility functions.  The expression and data type sublanguage is a
+total language by construction, that ensures that recursive and
+iterative computations always terminate.  The grammar sublanguage
+contains the parsing primitives and combinators, and the attribute
+system.
 
 \section{Language Use}
 \label{s:use}
@@ -107,21 +128,22 @@ computations always terminate.
 \end{figure*}
 
 The typical use of a Parsley specification is via the workflow
-illustrated in Figure~\ref{f:pipeline}.
-
-The Parsley compiler performs type and semantic checks on a given
-Parsley specification.  The type checks correspond to standard
-polymorphic type checking~\cite{Dunfield13:bidir}\cite{zhao19:bidir},
-with rules to handle grammar productions.  In addition, attribute
+illustrated in Figure~\ref{f:pipeline}.  The Parsley compiler performs
+type and semantic checks on a given Parsley specification.  The type
+checks correspond to standard polymorphic type
+checking~\cite{Dunfield13:bidir}\cite{zhao19:bidir}, with additional
+typing rules to handle grammar productions.  In addition, attribute
 usage checks are performed, such as for $L$-attributedness (see
 below).
 
 The compiler generates prover definitions that are used to perform
-safety checks: for example, a check to ensure that data-dependent
-constructs do not use a data value as an array index without an
-appropriate constraint check.  We are developing the safety properties
-that can be used by the PVS theorem prover to verify that the Parsley
-specification is a `safe' grammar.
+safety checks: for example, data-dependent values are used as indices
+into structures such as arrays provided they are suitably constrained.
+We are developing the safety properties that can be used by a theorem
+prover (PVS in our case) to verify that the Parsley specification is a
+`safe' grammar.  The compiler also flags the use of constructs such as
+$\texttt{scan}(c)$, which can create the potential for polyglot
+formats~\cite{magazinius:polyglots}.
 
 We are also defining the parsing automaton that will be generated by
 the compiler.  This automaton needs to interleave constraint and
@@ -139,22 +161,24 @@ top-down processing of the ``core'' PEG specification.  $L$-attributed
 grammars are attribute grammars where attributes in the nodes in the
 parse tree to the left of the current node have been assigned their
 final values.  This eases the implementation of PEG backtracking, as
-assigned attribute values do not need to be unwound.  The generated
+individual attribute values do not need to be unwound.  The generated
 automaton is compiled into a library that can be linked into
 application code.  We plan to use a Rust code generator to ensure that
-the library is type and memory safe, can be linked into C
+the library is type and memory safe, and can be linked into C
 applications, and is compatible with other languages using the
 appropriate wrappers.
 
 The data representation constructed by the automaton contains a {\em
   proof of parse}.  We are building on the approach used in
 ~\cite{Blaudeau_2020}, which formalized PEG parsing and the generation
-of verifiable PEG parsers.  These parsers annotate the constructed
-data representation with grammar metadata that can be used to verify
-that the representation is a valid parse of the given input data for
-the given Parsley specification.  This verification is done in an
-independent verifier, which is simple enough to include in the
-application itself.
+of PEG parsers.  These parsers annotate the constructed data
+representation with grammar metadata that can be used to verify that
+the representation is a valid parse of the given input data for the
+given Parsley specification.  This verification is done in a generic
+(i.e. grammar-independent) verifier, which is simple enough to include
+in the application itself.  In addition to ensuring parser
+correctness, the verifier provides tamper-resistance for the parse
+tree, e.g.\@ across serialize-deserialize operations.
 
 \subsection*{Unresolved issues}
 
@@ -164,10 +188,11 @@ pipeline.  This API might differ across applications parsing the same
 format, and these types of API often differ across different types of
 formats (e.g. streaming network formats versus document formats).
 
-A crucial requirement is to ensure that the parsing automaton is not
-Turing-complete; i.e. arbitrary input data cannot cause
-Turing-complete computation within the parsing library.  We are
-attempting to provide formal guarantees that this will be the case.
+A crucial requirement is to ensure that the computation performed by
+the parsing automaton is bounded and well-characterized;
+e.g. arbitrary input data cannot cause Turing-complete computation
+within the parsing library.  We are attempting to provide formal
+guarantees that this will be the case.
 
 \section{Abstract syntax}
 \label{s:syntax}
@@ -180,21 +205,24 @@ sublanguage is shown first, followed by the grammar sublanguage.
   \begin{tabular}{l c l l}
     Paths        & $p$      & ::= & $ x \mid p.x $ \\
     Constants    & c        & ::= & 0,1,\ldots\ $|$\ `A', `B', \ldots\ $|$\ \ldots \\
-    Constructors & C        &     & \\
+    Constructors & C        & ::= & $C_i$ \\
     Attributes   & $l$      & ::= & $ l^i \mid l^s $ \\
     Base types   & $\nu$    & ::= & $ \texttt{unit} \mid \texttt{uint8} \mid \texttt{int32} \mid \ldots $ \\
-    Monotypes    & $\tau$   & ::= & $ \utv \mid \nu \mid (\tau_i) \mid \tau\rightarrow\tau \mid \sum_i C_i\tau_i \mid \{l_i:\tau_i\} \mid \texttt{typeof}(N) $ \\
+    Monotypes    & $\tau$   & ::= & $ \utv \mid \nu \mid (\tau_i) \mid \tau\rightarrow\tau \mid \sum_i C_i\tau_i $ \\
+                 &          &     & $\mid \{l_i:\tau_i\} \mid \texttt{typeof}(N) $ \\
     Types        & $\sigma$ & ::= & $ \tau \mid \forall\utv.\sigma \mid \sigma\rightarrow\sigma $ \\
-    Expressions  & $e$      & ::= & $ p \mid \textrm{c} \mid C e \mid (e_i) \mid e\ e \mid e\ \texttt{op}\ e \mid (e : \tau) \mid e.l $ \\
-                 &          &     & $\mid \textrm{case }e\ \{\rho_i, e_i\} \mid \textrm{let }x=e\textrm{ in }e \mid e \sim C \mid f\ e $ \\
+    Expressions  & $e$      & ::= & $ p \mid \texttt{c} \mid C e \mid (e_i) \mid e\ e \mid e\ \texttt{op}\ e $ \\
+                 &          &     & $\mid (e : \tau) \mid e.l \mid \texttt{case }e\ \{\rho_i, e_i\} $ \\
+                 &          &     & $\mid \texttt{let }x=e\texttt{ in }e \mid e \sim C \mid f\ e $ \\
     Patterns     & $\rho$   & ::= & $ x \mid (\rho_i) \mid C\rho $ \\ % TODO: record patterns
     Functions    & $f$      & ::= & $ f := (x_i:\sigma_i)\rightarrow\sigma \{e\} $ \\
     Statements   & $s$      & ::= & $ p = e $ \\
                  &          &     & \\
     Constraints  & $\phi$   & ::= & $ e $ \\
     Actions      & $a$      & ::= & $ \{s_i\} $ \\
-    Rules        & $r$      & ::= & $ \epsilon \mid \textrm{c} \mid (x=)^?N\{l_i=e_i\} \mid \phi r $ \\
-                 &          &     & $\mid r r \mid r / r \mid r^{*e?} \mid !r \mid !^Rr \mid a $ \\
+    Rules        & $r$      & ::= & $ \epsilon \mid \texttt{c} \mid \texttt{scan}(c) \mid \texttt{scan}^R(c) $\\
+                 &          &     & $\mid (x=)^?N\{l_i=e_i\} $ \\
+                 &          &     & $ \mid \phi\ r \mid r\ r \mid r / r \mid r^{*e?} \mid !r \mid a $ \\
     Productions  & $P$      & ::= & $ N\{l_i:\tau_i\} := r $ \\
     Format       & $F$      & ::= & $ \{ \tau_i, N\{l_i:\tau_i\}, P_i \} $ \\
   \end{tabular}
@@ -205,10 +233,14 @@ sublanguage is shown first, followed by the grammar sublanguage.
 \subsection*{Expression sublanguage}
 \label{ss:lang:expr}
 
-In Figure~\ref{f:parsley-syntax}, $x$ over identifiers, $l$ over
-inherited $l^i$ and synthesized $l^s$ attributes, $\utv$ ranges over
-type variables, and $op$ over standard arithmetic and boolean
-operators.  Paths $p$ are used to access identifiers across modules.
+In Figure~\ref{f:parsley-syntax}, $x$ ranges over identifiers, $l$
+over inherited $l^i$ and synthesized $l^s$ attributes, $\utv$ ranges
+over type variables, $c$ over constants, and $op$ over standard
+arithmetic and boolean operators.  Paths $p$ are used to access
+identifiers across modules.  As discussed below, attributed
+non-terminals are represented as records, and we denote record fields
+as well as attributes using $l$.  $C$ ranges over the constructors
+used for values of sum types.
 
 The type system is a conventional polymorphic type system
 with records.  It is equipped with a set of standard base types $\nu$, type
@@ -280,13 +312,11 @@ be re-used in different contexts.  Paths support the module system
 
 \subsection*{Extensions under development}
 
-The Parsley language is a work-in-progress, and is being adapted as we
-attempt to use it to capture more data formats.  The parsing of a PDF
-file involves seeking to the end of the file (or a specific marker)
-and searching backwards for a syntactic element.  This motivated the
-$!^Rr$ construct, which can be considered as a \emph{reverse-not}
-predicate: it checks backwards from the current parsing location
-whether the parse buffer matches $r$.
+The Parsley language is a work-in-progress.  It is being adapted as we
+attempt to use it to capture more data formats, in order to gauge the
+extent to which existing data formats can be specified in our current
+formalism or extensions to it.  We also intend to use it to define the
+data formats needed for our other research projects.
 
 We are also considering extending Parsley with primitives to capture
 manipulations of the current parsing offset by actions such as
@@ -297,6 +327,17 @@ both types of manipulations are supported and compose well.  In
 addition, this is one of the most security-critical aspects of
 parsing: ensuring that offsets derived from untrusted data are used in
 valid ways.
+
+Declarative offset manipulation is required for capturing formats such
+as PDF, where parsing a PDF file involves seeking to the end of the
+file (or a specific marker) and searching backwards for a syntactic
+element.  This motivated the $\texttt{scan}(c)$ and
+$\texttt{scan}^R(c)$ constructs, which scan forwards or backwards for
+a literal $c$, and when successful adjust the current parsing offset
+to the match point.  The scans are not explicitly
+bounded\footnote{They are implicitly bounded by the runtime system
+  which knows the size of the parsing buffer.}, though it should be
+straightforward to introduce bounded scans if required.
 
 \section{Type system}
 \label{s:typesys}
