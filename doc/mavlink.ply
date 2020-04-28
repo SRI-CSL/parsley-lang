@@ -1,0 +1,425 @@
+format mavlink()
+{
+magic := '\xFD' | '\xFE'
+
+// Definitions
+
+one_byte = IntObj ;;
+one_byte_9 := x=IntObj8 [x == 9] ;;
+three_byte_0 := x=IntObj8 y=IntObj16 [x == 0 && y == 0] ;;
+four_byte := h_with_endiannessbyte_little_endian [x == h_uint32] ;;
+one_byte_31 := x=IntObj8 [x == 31] ;;
+three_byte_1 := x=IntObj8 y=IntObj16 [x == 1 && y == 0] ;;
+two_byte := h_with_endiannessbyte_little_endian [x == y=IntObj16] ;;
+one_byte_12 := x=IntObj8 [x == 12] ;;
+three_byte_2 := x=IntObj8 y=IntObj16 [x == 2 && y == 0] ;;
+eight_byte := h_with_endiannessbyte_little_endian [x == h_uint64] ;;
+one_byte_6 := x=IntObj8 [x == 6] ;;
+three_byte_11 := x=IntObj8 y=IntObj16 [x == 11 && y == 0] ;;
+one_byte_16 := x=IntObj8 [x == 16] ;;
+three_byte_12 := x=IntObj8 y=IntObj16 [x == 12 && y == 0] ;;
+one_byte_64 := x=IntObj8 [x == 64] ;;
+three_byte_20 := x=IntObj8 y=IntObj16 [x == 20 && y == 0] ;;
+string_50 := h_repeat_nx=IntObj8 [x == 50] ;;
+three_byte_21 := x=IntObj8 y=IntObj16 [x == 21 && y == 0] ;;
+one_byte_25 := x=IntObj8 [x == 25] ;;
+three_byte_22 := x=IntObj8 y=IntObj16 [x == 22 && y == 0] ;;
+string_16 := h_repeat_nx=IntObj8 [x == 16] ;;
+one_byte_50 := x=IntObj8 [x == 50] ;;
+three_byte_24 := x=IntObj8 y=IntObj16 [x == 24 && y == 0] ;;
+one_byte_29 := x=IntObj8 [x == 29] ;;
+three_byte_27 := x=IntObj8 y=IntObj16 [x == 27 && y == 0] ;;
+one_byte_14 := x=IntObj8 [x == 14] ;;
+three_byte_29 := x=IntObj8 y=IntObj16 [x == 29 && y == 0] ;;
+one_byte_28 := x=IntObj8 [x == 28] ;;
+three_byte_30 := x=IntObj8 y=IntObj16 [x == 30 && y == 0] ;;
+three_byte_32 := x=IntObj8 y=IntObj16 [x == 32 && y == 0] ;;
+three_byte_33 := x=IntObj8 y=IntObj16 [x == 33 && y == 0] ;;
+one_byte_37 := x=IntObj8 [x == 37] ;;
+three_byte_36 := x=IntObj8 y=IntObj16 [x == 36 && y == 0] ;;
+one_byte_38 := x=IntObj8 [x == 38] ;;
+three_byte_39 := x=IntObj8 y=IntObj16 [x == 39 && y == 0] ;;
+one_byte_5 := x=IntObj8 [x == 5] ;;
+three_byte_40 := x=IntObj8 y=IntObj16 [x == 40 && y == 0] ;;
+one_byte_2 := x=IntObj8 [x == 2] ;;
+three_byte_42 := x=IntObj8 y=IntObj16 [x == 42 && y == 0] ;;
+three_byte_44 := x=IntObj8 y=IntObj16 [x == 44 && y == 0] ;;
+three_byte_46 := x=IntObj8 y=IntObj16 [x == 46 && y == 0] ;;
+one_byte_4 := x=IntObj8 [x == 4] ;;
+three_byte_47 := x=IntObj8 y=IntObj16 [x == 47 && y == 0] ;;
+one_byte_30 := x=IntObj8 [x == 30] ;;
+three_byte_49 := x=IntObj8 y=IntObj16 [x == 49 && y == 0] ;;
+one_byte_15 := x=IntObj8 [x == 15] ;;
+three_byte_51 := x=IntObj8 y=IntObj16 [x == 51 && y == 0] ;;
+one_byte_36 := x=IntObj8 [x == 36] ;;
+three_byte_62 := x=IntObj8 y=IntObj16 [x == 62 && y == 0] ;;
+one_byte_42 := x=IntObj8 [x == 42] ;;
+three_byte_65 := x=IntObj8 y=IntObj16 [x == 65 && y == 0] ;;
+three_byte_66 := x=IntObj8 y=IntObj16 [x == 66 && y == 0] ;;
+three_byte_73 := x=IntObj8 y=IntObj16 [x == 73 && y == 0] ;;
+one_byte_20 := x=IntObj8 [x == 20] ;;
+three_byte_74 := x=IntObj8 y=IntObj16 [x == 74 && y == 0] ;;
+one_byte_33 := x=IntObj8 [x == 33] ;;
+three_byte_76 := x=IntObj8 y=IntObj16 [x == 76 && y == 0] ;;
+one_byte_13 := x=IntObj8 [x == 13] ;;
+three_byte_77 := x=IntObj8 y=IntObj16 [x == 77 && y == 0] ;;
+one_byte_51 := x=IntObj8 [x == 51] ;;
+three_byte_86 := x=IntObj8 y=IntObj16 [x == 86 && y == 0] ;;
+three_byte_111 := x=IntObj8 y=IntObj16 [x == 111 && y == 0] ;;
+one_byte_24 := x=IntObj8 [x == 24] ;;
+three_byte_116 := x=IntObj8 y=IntObj16 [x == 116 && y == 0] ;;
+three_byte_125 := x=IntObj8 y=IntObj16 [x == 125 && y == 0] ;;
+three_byte_129 := x=IntObj8 y=IntObj16 [x == 129 && y == 0] ;;
+one_byte_18 := x=IntObj8 [x == 18] ;;
+three_byte_133 := x=IntObj8 y=IntObj16 [x == 133 && y == 0] ;;
+one_byte_22 := x=IntObj8 [x == 22] ;;
+three_byte_136 := x=IntObj8 y=IntObj16 [x == 136 && y == 0] ;;
+one_byte_41 := x=IntObj8 [x == 41] ;;
+three_byte_147 := x=IntObj8 y=IntObj16 [x == 147 && y == 0] ;;
+one_byte_88 := x=IntObj8 [x == 88] ;;
+three_byte_148 := x=IntObj8 y=IntObj16 [x == 148 && y == 0] ;;
+three_byte_150 := x=IntObj8 y=IntObj16 [x == 150 && y == 0] ;;
+one_byte_8 := x=IntObj8 [x == 8] ;;
+three_byte_152 := x=IntObj8 y=IntObj16 [x == 152 && y == 0] ;;
+three_byte_163 := x=IntObj8 y=IntObj16 [x == 163 && y == 0] ;;
+one_byte_44 := x=IntObj8 [x == 44] ;;
+three_byte_164 := x=IntObj8 y=IntObj16 [x == 164 && y == 0] ;;
+one_byte_3 := x=IntObj8 [x == 3] ;;
+three_byte_165 := x=IntObj8 y=IntObj16 [x == 165 && y == 0] ;;
+three_byte_168 := x=IntObj8 y=IntObj16 [x == 168 && y == 0] ;;
+one_byte_48 := x=IntObj8 [x == 48] ;;
+three_byte_174 := x=IntObj8 y=IntObj16 [x == 174 && y == 0] ;;
+three_byte_178 := x=IntObj8 y=IntObj16 [x == 178 && y == 0] ;;
+one_byte_40 := x=IntObj8 [x == 40] ;;
+three_byte_182 := x=IntObj8 y=IntObj16 [x == 182 && y == 0] ;;
+three_byte_183 := x=IntObj8 y=IntObj16 [x == 183 && y == 0] ;;
+one_byte_26 := x=IntObj8 [x == 26] ;;
+three_byte_193 := x=IntObj8 y=IntObj16 [x == 193 && y == 0] ;;
+one_byte_32 := x=IntObj8 [x == 32] ;;
+three_byte_241 := x=IntObj8 y=IntObj16 [x == 241 && y == 0] ;;
+one_byte_60 := x=IntObj8 [x == 60] ;;
+three_byte_242 := x=IntObj8 y=IntObj16 [x == 242 && y == 0] ;;
+three_byte_253 := x=IntObj8 y=IntObj16 [x == 253 && y == 0] ;;
+
+// End Definitions
+
+header_heartbeat :=  one_byte_9 one_byte one_byte one_byte one_byte one_byte three_byte_0 ;;
+payload_heartbeat := four_byte one_byte one_byte one_byte one_byte one_byte ;;
+msg_heartbeat := header_heartbeat payload_heartbeat  ;;
+
+
+
+header_sys_status :=  one_byte_31 one_byte one_byte one_byte one_byte one_byte three_byte_1 ;;
+payload_sys_status := four_byte four_byte four_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte one_byte ;;
+msg_sys_status := header_sys_status payload_sys_status  ;;
+
+
+
+header_system_time :=  one_byte_12 one_byte one_byte one_byte one_byte one_byte three_byte_2 ;;
+payload_system_time := eight_byte four_byte ;;
+msg_system_time := header_system_time payload_system_time  ;;
+
+
+
+header_set_mode :=  one_byte_6 one_byte one_byte one_byte one_byte one_byte three_byte_11 ;;
+payload_set_mode := four_byte one_byte one_byte ;;
+msg_set_mode := header_set_mode payload_set_mode  ;;
+
+
+
+header_aoa_ssa :=  one_byte_16 one_byte one_byte one_byte one_byte one_byte three_byte_12 ;;
+payload_aoa_ssa := eight_byte four_byte four_byte ;;
+msg_aoa_ssa := header_aoa_ssa payload_aoa_ssa  ;;
+
+
+
+header_param_request_read :=  one_byte_64 one_byte one_byte one_byte one_byte one_byte three_byte_20 ;;
+payload_param_request_read := two_byte one_byte one_byte string_50 ;;
+msg_param_request_read := header_param_request_read payload_param_request_read  ;;
+
+
+
+header_param_request_list :=  one_byte_12 one_byte one_byte one_byte one_byte one_byte three_byte_21 ;;
+payload_param_request_list := one_byte one_byte ;;
+msg_param_request_list := header_param_request_list payload_param_request_list  ;;
+
+
+
+header_param_value :=  one_byte_25 one_byte one_byte one_byte one_byte one_byte three_byte_22 ;;
+payload_param_value := four_byte two_byte two_byte string_16 one_byte ;;
+msg_param_value := header_param_value payload_param_value  ;;
+
+
+
+header_gps_raw_int :=  one_byte_50 one_byte one_byte one_byte one_byte one_byte three_byte_24 ;;
+payload_gps_raw_int := eight_byte four_byte four_byte four_byte two_byte two_byte two_byte two_byte one_byte one_byte four_byte four_byte four_byte four_byte four_byte ;;
+msg_gps_raw_int := header_gps_raw_int payload_gps_raw_int  ;;
+
+
+
+header_raw_imu :=  one_byte_29 one_byte one_byte one_byte one_byte one_byte three_byte_27 ;;
+payload_raw_imu := eight_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte one_byte two_byte ;;
+msg_raw_imu := header_raw_imu payload_raw_imu  ;;
+
+
+
+header_scaled_pressure :=  one_byte_14 one_byte one_byte one_byte one_byte one_byte three_byte_29 ;;
+payload_scaled_pressure := four_byte four_byte four_byte two_byte ;;
+msg_scaled_pressure := header_scaled_pressure payload_scaled_pressure  ;;
+
+
+
+header_attitude :=  one_byte_28 one_byte one_byte one_byte one_byte one_byte three_byte_30 ;;
+payload_attitude := four_byte four_byte four_byte four_byte four_byte four_byte four_byte ;;
+msg_attitude := header_attitude payload_attitude  ;;
+
+
+
+header_local_position_ned :=  one_byte_28 one_byte one_byte one_byte one_byte one_byte three_byte_32 ;;
+payload_local_position_ned := four_byte four_byte four_byte four_byte four_byte four_byte four_byte ;;
+msg_local_position_ned := header_local_position_ned payload_local_position_ned  ;;
+
+
+
+header_global_position_int :=  one_byte_28 one_byte one_byte one_byte one_byte one_byte three_byte_33 ;;
+payload_global_position_int := four_byte four_byte four_byte four_byte four_byte two_byte two_byte two_byte two_byte ;;
+msg_global_position_int := header_global_position_int payload_global_position_int  ;;
+
+
+
+header_servo_output_raw :=  one_byte_37 one_byte one_byte one_byte one_byte one_byte three_byte_36 ;;
+payload_servo_output_raw := four_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte one_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte ;;
+msg_servo_output_raw := header_servo_output_raw payload_servo_output_raw  ;;
+
+
+
+header_mission_item :=  one_byte_38 one_byte one_byte one_byte one_byte one_byte three_byte_39 ;;
+payload_mission_item := four_byte four_byte four_byte four_byte four_byte four_byte four_byte two_byte two_byte one_byte one_byte one_byte one_byte one_byte one_byte ;;
+msg_mission_item := header_mission_item payload_mission_item  ;;
+
+
+
+header_mission_request :=  one_byte_5 one_byte one_byte one_byte one_byte one_byte three_byte_40 ;;
+payload_mission_request := two_byte one_byte one_byte one_byte ;;
+msg_mission_request := header_mission_request payload_mission_request  ;;
+
+
+
+header_mission_current :=  one_byte_2 one_byte one_byte one_byte one_byte one_byte three_byte_42 ;;
+payload_mission_current := two_byte ;;
+msg_mission_current := header_mission_current payload_mission_current  ;;
+
+
+
+header_mission_count :=  one_byte_5 one_byte one_byte one_byte one_byte one_byte three_byte_44 ;;
+payload_mission_count := two_byte one_byte one_byte one_byte ;;
+msg_mission_count := header_mission_count payload_mission_count  ;;
+
+
+
+header_mission_item_reached :=  one_byte_2 one_byte one_byte one_byte one_byte one_byte three_byte_46 ;;
+payload_mission_item_reached := two_byte ;;
+msg_mission_item_reached := header_mission_item_reached payload_mission_item_reached  ;;
+
+
+
+header_mission_ack :=  one_byte_4 one_byte one_byte one_byte one_byte one_byte three_byte_47 ;;
+payload_mission_ack := one_byte one_byte one_byte one_byte ;;
+msg_mission_ack := header_mission_ack payload_mission_ack  ;;
+
+
+
+header_gps_global_origin :=  one_byte_30 one_byte one_byte one_byte one_byte one_byte three_byte_49 ;;
+payload_gps_global_origin := four_byte four_byte four_byte eight_byte ;;
+msg_gps_global_origin := header_gps_global_origin payload_gps_global_origin  ;;
+
+
+
+header_mission_request_int :=  one_byte_15 one_byte one_byte one_byte one_byte one_byte three_byte_51 ;;
+payload_mission_request_int := two_byte one_byte one_byte one_byte ;;
+msg_mission_request_int := header_mission_request_int payload_mission_request_int  ;;
+
+
+
+header_nav_controller_output :=  one_byte_36 one_byte one_byte one_byte one_byte one_byte three_byte_62 ;;
+payload_nav_controller_output := four_byte four_byte four_byte four_byte four_byte two_byte two_byte two_byte ;;
+msg_nav_controller_output := header_nav_controller_output payload_nav_controller_output  ;;
+
+
+
+header_rc_channels :=  one_byte_42 one_byte one_byte one_byte one_byte one_byte three_byte_65 ;;
+payload_rc_channels := four_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte one_byte one_byte ;;
+msg_rc_channels := header_rc_channels payload_rc_channels  ;;
+
+
+
+header_request_data_stream :=  one_byte_6 one_byte one_byte one_byte one_byte one_byte three_byte_66 ;;
+payload_request_data_stream := two_byte one_byte one_byte one_byte one_byte ;;
+msg_request_data_stream := header_request_data_stream payload_request_data_stream  ;;
+
+
+
+header_mission_item_int :=  one_byte_38 one_byte one_byte one_byte one_byte one_byte three_byte_73 ;;
+payload_mission_item_int := four_byte four_byte four_byte four_byte four_byte four_byte four_byte two_byte two_byte one_byte one_byte one_byte one_byte one_byte one_byte ;;
+msg_mission_item_int := header_mission_item_int payload_mission_item_int  ;;
+
+
+
+header_vfr_hud :=  one_byte_20 one_byte one_byte one_byte one_byte one_byte three_byte_74 ;;
+payload_vfr_hud := four_byte four_byte four_byte four_byte two_byte two_byte ;;
+msg_vfr_hud := header_vfr_hud payload_vfr_hud  ;;
+
+
+
+header_command_long :=  one_byte_33 one_byte one_byte one_byte one_byte one_byte three_byte_76 ;;
+payload_command_long := four_byte four_byte four_byte four_byte four_byte four_byte four_byte two_byte one_byte one_byte one_byte ;;
+msg_command_long := header_command_long payload_command_long  ;;
+
+
+
+header_command_ack :=  one_byte_13 one_byte one_byte one_byte one_byte one_byte three_byte_77 ;;
+payload_command_ack := two_byte one_byte ;;
+msg_command_ack := header_command_ack payload_command_ack  ;;
+
+
+
+header_position_target_global :=  one_byte_51 one_byte one_byte one_byte one_byte one_byte three_byte_86 ;;
+payload_position_target_global := four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte two_byte one_byte ;;
+msg_position_target_global := header_position_target_global payload_position_target_global  ;;
+
+
+
+header_timesync :=  one_byte_16 one_byte one_byte one_byte one_byte one_byte three_byte_111 ;;
+payload_timesync := eight_byte eight_byte ;;
+msg_timesync := header_timesync payload_timesync  ;;
+
+
+
+header_scaled_imu2 :=  one_byte_24 one_byte one_byte one_byte one_byte one_byte three_byte_116 ;;
+payload_scaled_imu2 := four_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte ;;
+msg_scaled_imu2 := header_scaled_imu2 payload_scaled_imu2  ;;
+
+
+
+header_power_status :=  one_byte_6 one_byte one_byte one_byte one_byte one_byte three_byte_125 ;;
+payload_power_status := two_byte two_byte two_byte ;;
+msg_power_status := header_power_status payload_power_status  ;;
+
+
+
+header_scaled_imu3 :=  one_byte_24 one_byte one_byte one_byte one_byte one_byte three_byte_129 ;;
+payload_scaled_imu3 := four_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte ;;
+msg_scaled_imu3 := header_scaled_imu3 payload_scaled_imu3  ;;
+
+
+
+header_terrain_request :=  one_byte_18 one_byte one_byte one_byte one_byte one_byte three_byte_133 ;;
+payload_terrain_request := eight_byte four_byte four_byte two_byte ;;
+msg_terrain_request := header_terrain_request payload_terrain_request  ;;
+
+
+
+header_terrain_report :=  one_byte_22 one_byte one_byte one_byte one_byte one_byte three_byte_136 ;;
+payload_terrain_report := four_byte four_byte four_byte four_byte two_byte two_byte two_byte ;;
+msg_terrain_report := header_terrain_report payload_terrain_report  ;;
+
+
+
+header_battery_status :=  one_byte_41 one_byte one_byte one_byte one_byte one_byte three_byte_147 ;;
+payload_battery_status := four_byte four_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte two_byte one_byte one_byte one_byte one_byte four_byte one_byte ;;
+msg_battery_status := header_battery_status payload_battery_status  ;;
+
+
+
+header_autopilot_version :=  one_byte_88 one_byte one_byte one_byte one_byte one_byte three_byte_148 ;;
+payload_autopilot_version := eight_byte eight_byte four_byte four_byte four_byte four_byte two_byte two_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte one_byte ;;
+msg_autopilot_version := header_autopilot_version payload_autopilot_version  ;;
+
+
+
+header_sensor_offset :=  one_byte_42 one_byte one_byte one_byte one_byte one_byte three_byte_150 ;;
+payload_sensor_offset := four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte ;;
+msg_sensor_offset := header_sensor_offset payload_sensor_offset  ;;
+
+
+
+header_meminfo :=  one_byte_8 one_byte one_byte one_byte one_byte one_byte three_byte_152 ;;
+payload_meminfo := two_byte two_byte four_byte ;;
+msg_meminfo := header_meminfo payload_meminfo  ;;
+
+
+
+header_ahrs :=  one_byte_28 one_byte one_byte one_byte one_byte one_byte three_byte_163 ;;
+payload_ahrs := four_byte four_byte four_byte four_byte four_byte four_byte four_byte ;;
+msg_ahrs := header_ahrs payload_ahrs  ;;
+
+
+
+header_simstate :=  one_byte_44 one_byte one_byte one_byte one_byte one_byte three_byte_164 ;;
+payload_simstate := four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte ;;
+msg_simstate := header_simstate payload_simstate  ;;
+
+
+
+header_hwstatus :=  one_byte_3 one_byte one_byte one_byte one_byte one_byte three_byte_165 ;;
+payload_hwstatus := two_byte one_byte ;;
+msg_hwstatus := header_hwstatus payload_hwstatus  ;;
+
+
+
+header_wind :=  one_byte_12 one_byte one_byte one_byte one_byte one_byte three_byte_168 ;;
+payload_wind := four_byte four_byte four_byte ;;
+msg_wind := header_wind payload_wind  ;;
+
+
+
+header_airspeed_autocal :=  one_byte_48 one_byte one_byte one_byte one_byte one_byte three_byte_174 ;;
+payload_airspeed_autocal := four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte ;;
+msg_airspeed_autocal := header_airspeed_autocal payload_airspeed_autocal  ;;
+
+
+
+header_ahrs2 :=  one_byte_24 one_byte one_byte one_byte one_byte one_byte three_byte_178 ;;
+payload_ahrs2 := four_byte four_byte four_byte four_byte four_byte four_byte ;;
+msg_ahrs2 := header_ahrs2 payload_ahrs2  ;;
+
+
+
+header_ahrs3 :=  one_byte_40 one_byte one_byte one_byte one_byte one_byte three_byte_182 ;;
+payload_ahrs3 := four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte ;;
+msg_ahrs3 := header_ahrs3 payload_ahrs3  ;;
+
+
+
+header_autopilot_version_request :=  one_byte_12 one_byte one_byte one_byte one_byte one_byte three_byte_183 ;;
+payload_autopilot_version_request := one_byte one_byte ;;
+msg_autopilot_version_request := header_autopilot_version_request payload_autopilot_version_request  ;;
+
+
+
+header_ekf_status_report :=  one_byte_26 one_byte one_byte one_byte one_byte one_byte three_byte_193 ;;
+payload_ekf_status_report := four_byte four_byte four_byte four_byte four_byte two_byte four_byte ;;
+msg_ekf_status_report := header_ekf_status_report payload_ekf_status_report  ;;
+
+
+
+header_vibration :=  one_byte_32 one_byte one_byte one_byte one_byte one_byte three_byte_241 ;;
+payload_vibration := eight_byte four_byte four_byte four_byte four_byte four_byte four_byte ;;
+msg_vibration := header_vibration payload_vibration  ;;
+
+
+
+header_home_position :=  one_byte_60 one_byte one_byte one_byte one_byte one_byte three_byte_242 ;;
+payload_home_position := four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte four_byte eight_byte ;;
+msg_home_position := header_home_position payload_home_position  ;;
+
+
+
+header_statustext :=  one_byte_51 one_byte one_byte one_byte one_byte one_byte three_byte_253 ;;
+payload_statustext := one_byte string_50 ;;
+msg_statustext := header_statustext payload_statustext  ;;
+
+messages := msg_heartbeat | msg_sys_status | msg_system_time | msg_set_mode | msg_aoa_ssa | msg_param_request_read | msg_param_request_list | msg_param_value | msg_gps_raw_int | msg_raw_imu | msg_scaled_pressure | msg_attitude | msg_local_position_ned | msg_global_position_int | msg_servo_output_raw | msg_mission_item | msg_mission_request | msg_mission_current | msg_mission_count | msg_mission_item_reached | msg_mission_ack | msg_gps_global_origin | msg_mission_request_int | msg_nav_controller_output | msg_rc_channels | msg_request_data_stream | msg_mission_item_int | msg_vfr_hud | msg_command_long | msg_command_ack | msg_position_target_global | msg_timesync | msg_scaled_imu2 | msg_power_status | msg_scaled_imu3 | msg_terrain_request | msg_terrain_report | msg_battery_status | msg_autopilot_version | msg_sensor_offset | msg_meminfo | msg_ahrs | msg_simstate | msg_hwstatus | msg_wind | msg_airspeed_autocal | msg_ahrs2 | msg_ahrs3 | msg_autopilot_version_request | msg_ekf_status_report | msg_vibration | msg_home_position | msg_statustext ;;
+crc := IntObj16 ;;
+mavlink:= magic messages crc ;;
+}

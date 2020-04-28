@@ -1,0 +1,4 @@
+state "dnsresponse" do
+	receive DNSObj()
+	transition "dnsrequest"
+done

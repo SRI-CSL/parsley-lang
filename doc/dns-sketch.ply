@@ -31,14 +31,14 @@ domain := subdomain | ' ' | pointer=PointerObj
 
 
 flags {qr:int, opcode:int, aa: int, tc: int, ra: int, rd:int} := 
-		qr=BitObj 
-		opcode=NibbleObj 
-		aa=BitObj
-       	tc=BitObj 
-		rd=BitObj 
-		ra=BitObj 
-		z=(BitObj{3})  // Repeats exactly 3 times?
-		rcode=NibbleObj
+		qr=IntObj1 
+		opcode=IntObj4
+		aa=IntObj1
+       	tc=IntObj1
+		rd=IntObj1
+		ra=IntObj1
+		z=(IntObj1{3})  // Repeats exactly 3 times?
+		rcode=IntObj4
 		[z.val[0] == 0 && z.val[1] == 0 && z.val[2] == 0]
 		{
 		qr = qr.val; opcode = opcode.val;
@@ -51,12 +51,12 @@ header {id: int, qr:int, opcode:int, aa:int, tc:int,
        question_count: int, answer_count: int,
        authority_count: int, additional_count: int
        }:= 
-		id=IntegerObj16 
+		id=IntObj16 
        	flags
-		qcount=IntegerObj16
-       	ancount=IntegerObj16 
-		nscount=IntegerObj16
-       	arcount=IntegerObj16
+		qcount=IntObj16
+       	ancount=IntObj16 
+		nscount=IntObj16
+       	arcount=IntObj16
        // Should validate size of the packet using these values
        {id = id.val; qr = flags.qr.val; opcode = flags.opcode.val;
        	aa = flags.aa.val; tc = flags.tc.val; rd = flags.rd.val; ra = flags.ra.val;
@@ -64,20 +64,20 @@ header {id: int, qr:int, opcode:int, aa:int, tc:int,
        answer_count = ancount.val; authority_count = nscount.val;
        additional_count = arcount.val}
        ;;
-label := len=IntegerObj8 repeater=(IntegerObj8{len.val}) // IntegerObj8 needs to repeat those many times
+label := len=IntObj8 repeater=(IntObj8{len.val}) // IntObj8 needs to repeat those many times
 [len.val >= 1 && len.val <= 255] ;;
 
-type := ty=IntegerObj16 [ty.val >= 1 && ty.val <= 16] ;; // "A", "NS", "MD", "MF", "CNAME", "SOA", "MB", "MG", "MR", "NULL", "WKS", "PTR", "HINFO", "MINFO", "MX", "TXT"
-class := cy=IntegerObj16 [cy.val >= 1 && cy.val <= 4] ;; // "IN", "CS", "CH", "HS"
+type := ty=IntObj16 [ty.val >= 1 && ty.val <= 16] ;; // "A", "NS", "MD", "MF", "CNAME", "SOA", "MB", "MG", "MR", "NULL", "WKS", "PTR", "HINFO", "MINFO", "MX", "TXT"
+class := cy=IntObj16 [cy.val >= 1 && cy.val <= 4] ;; // "IN", "CS", "CH", "HS"
 
 // Some additional values are allowed in the question part, but not in the responses.
 
 qname := label+ '\x00' ;; // Query Label needs to end with 00 byte
-qtype := type | qi=IntegerObj16 [qi.val >= 252 && qi.val <= 255] ;;
+qtype := type | qi=IntObj16 [qi.val >= 252 && qi.val <= 255] ;;
 qclass {class:int}:= class {class.val = class.cy.val} | qci=IntegerObj16 [qci.val == 255] {class.val = qci.val} ;;
 
-ttl := IntegerObj32 ;;
-rdata := len_rdata=IntegerObj16 objs=(IntegerObj8{len_rdata.val}) ;;
+ttl := IntObj32 ;;
+rdata := len_rdata=IntObj16 objs=(IntObj8{len_rdata.val}) ;;
 rr {domain:str, ttl:int,} := 
 		domain type class ttl rdata ;;
 question := qname qtype qclass ;;
