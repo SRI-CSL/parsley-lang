@@ -1,0 +1,131 @@
+// Compound object syntax.
+
+use pdfprim:{
+  Name, NameT, Integer, IntegerT, Real, RealT, Boolean, BooleanT,
+  Null, NullT, RawStream, RawStreamT,
+  Comment
+}
+
+// Dummy map definition (to be defined in prelude, but here until
+// modules and backend-syntax work).
+type map('a, 'b) = [('a, 'b)]
+
+// Since we are using the PDFObj non-terminal below before its
+// definition, we need to declare it.
+nterm {PDFObj}
+
+// The expression sublanguage for semantic actions has access to a
+// Parsley standard library, which contains maps, lists, vectors,
+// sets, etc.  These will be used below.
+
+// This maps object identifiers to their objects.
+type obj_ctxt = map<(int, int), IndirectObjT>
+
+type ObjType =
+ | Dict of DictT
+ | Array of ArrayT
+ | Stream of StreamT
+ | Reference of ReferenceT
+ | Boolean of BooleanT
+ | Real of RealT
+ | Integer of IntegerT
+ | String of StringT
+ | Name of NameT
+ | Null
+
+format PDFObj
+{
+
+  // '$typeof' is a Parsley convenience construct that substitutes the
+  // type of the specified attribute.
+
+  Dict d (ctxt : obj_ctxt) { val : map<$typeof(Name.val), ObjType)> } :=
+    // Temporary variable introduced while parsing this production.
+    (| s : set<$typeof(Name.val)> |)
+
+    "<<"
+    ( n=Name
+      [ !s.contains(n.val) ]
+      o=PDFObj<ctxt = d.ctxt>
+      { d.val[n.val] := o;
+        s := s.add(n.val) }
+    )*
+    ">>"
+  ;;
+
+  Array a (ctxt : obj_ctxt) { val : [ObjType] } :=
+    "["
+    ( o=PDFObj<ctxt = a.ctxt>
+      { a := a.val.append(o) }
+    )*
+    "]"
+  ;;
+
+  Reference r { id : int, gen : int } :=
+    n=Integer [ n.val >  0 ]
+    g=Integer [ g.val >= 0 ]
+    "R"
+    { r.id  := n.val;
+      r.gen := g.val }
+  ;;
+
+  Stream s (ctxt : obj_ctxt)
+           { dict : $typeof(Dict), stream : $typeof(RawStream) }
+  :=
+    d=Dict<ctxt=s.ctxt>
+    s=RawStream
+    [ d.val.contains("Length") && d.val["Length"] ~~ ObjType::Integer ]
+    [ s.val.length() = (d.val["Length"] as ObjType::Integer).val ]
+    { dict   := d;
+      stream := s }
+  ;;
+
+   // Note that the PDFObj parsing rule does not parse Streams.
+  PDFObj o (ctxt : obj_ctxt) { val : ObjType } :=
+    d=Dict<ctxt = o.ctxt>
+    { val = ObjType::Dict(d) }
+  ;
+    a=Array<ctxt = o.ctxt>
+    { val = ObjType::Array(a) }
+  ;
+    r=ReferenceObj
+    { val = ObjType::Reference(r) }
+  ;
+    b=Boolean
+    { val = ObjType::Boolean(b) }
+  ;
+    r=Real
+    { val = ObjType::Real(r) }
+  ;
+    i=Integer
+    { val = ObjType::Integer(i) }
+  ;
+    s=String
+    { val = ObjType::String(s) }
+  ;
+    n=Name
+    { val = ObjType::Name(n) }
+  ;
+    n=Null
+    { val = ObjType::Null }
+  ;;
+
+  // Note the special rule for parsing Streams, since they can only be
+  // indirect objects.
+  Indirect i (ctxt : obj_ctxt)
+             { id : int, gen : int, obj = ObjType }
+  :=
+    n=Integer [ n.val >  0 ]
+    g=Integer [ g.val >= 0 ]
+    [ !i.ctxt.contains((n.val, g.val)) ] // Forbid duplicate definition
+    "obj"
+      ( s=Stream { i.obj = ObjType::Stream(s) }
+      | o=PDFObj { i.obj = o }
+      )
+    "endobj"
+    { i.id  = n;
+      i.gen = g;
+      // register the object in the context
+      i.ctxt[(n.val, g.val)] = i.obj }
+  ;;
+}

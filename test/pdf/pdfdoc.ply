@@ -1,0 +1,98 @@
+// Top-level document syntax.
+
+use pdfprim:{
+  Name, NameT, Integer, IntegerT, Comment, CommentT
+}
+use pdfobj:{
+  obj_ctxt, ObjType, Indirect, IndirectT, PDFObj, Dict
+}
+
+type xref_status =
+  | Free of { next : int }
+  | InUse of { file_ofs : int }
+
+type xref_ent =
+  { obj : int,
+    gen : int,
+    status : xref_status }
+
+format PDFDoc
+{
+  Header h { version : CommentT,
+             binary  : option<CommentT> }
+  :=
+    v=Comment  b=Comment?
+    { version := v;
+      binary  := b
+    }
+  ;;
+
+  Body b (ctxt : obj_ctxt) { body: [IndirectT] } :=
+    ( i=Indirect<ctxt = b.ctxt>
+      { b.body := b.body.append(i) }
+    )*
+  ;;
+
+  XrefSect x { sects: [XrefSubSectT] } :=
+    "xref"
+    ( s=XrefSubSect
+      { x.sects := x.sects.append(s) }
+    )*
+  ;;
+
+  XrefSubSect x { start: int,
+                  count: int,
+		  ents: [XrefEnt)] }
+  :=
+    // TODO: handle disabling implicit whitespace here
+    s=Integer [ s.val >= 0 ]
+    c=Integer [ s.val >  0 ]
+    "\n"   // TODO: specify EOL-type
+    { x.start := s.val;
+      x.count := c.val }
+
+    (| i : int |)  // loop counter
+    ( e=XrefEnt<idx = i>
+      [ x.ents.len() < x.count ]
+      { x.ents := x.ents.append(e);
+        i += 1 }
+    )*
+
+    // Ensure we got the specified number of entries.
+    [ x.ents.len() == x.count ]
+  ;;
+
+  XrefEnt x (idx : int) xref_ent
+  :=
+    o=([[:digit:] * 10]) g=([[:digit:] * 5])
+    { x.obj = x.idx;
+      x.gen = $string_to_int(g) }
+    (( "n"
+       { let file_ofs = $string_to_int(o);
+         x.status = xref_status::InUse({ file_ofs }) }
+     )
+    |
+     ( "f"
+       { let next = $string_to_int(o);
+         x.status = xref_status::Free({ next }) }
+     )
+    )
+    "\r\n"
+  ;;
+
+  Trailer t (ctxt : obj_ctxt) { dict: Dict } :=
+    "trailer" d=Dict<ctxt = t.ctxt>
+    { t.dict := d }
+  ;;
+
+  StartXref s { val : int } :=
+    "startxref"
+    n=Integer
+    [ n.val > 0 ]
+    { s.val := n.val }
+  ;;
+
+  EOF {} :=
+    "%%EOF"
+  ;;
+}

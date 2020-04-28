@@ -1,0 +1,95 @@
+\begin{tikzpicture}[
+    node distance=5mm,
+    align=center,
+    spec/.style={rectangle, rounded corners=3mm, minimum size=10mm, draw=black, thick},
+    info/.style={rectangle, draw=black, fill=green!10!white},
+    lib/.style={rectangle, very thick, draw=black, fill=white},
+    app/.style={rectangle, thick, draw=black, fill=black!10!white},
+    prog/.style={rectangle, draw=brown, fill=brown!25!white},
+    compiler/.style={rectangle, rounded corners=3mm, minimum size=10mm,
+      very thick, draw=green, fill=green!25!white},
+    prover/.style={rectangle, rounded corners=3mm, minimum size=10mm,
+      very thick, draw=red, fill=red!25!white},
+    verifier/.style={rectangle, rounded corners=3mm, minimum size=10mm,
+      thick, draw=black, fill=red!10!white},
+    data/.style={rectangle, draw=black, fill=black!20!white},
+    prop/.style={circle, draw=red},
+    ast/.style={circle, draw=black},
+    memory/.style={ellipse, draw=blue, fill=blue!10!white},
+    input/.style={->, thick, black},
+    gen/.style={->, very thick, black},
+    proverinput/.style={->, thick, red},
+    proveroutput/.style={->, thick, red},
+    tree/.style={->, black},
+  ]
+
+  \pgfdeclarelayer{background}
+  \pgfdeclarelayer{main}
+  \pgfdeclarelayer{foreground}
+  \pgfsetlayers{background,main,foreground}
+
+  % main pipeline
+  \begin{pgfonlayer}{main}
+    \node (spec)      [spec]                         {\textbf{format.ply}\\ in Parsley DDL};
+
+    \node (compiler)  [compiler, below=of spec]      {\textbf{Parsley Compiler}};
+
+    \node (prover)    [prover, left=of compiler]     {\textbf{PVS Prover}};
+
+    \node (safety)    [prop,left=of prover]          {\textbf{Safety}};
+
+    \node (lib)       [lib, below left=1cm of compiler]   {\textbf{format-parser.so}\\ generated parser};
+
+    \node (info)      [info, below right=1cm of compiler] {\textbf{format.info}\\ generated properties};
+
+    \node (app)       [app, left=0.5mm of lib]       {\textbf{app.exe}\\ Application\\ code};
+
+    \node (data)      [data, right=of lib]           {Untrusted\\ data};
+  \end{pgfonlayer}
+
+  % complete application
+  \begin{pgfonlayer}{background}
+    \node (prog)      [prog, fit=(app.south west) (app.north west)
+                                 (lib.south east) (lib.north east)] {};
+  \end{pgfonlayer}
+
+  % generated AST in memory
+  \begin{pgfonlayer}{main}
+    \node (root)      [ast, fill=black, below] at ($(lib.south)+(0,-1cm)$)  {};
+
+    \node (c0)        [ast, below left=of root] {};
+    \node (c1)        [ast, below right=of root, fill=black] {};
+    \node (c10)       [ast, below left=of c1, fill=black] {};
+    \node (c11)       [ast, below right=of c1] {};
+  \end{pgfonlayer}
+  \begin{pgfonlayer}{background}
+    \node (tree)      [memory, fit=(root) (c0) (c1) (c10) (c11)] {};
+  \end{pgfonlayer}
+
+  \begin{pgfonlayer}{main}
+    \node (appdata)   [below=-0.5mm of tree] {Parsed Representation};
+    \node (verifier)  [verifier] at (compiler.south east |- tree) {Independent\\Verifier};
+    \node (validity)  [prop, below=of verifier] {\textbf{Validity}};
+  \end{pgfonlayer}
+
+  % flow
+  \draw[input]         (spec) -- (compiler);
+  \draw[gen]           (compiler) -- (lib);
+  \draw[gen]           (compiler) -- (info);
+  \draw[proverinput]   (compiler) -- (prover);
+  \draw[proveroutput]  (prover) -- (safety);
+
+  \draw[input]         (data) -- (lib);
+
+  \draw[gen]           (lib) -- (root);
+  \draw[tree]          (root) -- (c0);
+  \draw[tree]          (root) -- (c1);
+  \draw[tree]          (c1) -- (c10);
+  \draw[tree]          (c1) -- (c11);
+
+  \draw[input]         (tree) -- (verifier);
+  \draw[input]         (info) -- (verifier);
+  \draw[input]         (data) -- (verifier);
+  \draw[proveroutput]  (verifier) -- (validity);
+
+\end{tikzpicture}

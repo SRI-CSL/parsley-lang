@@ -1,0 +1,120 @@
+// The basic object primitives.
+//
+// These are 'basic' in the sense that they do not contain nested
+// objects.
+//
+// The Parsley definitions essentially use regular expression syntax,
+// except for LitString, which implements a simple CFG.
+
+fun normalize_name (s : string) -> string = {
+  // TODO
+  s
+}
+
+format PDFPrimitives {
+
+  Name n { val : string } :=
+    "/" s=([:alphanum:]+)
+    { n.val := normalize_name(s) }
+  ;;
+
+  Comment c { val : string } :=
+    "%" s=(.*) "\n"
+    { c.val := s }
+  ;;
+
+  Boolean b { val : bool } :=
+    "true"  { b.val := true }
+  ;
+    "false" { b.val := false }
+  ;;
+
+  Null {} :=
+    "null"
+    {} ;;
+
+  RawStream rs { bytes : [u8] } :=
+    "stream"      EOL
+    b=([:byte:]*) EOL
+    "endstream"
+    { rs.bytes := b } ;;
+
+  // We could use syntax like [:hex:], [:alpha:], [:alphanumeric:], [:char:] etc
+  // for standard character classes.
+  HexString hs { val : [u8] } :=
+    "<"
+    ( h1=([:hex:]) h2=([:hex:])
+      { hs.val := ($int_of_hex(h1)*16 + $int_of_hex(h2)) :: hs.val }
+    )*
+
+    ( h=([:hex:])
+      { hs.val := $int_of_hex(h1) * 16 :: hs.val}
+    )?
+    ">"
+    { hs.val := List.rev(hs.val) }
+    ;;
+
+  // The below syntax essentially implements a simple CFG for strings with
+  // balanced parentheses, using recursion.
+  // We could use syntax like ([:char:] \ '(') for set difference.
+  LitString ls { val : [u8] } :=
+      "("
+        prefix=([:char:] \ "(")*
+        n=LitString
+        suffix=([:char:] \ "(")*
+      ")"
+       { ls.val := ")" + prefix + n.val + suffix + ")" } ;
+
+      "("
+        prefix=([:char:] \ "(")*
+        p=LitString
+        midfix=([:char:] \ "(")*
+        q=LitString
+        suffix=([:char:] \ "(")*
+      ")"
+      { ls.val := "(" + prefix + p.val + midfix + q.val + ")" } ;
+
+      $epsilon                   // Parsley keyword
+
+    ;;
+
+  // The PDF String is one of the above two string objects.
+  String s { val : [u8] } :=
+    h=HexString { s.val := h.val }
+  ;
+    l=LitString { s.val := l.val }
+  ;;
+
+  // How can we parameterize whitespace for the following in a single non-terminal?
+  // - empty or non-empty
+  // - required EOL or optional
+  WhitespaceEOL w {} :=
+    (" " | "\t" | "\r" | "\n" | "\0" )*
+    { } ;;
+
+  // $int_of_string() is a function in the Parsley standard library.
+  Integer i { val : int } :=
+    n=([:digit:])+   { i.val := $int_of_string(n)  }
+  ;
+    "-" n=([:digit:])+ { i.val := -$int_of_string(n) }
+  ;;
+
+  // TODO: we might need to have a user-defined type for PDF reals,
+  // since they are not defined in terms of IEEE 754, although they
+  // are implemented in those terms.
+
+  Real r { val : double } :=
+    n=([:digit:])+
+    { val := $double_of_string(n)  }
+  ;
+    "-"  n=([:digit:])+
+    { val := -$double_of_string(n) }
+  ;
+    n=([:digit:])+ "." f=([:digit:])+
+    { val :=  $double_of_string(n + "." + f) }
+  ;
+    "-"  n=([:digit:])+ "." f=([:digit:])+
+    { val := -$double_of_string(n + "." + f) }
+  ;;
+
+}

@@ -6,10 +6,11 @@ type t = {
 
 val init: Lexing.lexbuf -> string -> unit
 val curr: Lexing.lexbuf -> t
-val print_curr_pos: out_channel -> Lexing.lexbuf -> unit
+val str_of_curr_pos: Lexing.lexbuf -> string
 
 val make_loc: Lexing.position -> Lexing.position -> t
-val make_ghost_loc: Lexing.position -> Lexing.position -> t
+val make_ghost_loc: unit -> t
+val extent: t -> t -> t
 
 type 'a loc = {
   pelem: 'a;
@@ -19,4 +20,5 @@ val mk_loc_val:  'a -> t -> 'a loc
 val value:       'a loc -> 'a
 val loc:         'a loc -> t
 
-val print_loc: out_channel -> t -> unit
+val str_of_loc:      t -> string (* full location, including file name *)
+val str_of_file_loc: t -> string (* location without file name *)

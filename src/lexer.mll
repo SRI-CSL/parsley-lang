@@ -19,6 +19,16 @@
               [ "format", FORMAT;
                 "use",    USE;
                 "type",   TYPE;
+                "fun",    FUN;
+                "nterm",  NTERM;
+                "as",     AS;
+                "of",     OF;
+                "case",   CASE;
+                "let",    LET;
+                "in",     IN;
+
+                "$typeof",  TYPEOF;
+                "$epsilon", EPSILON;
               ];
     tbl
 
@@ -42,6 +52,7 @@
 
 let newline = ('\013'* '\010')
 let blank = [' ' '\009' '\012']
+let upper = ['A'-'Z']
 let alpha = ['A'-'Z' 'a'-'z']
 let digit = ['0'-'9']
 let alnum = ['A'-'Z' 'a'-'z' '0'-'9']
@@ -59,7 +70,7 @@ rule token = parse
     { token lexbuf }
 | "//"
     { eol_comment lexbuf }
-| "'"
+| "\""
     { reset_token_buffer ();
       quote lexbuf;
       let t = get_stored_token () in
@@ -77,12 +88,15 @@ rule token = parse
 | "["  { LBRACK }
 | "]"  { RBRACK }
 | "."  { DOT }
+| "_"  { UNDERSCORE }
 | ","  { COMMA }
-| ";"  { SEMICOLON}
 | ":=" { COLONEQ }
 | "::" { COLONCOLON }
 | ":"  { COLON }
+| ";;" { SEMISEMI }
+| ";"  { SEMICOLON}
 | "+"  { PLUS }
+| "->" { ARROW }
 | "-"  { MINUS }
 | "*"  { STAR }
 | "/"  { DIV }
@@ -91,6 +105,7 @@ rule token = parse
 | "<=" { LTEQ }
 | ">=" { GTEQ }
 | "!=" { NEQ }
+| "!"  { EXCLAIM }
 | "<"  { LT }
 | ">"  { GT }
 | "="  { EQ }
@@ -98,8 +113,15 @@ rule token = parse
 | "?"  { QUESTION }
 | "\\" { BACKSLASH }
 
+| upper ident*
+    { let id = Lexing.lexeme lexbuf in
+      UID (Location.mk_loc_val id (Location.curr lexbuf)) }
 | "$"? alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
+
+| "'" alpha ident*
+    { let tv = Lexing.lexeme lexbuf in
+      TVAR (Location.mk_loc_val tv (Location.curr lexbuf)) }
 
 | int_literal
     { let s = Lexing.lexeme lexbuf in
@@ -109,6 +131,9 @@ rule token = parse
     { let s = Lexing.lexeme lexbuf in
       RE_CHAR_CLASS (Location.mk_loc_val s (Location.curr lexbuf)) }
 
+| eof
+    { EOF }
+
 and eol_comment = parse
 | newline
     { new_line lexbuf;
@@ -117,7 +142,7 @@ and eol_comment = parse
     { eol_comment lexbuf }
 
 and quote = parse
-| "'"
+| "\""
     { () }
 
 | newline
