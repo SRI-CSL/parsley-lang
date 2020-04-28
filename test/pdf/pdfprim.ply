@@ -1,31 +1,39 @@
-// The basic PDF primitives, used in pdfobj-sketch.txt
+// The basic object primitives.
 //
-// This essentially uses regular expression syntax, except for
-// LitStringObj, which implements a simple CFG.
+// These are 'basic' in the sense that they do not contain nested
+// objects.
+//
+// The Parsley definitions essentially use regular expression syntax,
+// except for LitString, which implements a simple CFG.
+
+fun normalize_name (s : string) -> string = {
+  // TODO
+  s
+}
 
 format PDFPrimitives {
 
-  NameObj n { val : string } :=
+  Name n { val : string } :=
     "/" s=([:alphanum:]+)
-    { n.val := s } ;;
+    { n.val := normalize_name(s) }
+  ;;
 
-  CommentObj c { val : string } :=
+  Comment c { val : string } :=
     "%" s=(.*) "\n"
-    { c.val := s } ;;
+    { c.val := s }
+  ;;
 
-  BooleanObj b { val : bool } :=
+  Boolean b { val : bool } :=
     "true"  { b.val := true }
-  | "false" { b.val := false } ;;
+  ;
+    "false" { b.val := false }
+  ;;
 
-  NullObj {} :=
+  Null {} :=
     "null"
     {} ;;
 
-  // We need a void / unit type in the expression language.  Should
-  // one or both sets of {} here be optional?  For an example of how
-  // this could look like, see EOF in pdfdoc-sketch.txt.
-
-  RawStreamObj rs { bytes : [u8] } :=
+  RawStream rs { bytes : [u8] } :=
     "stream"      EOL
     b=([:byte:]*) EOL
     "endstream"
@@ -33,28 +41,35 @@ format PDFPrimitives {
 
   // We could use syntax like [:hex:], [:alpha:], [:alphanumeric:], [:char:] etc
   // for standard character classes.
-  HexStringObj hs { val : [u8] } :=
+  HexString hs { val : [u8] } :=
     "<"
-    ( h1=([:hex:]) h2=([:hex:]) { hs.val := ($int_of_hex(h1)*16 + $int_of_hex(h2)) :: hs.val } )*
-    ( h=([:hex:]) { hs.val := $int_of_hex(h1) * 16 :: hs.val} )?
-    ">" { hs.val := List.rev(hs.val) } ;;
+    ( h1=([:hex:]) h2=([:hex:])
+      { hs.val := ($int_of_hex(h1)*16 + $int_of_hex(h2)) :: hs.val }
+    )*
+
+    ( h=([:hex:])
+      { hs.val := $int_of_hex(h1) * 16 :: hs.val}
+    )?
+    ">"
+    { hs.val := List.rev(hs.val) }
+    ;;
 
   // The below syntax essentially implements a simple CFG for strings with
   // balanced parentheses, using recursion.
   // We could use syntax like ([:char:] \ '(') for set difference.
-  LitStringObj ls { val : [u8] } :=
+  LitString ls { val : [u8] } :=
       "("
         prefix=([:char:] \ "(")*
-        n=LitStringObj
+        n=LitString
         suffix=([:char:] \ "(")*
       ")"
        { ls.val := ")" + prefix + n.val + suffix + ")" } ;
 
       "("
         prefix=([:char:] \ "(")*
-        p=LitStringObj
+        p=LitString
         midfix=([:char:] \ "(")*
-        q=LitStringObj
+        q=LitString
         suffix=([:char:] \ "(")*
       ")"
       { ls.val := "(" + prefix + p.val + midfix + q.val + ")" } ;
@@ -63,10 +78,12 @@ format PDFPrimitives {
 
     ;;
 
-  // The PDF StringObj is one of the above two string objects.
-  StringObj s { val : [u8] } :=
-    h=HexStringObj { s.val := h.val } ;
-    l=LitStringObj { s.val := l.val } ;;
+  // The PDF String is one of the above two string objects.
+  String s { val : [u8] } :=
+    h=HexString { s.val := h.val }
+  ;
+    l=LitString { s.val := l.val }
+  ;;
 
   // How can we parameterize whitespace for the following in a single non-terminal?
   // - empty or non-empty
@@ -76,30 +93,28 @@ format PDFPrimitives {
     { } ;;
 
   // $int_of_string() is a function in the Parsley standard library.
-  IntegerObj i { val : i64 } :=
-         n=([:digit:])+ { i.val := $int_of_string(n)  } ;
-    "-"  n=([:digit:])+ { i.val := -$int_of_string(n) } ;;
+  Integer i { val : int } :=
+    n=([:digit:])+   { i.val := $int_of_string(n)  }
+  ;
+    "-" n=([:digit:])+ { i.val := -$int_of_string(n) }
+  ;;
 
   // TODO: we might need to have a user-defined type for PDF reals,
   // since they are not defined in terms of IEEE 754, although they
   // are implemented in those terms.
 
-  RealObj r { val : double } :=
+  Real r { val : double } :=
+    n=([:digit:])+
+    { val := $double_of_string(n)  }
+  ;
+    "-"  n=([:digit:])+
+    { val := -$double_of_string(n) }
+  ;
+    n=([:digit:])+ "." f=([:digit:])+
+    { val :=  $double_of_string(n + "." + f) }
+  ;
+    "-"  n=([:digit:])+ "." f=([:digit:])+
+    { val := -$double_of_string(n + "." + f) }
+  ;;
 
-         n=([:digit:])+ { val := $double_of_string(n)  } ;
-    "-"  n=([:digit:])+ { val := -$double_of_string(n) } ;
-
-         n=([:digit:])+ "." f=([:digit:])+ { val := $double_of_string(n + "." + f) } ;
-    "-"  n=([:digit:])+ "." f=([:digit:])+ { val := -$double_of_string(n + "." + f) }
-
-  // Feedback from Shankar:
-  // . case-insensitive operator (to support case-insensitive matching)
-  // . for example, add '/' to denote choice operator
-  // . if '/' is chosen, need to appropriate distinguish comments which are using '//'
-
-  // Feedback from Peter Wyatt:
-  // . need to capture name equivalance: Annex J.3.4
-  // . ensure we can capture using Unicode details:      (Section 7.9.2.1 and Figure 7)
-  // . some constraints will of the type: this value of this entry should be a Unicode string
-  //   (whereas other entries are agnostic)
 }

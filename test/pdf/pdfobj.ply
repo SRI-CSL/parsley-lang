@@ -1,10 +1,13 @@
-// Draft sketch of PDF compound object syntax.
-// ===========================================
+// Compound object syntax.
 
-// This assumes a library of primitive objects defined in a separate module.
-use pdfprim:{NameObj, IntegerObj, RawStreamObj}
+use pdfprim:{
+  Name, NameT, Integer, IntegerT, Real, RealT, Boolean, BooleanT,
+  Null, NullT, RawStream, RawStreamT,
+  Comment
+}
 
-// Dummy map definition (until modules and backend-syntax work).
+// Dummy map definition (to be defined in prelude, but here until
+// modules and backend-syntax work).
 type map('a, 'b) = [('a, 'b)]
 
 // Since we are using the PDFObj non-terminal below before its
@@ -14,177 +17,115 @@ nterm {PDFObj}
 // The expression sublanguage for semantic actions has access to a
 // Parsley standard library, which contains maps, lists, vectors,
 // sets, etc.  These will be used below.
-type obj_ctxt = map<(int, int), $typeof(PDFObj)>
+
+// This maps object identifiers to their objects.
+type obj_ctxt = map<(int, int), IndirectObjT>
+
+type ObjType =
+ | Dict of DictT
+ | Array of ArrayT
+ | Stream of StreamT
+ | Reference of ReferenceT
+ | Boolean of BooleanT
+ | Real of RealT
+ | Integer of IntegerT
+ | String of StringT
+ | Name of NameT
+ | Null
 
 format PDFObj
 {
-  // We now define a non-terminal for the PDF dictionary object,
-  // DictObj.  Non-terminals are typically defined to have an
-  // attribute named 'val' that contains the value in the
-  // non-terminal.  The value of DictObj maps name objects
-  // (represented by the NameObj primitive) to the compound object
-  // PDFObj, which will be defined below.
 
-  // The syntax below illustrates how the type of the attribute is
-  // specified.  We give the non-terminal a short variable name
-  // so that we can refer to it in constraint checks and semantic
-  // actions.  'typeof' is a Parsley convenience construct that
-  // substitutes the type of the specified attribute.
+  // '$typeof' is a Parsley convenience construct that substitutes the
+  // type of the specified attribute.
 
-  // ':=' separates the definition of the non-terminal DictObj from
-  // its right-hand-side production rule.
+  Dict d (ctxt : obj_ctxt) { val : map<$typeof(Name.val), ObjType)> } :=
+    // Temporary variable introduced while parsing this production.
+    (| s : set<$typeof(Name.val)> |)
 
-    DictObj d (ctxt : obj_ctxt) { val : map<$typeof(NameObj.val), $typeof(PDFObj)> } :=
+    "<<"
+    ( n=Name
+      [ !s.contains(n.val) ]
+      o=PDFObj<ctxt = d.ctxt>
+      { d.val[n.val] := o;
+        s := s.add(n.val) }
+    )*
+    ">>"
+  ;;
 
-  // Below is the production rule of DictObj.
+  Array a (ctxt : obj_ctxt) { val : [ObjType] } :=
+    "["
+    ( o=PDFObj<ctxt = a.ctxt>
+      { a := a.val.append(o) }
+    )*
+    "]"
+  ;;
 
-  //      '<<' ( n=NameObj o=PDFObj<ctxt = d.ctxt> { d.val[n.val] := o } )* '>>' ;;
+  Reference r { id : int, gen : int } :=
+    n=Integer [ n.val >  0 ]
+    g=Integer [ g.val >= 0 ]
+    "R"
+    { r.id  := n.val;
+      r.gen := g.val }
+  ;;
 
-  // Literals are specified within quotes ('').  Variables are used to
-  // name non-terminals appearing on the right-hand-side, to provide
-  // convenient access to their attributes.  '(' and ')' is a grouping
-  // construct, here used to provide the domain for the Kleene star
-  // operator.  A semantic action appears within '{' and '}', and
-  // specifies computation that should occur after the preceding
-  // portion of the production rule has been matched. Here, we update
-  // the value of the DictObj with a map from the string value of the
-  // NameObj to the matched PDFObj.
-  //
-  // [SEMANTICS: Specify how exactly the semantic actions interleave
-  // with parsing engine computations.]
+  Stream s (ctxt : obj_ctxt)
+           { dict : $typeof(Dict), stream : $typeof(RawStream) }
+  :=
+    d=Dict<ctxt=s.ctxt>
+    s=RawStream
+    [ d.val.contains("Length") && d.val["Length"] ~~ ObjType::Integer ]
+    [ s.val.length() = (d.val["Length"] as ObjType::Integer).val ]
+    { dict   := d;
+      stream := s }
+  ;;
 
-  // To support checks for distinct fields in the dictionary, we can
-  // use the following rule instead.
+   // Note that the PDFObj parsing rule does not parse Streams.
+  PDFObj o (ctxt : obj_ctxt) { val : ObjType } :=
+    d=Dict<ctxt = o.ctxt>
+    { val = ObjType::Dict(d) }
+  ;
+    a=Array<ctxt = o.ctxt>
+    { val = ObjType::Array(a) }
+  ;
+    r=ReferenceObj
+    { val = ObjType::Reference(r) }
+  ;
+    b=Boolean
+    { val = ObjType::Boolean(b) }
+  ;
+    r=Real
+    { val = ObjType::Real(r) }
+  ;
+    i=Integer
+    { val = ObjType::Integer(i) }
+  ;
+    s=String
+    { val = ObjType::String(s) }
+  ;
+    n=Name
+    { val = ObjType::Name(n) }
+  ;
+    n=Null
+    { val = ObjType::Null }
+  ;;
 
-        (| s : set<$typeof(NameObj.val)> |)
-
-        "<<" ( n=NameObj [ !s.contains(n.val) ] o=PDFObj<ctxt = d.ctxt>
-	{ d.val[n.val] := o; s := s.add(n.val) } )* ">>" ;;
-
-  // Here, a named boolean-valued constraint is specified within '['
-  // and ']'.  If the constraint evaluates to false, an error
-  // containing the specified string is thrown, with the parsing
-  // location.  The set 's' is a temporary, and is discarded after the
-  // production rule completes, either successfully or with a failure.
-  //
-  // [SEMANTICS: specify when exactly the constraint is computed, and
-  // when the temporary is destroyed.]
-
-  // The PDF array object is defined as below.
-
-    ArrayObj a (ctxt : obj_ctxt) { val : [$typeof(PDFObj)] } :=
-
-        "[" ( o=PDFObj<ctxt = a.ctxt> { a := a.val.append(o) } )* "]" ;;
-
-  // The semantic action simply appends the matched object to the
-  // vector value of a.val.
-
-  // The definition of an indirect object is below, and it has three attributes.
-
-  // TODO: add a mutability specifier to the obj_ctxt type.
-
-    IndirectObj i (ctxt : obj_ctxt) { id : int, gen : int, val : $typeof(PDFObj) } :=
-
-        // the constraints check that the matched IntegerObj objects
-        // are appropriate, and that the object id has not been defined before.
-        n=IntegerObj [ n.val >= 0 ]
-        g=IntegerObj [ g.val >= 0 && !i.ctxt.contains((n.val, g.val))]
-
-        "obj" o=PDFObj<ctxt = i.ctxt> "endobj"
-
-        // the semantic action computes the values of the attributes
-        // of IndirectObj.  $location() is a predefined function that
-        // returns the current parsing cursor location, at the end of
-        // the last matching right-hand-side entity in the rule.
-        { i.id  := n.val;
-          i.gen := g.val;
-          i.val := o;
-          i.ctxt[(n.val, g.val)] := i
-        } ;;
-
-  // References to indirect objects are defined below, similarly.
-
-    ReferenceObj r { id : int, gen : int } :=
-
-        // the constraints check that the matched IntegerObj objects
-        // are appropriate.
-        n=IntegerObj [ n.val > 0 ]
-        g=IntegerObj [ g.val > 0 ]
-
-        "R"
-
-        { r.id  := n.val;
-          r.gen := g.val
-        } ;;
-
-    // Stream objects are defined next.  Note that they share a prefix with IndirectObj.
-    StreamObj s (ctxt : obj_ctxt) { dict : $typeof(DictObj), stream : $typeof(RawStreamObj) } :=
-
-        // the constraints check that the matched IntegerObj objects
-        // are appropriate, and that the stream object has not been defined before.
-        n=IntegerObj [ n.val >= 0 ]
-        g=IntegerObj [ g.val >= 0 && !s.ctxt.contains((n.val, g.val))]
-
-        "obj" d=DictObj<ctxt=s.ctxt> s=RawStreamObj "endobj"
-
-        // The constraints are specified after both the DictObj and
-        // StreamObj are matched, so that any StreamObj parsing errors
-        // can terminate the rule instead of the constraint.
-        [ d.val.contains("Length") && d.val["Length"] ~~ IntegerObj ]
-        [ s.val.length() = (d.val["Length"] as IntegerObj)->val]
-
-        { dict   := d;
-          stream := s
-        } ;;
-
-        // The '~~' construct ensures that the PDFObj in the "Length"
-        // entry of d.val is of the IntegerObj variant.  The 'as'
-        // construct extracts the value of that variant.
-
-  // We now define the general PDF object as a variant.
-
-    PDFObj o (ctxt : obj_ctxt) {} :=
-      DictObj     <ctxt = o.ctxt> ;
-      ArrayObj    <ctxt = o.ctxt> ;
-      IndirectObj <ctxt = o.ctxt> ;
-      StreamObj   <ctxt = o.ctxt> ;
-      ReferenceObj ;
-      NameObj ;
-      IntegerObj ;
-      RealObj ;
-      StringObj ;
-      NullObj ;
-      Comment ;
-      BooleanObj
-
-  // Status:
-  // - module sublanguage is very preliminary, will be fleshed out
-  //   as needed
-  // - language needs to be extended to define simpler syntax such as
-  //   the PDF primitive objects as well (e.g. using regular
-  //   expressions, etc.)
-  // - static semantics (type checks, well-definedness of attribute
-  //   evaluation, etc) are still to be defined.
-
-  // Feedback from Shankar:
-  // - will need a way of referring to variables in error strings, and string formatting
-  // - grammar parameterization will need to be fleshed out
-  // - need to ensure that attributes have defined values in all cases (static semantics)
-  // - leverage PEG/Packrat greedy matching to ensure unambiguous parsing
-  // - need to flesh out Parsley language predefines like $location() in one place
-  // - use a more declarative syntax instead of an imperative syntax (e.g. instead of list.append(v))
-
-  // Feedback from Peter Wyatt:
-  //
-  // . mapping objects to locations is not that simple, since objects
-  //   can occur in object content streams, which in turn could be
-  //   compressed.  Might need some hierarchical or nested notion of
-  //   "location".
-  //
-  // . need to be clearer about whitespace and token boundaries.
-  //   Should need very little explicit non-empty whitespace
-  //   requirements.  Shankar: should have a way of abstracting
-  //   whitespace via a language directive.
-  //
-  // . CommentObjs can appear literally anywhere, not quite captured here
+  // Note the special rule for parsing Streams, since they can only be
+  // indirect objects.
+  Indirect i (ctxt : obj_ctxt)
+             { id : int, gen : int, obj = ObjType }
+  :=
+    n=Integer [ n.val >  0 ]
+    g=Integer [ g.val >= 0 ]
+    [ !i.ctxt.contains((n.val, g.val)) ] // Forbid duplicate definition
+    "obj"
+      ( s=Stream { i.obj = ObjType::Stream(s) }
+      | o=PDFObj { i.obj = o }
+      )
+    "endobj"
+    { i.id  = n;
+      i.gen = g;
+      // register the object in the context
+      i.ctxt[(n.val, g.val)] = i.obj }
+  ;;
 }

@@ -1,154 +1,98 @@
-// Use the constructs sketched in the pdfobj module.  This includes both non-terminals
-// as well as types.
-use pdfobj:{CommentObj, IndirectObj, PDFObj, DictObj, IntegerObj, obj_ctxt}
+// Top-level document syntax.
 
-// Syntax for user type definitions.
-type xref_t = Free | Inuse
-type option('a) =
-    Some of 'a
-  | None
+use pdfprim:{
+  Name, NameT, Integer, IntegerT, Comment, CommentT
+}
+use pdfobj:{
+  obj_ctxt, ObjType, Indirect, IndirectT, PDFObj, Dict
+}
+
+type xref_status =
+  | Free of { next : int }
+  | InUse of { file_ofs : int }
+
+type xref_ent =
+  { obj : int,
+    gen : int,
+    status : xref_status }
 
 format PDFDoc
 {
-  // ctxt is an inherited attributed of Doc below, while the others (header .. startxref)
-  // are synthesized attributes.  Inherited attributes are declared within (), while
-  // synthesized attributes are declared within {}.
-  //
-  // A non-terminal in a production rule is provided the values of its inherited attributes
-  // within <>, as in the calls to Body and Trailer below.
-
-  Doc d (ctxt : obj_ctxt) { header: $typeof(Header), body: $typeof(Body), xref: [$typeof(XrefSect)], trailer: [$typeof(Trailer)], startxref: int } :=
-
-    h=Header b=Body<ctxt = d.ctxt> x=Xref t=Trailer<ctxt = d.ctxt> s=StartXref e=EOF
-
-    { d.header    := h;
-      d.body      := b;
-      d.xref      := d.xref.append(x);
-      d.trailer   := d.trailer.append(t);
-      d.startxref := s.val
-    } ;;
-
-Header h { version: $typeof(CommentObj),
-           binary: option<$typeof(CommentObj)> } :=
-
-    v=CommentObj b=CommentObj?
-    // '?' is a builtin that creates an option-type
-
+  Header h { version : CommentT,
+             binary  : option<CommentT> }
+  :=
+    v=Comment  b=Comment?
     { version := v;
-      binary  := b  // type-checks since b is an option value
-    } ;;
+      binary  := b
+    }
+  ;;
 
-Body b (ctxt : obj_ctxt) { body: [$typeof(PDFObj)] } :=
+  Body b (ctxt : obj_ctxt) { body: [IndirectT] } :=
+    ( i=Indirect<ctxt = b.ctxt>
+      { b.body := b.body.append(i) }
+    )*
+  ;;
 
-    ( o=PDFObj<ctxt = b.ctxt> [ o ~~ IndirectObj ] { b.body := b.body.append(o) } )* ;;
+  XrefSect x { sects: [XrefSubSectT] } :=
+    "xref"
+    ( s=XrefSubSect
+      { x.sects := x.sects.append(s) }
+    )*
+  ;;
 
-    // The constraint ensures that the top-level objects are all
-    // indirect objects.  Note that the parsing action here is
-    // entirely contained within the Kleene star group.
-
-XrefSect x { sects: [$typeof(XrefSubSect)] } :=
-
+  XrefSubSect x { start: int,
+                  count: int,
+		  ents: [XrefEnt)] }
+  :=
     // TODO: handle disabling implicit whitespace here
-    "xref" ( s=XrefSubSect { x.sects := x.sects.append(s) } )* ;;
-
-XrefSubSect x { start: int, count: int, ents: [$typeof(XrefEnt)] } :=
-    // The spec is not clear whether there is any leading or trailing non-EOL whitespace
-
-    s=IntegerObj [ s.val >= 0 ]
-    c=IntegerObj [ s.val >  0 ]
-
-    "\n"  // EOL-type is not specified in the spec.
-
+    s=Integer [ s.val >= 0 ]
+    c=Integer [ s.val >  0 ]
+    "\n"   // TODO: specify EOL-type
     { x.start := s.val;
       x.count := c.val }
 
-    ( e=XrefEnt [ x.ents.len() < x.count() ] { x.ents := x.ents.append(e) } )* ;;
+    (| i : int |)  // loop counter
+    ( e=XrefEnt<idx = i>
+      [ x.ents.len() < x.count ]
+      { x.ents := x.ents.append(e);
+        i += 1 }
+    )*
 
-XrefEnt x { offset: int, gen: int, status: xref_t } :=
+    // Ensure we got the specified number of entries.
+    [ x.ents.len() == x.count ]
+  ;;
 
-    o=([[:digit:]*10]) g=([[:digit:]*5])
-
-    // This is relatively standard regular expression syntax: [digit]
-    // is the numeric character class, and ()*n is the repetition
-    // construct.
-
-    { x.offset := $string_to_int(o);
-      x.gen    := $string_to_int(g);
-      x.status := Inuse()
-    }
-
-    // $string_to_int() is a Parsley built-in to convert strings into
-    // integers.
-    // [SEMANTICS: Should this function can throw a parsing exception
-    // on non-numeric input? ]
-
-    ( "n" { x.status := Inuse() }
-    | "f" { x.status := Free()  }
+  XrefEnt x (idx : int) xref_ent
+  :=
+    o=([[:digit:] * 10]) g=([[:digit:] * 5])
+    { x.obj = x.idx;
+      x.gen = $string_to_int(g) }
+    (( "n"
+       { let file_ofs = $string_to_int(o);
+         x.status = xref_status::InUse({ file_ofs }) }
+     )
+    |
+     ( "f"
+       { let next = $string_to_int(o);
+         x.status = xref_status::Free({ next }) }
+     )
     )
+    "\r\n"
+  ;;
 
-    "\r\n" // This is required to be 'a two-character end-of-line
-           // sequence'.
+  Trailer t (ctxt : obj_ctxt) { dict: Dict } :=
+    "trailer" d=Dict<ctxt = t.ctxt>
+    { t.dict := d }
+  ;;
 
-    ;;
+  StartXref s { val : int } :=
+    "startxref"
+    n=Integer
+    [ n.val > 0 ]
+    { s.val := n.val }
+  ;;
 
-    // Note: interleaving of actions, parsing, and constraint checking
-    // is explicitly designed to enable succinct specifications.
-    // The ';' in the concrete syntax terminates the production rule.
-
-Trailer t (ctxt : obj_ctxt) { dict: $typeof(DictObj) } :=
-
-   "trailer" d=DictObj<ctxt = t.ctxt>
-
-   { t.dict := d } ;;
-
-StartXref s { val : int } :=
-
-   "startxref"
-   n=IntegerObj [ n.val > 0 ]
-
-   { s.val := n.val } ;;
-
-EOF {} :=
-
-  "%%EOF"
-
+  EOF {} :=
+    "%%EOF"
+  ;;
 }
-
-// What's missing in the current sketch:
-//
-// - more explicit handling of whitespace, especially:
-//   . when is it required, and when can it be empty
-//   . EOLs (end-of-line markers), again, when are they required, and
-//     what specific type
-//
-// - supporting random-access primitives
-//   . needed to handle entries in cross-reference table
-//
-// - supporting explicit control flow (in conjunction with above)
-//
-//   . e.g. start with the EOF, then search backwards to StartXref,
-//     extract offset for Xref, then goto that offset, parse Xref,
-//     fall through to Trailer, then construct DOM
-//
-//   . one option: leave all random-access control flow out of
-//     Parsley, and entirely up to application.  But we need to ensure
-//     that parser state (e.g. currently constructed AST) is always
-//     consistently maintained.
-//
-// - there is currently no clear syntactic distinction between
-//   inherited and synthesized attributes.
-
-// Feedback from Peter Wyatt:
-//
-// - cannot assume PDF integers will be representable in 64-bits
-//   (Annex C).
-//
-// - the syntax and (perhaps also the real numbers?) used in the PDF
-//   rendering and imaging expressions is completely self-contained,
-//   and it should be possible to factor out into a sub-grammar.
-//   There is no leakage across the boundary with the outer language.
-//   Section 7.10.
-//
-// . EOL for xrefs are very explicitly defined in the spec.  might
-//   need a xref-specific EOL definition.  Also need a way of
-//   capturing the leading-zeros requirement of xref entries.
