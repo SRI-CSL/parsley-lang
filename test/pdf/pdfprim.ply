@@ -115,6 +115,5 @@ format PDFPrimitives {
   ;
     "-"  n=([:digit:])+ "." f=([:digit:])+
     { val := -$double_of_string(n + "." + f) }
-  ;;
 
 }

@@ -30,6 +30,7 @@ type type_error =
   | Nonunique_type_var of A.tvar * L.t
   | Nonunique_type_defn of A.path * L.t
   | Nonunique_variant_constr of A.ident * L.t
+  | Nonunique_record_field of A.ident * L.t
   | Nonunique_fun_param of A.ident * L.t
   | Unknown_type_variable of A.tvar
   | Unknown_type_constructor of A.path
@@ -38,6 +39,8 @@ type type_error =
   | Invalid_path_attribute of (* attr *) A.ident * (* non-terminal *) A.path
   | Predefined_type of A.path
   | Incorrect_tycon_arity of A.path * (* expected *) int * (* found *) int
+  | Polymorphic_nonterm of (* nonterm *) A.path * (* type-def *) A.ident
+  | Nonrecord_attr_type of (* nonterm *) A.path * (* type-def *) A.ident
   | Cyclic_typeof_dependency of typeof_dep list
   | Undefined_path of A.path
 
@@ -53,6 +56,9 @@ let error_string = function
   | Nonunique_variant_constr (c, l) ->
         Printf.sprintf "re-definition of constructor %s (previously defined at %s)"
                        (L.value c) (L.str_of_loc l)
+  | Nonunique_record_field (f, l) ->
+        Printf.sprintf "non-unique record field %s (previously defined at %s)"
+                       (L.value f) (L.str_of_loc l)
   | Nonunique_fun_param (p, l) ->
         Printf.sprintf "non-unique function parameter %s (previously defined on %s)"
                        (L.value p) (L.str_of_file_loc l)
@@ -77,6 +83,14 @@ let error_string = function
   | Incorrect_tycon_arity (p, exp, fnd) ->
         Printf.sprintf "%d args expected for %s, found %d"
                        exp (Ast_utils.str_of_path p) fnd
+  | Polymorphic_nonterm (nt, ti) ->
+        Printf.sprintf "nonterminal %s cannot have polymorphic type %s"
+          (Ast_utils.str_of_path nt) (L.value ti)
+
+  | Nonrecord_attr_type (nt, ti) ->
+        Printf.sprintf "nonterminal %s cannot have polymorphic type %s"
+                       (Ast_utils.str_of_path nt) (L.value ti)
+
   | Cyclic_typeof_dependency c ->
         "cyclic typeof dependency detected: "
         ^ (String.concat " -> " (List.map str_of_dep c))
@@ -95,6 +109,7 @@ type fun_sig =
       fun_sig_loc: Location.t }
 
 (* the type of a non-terminal, without the grammar rules *)
+(* in case of user-defined record types, this contains the record body *)
 type nterm_type =
     { nterm_name: Ast.path;
       nterm_inh_attrs: TA.param_decl list;
@@ -383,6 +398,26 @@ let rec well_typed_type_expr ctx (te: A.type_expr) : TA.type_expr =
           );
           let tl' = List.map (fun e -> well_typed_type_expr ctx e) tl in
           mk_te (TA.TE_constr (p, tl'))
+    | A.TE_record r ->
+          let field_check =
+            (fun m pd ->
+              let f, _ = L.value pd in
+              let fn, fl = L.value f, L.loc f in
+              match StringMap.find_opt fn m with
+                | Some l ->
+                      let e = Nonunique_record_field (f, l) in
+                      type_error e fl
+                | None ->
+                      StringMap.add fn fl m
+            ) in
+          let _ = List.fold_left field_check StringMap.empty r in
+          let type_check =
+            (fun pd ->
+              let f, t = L.value pd in
+              L.mk_loc_val (f, well_typed_type_expr ctx t) (L.loc pd)
+            ) in
+          let r' = List.map type_check r in
+          mk_te (TA.TE_record r')
     | A.TE_typeof p ->
           (match p with
              | []  ->  (* we should always have non-empty paths *)
@@ -481,6 +516,8 @@ let tvars_of_type_expr (te: A.type_expr) : A.tvar StringMap.t =
             traverse acc te
       | A.TE_constr (p, tel) ->
             List.fold_left (fun ctx e -> traverse ctx e) acc tel
+      | A.TE_record r ->
+            List.fold_left (fun ctx pd -> traverse ctx (snd (L.value pd))) acc r
       | A.TE_typeof p ->
             (* non-terminals are not (yet?) polymorphic *)
             acc
@@ -533,19 +570,44 @@ let type_check_fun_sig ctx (fd: A.fun_defn) : fun_sig =
     fun_sig_loc      = fd.A.fun_defn_loc }
 
 
+(* Looks up the record type for a user-defined type if it is used as
+ * an attribute type.
+ *)
+let lookup_nonterm_attr_type ctx (nt: A.non_term_defn) (i: Ast.ident) =
+  match Ctx.lookup_type_defn ctx [i] with
+    | None ->
+          let e = Undefined_path [i] in
+          type_error e (L.loc i)
+    | Some td -> begin
+        match td.TA.type_defn_tvars, td.TA.type_defn_body with
+          | (_::_, _) ->
+                let e = Polymorphic_nonterm ([nt.A.non_term_name], i) in
+                type_error e (L.loc i)
+          | ([], { type_rep = TA.TR_expr { type_expr = TA.TE_record pd } }) ->
+                pd
+          | ([], _ ) ->
+                let e = Nonrecord_attr_type ([nt.A.non_term_name], i) in
+                type_error e (L.loc i)
+      end
+
 (* well-typed check for types of non-terminal definitions;
- * returns the non-terminal type (if valid).
+ * returns the non-terminal type (if valid).  It unwraps any
+ * top-level user-defined record types for attribute sets.
  *
  * This requires that all typeof dependencies of the non-terminal
  * have had their type definitions added to the context.
  *)
 let type_check_nterm_type ctx (nt: A.non_term_defn) : nterm_type =
-  let tc_attr pd =
+  let tc_attr_decl pd =
     let aid, ate = L.value pd in
     let ate = well_typed_type_expr ctx ate in
     L.mk_loc_val (aid, ate) (L.loc pd) in
-  let nterm_inh_attrs = List.map tc_attr nt.A.non_term_inh_attrs in
-  let nterm_syn_attrs = List.map tc_attr nt.A.non_term_syn_attrs in
+  let tc_attr te =
+    match te with
+      | A.ALT_type i  -> lookup_nonterm_attr_type ctx nt i
+      | A.ALT_decls d -> List.map tc_attr_decl d in
+  let nterm_inh_attrs = tc_attr nt.A.non_term_inh_attrs in
+  let nterm_syn_attrs = tc_attr nt.A.non_term_syn_attrs in
   { nterm_name = [nt.A.non_term_name];
     nterm_inh_attrs;
     nterm_syn_attrs;
@@ -578,6 +640,10 @@ let typeof_deps_type_expr (te : A.type_expr) : typeof_dep list =
       | A.TE_tuple tel -> List.fold_left helper acc tel
       | A.TE_list te -> helper acc te
       | A.TE_constr (p, tel) -> List.fold_left helper acc tel
+      | A.TE_record r ->
+            List.fold_left
+              (fun acc te -> helper acc (snd (L.value te)))
+              acc r
       | A.TE_typeof p ->
             let nt, attr = AU.path_into_nterm_attr p in
             (* ordering for type-checking only depends on
@@ -593,19 +659,25 @@ let typeof_deps_type_expr (te : A.type_expr) : typeof_dep list =
  * There is an implicit typeof dependency between the type of a non-terminal
  * and the types of its attributes.
  *)
-let typeof_deps_non_term (dg : TD_depgraph.t) (nt : A.non_term_defn) : TD_depgraph.t =
+let typeof_deps_non_term ctx (dg : TD_depgraph.t) (nt : A.non_term_defn) : TD_depgraph.t =
   let ntpath = [nt.A.non_term_name] in
   let ntnode = Tydep_nterm ntpath in
   let add_dep dg node dep =
     TD_depgraph.add_link dg node dep in
+  let get_attrs attr_defn =
+    match attr_defn with
+      | A.ALT_type i   -> []  (* FIXME *)
+      | A.ALT_decls pd -> pd in
   let process_attr dg attr =
     let aname, atype = L.value attr in
     let anode = Tydep_nterm_attr (ntpath, aname) in
     let dg = add_dep dg ntnode anode in
     List.fold_left (fun dg dep -> add_dep dg anode dep)
                    dg (typeof_deps_type_expr atype) in
-  let dg = List.fold_left process_attr dg nt.A.non_term_inh_attrs in
-  List.fold_left process_attr dg nt.A.non_term_syn_attrs
+      let dg = List.fold_left process_attr
+                 dg (get_attrs nt.A.non_term_inh_attrs) in
+      List.fold_left process_attr
+        dg (get_attrs nt.A.non_term_syn_attrs)
 
 (*
 
@@ -672,7 +744,7 @@ let type_check toplevel =
                              * with format name prefixes *)
                             let p = [d.A.non_term_name] in
                             let nm = AU.str_of_path p in
-                            let dg = typeof_deps_non_term dg d in
+                            let dg = typeof_deps_non_term ctx dg d in
                             let df = StringMap.add nm d df in
                             dg, df
                    ) (dgraph, ntdefs) f.A.format_decls in

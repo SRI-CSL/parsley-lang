@@ -52,6 +52,7 @@
 
 let newline = ('\013'* '\010')
 let blank = [' ' '\009' '\012']
+let lower = ['a'-'z']
 let upper = ['A'-'Z']
 let alpha = ['A'-'Z' 'a'-'z']
 let digit = ['0'-'9']
@@ -116,6 +117,14 @@ rule token = parse
 | upper ident*
     { let id = Lexing.lexeme lexbuf in
       UID (Location.mk_loc_val id (Location.curr lexbuf)) }
+| lower ident* "::" upper ident*
+    { let id = Lexing.lexeme lexbuf in
+      let ls = String.split_on_char ':' id in
+      let c, v = List.hd ls, List.nth ls 2 in
+      let c = Location.mk_loc_val c (Location.curr lexbuf) in
+      let v = Location.mk_loc_val v (Location.curr lexbuf) in
+      CONSTR (c, v) }
+
 | "$"? alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
 

@@ -8,7 +8,7 @@ use pdfobj:{
 }
 
 type xref_status =
-  | Free of { next : int }
+    Free of { next : int }
   | InUse of { file_ofs : int }
 
 type xref_ent =
@@ -18,8 +18,8 @@ type xref_ent =
 
 format PDFDoc
 {
-  Header h { version : CommentT,
-             binary  : option<CommentT> }
+  Header h { version : commentT,
+             binary  : option<commentT> }
   :=
     v=Comment  b=Comment?
     { version := v;
@@ -27,13 +27,13 @@ format PDFDoc
     }
   ;;
 
-  Body b (ctxt : obj_ctxt) { body: [IndirectT] } :=
+  Body b (ctxt : obj_ctxt) { body: [indirectT] } :=
     ( i=Indirect<ctxt = b.ctxt>
       { b.body := b.body.append(i) }
     )*
   ;;
 
-  XrefSect x { sects: [XrefSubSectT] } :=
+  XrefSect x { sects: [xrefSubSectT] } :=
     "xref"
     ( s=XrefSubSect
       { x.sects := x.sects.append(s) }
@@ -42,8 +42,10 @@ format PDFDoc
 
   XrefSubSect x { start: int,
                   count: int,
-		  ents: [XrefEnt)] }
+		  ents: [xrefEntT] }
   :=
+    (| i : int |)  // entry loop counter
+
     // TODO: handle disabling implicit whitespace here
     s=Integer [ s.val >= 0 ]
     c=Integer [ s.val >  0 ]
@@ -51,36 +53,37 @@ format PDFDoc
     { x.start := s.val;
       x.count := c.val }
 
-    (| i : int |)  // loop counter
     ( e=XrefEnt<idx = i>
       [ x.ents.len() < x.count ]
       { x.ents := x.ents.append(e);
-        i += 1 }
+        i := i + 1 }
     )*
 
     // Ensure we got the specified number of entries.
-    [ x.ents.len() == x.count ]
+    [ x.ents.len() = x.count ]
   ;;
 
-  XrefEnt x (idx : int) xref_ent
+  XrefEnt x (idx : int) { xref_ent }
   :=
     o=([[:digit:] * 10]) g=([[:digit:] * 5])
-    { x.obj = x.idx;
-      x.gen = $string_to_int(g) }
+    { x.obj := x.idx;
+      x.gen := $string_to_int(g) }
     (( "n"
-       { let file_ofs = $string_to_int(o);
-         x.status = xref_status::InUse({ file_ofs }) }
+       { x.status :=
+           let file_ofs = $string_to_int(o) in
+           xref_status::InUse({ file_ofs: file_ofs }) }
      )
     |
      ( "f"
-       { let next = $string_to_int(o);
-         x.status = xref_status::Free({ next }) }
+       { x.status :=
+         let next = $string_to_int(o) in
+	 xref_status::Free({ next: next }) }
      )
     )
     "\r\n"
   ;;
 
-  Trailer t (ctxt : obj_ctxt) { dict: Dict } :=
+  Trailer t (ctxt : obj_ctxt) { dict: dictT } :=
     "trailer" d=Dict<ctxt = t.ctxt>
     { t.dict := d }
   ;;
@@ -94,5 +97,4 @@ format PDFDoc
 
   EOF {} :=
     "%%EOF"
-  ;;
 }

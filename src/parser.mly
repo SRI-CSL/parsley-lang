@@ -13,14 +13,17 @@ open Parseerror
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
 %token MATCH COLONCOLON BACKSLASH EXCLAIM UNDERSCORE
 
-%token <string Location.loc> LITERAL
-%token <string Location.loc> ID
-%token <string Location.loc> UID
-%token <string Location.loc> TVAR
-%token <string Location.loc> INT_LITERAL
-%token <string Location.loc> RE_CHAR_CLASS
+%token<Ast.literal> LITERAL
+%token<Ast.ident>   ID
+%token<Ast.ident>   UID
+%token<Ast.tvar>    TVAR
 
-%start <Ast.top_level> toplevel
+%token<string Location.loc> INT_LITERAL
+%token<string Location.loc> RE_CHAR_CLASS
+
+%token<string Location.loc * string Location.loc> CONSTR
+
+%start<Ast.top_level> toplevel
 
 (* operators are increasing precedence order. *)
 %nonassoc IN
@@ -147,6 +150,8 @@ type_expr:
   { make_type_expr (TE_list t) $startpos $endpos }
 | p=path LT l=separated_list(COMMA, type_expr) GT
   { make_type_expr (TE_constr (p, l)) $startpos $endpos }
+| LBRACE r=param_decls RBRACE
+  { make_type_expr (TE_record r) $startpos $endpos }
 | TYPEOF LPAREN nt=UID RPAREN
   { make_type_expr (TE_typeof [nt]) $startpos $endpos }
 | TYPEOF LPAREN nt=UID DOT p=separated_nonempty_list(DOT, ident) RPAREN
@@ -172,6 +177,14 @@ param_decls:
 | l=separated_list(COMMA, param_decl)
   { l }
 
+rec_field:
+| i=ident COLON e=expr
+  { (i, e) }
+
+rec_fields:
+| l=separated_list(COMMA, rec_field)
+  { l }
+
 expr:
 | p=path
   { make_expr (E_path p) $startpos $endpos }
@@ -185,18 +198,20 @@ expr:
   { make_expr (E_apply(e, l)) $startpos $endpos }
 | e=expr LBRACK i=expr RBRACK
   { make_expr (E_binop(Index, e, i)) $startpos $endpos }
-| c=UID LPAREN l=separated_list(COMMA, expr) RPAREN
-  { make_expr (E_constr(c, l)) $startpos $endpos }
+| c=CONSTR LPAREN l=separated_list(COMMA, expr) RPAREN
+  { make_expr (E_constr(fst c, snd c, l)) $startpos $endpos }
 | MINUS e=expr %prec UMINUS
   { make_expr (E_unop (Uminus, e)) $startpos $endpos }
 | EXCLAIM e=expr
   { make_expr (E_unop (Not, e)) $startpos $endpos }
+| LBRACE r=rec_fields RBRACE
+  { make_expr (E_record r) $startpos $endpos }
 | l=expr LAND r=expr
   { make_expr (E_binop (Land, l, r)) $startpos $endpos }
 | l=expr LOR r=expr
   { make_expr (E_binop (Lor, l, r)) $startpos $endpos }
-| e=expr MATCH nt=UID
-  { make_expr (E_match (e, [nt])) $startpos $endpos }
+| e=expr MATCH c=CONSTR
+  { make_expr (E_match (e, [fst c], snd c)) $startpos $endpos }
 | l=expr PLUS r=expr
   { make_expr (E_binop (Plus, l, r)) $startpos $endpos }
 | l=expr MINUS r=expr
@@ -218,7 +233,9 @@ expr:
 | l=expr COLONCOLON r=expr
   { make_expr (E_binop (Cons, l, r)) $startpos $endpos }
 | e=expr AS nt=UID
-  { make_expr (E_cast (e, [nt])) $startpos $endpos }
+  { make_expr (E_cast_type (e, [nt])) $startpos $endpos }
+| e=expr AS c=CONSTR
+  { make_expr (E_cast_variant (e, [fst c], snd c)) $startpos $endpos }
 | e=expr ARROW p=path
   { make_expr (E_field (e, p)) $startpos $endpos }
 | LPAREN CASE e=expr OF option(BAR) b=separated_list(BAR, branch) RPAREN
@@ -328,18 +345,24 @@ rule:
 | l=list(rule_elem)
   { make_rule [] l $startpos $endpos }
 
+nt_param_decls:
+| d=param_decls
+  { ALT_decls d }
+| i=ident
+  { ALT_type i }
+
 nt_defn:
 | n=UID v=option(ident)
-  LBRACE syn=param_decls RBRACE COLONEQ
+  LBRACE syn=nt_param_decls RBRACE COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
-  { make_nt_defn n v [] syn r $startpos $endpos }
+  { make_nt_defn n v (ALT_decls []) syn r $startpos $endpos }
 | n=UID v=option(ident)
-  LPAREN inh=param_decls RPAREN COLONEQ
+  LPAREN inh=nt_param_decls RPAREN COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
-  { make_nt_defn n v inh [] r $startpos $endpos }
+  { make_nt_defn n v inh (ALT_decls []) r $startpos $endpos }
 | n=UID v=option(ident)
-  LPAREN inh=param_decls RPAREN
-  LBRACE syn=param_decls RBRACE COLONEQ
+  LPAREN inh=nt_param_decls RPAREN
+  LBRACE syn=nt_param_decls RBRACE COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
   { make_nt_defn n v inh syn r $startpos $endpos }
 

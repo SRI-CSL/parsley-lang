@@ -16,7 +16,11 @@ type type_expr_desc =
   | TE_tuple of type_expr list
   | TE_list of type_expr
   | TE_constr of Ast.path * (type_expr list)
+  | TE_record of param_decl list
   | TE_non_term of Ast.path
+
+ and param_decl =
+    (Ast.ident * type_expr) Location.loc
 
  and type_expr =
    { type_expr: type_expr_desc;
@@ -29,9 +33,6 @@ type type_rep_desc =
  and type_rep =
    { type_rep: type_rep_desc;
      type_rep_loc: Location.t }
-
-type param_decl =
-    (Ast.ident * type_expr) Location.loc
 
 type pattern_desc =
   | P_wildcard
@@ -111,11 +112,15 @@ type rule =
       rule_temps: param_decl list;
       rule_loc: Location.t }
 
+type attr_list_type =
+  | ALT_type of Ast.ident
+  | ALT_decls of param_decl list
+
 type non_term_defn =
     { non_term_name: Ast.ident;
       non_term_varname: Ast.ident option;
-      non_term_inh_attrs: param_decl list; (* inherited *)
-      non_term_syn_attrs: param_decl list; (* synthesized *)
+      non_term_inh_attrs: attr_list_type; (* inherited *)
+      non_term_syn_attrs: attr_list_type; (* synthesized *)
       non_term_rules: rule list;
       non_term_loc: Location.t }
 

@@ -1,14 +1,18 @@
 type tvar    = string Location.loc
 type ident   = string Location.loc
 type literal = string Location.loc
-type path = ident list
+type path    = ident list
 
 type type_expr_desc =
   | TE_tvar of tvar
-  | TE_tuple  of type_expr list
+  | TE_tuple of type_expr list
   | TE_list of type_expr
   | TE_constr of path * type_expr list
+  | TE_record of param_decl list
   | TE_typeof of path
+
+ and param_decl =
+    (ident * type_expr) Location.loc
 
  and type_expr =
    { type_expr: type_expr_desc;
@@ -22,8 +26,6 @@ type type_rep_desc =
    { type_rep: type_rep_desc;
      type_rep_loc: Location.t }
 
-type param_decl =
-    (ident * type_expr) Location.loc
 
 type binop =
   | Lt | Gt | Lteq | Gteq | Eq
@@ -47,17 +49,19 @@ type pattern_desc =
 type expr_desc =
   | E_path of path
   | E_int of int
-  | E_constr of ident * expr list
+  | E_constr of ident * ident * expr list
   | E_tuple of expr list
+  | E_record of (ident * expr) list
   | E_apply of expr * expr list
   | E_unop of unop * expr
   | E_binop of binop * expr * expr
   | E_literal of literal
-  | E_cast of expr * path
+  | E_cast_type of expr * path
+  | E_cast_variant of expr * path * ident
   | E_field of expr * path
   | E_case of expr * (pattern * expr) list
   | E_let of pattern * expr * expr
-  | E_match of expr * path
+  | E_match of expr * path * ident
 
  and expr =
    { expr: expr_desc;
@@ -115,11 +119,15 @@ type rule =
       rule_temps: param_decl list;
       rule_loc: Location.t }
 
+type attr_list_type =
+  | ALT_type of ident  (* TODO: support record instantiation? *)
+  | ALT_decls of param_decl list
+
 type non_term_defn =
     { non_term_name: ident;
       non_term_varname: ident option;
-      non_term_inh_attrs: param_decl list; (* inherited *)
-      non_term_syn_attrs: param_decl list; (* synthesized *)
+      non_term_inh_attrs: attr_list_type; (* inherited *)
+      non_term_syn_attrs: attr_list_type; (* synthesized *)
       non_term_rules: rule list;
       non_term_loc: Location.t }
 
