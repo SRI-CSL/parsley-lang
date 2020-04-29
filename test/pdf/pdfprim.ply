@@ -13,6 +13,21 @@ fun normalize_name (s : string) -> string = {
 
 format PDFPrimitives {
 
+  Comment := "%" upto("\n");;
+
+  Whitespace w { allow_empty : bool } :=
+    [allow_empty]
+    (" " | "\0" | "\t" | "\r" | "\n"
+     | "\x0c" // form-feed
+     | Comment
+    )*
+  ; [!allow_empty]
+    (" " | "\0" | "\t" | "\r" | "\n"
+     | "\x0c" // form-feed
+     | Comment
+    )+
+  ;;
+
   Name n { val : string } :=
     "/" s=([:alphanum:]+)
     { n.val := normalize_name(s) }

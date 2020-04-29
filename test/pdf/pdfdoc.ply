@@ -33,6 +33,10 @@ format PDFDoc
     )*
   ;;
 
+  // This whitespace attribute does not apply inside XrefSubSect,
+  // i.e. inside any non-terminal on the right-hand-side of the
+  // production.
+  [whitespace(Whitespace<allow_empty=true>)]
   XrefSect x { sects: [xrefSubSectT] } :=
     "xref"
     ( s=XrefSubSect
@@ -40,13 +44,15 @@ format PDFDoc
     )*
   ;;
 
+  // There is no implicit whitespace between the entities on the
+  // right-hand-side of the production.
+  [whitespace(none)]
   XrefSubSect x { start: int,
                   count: int,
 		  ents: [xrefEntT] }
   :=
     (| i : int |)  // entry loop counter
 
-    // TODO: handle disabling implicit whitespace here
     s=Integer [ s.val >= 0 ]
     c=Integer [ s.val >  0 ]
     "\n"   // TODO: specify EOL-type
@@ -63,18 +69,21 @@ format PDFDoc
     [ x.ents.len() = x.count ]
   ;;
 
+  // There is no implicit whitespace between the entities on the
+  // right-hand-side of the production.
+  [whitespace(none)]
   XrefEnt x (idx : int) { xref_ent }
   :=
-    o=([[:digit:] * 10]) g=([[:digit:] * 5])
+    o=([[:digit:] * 10]) " " g=([[:digit:] * 5])
     { x.obj := x.idx;
       x.gen := $string_to_int(g) }
-    (( "n"
+    (( " n"
        { x.status :=
            let file_ofs = $string_to_int(o) in
            xref_status::InUse({ file_ofs: file_ofs }) }
      )
     |
-     ( "f"
+     ( " f"
        { x.status :=
          let next = $string_to_int(o) in
 	 xref_status::Free({ next: next }) }

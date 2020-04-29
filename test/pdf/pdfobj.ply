@@ -33,8 +33,13 @@ type obj_type =
  | Name of nameT
  | Null
 
-format PDFObj
-{
+format PDFObj {
+
+  // attribute specification that governs the next non-terminal
+  // definition.  the whitespace attribute only controls implicit
+  // content between the entities of the production, and not within
+  // them.
+  [whitespace(Whitespace<allow_empty=true>)]
 
   // '$typeof' is a Parsley convenience construct that substitutes the
   // type of the specified attribute.
@@ -53,6 +58,7 @@ format PDFObj
     ">>"
   ;;
 
+  [whitespace(Whitespace<allow_empty=true>)]
   Array a (ctxt : obj_ctxt) { val : [obj_type] } :=
     "["
     ( o=PDFObj<ctxt = a.ctxt>
@@ -61,6 +67,7 @@ format PDFObj
     "]"
   ;;
 
+  [whitespace(Whitespace<allow_empty=true>)]
   Reference r { id : int, gen : int } :=
     n=Integer [ n.val >  0 ]
     g=Integer [ g.val >= 0 ]
@@ -69,6 +76,7 @@ format PDFObj
       r.gen := g.val }
   ;;
 
+  [whitespace(Whitespace<allow_empty=true>)]
   Stream s (ctxt : obj_ctxt)
            { dict : $typeof(Dict), stream : $typeof(RawStream) }
   :=
@@ -113,6 +121,7 @@ format PDFObj
 
   // Note the special rule for parsing Streams, since they can only be
   // indirect objects.
+  [whitespace(Whitespace<allow_empty=true>)]
   Indirect i (ctxt : obj_ctxt)
              { id : int, gen : int, obj : obj_type }
   :=
