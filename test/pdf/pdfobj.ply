@@ -1,8 +1,8 @@
 // Compound object syntax.
 
 use pdfprim:{
-  Name, NameT, Integer, IntegerT, Real, RealT, Boolean, BooleanT,
-  Null, NullT, RawStream, RawStreamT,
+  Name, nameT, Integer, integerT, Real, realT, Boolean, booleanT,
+  Null, RawStream, rawStreamT,
   Comment
 }
 
@@ -33,6 +33,7 @@ type obj_type =
  | Name of nameT
  | Null
 
+
 format PDFObj {
 
   // attribute specification that governs the next non-terminal
@@ -40,35 +41,31 @@ format PDFObj {
   // content between the entities of the production, and not within
   // them.
   [whitespace(Whitespace<allow_empty=true>)]
-
-  // '$typeof' is a Parsley convenience construct that substitutes the
-  // type of the specified attribute.
-
-  Dict d (ctxt : obj_ctxt) { val : map<$typeof(Name.val), obj_type> } :=
+  Dict d {val : map<string, obj_type>} :=
     // Temporary variable introduced while parsing this production.
-    (| s : set<$typeof(Name.val)> |)
+    (| s : set<string> |)
 
     "<<"
     ( n=Name
       [ !s.contains(n.val) ]
-      o=PDFObj<ctxt = d.ctxt>
+      o=PDFObj
       { d.val[n.val] := o;
-        s := s.add(n.val) }
+        s := Set.add(s, n.val) }
     )*
     ">>"
   ;;
 
   [whitespace(Whitespace<allow_empty=true>)]
-  Array a (ctxt : obj_ctxt) { val : [obj_type] } :=
+  Array a {val : [obj_type]} :=
     "["
-    ( o=PDFObj<ctxt = a.ctxt>
-      { a := a.val.append(o) }
+    ( o=PDFObj
+      { a.val := List.append(a.val, o) }
     )*
     "]"
   ;;
 
   [whitespace(Whitespace<allow_empty=true>)]
-  Reference r { id : int, gen : int } :=
+  Reference r {id : int, gen : int} :=
     n=Integer [ n.val >  0 ]
     g=Integer [ g.val >= 0 ]
     "R"
@@ -77,24 +74,25 @@ format PDFObj {
   ;;
 
   [whitespace(Whitespace<allow_empty=true>)]
-  Stream s (ctxt : obj_ctxt)
-           { dict : $typeof(Dict), stream : $typeof(RawStream) }
-  :=
-    d=Dict<ctxt=s.ctxt>
+  Stream s {dict : dictT, stream : [byte]} :=
+    d=Dict
     s=RawStream
     [ d.val.contains("Length") && d.val["Length"] ~~ obj_type::Integer ]
-    [ let i = d.val["Length"] as obj_type::Integer in
-      s.val.length() = i.val ]
+    [ (case d.val["Length"] of
+       | obj::Integer(i) -> s.val.length() = i.val
+       | _               -> false
+      )
+    ]
     { dict   := d;
-      stream := s }
+      stream := s.bytes }
   ;;
 
-   // Note that the PDFObj parsing rule does not parse Streams.
-  PDFObj o (ctxt : obj_ctxt) { val : obj_type } :=
-    d=Dict<ctxt = o.ctxt>
+  // Note that the PDFObj parsing rule does not parse Streams.
+  PDFObj {val : obj_type} :=
+    d=Dict
     { val := obj_type::Dict(d) }
   ;
-    a=Array<ctxt = o.ctxt>
+    a=Array
     { val := obj_type::Array(a) }
   ;
     r=ReferenceObj
@@ -119,16 +117,19 @@ format PDFObj {
     { val := obj_type::Null() }
   ;;
 
-  // Note the special rule for parsing Streams, since they can only be
-  // indirect objects.
+  // Indirect object parsers get an inherited attribute of the current
+  // context, which contains the indirect objects parsed so far.
+  // This is used to forbid duplicates.
   [whitespace(Whitespace<allow_empty=true>)]
   Indirect i (ctxt : obj_ctxt)
-             { id : int, gen : int, obj : obj_type }
+             {id : int, gen : int, obj : obj_type}
   :=
     n=Integer [ n.val >  0 ]
     g=Integer [ g.val >= 0 ]
-    [ !i.ctxt.contains((n.val, g.val)) ] // Forbid duplicate definition
+    [ !i.ctxt.contains((n.val, g.val)) ] // Forbid duplicate definition.
     "obj"
+      // Note the special rule for parsing Streams, since they can only be
+      // indirect objects.
       ( s=Stream { i.obj := obj_type::Stream(s) }
       | o=PDFObj { i.obj := o }
       )
@@ -136,6 +137,5 @@ format PDFObj {
     { i.id  := n;
       i.gen := g;
       // register the object in the context
-      i.ctxt[(n.val, g.val)] := i.obj }
-
+      i.ctxt := Map.extend(i.ctxt, (n.val, g.val), i.obj) }
 }

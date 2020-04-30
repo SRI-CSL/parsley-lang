@@ -13,9 +13,15 @@ fun normalize_name (s : string) -> string = {
 
 format PDFPrimitives {
 
-  Comment := "%" upto("\n");;
+  // We use syntax like [:hex:], [:alpha:], [:alphanumeric:], [:char:]
+  // etc. for standard character classes.
+  // We use syntax like ([:char:] \ "(") for set difference.
 
-  Whitespace w { allow_empty : bool } :=
+  Comment := "%" a=([:char:] \ "\n")* "\n";;
+
+  // The inherited attribute controls whether empty whitespace is
+  // allowed.  There is no synthesized attribute.
+  Whitespace w (allow_empty : bool) :=
     [allow_empty]
     (" " | "\0" | "\t" | "\r" | "\n"
      | "\x0c" // form-feed
@@ -28,35 +34,28 @@ format PDFPrimitives {
     )+
   ;;
 
-  Name n { val : string } :=
+  // The synthesized attribute contains the string-valued name without
+  // the leading '/'.
+  Name n {val : string} :=
     "/" s=([:alphanum:]+)
     { n.val := normalize_name(s) }
   ;;
 
-  Comment c { val : string } :=
-    "%" s=(.*) "\n"
-    { c.val := s }
-  ;;
-
-  Boolean b { val : bool } :=
+  Boolean b {val : bool} :=
     "true"  { b.val := true }
   ;
     "false" { b.val := false }
   ;;
 
-  Null {} :=
-    "null"
-    {} ;;
+  Null := "null" ;;
 
-  RawStream rs { bytes : [u8] } :=
-    "stream"      EOL
-    b=([:byte:]*) EOL
+  RawStream rs (len : int) {bytes : [byte]} :=
+    "stream"            ("\n" | "\r\n")
+    b=([[:byte:] * len])  ("\r" | "\n" | "\r\n")
     "endstream"
     { rs.bytes := b } ;;
 
-  // We could use syntax like [:hex:], [:alpha:], [:alphanumeric:], [:char:] etc
-  // for standard character classes.
-  HexString hs { val : [u8] } :=
+  HexString hs {val : [byte]} :=
     "<"
     ( h1=([:hex:]) h2=([:hex:])
       { hs.val := ($int_of_hex(h1)*16 + $int_of_hex(h2)) :: hs.val }
@@ -71,8 +70,7 @@ format PDFPrimitives {
 
   // The below syntax essentially implements a simple CFG for strings with
   // balanced parentheses, using recursion.
-  // We could use syntax like ([:char:] \ '(') for set difference.
-  LitString ls { val : [u8] } :=
+  LitString ls { val : [byte] } :=
       "("
         prefix=([:char:] \ "(")*
         n=LitString
@@ -93,19 +91,12 @@ format PDFPrimitives {
 
     ;;
 
-  // The PDF String is one of the above two string objects.
-  String s { val : [u8] } :=
+  // A PDF String is one of the above two string objects.
+  String s {val : [byte]} :=
     h=HexString { s.val := h.val }
   ;
     l=LitString { s.val := l.val }
   ;;
-
-  // How can we parameterize whitespace for the following in a single non-terminal?
-  // - empty or non-empty
-  // - required EOL or optional
-  WhitespaceEOL w {} :=
-    (" " | "\t" | "\r" | "\n" | "\0" )*
-    { } ;;
 
   // $int_of_string() is a function in the Parsley standard library.
   Integer i { val : int } :=
@@ -115,9 +106,7 @@ format PDFPrimitives {
   ;;
 
   // TODO: we might need to have a user-defined type for PDF reals,
-  // since they are not defined in terms of IEEE 754, although they
-  // are implemented in those terms.
-
+  // since they are not defined in terms of IEEE 754.
   Real r { val : double } :=
     n=([:digit:])+
     { val := $double_of_string(n)  }
