@@ -156,7 +156,7 @@ module Ctx = struct
     let mk_predef_loc id =
       L.mk_loc_val id (L.make_ghost_loc ()) in
     let predef_types =
-      [ "bool", 0; "int", 0; "u8", 0; "i64", 0; "double", 0;
+      [ "bool", 0; "int", 0; "byte", 0; "double", 0;
         "string", 0
       ] in
     let mk_predef_ent (nm, arity) =

@@ -248,7 +248,7 @@ pattern:
   { make_pattern P_wildcard $startpos $endpos }
 | v=ident
   { make_pattern (P_var v) $startpos $endpos }
-| v=UID a=option(pattern_args)
+| v=CONSTR a=option(pattern_args)
   { let pat = match a with
         | None   -> P_variant (v, [])
         | Some l -> P_variant (v, l)
@@ -321,7 +321,7 @@ rule_elem:
 | v=ident EQ nt=UID inh=option(nt_args)
   { make_rule_elem (RE_non_term (nt, Some v, inh)) $startpos $endpos }
 | v=ident EQ LPAREN re=cc_regex RPAREN
-  { make_rule_elem (RE_named_regex (re, v)) $startpos $endpos }
+  { make_rule_elem (RE_regex (re, Some(v))) $startpos $endpos }
 | nt=UID inh=option(nt_args)
   { make_rule_elem (RE_non_term (nt, None, inh)) $startpos $endpos }
 | LBRACK e=expr RBRACK
@@ -352,6 +352,9 @@ nt_param_decls:
   { ALT_type i }
 
 nt_defn:
+| n=UID v=option(ident) COLONEQ
+  r=separated_nonempty_list(SEMICOLON, rule)
+  { make_nt_defn n v (ALT_decls []) (ALT_decls []) r $startpos $endpos }
 | n=UID v=option(ident)
   LBRACE syn=nt_param_decls RBRACE COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)

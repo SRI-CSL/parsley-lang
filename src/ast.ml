@@ -40,7 +40,7 @@ type pattern_desc =
   | P_var of ident
   | P_literal of literal
   | P_tuple of pattern list
-  | P_variant of ident * pattern list
+  | P_variant of (ident * ident) * pattern list
 
  and pattern =
    { pattern: pattern_desc;
@@ -96,7 +96,7 @@ type char_class_desc =
 type rule_elem_desc =
   | RE_literal of literal
   | RE_non_term of ident * ident option * (ident * expr) list option
-  | RE_named_regex of rule_elem * ident (* regex of char-classes *)
+  | RE_regex of rule_elem * ident option (* regex of char-classes *)
   | RE_constraint of rule_constraint
   | RE_action of rule_action
   | RE_choice of rule_elem * rule_elem
