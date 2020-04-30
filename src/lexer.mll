@@ -27,7 +27,6 @@
                 "let",    LET;
                 "in",     IN;
 
-                "$typeof",  TYPEOF;
                 "$epsilon", EPSILON;
               ];
     tbl

@@ -5,7 +5,7 @@ open Parseerror
 
 %token EOF
 %token FORMAT LIBRARY TYPE FUN NTERM USE AS OF CASE LET IN
-%token TYPEOF EPSILON
+%token EPSILON
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI QUOTE DOT QUESTION ARROW
@@ -152,10 +152,6 @@ type_expr:
   { make_type_expr (TE_constr (p, l)) $startpos $endpos }
 | LBRACE r=param_decls RBRACE
   { make_type_expr (TE_record r) $startpos $endpos }
-| TYPEOF LPAREN nt=UID RPAREN
-  { make_type_expr (TE_typeof [nt]) $startpos $endpos }
-| TYPEOF LPAREN nt=UID DOT p=separated_nonempty_list(DOT, ident) RPAREN
-  { make_type_expr (TE_typeof (nt::p)) $startpos $endpos }
 
 type_variant:
 | i=UID
