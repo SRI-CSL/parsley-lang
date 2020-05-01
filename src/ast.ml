@@ -153,11 +153,22 @@ type nterm_decl =
     { nterms: ident list;
       nterms_loc: Location.t }
 
+type attribute_arg =
+  | Attr_key of ident
+  | Attr_keyvalue of ident * ident
+
+type attribute =
+    { attr_type: ident;
+      attr_value: ident;
+      attr_args: attribute_arg list;
+      attr_loc: Location.t }
+
 type format_decl_desc =
   | Format_decl_non_term of non_term_defn
 
 type format_decl =
     { format_decl: format_decl_desc;
+      format_attr: attribute option;
       format_decl_loc: Location.t }
 
 type format =

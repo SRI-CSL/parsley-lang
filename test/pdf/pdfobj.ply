@@ -40,7 +40,7 @@ format PDFObj {
   // definition.  the whitespace attribute only controls implicit
   // content between the entities of the production, and not within
   // them.
-  [whitespace(Whitespace<allow_empty=true>)]
+  #[whitespace(Whitespace:allow_empty=true)]
   Dict d {val : map<string, obj_type>} :=
     // Temporary variable introduced while parsing this production.
     (| s : set<string> |)
@@ -55,7 +55,7 @@ format PDFObj {
     ">>"
   ;;
 
-  [whitespace(Whitespace<allow_empty=true>)]
+  #[whitespace(Whitespace:allow_empty=true)]
   Array a {val : [obj_type]} :=
     "["
     ( o=PDFObj
@@ -64,7 +64,7 @@ format PDFObj {
     "]"
   ;;
 
-  [whitespace(Whitespace<allow_empty=true>)]
+  #[whitespace(Whitespace:allow_empty=true)]
   Reference r {id : int, gen : int} :=
     n=Integer [ n.val >  0 ]
     g=Integer [ g.val >= 0 ]
@@ -73,7 +73,7 @@ format PDFObj {
       r.gen := g.val }
   ;;
 
-  [whitespace(Whitespace<allow_empty=true>)]
+  #[whitespace(Whitespace:allow_empty=true)]
   Stream s {dict : dictT, stream : [byte]} :=
     d=Dict
     s=RawStream
@@ -120,7 +120,7 @@ format PDFObj {
   // Indirect object parsers get an inherited attribute of the current
   // context, which contains the indirect objects parsed so far.
   // This is used to forbid duplicates.
-  [whitespace(Whitespace<allow_empty=true>)]
+  #[whitespace(Whitespace:allow_empty=true)]
   Indirect i (ctxt : obj_ctxt)
              {id : int, gen : int, obj : obj_type}
   :=

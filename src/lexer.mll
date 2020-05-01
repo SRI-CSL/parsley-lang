@@ -79,6 +79,7 @@ rule token = parse
       let t = Location.mk_loc_val t (Location.curr lexbuf) in
       LITERAL t
     }
+| "#[" { ATTR }
 | "(|" { LPARBAR }
 | "|)" { RPARBAR }
 | "|"  { BAR }

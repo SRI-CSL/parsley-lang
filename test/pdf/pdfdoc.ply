@@ -36,7 +36,7 @@ format PDFDoc
   // This whitespace attribute does not apply inside XrefSubSect,
   // i.e. inside any non-terminal on the right-hand-side of the
   // production.
-  [whitespace(Whitespace<allow_empty=true>)]
+  #[whitespace(Whitespace:allow_empty=true)]
   XrefSect x { sects: [xrefSubSectT] } :=
     "xref"
     ( s=XrefSubSect
@@ -47,7 +47,7 @@ format PDFDoc
   // There is no implicit whitespace between the entities on the
   // right-hand-side of the production.  All whitespace hence has to
   // be explicitly specified.
-  [whitespace(none)]
+  #[whitespace(none)]
   XrefSubSect x {start: int, count: int, ents: [xrefEntT] }
   :=
     (| i : int |)  // entry loop counter
@@ -72,7 +72,7 @@ format PDFDoc
 
   // There is no implicit whitespace between the entities on the
   // right-hand-side of the production.
-  [whitespace(none)]
+  #[whitespace(none)]
   XrefEnt x (idx : int) { xref_ent }
   :=
     o=([[:digit:] * 10]) " " g=([[:digit:] * 5])

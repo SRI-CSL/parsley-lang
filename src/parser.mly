@@ -5,6 +5,7 @@ open Parseerror
 
 %token EOF
 %token FORMAT LIBRARY TYPE AND FUN NTERM USE AS OF CASE LET IN
+%token ATTR
 %token EPSILON
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
@@ -117,9 +118,16 @@ let make_nterm_decl d b e =
   { nterms = d;
     nterms_loc = Location.make_loc b e }
 
-let make_format_decl d b e =
+let make_format_decl d a b e =
   { format_decl = d;
+    format_attr = a;
     format_decl_loc = Location.make_loc b e }
+
+let make_attr t v a b e =
+  { attr_type = t;
+    attr_value = v;
+    attr_args = a;
+    attr_loc = Location.make_loc b e }
 
 let make_format name decls b e =
   { format_name = name;
@@ -132,6 +140,11 @@ let make_format name decls b e =
 ident:
 | i=ID
   { i }
+
+def:
+| d=UID
+| d=ident
+  { d }
 
 path:
 | p=separated_nonempty_list(DOT, ident)
@@ -282,12 +295,12 @@ char_class:
 | l=char_class BACKSLASH r=LITERAL
   { make_char_class (CC_sub (l, r)) $startpos $endpos }
 
-attr_val:
+nt_attr_val:
 | i=ident EQ v=expr
   { (i, v) }
 
 nt_args:
-| LT inh=separated_list(COMMA, attr_val) GT
+| LT inh=separated_list(COMMA, nt_attr_val) GT
   { inh }
 
 cc_regex:
@@ -365,14 +378,21 @@ nt_defn:
   r=separated_nonempty_list(SEMICOLON, rule)
   { make_nt_defn n v inh syn r $startpos $endpos }
 
-format_decl:
-| d=nt_defn
-  { make_format_decl (Format_decl_non_term d) $startpos $endpos }
+attr_arg:
+| k=ident EQ v=ident
+  { Attr_keyvalue (k, v) }
+| k=ident
+  { Attr_key k }
 
-import_def:
-| d=UID
-| d=ident
-  { d }
+attr_decl:
+| ATTR a=ident LPAREN v=def COLON args=separated_list(COMMA, attr_arg) RPAREN RBRACK
+  { make_attr a v args $startpos $endpos }
+| ATTR a=ident LPAREN v=def RPAREN RBRACK
+  { make_attr a v [] $startpos $endpos }
+
+format_decl:
+| a=option(attr_decl) d=nt_defn
+  { make_format_decl (Format_decl_non_term d) a $startpos $endpos }
 
 type_defn:
 | t=ident EQ e=type_rep
@@ -387,7 +407,7 @@ type_decls:
   { t :: l }
 
 top_decl:
-| USE m=ident COLON LBRACE i=separated_list(COMMA, import_def) RBRACE
+| USE m=ident COLON LBRACE i=separated_list(COMMA, def) RBRACE
   { Decl_use (make_use m i $startpos $endpos) }
 | l=type_decls
   { Decl_types l }
