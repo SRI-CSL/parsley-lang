@@ -167,7 +167,7 @@ type format =
 
 type top_decl =
   | Decl_use of use
-  | Decl_type of type_defn
+  | Decl_types of type_defn list (* possibly mutually recursive *)
   | Decl_fun of fun_defn
   | Decl_nterm of nterm_decl
   | Decl_format of format

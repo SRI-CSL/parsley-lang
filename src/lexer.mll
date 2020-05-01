@@ -19,6 +19,7 @@
               [ "format", FORMAT;
                 "use",    USE;
                 "type",   TYPE;
+                "and",    AND;
                 "fun",    FUN;
                 "nterm",  NTERM;
                 "as",     AS;

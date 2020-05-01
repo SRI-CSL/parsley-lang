@@ -725,9 +725,13 @@ let type_check toplevel =
          | A.Decl_use _ ->
                (* TODO *)
                ctx, dgraph, ntdefs
-         | A.Decl_type td ->
-               let td' = well_typed_type_defn ctx td in
-               (Ctx.add_type_defn ctx td'), dgraph, ntdefs
+         | A.Decl_types tds ->
+               (* TODO: handle mutually recursive definitions *)
+               let check ctx td =
+                 let td' = well_typed_type_defn ctx td in
+                 Ctx.add_type_defn ctx td' in
+               let ctx' = List.fold_left check ctx tds in
+               ctx', dgraph, ntdefs
          | A.Decl_fun fd ->
                let fs = type_check_fun_sig ctx fd in
                (Ctx.add_fun_sig ctx fs), dgraph, ntdefs

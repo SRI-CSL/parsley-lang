@@ -4,7 +4,7 @@ open Parseerror
 %}
 
 %token EOF
-%token FORMAT LIBRARY TYPE FUN NTERM USE AS OF CASE LET IN
+%token FORMAT LIBRARY TYPE AND FUN NTERM USE AS OF CASE LET IN
 %token EPSILON
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
@@ -369,18 +369,28 @@ format_decl:
 | d=nt_defn
   { make_format_decl (Format_decl_non_term d) $startpos $endpos }
 
-use_def:
+import_def:
 | d=UID
 | d=ident
   { d }
 
+type_defn:
+| t=ident EQ e=type_rep
+  { make_type_defn t [] e $startpos $endpos }
+| t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ e=type_rep
+  { make_type_defn t tvs e $startpos $endpos }
+
+type_decls:
+| TYPE t=type_defn
+  { [t] }
+| TYPE t=type_defn AND l=separated_list(AND, type_defn)
+  { t :: l }
+
 top_decl:
-| USE m=ident COLON LBRACE i=separated_list(COMMA, use_def) RBRACE
+| USE m=ident COLON LBRACE i=separated_list(COMMA, import_def) RBRACE
   { Decl_use (make_use m i $startpos $endpos) }
-| TYPE t=ident EQ e=type_rep
-  { Decl_type (make_type_defn t [] e $startpos $endpos) }
-| TYPE t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ e=type_rep
-  { Decl_type (make_type_defn t tvs e $startpos $endpos) }
+| l=type_decls
+  { Decl_types l }
 | FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
   { Decl_fun (make_fun_defn f p r e $startpos $endpos) }
 | NTERM LBRACE d=separated_list(COMMA, UID) RBRACE
