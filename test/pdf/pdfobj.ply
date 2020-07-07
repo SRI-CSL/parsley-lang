@@ -34,7 +34,7 @@ type obj_type =
  | Null
 
 
-format PDFObj {
+format {
 
   // attribute specification that governs the next non-terminal
   // definition.  the whitespace attribute only controls implicit

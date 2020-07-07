@@ -1,7 +1,0 @@
-format F {
-  D d { v : $typeof(E.v) } := $epsilon
-    ;;
-  E e { v : $typeof(F) } := $epsilon
-    ;;
-  F e { v : $typeof(D.v) } := $epsilon
-}

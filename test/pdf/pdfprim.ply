@@ -11,13 +11,13 @@ fun normalize_name (s : string) -> string = {
   s
 }
 
-format PDFPrimitives {
+format {
 
   // We use syntax like [:hex:], [:alpha:], [:alphanumeric:], [:char:]
   // etc. for standard character classes.
   // We use syntax like ([:char:] \ "(") for set difference.
 
-  Comment := "%" a=([:char:] \ "\n")* "\n";;
+  Comment := "%" ([:char:] \ "\n")* "\n";;
 
   // The inherited attribute controls whether empty whitespace is
   // allowed.  There is no synthesized attribute.

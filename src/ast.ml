@@ -172,8 +172,7 @@ type format_decl =
       format_decl_loc: Location.t }
 
 type format =
-    { format_name: ident;
-      format_decls: format_decl list;
+    { format_decls: format_decl list;
       format_loc: Location.t }
 
 type top_decl =

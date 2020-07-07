@@ -129,9 +129,8 @@ let make_attr t v a b e =
     attr_args = a;
     attr_loc = Location.make_loc b e }
 
-let make_format name decls b e =
-  { format_name = name;
-    format_decls = decls;
+let make_format decls b e =
+  { format_decls = decls;
     format_loc = Location.make_loc b e }
 %}
 
@@ -415,8 +414,8 @@ top_decl:
   { Decl_fun (make_fun_defn f p r e $startpos $endpos) }
 | NTERM LBRACE d=separated_list(COMMA, UID) RBRACE
   { Decl_nterm (make_nterm_decl d $startpos $endpos) }
-| FORMAT i=UID LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
-  { Decl_format (make_format i d $startpos $endpos) }
+| FORMAT LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
+  { Decl_format (make_format d $startpos $endpos) }
 
 toplevel:
 | decls=list(top_decl) EOF

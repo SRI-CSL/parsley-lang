@@ -1,4 +1,4 @@
-format Examples {
+format {
 
   // Example of a common dependent type:
   // 'c' captures a byte that represents the length of a vector of

@@ -16,8 +16,7 @@ type xref_ent =
     gen : int,
     status : xref_status }
 
-format PDFDoc
-{
+format {
   Header h { version : commentT,
              binary  : option<commentT> }
   :=
@@ -85,7 +84,8 @@ format PDFDoc
      )
     |
      ( " f"
-       { x.status :=
+       { // TODO: Ensure that object 0 is free (and is the first entry?).
+         x.status :=
            let next = $string_to_int(o) in
            xref_status::Free({ next: next }) }
      )
@@ -93,11 +93,13 @@ format PDFDoc
     "\r\n"
   ;;
 
+  #[whitespace(Whitespace:allow_empty=true)]
   Trailer t {dict: dictT} :=
     "trailer" d=Dict
     { t.dict := d }
   ;;
 
+  #[whitespace(Whitespace:allow_empty=false)]
   StartXref s {val : int} :=
     "startxref"
     n=Integer

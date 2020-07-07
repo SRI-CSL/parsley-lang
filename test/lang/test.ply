@@ -10,8 +10,8 @@ type tree =
 
 fun max (a : int, b: int) -> int = {
   (case a < b of
-   | True  -> b
-   | False -> a
+   | bool::True  -> b
+   | bool::False -> a
   )
 }
 
@@ -26,6 +26,6 @@ type list('a) =
 
 fun cons (l : list<'a>, e : 'a) -> list<'a> = {
   (case l of
-   | Null()     -> e
-   | Cons(h, t) -> Cons(e, l))
+   | list::Null()     -> e
+   | list::Cons(h, t) -> list::Cons(e, l))
 }
