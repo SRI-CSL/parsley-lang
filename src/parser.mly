@@ -250,6 +250,8 @@ expr:
   { make_expr (E_case (e, b)) $startpos $endpos }
 | LET p=pattern EQ e=expr IN b=expr
   { make_expr (E_let (p, e, b)) $startpos $endpos }
+| LBRACK l=separated_list(SEMICOLON, expr) RBRACK
+  { make_expr (E_list l) $startpos $endpos }
 
 pattern:
 | UNDERSCORE

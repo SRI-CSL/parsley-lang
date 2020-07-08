@@ -62,6 +62,7 @@ type expr_desc =
   | E_case of expr * (pattern * expr) list
   | E_let of pattern * expr * expr
   | E_match of expr * path * ident
+  | E_list of expr list
 
  and expr =
    { expr: expr_desc;
