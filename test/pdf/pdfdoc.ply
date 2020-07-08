@@ -1,11 +1,6 @@
 // Top-level document syntax.
 
-use pdfprim:{
-  Name, nameT, Integer, integerT, Comment, commentT
-}
-use pdfobj:{
-  obj_ctxt, obj_type, Indirect, indirectT, PDFObj, Dict
-}
+use {pdfprim, pdfobj}
 
 type xref_status =
     Free of { next : int }

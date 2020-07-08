@@ -1,10 +1,6 @@
 // Compound object syntax.
 
-use pdfprim:{
-  Name, nameT, Integer, integerT, Real, realT, Boolean, booleanT,
-  Null, RawStream, rawStreamT,
-  Comment
-}
+use pdfprim
 
 // Dummy map definition (to be defined in prelude, but here until
 // modules and backend-syntax work).

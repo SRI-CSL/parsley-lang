@@ -109,9 +109,8 @@ let make_fun_defn n p t bd b e =
     fun_defn_body = bd;
     fun_defn_loc = Location.make_loc b e }
 
-let make_use m i b e =
-  { use_module = m;
-    use_idents = i;
+let make_use m b e =
+  { use_modules = m;
     use_loc = Location.make_loc b e }
 
 let make_nterm_decl d b e =
@@ -408,8 +407,10 @@ type_decls:
   { t :: l }
 
 top_decl:
-| USE m=ident COLON LBRACE i=separated_list(COMMA, def) RBRACE
-  { Decl_use (make_use m i $startpos $endpos) }
+| USE m=ident
+  { Decl_use (make_use [m] $startpos $endpos) }
+| USE LBRACE m=separated_list(COMMA, ident) RBRACE
+  { Decl_use (make_use m $startpos $endpos) }
 | l=type_decls
   { Decl_types l }
 | FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE

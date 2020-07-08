@@ -133,8 +133,7 @@ type non_term_defn =
       non_term_loc: Location.t }
 
 type use =
-    { use_module: ident;
-      use_idents: ident list;
+    { use_modules: ident list;
       use_loc: Location.t }
 
 type type_defn =
