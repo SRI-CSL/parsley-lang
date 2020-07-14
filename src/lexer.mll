@@ -80,6 +80,11 @@ rule token = parse
       LITERAL t
     }
 | "#[" { ATTR }
+| "(#" { SYN_BEGIN }
+| "#)" { SYN_END }
+| "@(" { AT_POS }
+| "@[" { AT_BUF }
+| "@#["{ AT_MAP }
 | "(|" { LPARBAR }
 | "|)" { RPARBAR }
 | "|"  { BAR }
@@ -114,6 +119,8 @@ rule token = parse
 | "~~" { MATCH }
 | "?"  { QUESTION }
 | "\\" { BACKSLASH }
+| "^"  { CARET }
+| "#"  { HASH }
 
 | upper ident*
     { let id = Lexing.lexeme lexbuf in

@@ -8,9 +8,11 @@ open Parseerror
 %token ATTR
 %token EPSILON
 
-%token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LPARBAR RPARBAR
+%token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK
+%token LPARBAR RPARBAR SYN_BEGIN SYN_END
+%token AT_POS AT_BUF AT_MAP HASH
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI QUOTE DOT QUESTION ARROW
-%token STAR PLUS MINUS DIV
+%token STAR PLUS MINUS DIV CARET
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
 %token MATCH COLONCOLON BACKSLASH EXCLAIM UNDERSCORE
 
@@ -32,9 +34,11 @@ open Parseerror
 %left  LAND LOR
 %left  LT GT LTEQ GTEQ EQ MATCH
 %left  BAR
+%left  BACKSLASH
 %right COLONCOLON
 %left  STAR DIV QUESTION
 %left  PLUS MINUS
+%left  CARET
 %left  LPAREN LBRACK
 %left  ARROW
 %nonassoc UMINUS AS
@@ -75,9 +79,13 @@ let make_action sl b e =
   { action_stmts = sl;
     action_loc = Location.make_loc b e }
 
-let make_char_class cc b e =
-  { char_class = cc;
-    char_class_loc = Location.make_loc b e }
+let make_literal_set ls b e =
+  { literal_set = ls;
+    literal_set_loc = Location.make_loc b e }
+
+let make_regexp re b e =
+  { regexp = re;
+    regexp_loc = Location.make_loc b e }
 
 let make_rule_elem re b e =
   { rule_elem = re;
@@ -283,17 +291,36 @@ action:
 | sl=separated_list(SEMICOLON, stmt)
   { make_action sl $startpos $endpos }
 
-char_class:
-| c=RE_CHAR_CLASS
-  { make_char_class (CC_named c) $startpos $endpos }
-| l=LITERAL
-  { make_char_class (CC_literal l) $startpos $endpos }
-| DOT
-  { make_char_class CC_wildcard $startpos $endpos }
-| l=char_class BAR r=LITERAL
-  { make_char_class (CC_add (l, r)) $startpos $endpos }
-| l=char_class BACKSLASH r=LITERAL
-  { make_char_class (CC_sub (l, r)) $startpos $endpos }
+literal_set:
+| t=UID
+  { make_literal_set (LS_type t) $startpos $endpos }
+| l=separated_nonempty_list(BAR, LITERAL)
+  { make_literal_set (LS_set l) $startpos $endpos }
+| l=literal_set BACKSLASH r=literal_set
+  { make_literal_set (LS_diff (l, r)) $startpos $endpos }
+| LPAREN l=literal_set RPAREN
+  { l }
+
+regexp:
+| LBRACK l=literal_set RBRACK
+  { make_regexp (RX_literals l) $startpos $endpos }
+| HASH
+  { make_regexp RX_wildcard $startpos $endpos }
+| i=UID
+  { make_regexp  (RX_type i) $startpos $endpos }
+| r=regexp STAR
+  { make_regexp  (RX_star (r, None)) $startpos $endpos }
+| r=regexp CARET e=expr
+  { make_regexp  (RX_star (r, Some e)) $startpos $endpos }
+| r=regexp PLUS
+  { let k = make_regexp (RX_star (r, None)) $startpos $endpos in
+    make_regexp (RX_seq [r; k]) $startpos $endpos }
+| r=regexp QUESTION
+  { make_regexp (RX_opt r) $startpos $endpos }
+| l=regexp BAR r=regexp
+  { make_regexp (RX_choice [l; r]) $startpos $endpos }
+| LPAREN l=list(regexp) RPAREN
+  { make_regexp (RX_seq l) $startpos $endpos }
 
 nt_attr_val:
 | i=ident EQ v=expr
@@ -303,50 +330,45 @@ nt_args:
 | LT inh=separated_list(COMMA, nt_attr_val) GT
   { inh }
 
-cc_regex:
-| c=char_class
-  { make_rule_elem (RE_char_class c) $startpos $endpos }
-| c=cc_regex STAR
-  { make_rule_elem (RE_star c) $startpos $endpos }
-| c=cc_regex PLUS
-  { make_rule_elem (RE_plus c) $startpos $endpos }
-| c=cc_regex QUESTION
-  { make_rule_elem (RE_opt c) $startpos $endpos }
-| LPAREN l=list(cc_regex) RPAREN
-  { make_rule_elem (RE_seq l) $startpos $endpos }
-| LBRACK c=char_class STAR e=expr RBRACK
-  { make_rule_elem (RE_cclass_repeat (c, e)) $startpos $endpos }
-| LBRACK nt=UID inh=option(nt_args) STAR e=expr RBRACK
-  { make_rule_elem (RE_nterm_repeat (nt, inh, e)) $startpos $endpos }
-
 rule_elem:
 | EPSILON
   { make_rule_elem RE_epsilon $startpos $endpos }
-| c=RE_CHAR_CLASS
-  { let cc = make_char_class (CC_named c) $startpos $endpos in
-    make_rule_elem (RE_char_class cc) $startpos $endpos }
-| l=LITERAL
-  { make_rule_elem (RE_literal l) $startpos $endpos }
-| v=ident EQ nt=UID inh=option(nt_args)
-  { make_rule_elem (RE_non_term (nt, Some v, inh)) $startpos $endpos }
-| v=ident EQ LPAREN re=cc_regex RPAREN
-  { make_rule_elem (RE_regex (re, Some(v))) $startpos $endpos }
+| SYN_BEGIN l=nonempty_list(regexp) SYN_END
+  { let r = make_regexp (RX_seq l) $startpos(l) $endpos(l) in
+    make_rule_elem (RE_regexp r) $startpos $endpos }
+| EXCLAIM s=list(literal_set) EXCLAIM
+  { let l =
+      List.map (fun l -> make_regexp (RX_literals l) $startpos(s)
+                         $endpos(s)) s in
+    let r = make_regexp (RX_seq l) $startpos(s) $endpos(s) in
+    make_rule_elem (RE_regexp r) $startpos $endpos }
 | nt=UID inh=option(nt_args)
-  { make_rule_elem (RE_non_term (nt, None, inh)) $startpos $endpos }
+  { make_rule_elem (RE_non_term (nt, inh)) $startpos $endpos }
 | LBRACK e=expr RBRACK
   { make_rule_elem (RE_constraint e) $startpos $endpos }
 | LBRACE a=action RBRACE
   { make_rule_elem (RE_action a) $startpos $endpos }
 | l=rule_elem BAR r=rule_elem
-  { make_rule_elem (RE_choice (l, r)) $startpos $endpos }
+  { make_rule_elem (RE_choice [l; r]) $startpos $endpos }
+| r=rule_elem STAR
+  { make_rule_elem (RE_star (r, None)) $startpos $endpos }
+| r=rule_elem CARET e=expr
+  { make_rule_elem (RE_star (r, Some e)) $startpos $endpos }
+| v=ident EQ r=rule_elem
+  { make_rule_elem (RE_named (v, r)) $startpos $endpos }
 | LPAREN l=list(rule_elem) RPAREN
   { make_rule_elem (RE_seq l) $startpos $endpos }
-| e=rule_elem STAR
-  { make_rule_elem (RE_star e) $startpos $endpos }
-| e=rule_elem PLUS
-  { make_rule_elem (RE_plus e) $startpos $endpos }
-| e=rule_elem QUESTION
-  { make_rule_elem (RE_opt e) $startpos $endpos }
+| r=rule_elem PLUS
+  { let k = make_rule_elem (RE_star (r, None)) $startpos $endpos in
+    make_rule_elem (RE_seq [r; k]) $startpos $endpos }
+| r=rule_elem QUESTION
+  { make_rule_elem (RE_opt r) $startpos $endpos }
+| AT_POS e=expr COMMA r=rule_elem RPAREN
+  { make_rule_elem (RE_at_pos (e, r)) $startpos $endpos }
+| AT_BUF e=expr COMMA r=rule_elem RBRACK
+  { make_rule_elem (RE_at_buf (e, r)) $startpos $endpos }
+| AT_MAP e=expr COMMA r=rule_elem RBRACK
+  { make_rule_elem (RE_map_bufs (e, r)) $startpos $endpos }
 
 rule:
 | LPARBAR d=param_decls RPARBAR l=list(rule_elem)

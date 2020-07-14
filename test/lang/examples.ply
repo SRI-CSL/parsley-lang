@@ -3,26 +3,26 @@ format {
   // Example of a common dependent type:
   // 'c' captures a byte that represents the length of a vector of
   // bytes, captured by 'v'.  The conversion of 'c' into the integer length
-  // value is done by the library function $int_of_byte().
+  // value is done by the library function int_of_byte().
   DepVec dv { val: [u8] } :=
-    c=([:byte:]) v=([[:byte:]*$int_of_byte(c)])
+    c=Byte v=(Byte ^ int_of_byte(c))
     { dv.val := v } ;;
 
   // This data-dependent vector count also applies for non-terminals.
 
   NonTerm nt { val: u8 } :=
-    c=([:byte:])
+    c=Byte
     { nt.val := c } ;;
 
   DepNTVec dv { val: [u8] } :=
-    c=([:byte:]) v=([NonTerm * $int_of_byte(c)])
+    c=Byte v=(NonTerm ^ int_of_byte(c))
     { dv.val := v } ;;
 
   // The dependent count can be an attribute of a previously parsed
   // non-terminal.
 
   NTDepNTVec dv { val: [u8] } :=
-    c=NonTerm v=([NonTerm * c.val])
+    c=NonTerm v=(NonTerm ^ c.val)
     { dv.val := v }
 
 }

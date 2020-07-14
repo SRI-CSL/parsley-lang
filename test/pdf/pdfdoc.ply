@@ -32,7 +32,7 @@ format {
   // production.
   #[whitespace(Whitespace:allow_empty=true)]
   XrefSect x { sects: [xrefSubSectT] } :=
-    "xref"
+    !"xref"!
     ( s=XrefSubSect
       { x.sects := List.append(x.sects, s) }
     )*
@@ -47,9 +47,9 @@ format {
     (| i : int |)  // entry loop counter
 
     s=Integer [ s.val >= 0 ]
-    " "
+    !" "!
     c=Integer [ s.val >  0 ]
-    ("\r" | "\n" | "\r\n")
+    (# ["\r" | "\n" | "\r\n"] #)
 
     { x.start := s.val;
       x.count := c.val }
@@ -69,39 +69,39 @@ format {
   #[whitespace(none)]
   XrefEnt x (idx : int) { xref_ent }
   :=
-    o=([[:digit:] * 10]) " " g=([[:digit:] * 5])
+    o=(Digit ^ 10) !" "! g=(Digit ^ 5)
     { x.obj := x.idx;
       x.gen := $string_to_int(g) }
-    (( " n"
+    (( !" n"!
        { x.status :=
            let file_ofs = $string_to_int(o) in
            xref_status::InUse({ file_ofs: file_ofs }) }
      )
     |
-     ( " f"
+     ( !" f"!
        { // TODO: Ensure that object 0 is free (and is the first entry?).
          x.status :=
            let next = $string_to_int(o) in
            xref_status::Free({ next: next }) }
      )
     )
-    "\r\n"
+    !"\r\n"!
   ;;
 
   #[whitespace(Whitespace:allow_empty=true)]
   Trailer t {dict: dictT} :=
-    "trailer" d=Dict
+    !"trailer"! d=Dict
     { t.dict := d }
   ;;
 
   #[whitespace(Whitespace:allow_empty=false)]
   StartXref s {val : int} :=
-    "startxref"
+    !"startxref"!
     n=Integer
     [ n.val > 0 ]
     { s.val := n.val }
   ;;
 
   EOF {} :=
-    "%%EOF"
+    !"%%EOF"!
 }

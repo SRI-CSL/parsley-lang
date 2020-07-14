@@ -41,30 +41,30 @@ format {
     // Temporary variable introduced while parsing this production.
     (| s : set<string> |)
 
-    "<<"
+    !"<<"!
     ( n=Name
       [ !s.contains(n.val) ]
       o=PDFObj
       { d.val[n.val] := o;
         s := Set.add(s, n.val) }
     )*
-    ">>"
+    !">>"!
   ;;
 
   #[whitespace(Whitespace:allow_empty=true)]
   Array a {val : [obj_type]} :=
-    "["
+    !"["!
     ( o=PDFObj
       { a.val := List.append(a.val, o) }
     )*
-    "]"
+    !"]"!
   ;;
 
   #[whitespace(Whitespace:allow_empty=true)]
   Reference r {id : int, gen : int} :=
     n=Integer [ n.val >  0 ]
     g=Integer [ g.val >= 0 ]
-    "R"
+    !"R"!
     { r.id  := n.val;
       r.gen := g.val }
   ;;
@@ -123,13 +123,13 @@ format {
     n=Integer [ n.val >  0 ]
     g=Integer [ g.val >= 0 ]
     [ !i.ctxt.contains((n.val, g.val)) ] // Forbid duplicate definition.
-    "obj"
+    !"obj"!
       // Note the special rule for parsing Streams, since they can only be
       // indirect objects.
       ( s=Stream { i.obj := obj_type::Stream(s) }
       | o=PDFObj { i.obj := o }
       )
-    "endobj"
+    !"endobj"!
     { i.id  := n;
       i.gen := g;
       // register the object in the context

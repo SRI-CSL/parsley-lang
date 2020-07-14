@@ -83,33 +83,42 @@ type rule_action =
 type rule_constraint =
     expr
 
-type char_class_desc =
-  | CC_named of ident
-  | CC_wildcard
-  | CC_literal of literal
-  | CC_add of char_class * literal
-  | CC_sub of char_class * literal
+type literal_set_desc =
+  | LS_type of ident
+  | LS_set of literal list
+  | LS_diff of literal_set * literal_set
 
- and char_class =
-   { char_class: char_class_desc;
-     char_class_loc: Location.t }
+ and literal_set =
+   { literal_set: literal_set_desc;
+     literal_set_loc: Location.t }
+
+type regexp_desc =
+  | RX_literals of literal_set
+  | RX_wildcard
+  | RX_type of ident
+  | RX_star of regexp * expr option
+  | RX_opt of regexp
+  | RX_choice of regexp list
+  | RX_seq of regexp list
+
+and regexp =
+  { regexp: regexp_desc;
+    regexp_loc: Location.t }
 
 type rule_elem_desc =
-  | RE_literal of literal
-  | RE_non_term of ident * ident option * (ident * expr) list option
-  | RE_regex of rule_elem * ident option (* regex of char-classes *)
+  | RE_regexp of regexp
+  | RE_non_term of ident * (ident * expr) list option
   | RE_constraint of rule_constraint
   | RE_action of rule_action
-  | RE_choice of rule_elem * rule_elem
+  | RE_named of ident * rule_elem
   | RE_seq of rule_elem list
-  | RE_star of rule_elem
-  | RE_plus of rule_elem
+  | RE_choice of rule_elem list
+  | RE_star of rule_elem * expr option
   | RE_opt of rule_elem
-  | RE_cclass_repeat of char_class * expr
-  | RE_nterm_repeat of
-      ident * (ident * expr) list option (* inh attrs *) * expr (* repeat *)
-  | RE_char_class of char_class
   | RE_epsilon
+  | RE_at_pos of expr * rule_elem
+  | RE_at_buf of expr * rule_elem
+  | RE_map_bufs of expr * rule_elem
 
  and rule_elem =
    { rule_elem: rule_elem_desc;

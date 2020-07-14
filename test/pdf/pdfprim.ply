@@ -17,74 +17,69 @@ format {
   // etc. for standard character classes.
   // We use syntax like ([:char:] \ "(") for set difference.
 
-  Comment := "%" ([:char:] \ "\n")* "\n";;
+  Comment := !"%"! (# [Char \ "\n" ]* #) !"\n"!;;
 
   // The inherited attribute controls whether empty whitespace is
   // allowed.  There is no synthesized attribute.
   Whitespace w (allow_empty : bool) :=
     [allow_empty]
-    (" " | "\0" | "\t" | "\r" | "\n"
-     | "\x0c" // form-feed
-     | Comment
-    )*
+    (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
   ; [!allow_empty]
-    (" " | "\0" | "\t" | "\r" | "\n"
-     | "\x0c" // form-feed
-     | Comment
-    )+
+    (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
   ;;
 
   // The synthesized attribute contains the string-valued name without
   // the leading '/'.
   Name n {val : string} :=
-    "/" s=([:alphanum:]+)
+    !"/"! s=Alphanum+
     { n.val := normalize_name(s) }
   ;;
 
   Boolean b {val : bool} :=
-    "true"  { b.val := true }
+    !"true"!  { b.val := true }
   ;
-    "false" { b.val := false }
+    !"false"! { b.val := false }
   ;;
 
-  Null := "null" ;;
+  Null := !"null"!;;
 
   RawStream rs (len : int) {bytes : [byte]} :=
-    "stream"            ("\n" | "\r\n")
-    b=([[:byte:] * len])  ("\r" | "\n" | "\r\n")
-    "endstream"
+    (# ["stream"] ["\n" | "\r\n"] #)
+    b=(Byte ^ len)
+    (# ["\r" | "\n" | "\r\n"]
+       ["endstream"] #)
     { rs.bytes := b } ;;
 
   HexString hs {val : [byte]} :=
-    "<"
-    ( h1=([:hex:]) h2=([:hex:])
-      { hs.val := ($int_of_hex(h1)*16 + $int_of_hex(h2)) :: hs.val }
+    !"<"!
+    ( h1=HexChar h2=HexChar
+      { hs.val := (int_of_hex(h1)*16 + int_of_hex(h2)) :: hs.val }
     )*
 
-    ( h=([:hex:])
-      { hs.val := $int_of_hex(h1) * 16 :: hs.val}
+    ( h=HexChar
+      { hs.val := int_of_hex(h1) * 16 :: hs.val}
     )?
-    ">"
+    !">"!
     { hs.val := List.rev(hs.val) }
     ;;
 
   // The below syntax essentially implements a simple CFG for strings with
   // balanced parentheses, using recursion.
   LitString ls { val : [byte] } :=
-      "("
-        prefix=([:char:] \ "(")*
+      !"("!
+        prefix=(# [Char \ "("]* #)
         n=LitString
-        suffix=([:char:] \ "(")*
-      ")"
+        suffix=(# [Char \ "("]* #)
+      !")"!
        { ls.val := ")" + prefix + n.val + suffix + ")" } ;
 
-      "("
-        prefix=([:char:] \ "(")*
+      (# ["("] #)
+        prefix=(# [Char \ "("]* #)
         p=LitString
-        midfix=([:char:] \ "(")*
+        midfix=(# [Char \ "("]* #)
         q=LitString
-        suffix=([:char:] \ "(")*
-      ")"
+        suffix=(# [Char \ "("]* #)
+      !")"!
       { ls.val := "(" + prefix + p.val + midfix + q.val + ")" } ;
 
       $epsilon                   // Parsley keyword
@@ -100,24 +95,24 @@ format {
 
   // $int_of_string() is a function in the Parsley standard library.
   Integer i { val : int } :=
-    n=([:digit:])+   { i.val := $int_of_string(n)  }
+    n=(# Digit+ #)             { i.val := int_of_string(n)  }
   ;
-    "-" n=([:digit:])+ { i.val := -$int_of_string(n) }
+    !"-"! n=(# Digit+ #) { i.val := -int_of_string(n) }
   ;;
 
   // TODO: we might need to have a user-defined type for PDF reals,
   // since they are not defined in terms of IEEE 754.
   Real r { val : double } :=
-    n=([:digit:])+
+    n=(# Digit+ #)
     { val := $double_of_string(n)  }
   ;
-    "-"  n=([:digit:])+
-    { val := -$double_of_string(n) }
+    !"-"! n=(# Digit+ #)
+    { val := -double_of_string(n) }
   ;
-    n=([:digit:])+ "." f=([:digit:])+
-    { val :=  $double_of_string(n + "." + f) }
+    n=(# Digit+ #) !"."! f=(# Digit+ #)
+    { val :=  double_of_string(n + "." + f) }
   ;
-    "-"  n=([:digit:])+ "." f=([:digit:])+
-    { val := -$double_of_string(n + "." + f) }
+    !"-"!  n=(# Digit+ #) !"."! f=(# Digit+ #)
+    { val := -double_of_string(n + "." + f) }
 
 }
