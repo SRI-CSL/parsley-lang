@@ -69,6 +69,7 @@ type expr_desc =
      expr_loc: Location.t }
 
 type stmt_desc =
+  | S_expr of expr
   | S_assign of expr * expr
 
  and stmt =

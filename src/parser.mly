@@ -286,6 +286,8 @@ branch:
 stmt:
 | l=expr COLONEQ r=expr
   { make_stmt (S_assign (l, r)) $startpos $endpos }
+| e=expr
+  { make_stmt (S_expr e)  $startpos $endpos }
 
 action:
 | sl=separated_list(SEMICOLON, stmt)
