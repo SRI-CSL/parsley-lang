@@ -28,7 +28,7 @@ type type_rep_desc =
 
 
 type binop =
-  | Lt | Gt | Lteq | Gteq | Eq
+  | Lt | Gt | Lteq | Gteq | Eq | Neq
   | Plus | Minus | Mult | Div | Land | Lor
   | Cons | Index
 

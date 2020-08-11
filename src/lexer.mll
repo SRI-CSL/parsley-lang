@@ -144,10 +144,6 @@ rule token = parse
     { let s = Lexing.lexeme lexbuf in
       INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
 
-| re_char_class
-    { let s = Lexing.lexeme lexbuf in
-      RE_CHAR_CLASS (Location.mk_loc_val s (Location.curr lexbuf)) }
-
 | eof
     { EOF }
 

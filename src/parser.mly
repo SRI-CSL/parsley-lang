@@ -4,14 +4,14 @@ open Parseerror
 %}
 
 %token EOF
-%token FORMAT LIBRARY TYPE AND FUN NTERM USE AS OF CASE LET IN
+%token FORMAT TYPE AND FUN NTERM USE AS OF CASE LET IN
 %token ATTR
 %token EPSILON
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK
 %token LPARBAR RPARBAR SYN_BEGIN SYN_END
 %token AT_POS AT_BUF AT_MAP HASH
-%token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI QUOTE DOT QUESTION ARROW
+%token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI DOT QUESTION ARROW
 %token STAR PLUS MINUS DIV CARET
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
 %token MATCH COLONCOLON BACKSLASH EXCLAIM UNDERSCORE
@@ -22,7 +22,6 @@ open Parseerror
 %token<Ast.tvar>    TVAR
 
 %token<string Location.loc> INT_LITERAL
-%token<string Location.loc> RE_CHAR_CLASS
 
 %token<string Location.loc * string Location.loc> CONSTR
 
@@ -32,7 +31,7 @@ open Parseerror
 %nonassoc IN
 %right EXCLAIM
 %left  LAND LOR
-%left  LT GT LTEQ GTEQ EQ MATCH
+%left  LT GT LTEQ GTEQ EQ NEQ MATCH
 %left  BAR
 %left  BACKSLASH
 %right COLONCOLON
@@ -245,6 +244,8 @@ expr:
   { make_expr (E_binop (Gteq, l, r)) $startpos $endpos }
 | l=expr EQ r=expr
   { make_expr (E_binop (Eq, l, r)) $startpos $endpos }
+| l=expr NEQ r=expr
+  { make_expr (E_binop (Neq, l, r)) $startpos $endpos }
 | l=expr COLONCOLON r=expr
   { make_expr (E_binop (Cons, l, r)) $startpos $endpos }
 | e=expr AS nt=UID
