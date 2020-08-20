@@ -198,3 +198,13 @@ type top_decl =
 
 type top_level =
     { decls: top_decl list }
+
+(* flattened version after including use files *)
+type flat_top_decl =
+  | Flat_decl_types of type_decl list (* possibly mutually recursive *)
+  | Flat_decl_fun of fun_defn
+  | Flat_decl_nterm of nterm_decl
+  | Flat_decl_format of format
+
+type flat_top_level =
+  { flat_decls: flat_top_decl list }
