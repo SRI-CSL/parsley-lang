@@ -1,8 +1,4 @@
-type t = {
-  loc_start: Lexing.position;
-  loc_end:   Lexing.position;
-  loc_ghost: bool;
-}
+type t
 
 val init: Lexing.lexbuf -> string -> unit
 val curr: Lexing.lexbuf -> t
@@ -12,10 +8,8 @@ val make_loc: Lexing.position -> Lexing.position -> t
 val make_ghost_loc: unit -> t
 val extent: t -> t -> t
 
-type 'a loc = {
-  pelem: 'a;
-  ploc:  t;
-}
+type 'a loc
+
 val mk_loc_val:  'a -> t -> 'a loc
 val value:       'a loc -> 'a
 val loc:         'a loc -> t
