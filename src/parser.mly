@@ -51,9 +51,52 @@ let make_int_literal s =
   try  int_of_string s
   with _ -> parse_error (Invalid_integer s) loc
 
-let make_type_expr ty b e =
-  { type_expr = ty;
+let make_type_expr t b e =
+  { type_expr = t;
     type_expr_loc = Location.make_loc b e }
+
+let make_tvar_name name loc =
+  { type_expr = TE_tvar (Location.mk_loc_val name loc);
+    type_expr_loc = loc }
+
+let make_tvar_ident ident =
+  { type_expr = TE_tvar ident;
+    type_expr_loc = Location.loc ident }
+
+let make_type_app_name name args loc =
+  let c = make_tvar_name name loc in
+  { type_expr = TE_tapp (c, args);
+    type_expr_loc = loc }
+
+let make_type_app_ident ident args b e =
+  let c = make_tvar_ident ident in
+  { type_expr = TE_tapp (c, args);
+    type_expr_loc = Location.make_loc b e }
+
+let make_list_type a b e =
+  let loc = Location.make_loc b e in
+  make_type_app_name "_List" [a] loc
+
+let rec make_tuple_type l =
+  match l with
+    | [] -> assert false
+    | [a] -> a
+    | h :: rest ->
+          let t = make_tuple_type rest in
+          let loc = Location.extent h.type_expr_loc t.type_expr_loc in
+          make_type_app_name "_Tuple" [h; t] loc
+
+let make_arrow_type loc a b =
+  make_type_app_name "_Arrow" [a; b] loc
+
+let make_variant t (c, l) =
+  let res = make_tvar_ident t in
+  match l with
+    | [] -> c, res
+    | _  ->
+          let arg = make_tuple_type l in
+          let signature = make_arrow_type (Location.loc c) arg res in
+          c, signature
 
 let make_type_rep tr b e =
   { type_rep = tr;
@@ -103,11 +146,12 @@ let make_nt_defn n v inh syn r b e =
     non_term_rules = r;
     non_term_loc = Location.make_loc b e }
 
-let make_type_defn n tvs bd b e =
-  { type_defn_ident = n;
-    type_defn_tvars = tvs;
-    type_defn_body = bd;
-    type_defn_loc = Location.make_loc b e }
+let make_type_decl n k tvs bd b e =
+  { type_decl_ident = n;
+    type_decl_kind = k;
+    type_decl_tvars = tvs;
+    type_decl_body = bd;
+    type_decl_loc = Location.make_loc b e }
 
 let make_fun_defn n p t bd b e =
   { fun_defn_ident = n;
@@ -159,29 +203,28 @@ path:
 
 type_expr:
 | tv=TVAR
-  { make_type_expr (TE_tvar tv) $startpos $endpos }
-| p=path
-  { make_type_expr (TE_constr (p, [])) $startpos $endpos }
+  { make_tvar_ident tv }
+| i=ident
+  { make_type_app_ident i [] $startpos $endpos }
 | LPAREN l=separated_list(COMMA, type_expr) RPAREN
-  { make_type_expr (TE_tuple l) $startpos $endpos }
+  { make_tuple_type l }
 | LBRACK t=type_expr RBRACK
-  { make_type_expr (TE_list t) $startpos $endpos }
-| p=path LT l=separated_list(COMMA, type_expr) GT
-  { make_type_expr (TE_constr (p, l)) $startpos $endpos }
+  { make_list_type t $startpos $endpos }
+| d=def LT l=separated_list(COMMA, type_expr) GT
+  { let c = make_tvar_ident d in
+    make_type_expr (TE_tapp (c, l)) $startpos $endpos }
 | LBRACE r=param_decls RBRACE
   { make_type_expr (TE_record r) $startpos $endpos }
 
-type_variant:
+variant:
 | i=UID
   { (i, []) }
 | i=UID OF l=separated_list(STAR, type_expr)
   { (i, l) }
 
-type_rep:
-| e=type_expr
-  { make_type_rep (TR_expr e) $startpos $endpos }
-| l=separated_nonempty_list(BAR, type_variant)
-  { make_type_rep (TR_variant l) $startpos $endpos }
+variants:
+| l=separated_nonempty_list(BAR, variant)
+  { l }
 
 param_decl:
 | i=ident COLON t=type_expr
@@ -419,16 +462,27 @@ format_decl:
 | a=option(attr_decl) d=nt_defn
   { make_format_decl (Format_decl_non_term d) a $startpos $endpos }
 
-type_defn:
-| t=ident EQ e=type_rep
-  { make_type_defn t [] e $startpos $endpos }
-| t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ e=type_rep
-  { make_type_defn t tvs e $startpos $endpos }
+/* TODO: add kind specs */
+type_decl:
+| t=ident EQ r=type_expr
+  { let rep = make_type_rep (TR_defn r) $startpos $endpos in
+    make_type_decl t KStar [] rep $startpos $endpos }
+| t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ r=type_expr
+  { let rep = make_type_rep (TR_defn r) $startpos $endpos in
+    make_type_decl t KStar tvs rep $startpos $endpos }
+| t=ident EQ vs=variants
+  { let variants = List.map (make_variant t) vs in
+    let rep = make_type_rep (TR_algebraic variants) $startpos(vs) $endpos(vs) in
+    make_type_decl t KStar [] rep $startpos $endpos }
+| t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ vs=variants
+  { let variants = List.map (make_variant t) vs in
+    let rep = make_type_rep (TR_algebraic variants) $startpos(vs) $endpos(vs) in
+    make_type_decl t KStar tvs rep $startpos $endpos }
 
 type_decls:
-| TYPE t=type_defn
+| TYPE t=type_decl
   { [t] }
-| TYPE t=type_defn AND l=separated_list(AND, type_defn)
+| TYPE t=type_decl AND l=separated_list(AND, type_decl)
   { t :: l }
 
 top_decl:

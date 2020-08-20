@@ -3,29 +3,32 @@ type ident   = string Location.loc
 type literal = string Location.loc
 type path    = ident list
 
+type kind =
+  | KStar
+  | KTime of kind * kind
+  | KArrow of kind * kind
+
 type type_expr_desc =
   | TE_tvar of tvar
-  | TE_tuple of type_expr list
-  | TE_list of type_expr
-  | TE_constr of path * type_expr list
+  | TE_tapp of type_expr * type_expr list
   | TE_record of param_decl list
-  | TE_typeof of path
 
- and param_decl =
-    (ident * type_expr) Location.loc
+and param_decl =
+  (ident * type_expr) Location.loc
 
- and type_expr =
-   { type_expr: type_expr_desc;
-     type_expr_loc: Location.t }
+and type_expr =
+  { type_expr: type_expr_desc;
+    type_expr_loc: Location.t }
 
 type type_rep_desc =
-  | TR_expr of type_expr
-  | TR_variant of (ident * type_expr list) list
+  (* The type signature in 'type_expr' includes the return type for the
+   * variant constructor 'ident'; i.e. it is a full function signature. *)
+  | TR_algebraic of (ident * type_expr) list
+  | TR_defn of type_expr
 
- and type_rep =
-   { type_rep: type_rep_desc;
-     type_rep_loc: Location.t }
-
+and type_rep =
+  { type_rep: type_rep_desc;
+    type_rep_loc: Location.t }
 
 type binop =
   | Lt | Gt | Lteq | Gteq | Eq | Neq
@@ -42,9 +45,9 @@ type pattern_desc =
   | P_tuple of pattern list
   | P_variant of (ident * ident) * pattern list
 
- and pattern =
-   { pattern: pattern_desc;
-     pattern_loc: Location.t }
+and pattern =
+  { pattern: pattern_desc;
+    pattern_loc: Location.t }
 
 type expr_desc =
   | E_path of path
@@ -64,17 +67,17 @@ type expr_desc =
   | E_match of expr * path * ident
   | E_list of expr list
 
- and expr =
-   { expr: expr_desc;
-     expr_loc: Location.t }
+and expr =
+  { expr: expr_desc;
+    expr_loc: Location.t }
 
 type stmt_desc =
   | S_expr of expr
   | S_assign of expr * expr
 
- and stmt =
-   { stmt: stmt_desc;
-     stmt_loc: Location.t }
+and stmt =
+  { stmt: stmt_desc;
+    stmt_loc: Location.t }
 
 type rule_action =
     { action_stmts: stmt list;
@@ -89,9 +92,9 @@ type literal_set_desc =
   | LS_set of literal list
   | LS_diff of literal_set * literal_set
 
- and literal_set =
-   { literal_set: literal_set_desc;
-     literal_set_loc: Location.t }
+and literal_set =
+  { literal_set: literal_set_desc;
+    literal_set_loc: Location.t }
 
 type regexp_desc =
   | RX_literals of literal_set
@@ -121,9 +124,9 @@ type rule_elem_desc =
   | RE_at_buf of expr * rule_elem
   | RE_map_bufs of expr * rule_elem
 
- and rule_elem =
-   { rule_elem: rule_elem_desc;
-     rule_elem_loc: Location.t }
+and rule_elem =
+  { rule_elem: rule_elem_desc;
+    rule_elem_loc: Location.t }
 
 type rule =
     { rule_rhs: rule_elem list;
@@ -146,11 +149,12 @@ type use =
     { use_modules: ident list;
       use_loc: Location.t }
 
-type type_defn =
-    { type_defn_ident: ident;
-      type_defn_tvars: tvar list;
-      type_defn_body: type_rep;
-      type_defn_loc: Location.t }
+type type_decl =
+    { type_decl_ident: ident;
+      type_decl_kind: kind;
+      type_decl_tvars: tvar list;
+      type_decl_body: type_rep;
+      type_decl_loc: Location.t }
 
 type fun_defn =
     { fun_defn_ident: ident;
@@ -187,7 +191,7 @@ type format =
 
 type top_decl =
   | Decl_use of use
-  | Decl_types of type_defn list (* possibly mutually recursive *)
+  | Decl_types of type_decl list (* possibly mutually recursive *)
   | Decl_fun of fun_defn
   | Decl_nterm of nterm_decl
   | Decl_format of format

@@ -29,3 +29,11 @@ fun cons (l : my_list<'a>, e : 'a) -> my_list<'a> = {
    | my_list::Null()     -> e
    | my_list::Cons(h, t) -> my_list::Cons(e, l))
 }
+
+format {
+  DepVec dv { val: [u8] } :=
+    c=Byte
+    dummy={ c }
+    v=(Byte ^ int_of_byte(c))
+    { dv.val := v }
+}
