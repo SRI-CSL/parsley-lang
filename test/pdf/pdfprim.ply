@@ -13,14 +13,21 @@ fun normalize_name (s : string) -> string = {
 
 format {
 
-  // We use syntax like [:hex:], [:alpha:], [:alphanumeric:], [:char:]
-  // etc. for standard character classes.
-  // We use syntax like ([:char:] \ "(") for set difference.
+  // Parsers are provided in the standard library for primitives
+  // such as Char for ASCII characters, U8 for unsigned bytes, etc.
 
+  // We use syntax like (Char \ "(") for set difference.  To specify
+  // literals directly in a production, we quote them within a matched
+  // !! pair.  Regular expression constructions need to be enclosed
+  // within (# #), and when bound to an identifier have a byte-vector
+  // value.
+
+  // The 'Comment' non-terminal will have a byte vector type.
   Comment := !"%"! (# [Char \ "\n" ]* #) !"\n"!;;
 
-  // The inherited attribute controls whether empty whitespace is
-  // allowed.  There is no synthesized attribute.
+  // The 'Whitespace' non-terminal has a boolean inherited attribute
+  // 'allow_empty', which is used within constraint expressions that
+  // are enclosed in [].  It has a byte-vector value.
   Whitespace w (allow_empty : bool) :=
     [allow_empty]
     (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
@@ -28,8 +35,8 @@ format {
     (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
   ;;
 
-  // The synthesized attribute contains the string-valued name without
-  // the leading '/'.
+  // The 'Name' non-terminal has a synthesized attribute 'val' that
+  // contains the string-valued name without the leading '/'.
   Name n {val : string} :=
     !"/"! s=Alphanum+
     { n.val := normalize_name(s) }
@@ -43,6 +50,10 @@ format {
 
   Null := !"null"!;;
 
+  // Bounded repetition (e.g. N times) of a non-terminal 'NT' can be
+  // specified by (NT ^ N), where N has to have an integer value.
+  // RawStream is given an inherited attribute 'len' that controls how
+  // long the payload is.
   RawStream rs (len : int) {bytes : [byte]} :=
     (# ["stream"] ["\n" | "\r\n"] #)
     b=(Byte ^ len)
