@@ -14,7 +14,7 @@ open Parseerror
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI DOT QUESTION ARROW
 %token STAR PLUS MINUS DIV CARET
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
-%token MATCH COLONCOLON BACKSLASH EXCLAIM UNDERSCORE
+%token MATCH COLONCOLON BACKSLASH EXCLAIM UNDERSCORE DOTDOT
 
 %token<Ast.literal> LITERAL
 %token<Ast.ident>   ID
@@ -344,6 +344,8 @@ literal_set:
   { make_literal_set (LS_set l) $startpos $endpos }
 | l=literal_set BACKSLASH r=literal_set
   { make_literal_set (LS_diff (l, r)) $startpos $endpos }
+| b=LITERAL DOTDOT e=LITERAL
+  { make_literal_set (LS_range (b, e)) $startpos $endpos }
 | LPAREN l=literal_set RPAREN
   { l }
 

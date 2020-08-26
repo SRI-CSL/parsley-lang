@@ -121,6 +121,7 @@ rule token = parse
 | "\\" { BACKSLASH }
 | "^"  { CARET }
 | "#"  { HASH }
+| ".." { DOTDOT }
 
 | upper ident*
     { let id = Lexing.lexeme lexbuf in

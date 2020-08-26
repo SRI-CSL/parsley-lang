@@ -5,7 +5,6 @@ type path    = ident list
 
 type kind =
   | KStar
-  | KTime of kind * kind
   | KArrow of kind * kind
 
 type type_expr_desc =
@@ -91,6 +90,7 @@ type literal_set_desc =
   | LS_type of ident
   | LS_set of literal list
   | LS_diff of literal_set * literal_set
+  | LS_range of literal * literal
 
 and literal_set =
   { literal_set: literal_set_desc;
