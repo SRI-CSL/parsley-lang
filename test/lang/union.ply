@@ -1,0 +1,13 @@
+  // Case / unions
+
+type choice = Good of char | Bad of char
+
+format {
+  Chk r {v:string} :=
+    (| res : choice |)
+    ( !"G"! { res := choice::Good("G") }
+    | !"B"! { res := choice::Bad("B") }
+    )
+    [res ~~ choice::Good] { r.v := "Success" }
+    [res ~~ choice::Bad]  { r.v := "Failure" }
+}

@@ -1,5 +1,35 @@
 format {
 
+  // Match a byte.
+  P := UInt8
+  ;;
+
+  // Match a range of bytes.
+  R := (# ["0" .. "9"] #);;
+
+  // Match a set of bytes: need to enumerate the set.
+  S := (# [ "0" | "5" | "9" ] #);;
+
+  // Pure parser
+  Pure p { val : string } := { p.val = "A" };;
+
+  // Sequencing and Selection
+  ABC1 p {v:string} := !"Helo"! v=!"ABC"! {p.v := v};;
+  ABC2 p {v:string} := a=!"Helo"! b=!"ABC"! {p.v := a+b};;
+  Select p {val:typ} := P q=Q R {p.val := q};;
+
+  // Local variables
+  Add a {val:int} := x=Uint8 !"+"! y=UInt8 {a.val := x+y};;
+
+  // Structuring
+  S s {x:int, y:string} := x=UInt8 y=!"Hello"! {s.x := x; s.y := y};;
+
+  // Constraints
+  P p {v:string} :=
+      i=(# [ "0" .. "9" ] #)
+      [to_int(i) > 5] { p.v := "gt 5" }
+   | { p.v := "leq 5" };;
+
   // Example of a common dependent type:
   // 'c' captures a byte that represents the length of a vector of
   // bytes, captured by 'v'.  The conversion of 'c' into the integer length
