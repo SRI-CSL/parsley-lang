@@ -4,7 +4,7 @@ open Parseerror
 %}
 
 %token EOF
-%token FORMAT TYPE AND FUN NTERM USE AS OF CASE LET IN
+%token FORMAT TYPE AND FUN NTERM USE OF CASE LET IN
 %token ATTR
 %token EPSILON
 
@@ -14,7 +14,7 @@ open Parseerror
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI DOT QUESTION ARROW
 %token STAR PLUS MINUS DIV CARET
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
-%token MATCH COLONCOLON BACKSLASH EXCLAIM UNDERSCORE DOTDOT
+%token CONSTR_MATCH COLONCOLON BACKSLASH EXCLAIM UNDERSCORE DOTDOT
 
 %token<Ast.literal> LITERAL
 %token<Ast.ident>   ID
@@ -31,7 +31,7 @@ open Parseerror
 %nonassoc IN
 %right EXCLAIM
 %left  LAND LOR
-%left  LT GT LTEQ GTEQ EQ NEQ MATCH
+%left  LT GT LTEQ GTEQ EQ NEQ CONSTR_MATCH
 %left  BAR
 %left  BACKSLASH
 %right COLONCOLON
@@ -40,7 +40,7 @@ open Parseerror
 %left  CARET
 %left  LPAREN LBRACK
 %left  ARROW
-%nonassoc UMINUS AS
+%nonassoc UMINUS
 
 %{
 let parse_error e loc =
@@ -245,12 +245,16 @@ rec_fields:
 expr:
 | p=path
   { make_expr (E_path p) $startpos $endpos }
-| i=INT_LITERAL
-  { make_expr (E_int (make_int_literal i)) $startpos $endpos }
 | l=LITERAL
-  { make_expr (E_literal l) $startpos $endpos }
+  { make_expr (E_literal (PL_string (Location.value l))) $startpos $endpos }
+| l=INT_LITERAL
+  { let i = make_int_literal l in
+    make_expr (E_literal (PL_int i)) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, expr) RPAREN
-  { make_expr (E_tuple l) $startpos $endpos }
+  { let loc = Location.make_loc $startpos $endpos in
+    let t = Location.mk_loc_val "_Tuple" loc in
+    let c = Location.mk_loc_val "Tuple" loc in
+    make_expr (E_constr (t, c, l)) $startpos $endpos }
 | e=expr LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_apply(e, l)) $startpos $endpos }
 | e=expr LBRACK i=expr RBRACK
@@ -267,7 +271,7 @@ expr:
   { make_expr (E_binop (Land, l, r)) $startpos $endpos }
 | l=expr LOR r=expr
   { make_expr (E_binop (Lor, l, r)) $startpos $endpos }
-| e=expr MATCH c=CONSTR
+| e=expr CONSTR_MATCH c=CONSTR
   { make_expr (E_match (e, [fst c], snd c)) $startpos $endpos }
 | l=expr PLUS r=expr
   { make_expr (E_binop (Plus, l, r)) $startpos $endpos }
@@ -291,18 +295,16 @@ expr:
   { make_expr (E_binop (Neq, l, r)) $startpos $endpos }
 | l=expr COLONCOLON r=expr
   { make_expr (E_binop (Cons, l, r)) $startpos $endpos }
-| e=expr AS nt=UID
-  { make_expr (E_cast_type (e, [nt])) $startpos $endpos }
-| e=expr AS c=CONSTR
-  { make_expr (E_cast_variant (e, [fst c], snd c)) $startpos $endpos }
-| e=expr ARROW p=path
-  { make_expr (E_field (e, p)) $startpos $endpos }
+| e=expr ARROW f=ident
+  { make_expr (E_field (e, f)) $startpos $endpos }
+| LBRACK l=separated_list(SEMICOLON, expr) RBRACK
+  { make_expr (E_list l) $startpos $endpos }
 | LPAREN CASE e=expr OF option(BAR) b=separated_list(BAR, branch) RPAREN
   { make_expr (E_case (e, b)) $startpos $endpos }
 | LET p=pattern EQ e=expr IN b=expr
   { make_expr (E_let (p, e, b)) $startpos $endpos }
-| LBRACK l=separated_list(SEMICOLON, expr) RBRACK
-  { make_expr (E_list l) $startpos $endpos }
+| LPAREN e=expr COLON t=type_expr RPAREN
+  { make_expr (E_cast (e, t)) $startpos $endpos }
 
 pattern:
 | UNDERSCORE
@@ -315,7 +317,10 @@ pattern:
         | Some l -> P_variant (v, l)
     in make_pattern pat $startpos $endpos }
 | l=LITERAL
-  { make_pattern (P_literal l) $startpos $endpos }
+  { make_pattern (P_literal (PL_string (Location.value l))) $startpos $endpos }
+| l=INT_LITERAL
+  { let i = make_int_literal l in
+    make_pattern (P_literal (PL_int i)) $startpos $endpos }
 | ps=pattern_args
   { make_pattern (P_tuple ps) $startpos $endpos }
 
@@ -386,8 +391,9 @@ rule_elem:
     make_rule_elem (RE_regexp r) $startpos $endpos }
 | EXCLAIM s=list(literal_set) EXCLAIM
   { let l =
-      List.map (fun l -> make_regexp (RX_literals l) $startpos(s)
-                         $endpos(s)) s in
+      List.map (fun l ->
+          make_regexp (RX_literals l) $startpos(s) $endpos(s)
+        ) s in
     let r = make_regexp (RX_seq l) $startpos(s) $endpos(s) in
     make_rule_elem (RE_regexp r) $startpos $endpos }
 | nt=UID inh=option(nt_args)

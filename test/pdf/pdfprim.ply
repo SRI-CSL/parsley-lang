@@ -104,7 +104,7 @@ format {
     l=LitString { s.val := l.val }
   ;;
 
-  // $int_of_string() is a function in the Parsley standard library.
+  // int_of_string() is a function in the Parsley standard library.
   Integer i { val : int } :=
     n=(# Digit+ #)             { i.val := int_of_string(n)  }
   ;
@@ -115,7 +115,7 @@ format {
   // since they are not defined in terms of IEEE 754.
   Real r { val : double } :=
     n=(# Digit+ #)
-    { val := $double_of_string(n)  }
+    { val := double_of_string(n)  }
   ;
     !"-"! n=(# Digit+ #)
     { val := -double_of_string(n) }

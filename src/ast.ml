@@ -37,10 +37,14 @@ type binop =
 type unop =
   | Uminus | Not
 
+type primitive_literal =
+  | PL_int of int
+  | PL_string of string
+
 type pattern_desc =
   | P_wildcard
   | P_var of ident
-  | P_literal of literal
+  | P_literal of primitive_literal
   | P_tuple of pattern list
   | P_variant of (ident * ident) * pattern list
 
@@ -50,21 +54,18 @@ and pattern =
 
 type expr_desc =
   | E_path of path
-  | E_int of int
   | E_constr of ident * ident * expr list
-  | E_tuple of expr list
   | E_record of (ident * expr) list
   | E_apply of expr * expr list
   | E_unop of unop * expr
   | E_binop of binop * expr * expr
-  | E_literal of literal
-  | E_cast_type of expr * path
-  | E_cast_variant of expr * path * ident
-  | E_field of expr * path
+  | E_match of expr * path * ident
+  | E_literal of primitive_literal
+  | E_field of expr * ident
+  | E_list of expr list
   | E_case of expr * (pattern * expr) list
   | E_let of pattern * expr * expr
-  | E_match of expr * path * ident
-  | E_list of expr list
+  | E_cast of expr * type_expr
 
 and expr =
   { expr: expr_desc;
@@ -79,12 +80,12 @@ and stmt =
     stmt_loc: Location.t }
 
 type rule_action =
-    { action_stmts: stmt list;
-      action_loc: Location.t }
+  { action_stmts: stmt list;
+    action_loc: Location.t }
 
 (* for now, use the same expression sublanguage in actions and constraints. *)
 type rule_constraint =
-    expr
+  expr
 
 type literal_set_desc =
   | LS_type of ident
@@ -129,65 +130,65 @@ and rule_elem =
     rule_elem_loc: Location.t }
 
 type rule =
-    { rule_rhs: rule_elem list;
-      rule_temps: param_decl list;
-      rule_loc: Location.t }
+  { rule_rhs: rule_elem list;
+    rule_temps: param_decl list;
+    rule_loc: Location.t }
 
 type attr_list_type =
   | ALT_type of ident  (* TODO: support record instantiation? *)
   | ALT_decls of param_decl list
 
 type non_term_defn =
-    { non_term_name: ident;
-      non_term_varname: ident option;
-      non_term_inh_attrs: attr_list_type; (* inherited *)
-      non_term_syn_attrs: attr_list_type; (* synthesized *)
-      non_term_rules: rule list;
-      non_term_loc: Location.t }
+  { non_term_name: ident;
+    non_term_varname: ident option;
+    non_term_inh_attrs: attr_list_type; (* inherited *)
+    non_term_syn_attrs: attr_list_type; (* synthesized *)
+    non_term_rules: rule list;
+    non_term_loc: Location.t }
 
 type use =
-    { use_modules: ident list;
-      use_loc: Location.t }
+  { use_modules: ident list;
+    use_loc: Location.t }
 
 type type_decl =
-    { type_decl_ident: ident;
-      type_decl_kind: kind;
-      type_decl_tvars: tvar list;
-      type_decl_body: type_rep;
-      type_decl_loc: Location.t }
+  { type_decl_ident: ident;
+    type_decl_kind: kind;
+    type_decl_tvars: tvar list;
+    type_decl_body: type_rep;
+    type_decl_loc: Location.t }
 
 type fun_defn =
-    { fun_defn_ident: ident;
-      fun_defn_params: param_decl list;
-      fun_defn_res_type: type_expr;
-      fun_defn_body: expr;
-      fun_defn_loc: Location.t }
+  { fun_defn_ident: ident;
+    fun_defn_params: param_decl list;
+    fun_defn_res_type: type_expr;
+    fun_defn_body: expr;
+    fun_defn_loc: Location.t }
 
 type nterm_decl =
-    { nterms: ident list;
-      nterms_loc: Location.t }
+  { nterms: ident list;
+    nterms_loc: Location.t }
 
 type attribute_arg =
   | Attr_key of ident
   | Attr_keyvalue of ident * ident
 
 type attribute =
-    { attr_type: ident;
-      attr_value: ident;
-      attr_args: attribute_arg list;
-      attr_loc: Location.t }
+  { attr_type: ident;
+    attr_value: ident;
+    attr_args: attribute_arg list;
+    attr_loc: Location.t }
 
 type format_decl_desc =
   | Format_decl_non_term of non_term_defn
 
 type format_decl =
-    { format_decl: format_decl_desc;
-      format_attr: attribute option;
-      format_decl_loc: Location.t }
+  { format_decl: format_decl_desc;
+    format_attr: attribute option;
+    format_decl_loc: Location.t }
 
 type format =
-    { format_decls: format_decl list;
-      format_loc: Location.t }
+  { format_decls: format_decl list;
+    format_loc: Location.t }
 
 type top_decl =
   | Decl_use of use
@@ -197,7 +198,7 @@ type top_decl =
   | Decl_format of format
 
 type top_level =
-    { decls: top_decl list }
+  { decls: top_decl list }
 
 (* flattened version after including use files *)
 type flat_top_decl =

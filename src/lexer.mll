@@ -9,7 +9,7 @@
 
   let error_string = function
     | Unterminated_string ->
-          "unterminated string"
+        "unterminated string"
 
   let token_buf = ref (Buffer.create 256)
 
@@ -22,7 +22,6 @@
                 "and",    AND;
                 "fun",    FUN;
                 "nterm",  NTERM;
-                "as",     AS;
                 "of",     OF;
                 "case",   CASE;
                 "let",    LET;
@@ -116,7 +115,7 @@ rule token = parse
 | "<"  { LT }
 | ">"  { GT }
 | "="  { EQ }
-| "~~" { MATCH }
+| "~~" { CONSTR_MATCH }
 | "?"  { QUESTION }
 | "\\" { BACKSLASH }
 | "^"  { CARET }

@@ -71,17 +71,17 @@ format {
   :=
     o=(Digit ^ 10) !" "! g=(Digit ^ 5)
     { x.obj := x.idx;
-      x.gen := $string_to_int(g) }
+      x.gen := string_to_int(g) }
     (( !" n"!
        { x.status :=
-           let file_ofs = $string_to_int(o) in
+           let file_ofs = string_to_int(o) in
            xref_status::InUse({ file_ofs: file_ofs }) }
      )
     |
      ( !" f"!
        { // TODO: Ensure that object 0 is free (and is the first entry?).
          x.status :=
-           let next = $string_to_int(o) in
+           let next = string_to_int(o) in
            xref_status::Free({ next: next }) }
      )
     )
