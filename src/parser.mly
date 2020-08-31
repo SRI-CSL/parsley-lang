@@ -38,9 +38,9 @@ open Parseerror
 %left  STAR DIV QUESTION
 %left  PLUS MINUS
 %left  CARET
+%nonassoc UMINUS
 %left  LPAREN LBRACK
 %left  ARROW
-%nonassoc UMINUS
 
 %{
 let parse_error e loc =
