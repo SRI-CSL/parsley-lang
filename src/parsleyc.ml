@@ -1,19 +1,21 @@
-let opt_do_type_check = ref true
-let input_file = ref None
-
-let options = Arg.align ([
-                    ( "-no-tc",
-                      Arg.Clear opt_do_type_check,
-                      " disable type checking" );
-                ])
+let opt_print_ast = ref false
+let input_file = ref []
 
 let usage = Printf.sprintf
               "Usage: %s <options> <file.ply> " (Sys.argv.(0))
 
+let options =
+  Arg.align ([
+        ( "-p",
+          Arg.Set opt_print_ast,
+          " print the parsed AST")
+      ])
+
 let () =
-  Arg.parse options (fun s -> input_file := Some s) usage;
-  let flat_decls =
-    match !input_file with
-      | None -> (Printf.eprintf "%s\n" usage; exit 0)
-      | Some f -> Parse_spec.parse_spec f in
-  ignore flat_decls
+  Arg.parse options (fun s -> input_file := s :: !input_file) usage;
+  if List.length !input_file > 1 || List.length !input_file = 0
+  then (Printf.eprintf "Please specify a single input file.\n";
+        exit 1);
+  let flat_decls = Parse_spec.parse_spec (List.hd !input_file) in
+  if !opt_print_ast then
+    Ast_printer.print_flat_program flat_decls
