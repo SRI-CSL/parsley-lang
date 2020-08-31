@@ -72,4 +72,5 @@ let rec flatten accum includes pending =
 let parse_spec f =
   (*Printf.fprintf stdout " parsing %s ...\n" f;*)
   let ast = parse_file f in
-  flatten [] (StringSet.add f StringSet.empty) ast.decls
+  let ast = flatten [] (StringSet.add f StringSet.empty) ast.decls in
+  List.rev ast
