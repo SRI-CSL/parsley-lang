@@ -3,6 +3,11 @@ type ident   = string Location.loc
 type literal = string Location.loc
 type path    = ident list
 
+(* names stripped of location, used in the type checker *)
+type tname = MultiEquation.tname
+type dname = DName of string (* data constructor names *)
+type lname = LName of string (* record field labels *)
+
 type kind =
   | KStar
   | KArrow of kind * kind
