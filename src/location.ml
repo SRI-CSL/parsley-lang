@@ -20,20 +20,24 @@ let curr lexbuf = {
   loc_ghost = false;
 }
 
-let _make_loc b e g = {
+let _mk_loc b e g = {
   loc_start = b;
   loc_end   = e;
   loc_ghost = g;
 }
 
-let make_loc b e = _make_loc b e false
+let mk_loc b e = _mk_loc b e false
 
-let make_ghost_loc () = _make_loc Lexing.dummy_pos Lexing.dummy_pos true
+let ghost_loc = _mk_loc Lexing.dummy_pos Lexing.dummy_pos true
 
 let extent loc1 loc2 =
-  make_loc
+  mk_loc
     (if loc1.loc_ghost then loc2.loc_start else loc1.loc_start)
     (if loc2.loc_ghost then loc1.loc_end else loc2.loc_end)
+
+let loc_or_ghost = function
+  | Some l -> l
+  | None -> ghost_loc
 
 let get_pos_info pos =
   pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol

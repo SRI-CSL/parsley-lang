@@ -4,9 +4,10 @@ val init: Lexing.lexbuf -> string -> unit
 val curr: Lexing.lexbuf -> t
 val str_of_curr_pos: Lexing.lexbuf -> string
 
-val make_loc: Lexing.position -> Lexing.position -> t
-val make_ghost_loc: unit -> t
+val ghost_loc : t
+val mk_loc: Lexing.position -> Lexing.position -> t
 val extent: t -> t -> t
+val loc_or_ghost: t option -> t
 
 type 'a loc
 

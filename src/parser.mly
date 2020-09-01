@@ -53,7 +53,7 @@ let make_int_literal s =
 
 let make_type_expr t b e =
   { type_expr = t;
-    type_expr_loc = Location.make_loc b e }
+    type_expr_loc = Location.mk_loc b e }
 
 let make_tvar_name name loc =
   { type_expr = TE_tvar (Location.mk_loc_val name loc);
@@ -71,10 +71,10 @@ let make_type_app_name name args loc =
 let make_type_app_ident ident args b e =
   let c = make_tvar_ident ident in
   { type_expr = TE_tapp (c, args);
-    type_expr_loc = Location.make_loc b e }
+    type_expr_loc = Location.mk_loc b e }
 
 let make_list_type a b e =
-  let loc = Location.make_loc b e in
+  let loc = Location.mk_loc b e in
   make_type_app_name "_List" [a] loc
 
 let rec make_tuple_type l =
@@ -100,43 +100,43 @@ let make_variant t (c, l) =
 
 let make_type_rep tr b e =
   { type_rep = tr;
-    type_rep_loc = Location.make_loc b e }
+    type_rep_loc = Location.mk_loc b e }
 
 let make_param_decl id ty b e =
-  Location.mk_loc_val (id, ty) (Location.make_loc b e)
+  Location.mk_loc_val (id, ty) (Location.mk_loc b e)
 
 let make_expr exp b e =
   { expr = exp;
-    expr_loc = Location.make_loc b e }
+    expr_loc = Location.mk_loc b e }
 
 let make_pattern pat b e =
   { pattern = pat;
-    pattern_loc = Location.make_loc b e }
+    pattern_loc = Location.mk_loc b e }
 
 let make_stmt s b e =
   { stmt = s;
-    stmt_loc = Location.make_loc b e }
+    stmt_loc = Location.mk_loc b e }
 
 let make_action sl b e =
   { action_stmts = sl;
-    action_loc = Location.make_loc b e }
+    action_loc = Location.mk_loc b e }
 
 let make_literal_set ls b e =
   { literal_set = ls;
-    literal_set_loc = Location.make_loc b e }
+    literal_set_loc = Location.mk_loc b e }
 
 let make_regexp re b e =
   { regexp = re;
-    regexp_loc = Location.make_loc b e }
+    regexp_loc = Location.mk_loc b e }
 
 let make_rule_elem re b e =
   { rule_elem = re;
-    rule_elem_loc = Location.make_loc b e }
+    rule_elem_loc = Location.mk_loc b e }
 
 let make_rule t res b e =
   { rule_temps = t;
     rule_rhs = res;
-    rule_loc = Location.make_loc b e }
+    rule_loc = Location.mk_loc b e }
 
 let make_nt_defn n v inh syn r b e =
   { non_term_name = n;
@@ -144,44 +144,44 @@ let make_nt_defn n v inh syn r b e =
     non_term_inh_attrs = inh;
     non_term_syn_attrs = syn;
     non_term_rules = r;
-    non_term_loc = Location.make_loc b e }
+    non_term_loc = Location.mk_loc b e }
 
 let make_type_decl n k tvs bd b e =
   { type_decl_ident = n;
     type_decl_kind = k;
     type_decl_tvars = tvs;
     type_decl_body = bd;
-    type_decl_loc = Location.make_loc b e }
+    type_decl_loc = Location.mk_loc b e }
 
 let make_fun_defn n p t bd b e =
   { fun_defn_ident = n;
     fun_defn_params = p;
     fun_defn_res_type = t;
     fun_defn_body = bd;
-    fun_defn_loc = Location.make_loc b e }
+    fun_defn_loc = Location.mk_loc b e }
 
 let make_use m b e =
   { use_modules = m;
-    use_loc = Location.make_loc b e }
+    use_loc = Location.mk_loc b e }
 
 let make_nterm_decl d b e =
   { nterms = d;
-    nterms_loc = Location.make_loc b e }
+    nterms_loc = Location.mk_loc b e }
 
 let make_format_decl d a b e =
   { format_decl = d;
     format_attr = a;
-    format_decl_loc = Location.make_loc b e }
+    format_decl_loc = Location.mk_loc b e }
 
 let make_attr t v a b e =
   { attr_type = t;
     attr_value = v;
     attr_args = a;
-    attr_loc = Location.make_loc b e }
+    attr_loc = Location.mk_loc b e }
 
 let make_format decls b e =
   { format_decls = decls;
-    format_loc = Location.make_loc b e }
+    format_loc = Location.mk_loc b e }
 %}
 
 %%
@@ -251,7 +251,7 @@ expr:
   { let i = make_int_literal l in
     make_expr (E_literal (PL_int i)) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, expr) RPAREN
-  { let loc = Location.make_loc $startpos $endpos in
+  { let loc = Location.mk_loc $startpos $endpos in
     let t = Location.mk_loc_val "_Tuple" loc in
     let c = Location.mk_loc_val "Tuple" loc in
     make_expr (E_constr (t, c, l)) $startpos $endpos }
