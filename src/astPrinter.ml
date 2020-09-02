@@ -102,7 +102,7 @@ let rec print_pattern p =
     | P_literal (PL_string l) ->
         pp_print_string !ppf (Printf.sprintf "\"%s\"" l)
     | P_literal (PL_int l) ->
-        pp_print_string !ppf (Int.to_string l)
+        pp_print_string !ppf (string_of_int l)
     | P_tuple ps ->
         pp_print_string !ppf "(";
         print_list ", " print_pattern ps;
@@ -171,7 +171,7 @@ let rec print_expr e =
     | E_literal (PL_string l) ->
         pp_print_string !ppf (Printf.sprintf "\"%s\"" l)
     | E_literal (PL_int i) ->
-        pp_print_string !ppf (Int.to_string i)
+        pp_print_string !ppf (string_of_int i)
     | E_field (e, f) ->
         let complex = (match e.expr with E_path _ -> false | _ -> true) in
         if complex then pp_print_string !ppf "(";
