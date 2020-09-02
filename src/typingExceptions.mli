@@ -34,9 +34,17 @@ exception InvalidTypeVariableIdentifier of Location.t * Ast.tname
   used although it has not been defined. *)
 exception UnboundDataConstructor of Location.t * Ast.dname
 
+(** [UnboundRecordField] is raised when a field label is
+    used although it has not been defined. *)
+exception UnboundRecordField of Location.t * Ast.lname
+
 (** [InvalidDataConstructorDefinition] is raised when the declared
     type scheme of a data constructor is not regular. *)
 exception InvalidDataConstructorDefinition of Location.t * Ast.dname
+
+(** [InvalidFieldDestructorDefinition] is raised when a field destructor
+    scheme is not legal. *)
+exception InvalidFieldDestructorDefinition of Location.t * Ast.lname
 
 (** [UnboundTypeVariable] is raised when a variable identifier is
     used although it has not been defined. *)
@@ -48,7 +56,7 @@ exception MultipleLabels of Location.t * Ast.lname
 
 (** [NonLinearPattern] is raised when at least two occurrences of a variable
     appear in a pattern. *)
-exception NonLinearPattern of Ast.ident
+exception NonLinearPattern of Location.t * string
 
 (** [InvalidDisjunctionPattern] is raised when the subpatterns of a
     disjunction pattern do not bind the same variables. *)

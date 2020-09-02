@@ -38,9 +38,17 @@ exception InvalidTypeVariableIdentifier of Location.t * tname
     used although it has not been defined. *)
 exception UnboundDataConstructor of Location.t * dname
 
+(** [UnboundRecordField] is raised when a field label is
+    used although it has not been defined. *)
+exception UnboundRecordField of Location.t * lname
+
 (** [InvalidDataConstructorDefinition] is raised when a data constructor
     scheme is not legal. *)
 exception InvalidDataConstructorDefinition of Location.t * dname
+
+(** [InvalidFieldDestructorDefinition] is raised when a field destructor
+    scheme is not legal. *)
+exception InvalidFieldDestructorDefinition of Location.t * lname
 
 (** [UnboundTypeVariable] is raised when a variable identifier is
     used although it has not been defined. *)
@@ -52,7 +60,7 @@ exception MultipleLabels of Location.t * lname
 
 (** [NonLinearPattern] is raised when at least two occurrences of a variable
     appear in a pattern. *)
-exception NonLinearPattern of ident
+exception NonLinearPattern of Location.t * string
 
 exception NotEnoughPatternArgts of Location.t
 

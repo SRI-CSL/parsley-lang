@@ -39,10 +39,12 @@ open CoreEnv
 (* The following information is stored for each type constructor:
    - its kind ;
    - its associated term (a type variable actually) ;
-   - if it is an algebraic datatype, the list of its datatype
-   constructors. *)
+   - if it is a variant datatype, the list of its datatype constructors;
+     or if it is a record datatype, the list of its record field
+     destructors. *)
 type algebraic_datatype =
-  (dname * variable) list
+  | Variant of (dname * variable) list
+  | Record of (lname * variable) list
 
 type type_info =
   KindInferencer.t * variable * algebraic_datatype option ref
@@ -59,20 +61,27 @@ let as_type_variable (_, v, _) =
 (* The following information is stored for each datatype constructor:
    - its type variables ;
    - its arity ;
-   - its type ; *)
+   - its type *)
 type data_constructor = int * variable list * crterm
+
+(* The following information is stored for each field destructor:
+   - its type variables ;
+   - its type *)
+type field_destructor = variable list * crterm
 
 (** [environment] denotes typing information associated to identifiers. *)
 type environment =
   {
     type_info        : (tname, type_info) CoreEnv.t;
     data_constructor : (dname, data_constructor) CoreEnv.t;
+    field_destructor : (lname, field_destructor) CoreEnv.t;
   }
 
 let empty_environment =
   {
     type_info        = CoreEnv.empty;
-    data_constructor = CoreEnv.empty
+    data_constructor = CoreEnv.empty;
+    field_destructor = CoreEnv.empty;
   }
 
 let union_type_variables env1 env2 =
@@ -90,6 +99,9 @@ let add_type_constructor env t x =
 
 let add_data_constructor env t x =
   { env with data_constructor = CoreEnv.add env.data_constructor t x }
+
+let add_field_destructor env t f =
+  { env with field_destructor = CoreEnv.add env.field_destructor t f }
 
 (** [lookup_typcon ?pos env t] retrieves typing information about
     the type constructor [t]. *)
@@ -169,6 +181,14 @@ let lookup_datacon ?pos env k =
   with Not_found ->
     raise (UnboundDataConstructor ((Location.loc_or_ghost pos), k))
 
+(** [lookup_field env f] looks for typing information related to
+    the record field [f] in [env]. *)
+let lookup_field ?pos env f =
+  try
+    CoreEnv.lookup env.field_destructor f
+  with Not_found ->
+    raise (UnboundRecordField ((Location.loc_or_ghost pos), f))
+
 let rigid_args rt =
   List.fold_left (fun acu ->
       function
@@ -178,13 +198,20 @@ let rigid_args rt =
       | _ -> acu) []
     (tycon_args rt)
 
-let fresh_datacon_scheme pos tenv k =
-  let (_, kvars, kt) = lookup_datacon tenv k in
+let fresh_scheme kvars kt =
   let fresh_kvars =
     let mkvar ?name v = variable Flexible ?name () in
     List.map mkvar kvars in
   let fresh_kvars_assoc = List.combine kvars fresh_kvars in
   (fresh_kvars, CoreAlgebra.change_arterm_vars fresh_kvars_assoc kt)
+
+let fresh_datacon_scheme tenv k =
+  let (_, kvars, kt) = lookup_datacon tenv k in
+  fresh_scheme kvars kt
+
+let fresh_field_scheme tenv f =
+  let (kvars, kt) = lookup_field tenv f in
+  fresh_scheme kvars kt
 
 let is_regular_datacon_scheme tenv (TName adt_name) kvars kt =
   let rt = result_type (as_fun tenv) kt in
@@ -197,10 +224,29 @@ let is_regular_datacon_scheme tenv (TName adt_name) kvars kt =
   let name = match tycon_name rt with
       | TVariable v -> (UnionFind.find v).name
       | _ -> None in
-  let check_name = match name with
+  let check_result = match name with
       | Some (TName n) -> n == adt_name
       | None -> false in
-  check_args && check_name
+  check_args && check_result
+
+let is_regular_field_scheme tenv (TName adt_name) kvars kt =
+  let kargs = arg_types (as_fun tenv) kt in
+  match kargs with
+    | [] -> false  (* a destructor needs an argument *)
+    | rt :: _ ->
+        (* Check that all the tycon arguments are distinct rigid variables. *)
+        let rigid_args = rigid_args rt in
+        let check_args =
+          List.for_all (fun v -> List.memq v kvars) rigid_args
+          && List.length rigid_args == List.length kvars in
+        (* Check that the source type is the adt itself. *)
+        let name = match tycon_name rt with
+            | TVariable v -> (UnionFind.find v).name
+            | _ -> None in
+        let check_source = match name with
+            | Some (TName n) -> n == adt_name
+            | None -> false in
+        check_args && check_source
 
 (** [fresh_vars kind pos env vars] allocates fresh variables from a
     list of names [vars], checking name clashes with type constructors. *)
