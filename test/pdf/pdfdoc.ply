@@ -2,9 +2,12 @@
 
 use {pdfprim, pdfobj}
 
+type free_info  = { next : int }
+type inuse_info = { file_ofs : int }
+
 type xref_status =
-    Free of { next : int }
-  | InUse of { file_ofs : int }
+    Free of free_info
+  | InUse of inuse_info
 
 type xref_ent =
   { obj : int,

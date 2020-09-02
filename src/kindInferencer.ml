@@ -176,13 +176,6 @@ let rec infer env t =
                    ) ts k in
         unify t.type_expr_loc (infer env tc) kd;
         k
-    | TE_record fields ->
-        List.iter (fun pd ->
-            let loc = Location.loc pd in
-            let ident, ft = Location.value pd in
-            unify loc (infer env ft) star
-          ) fields;
-        star
 
 and check loc env t k =
   unify loc (infer env t) k

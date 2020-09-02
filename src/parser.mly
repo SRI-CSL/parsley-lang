@@ -213,8 +213,6 @@ type_expr:
 | d=def LT l=separated_list(COMMA, type_expr) GT
   { let c = make_tvar_ident d in
     make_type_expr (TE_tapp (c, l)) $startpos $endpos }
-| LBRACE r=param_decls RBRACE
-  { make_type_expr (TE_record r) $startpos $endpos }
 
 variant:
 | i=UID
@@ -234,12 +232,20 @@ param_decls:
 | l=separated_list(COMMA, param_decl)
   { l }
 
-rec_field:
+rec_typ_field:
+| i=ident COLON t=type_expr
+  { (i, t) }
+
+rec_typ_fields:
+| l=separated_list(COMMA, rec_typ_field)
+  { l }
+
+rec_exp_field:
 | i=ident COLON e=expr
   { (i, e) }
 
-rec_fields:
-| l=separated_list(COMMA, rec_field)
+rec_exp_fields:
+| l=separated_list(COMMA, rec_exp_field)
   { l }
 
 expr:
@@ -265,7 +271,7 @@ expr:
   { make_expr (E_unop (Uminus, e)) $startpos $endpos }
 | EXCLAIM e=expr
   { make_expr (E_unop (Not, e)) $startpos $endpos }
-| LBRACE r=rec_fields RBRACE
+| LBRACE r=rec_exp_fields RBRACE
   { make_expr (E_record r) $startpos $endpos }
 | l=expr LAND r=expr
   { make_expr (E_binop (Land, l, r)) $startpos $endpos }
@@ -480,11 +486,17 @@ type_decl:
     make_type_decl t KStar tvs rep $startpos $endpos }
 | t=ident EQ vs=variants
   { let variants = List.map (make_variant t) vs in
-    let rep = make_type_rep (TR_algebraic variants) $startpos(vs) $endpos(vs) in
+    let rep = make_type_rep (TR_variant variants) $startpos(vs) $endpos(vs) in
     make_type_decl t KStar [] rep $startpos $endpos }
 | t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ vs=variants
   { let variants = List.map (make_variant t) vs in
-    let rep = make_type_rep (TR_algebraic variants) $startpos(vs) $endpos(vs) in
+    let rep = make_type_rep (TR_variant variants) $startpos(vs) $endpos(vs) in
+    make_type_decl t KStar tvs rep $startpos $endpos }
+| t=ident EQ LBRACE r=rec_typ_fields RBRACE
+  { let rep = make_type_rep (TR_record r) $startpos $endpos in
+    make_type_decl t KStar [] rep $startpos $endpos }
+| t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ LBRACE r=rec_typ_fields RBRACE
+  { let rep = make_type_rep (TR_record r) $startpos $endpos in
     make_type_decl t KStar tvs rep $startpos $endpos }
 
 type_decls:

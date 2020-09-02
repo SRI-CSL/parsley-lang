@@ -40,23 +40,10 @@ let rec print_type_expr ?paren te =
         print_list ", " print_type_expr args;
         pp_print_string !ppf ")";
         if paren <> None then pp_print_string !ppf ")"
-    | TE_record fields ->
-        if paren <> None then pp_print_string !ppf "(";
-        pp_print_string !ppf "{";
-        print_list ", " (fun pd ->
-            let l, t = Location.value pd in begin
-                pp_print_string !ppf (Location.value l);
-                pp_print_string !ppf ": ";
-                print_type_expr t
-              end
-          )
-          fields;
-        pp_print_string !ppf "}";
-        if paren <> None then pp_print_string !ppf ")"
 
 let print_type_rep tr =
   match tr.type_rep with
-    | TR_algebraic cons ->
+    | TR_variant cons ->
         let first = ref true in
         let print_data_cons (id, te) =
           if !first
@@ -72,6 +59,16 @@ let print_type_rep tr =
             print_data_cons c
           ) cons;
         pp_close_box !ppf ()
+    | TR_record fields ->
+        pp_print_string !ppf "{";
+        print_list ", " (fun (l, t) ->
+            pp_print_string !ppf (Location.value l);
+            pp_print_string !ppf ": ";
+            print_type_expr t
+          )
+          fields;
+        pp_print_string !ppf "}"
+
     | TR_defn t ->
         print_type_expr t
 

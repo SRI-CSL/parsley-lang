@@ -46,11 +46,6 @@ let variables_of_typ =
         StringSet.add (Location.value x) acu
     | TE_tapp (t, ts) ->
         List.fold_left vtyp (vtyp acu t) ts
-    | TE_record fields ->
-        List.fold_left (fun acu pd ->
-            let (_f, t) = Location.value pd in
-            vtyp acu t
-          ) acu fields
   in
     vtyp StringSet.empty
 
@@ -75,17 +70,11 @@ let tycon tenv t =
 
 let rec intern' pos tenv t : crterm =
   match t.type_expr with
-
     | TE_tvar name ->
         as_fun tenv (TName (Location.value name))
-
     | TE_tapp (t, args) ->
         let iargs = List.map (intern' pos tenv) args in
           CoreAlgebra.app (intern' pos tenv t) iargs
-
-    | TE_record fields ->
-        (* TODO *)
-        assert false
 
 (** [intern tenv typ] converts the type expression [typ] to a type.
     The environment [tenv] maps type identifiers to types. *)

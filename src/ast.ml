@@ -15,10 +15,6 @@ type kind =
 type type_expr_desc =
   | TE_tvar of tvar
   | TE_tapp of type_expr * type_expr list
-  | TE_record of param_decl list
-
-and param_decl =
-  (ident * type_expr) Location.loc
 
 and type_expr =
   { type_expr: type_expr_desc;
@@ -27,7 +23,8 @@ and type_expr =
 type type_rep_desc =
   (* The type signature in 'type_expr' includes the return type for the
    * variant constructor 'ident'; i.e. it is a full function signature. *)
-  | TR_algebraic of (ident * type_expr) list
+  | TR_variant of (ident * type_expr) list
+  | TR_record of (ident * type_expr) list
   | TR_defn of type_expr
 
 and type_rep =
@@ -133,6 +130,9 @@ type rule_elem_desc =
 and rule_elem =
   { rule_elem: rule_elem_desc;
     rule_elem_loc: Location.t }
+
+type param_decl =
+  (ident * type_expr) Location.loc
 
 type rule =
   { rule_rhs: rule_elem list;
