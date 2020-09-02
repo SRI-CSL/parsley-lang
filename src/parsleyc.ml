@@ -16,6 +16,6 @@ let () =
   if List.length !input_file > 1 || List.length !input_file = 0
   then (Printf.eprintf "Please specify a single input file.\n";
         exit 1);
-  let flat_decls = SpecParser.parse_spec (List.hd !input_file) in
+  let decls = SpecParser.parse_spec (List.hd !input_file) in
   if !opt_print_ast then
-    AstPrinter.print_flat_program flat_decls
+    AstPrinter.print_program decls

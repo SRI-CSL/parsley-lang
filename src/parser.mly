@@ -25,7 +25,7 @@ open Parseerror
 
 %token<string Location.loc * string Location.loc> CONSTR
 
-%start<Ast.top_level> toplevel
+%start<Ast.pre_top_level> toplevel
 
 (* operators are increasing precedence order. *)
 %nonassoc IN
@@ -73,45 +73,21 @@ let make_type_app_ident ident args b e =
   { type_expr = TE_tapp (c, args);
     type_expr_loc = Location.mk_loc b e }
 
-let make_list_type a b e =
-  let loc = Location.mk_loc b e in
-  make_type_app_name "_List" [a] loc
+let make_pattern pat b e =
+  { pattern = pat;
+    pattern_loc = Location.mk_loc b e }
 
-let rec make_tuple_type l =
-  match l with
-    | [] -> assert false
-    | [a] -> a
-    | h :: rest ->
-          let t = make_tuple_type rest in
-          let loc = Location.extent h.type_expr_loc t.type_expr_loc in
-          make_type_app_name "_Tuple" [h; t] loc
-
-let make_arrow_type loc a b =
-  make_type_app_name "_Arrow" [a; b] loc
-
-let make_variant t (c, l) =
-  let res = make_tvar_ident t in
-  match l with
-    | [] -> c, res
-    | _  ->
-          let arg = make_tuple_type l in
-          let signature = make_arrow_type (Location.loc c) arg res in
-          c, signature
+let make_pattern_loc pat loc =
+  { pattern = pat;
+    pattern_loc = loc }
 
 let make_type_rep tr b e =
   { type_rep = tr;
     type_rep_loc = Location.mk_loc b e }
 
-let make_param_decl id ty b e =
-  Location.mk_loc_val (id, ty) (Location.mk_loc b e)
-
 let make_expr exp b e =
   { expr = exp;
     expr_loc = Location.mk_loc b e }
-
-let make_pattern pat b e =
-  { pattern = pat;
-    pattern_loc = Location.mk_loc b e }
 
 let make_stmt s b e =
   { stmt = s;
@@ -182,6 +158,38 @@ let make_attr t v a b e =
 let make_format decls b e =
   { format_decls = decls;
     format_loc = Location.mk_loc b e }
+
+(* Type expressions with syntactic support, such as tuples and lists,
+   need support in the parser. *)
+
+let make_list_type a b e =
+  let loc = Location.mk_loc b e in
+  make_type_app_name "_List" [a] loc
+
+let rec make_tuple_type l =
+  match l with
+    | [] -> assert false
+    | [a] -> a
+    | h :: rest ->
+          let t = make_tuple_type rest in
+          let loc = Location.extent h.type_expr_loc t.type_expr_loc in
+          make_type_app_name "_Tuple" [h; t] loc
+
+let rec make_tuple_pattern l =
+  match l with
+    | [] -> assert false
+    | [a] -> a
+    | h :: rest ->
+        let p = make_tuple_pattern rest in
+        let loc = Location.extent h.pattern_loc p.pattern_loc in
+        let t = Location.mk_loc_val "*" loc in
+        let c = Location.mk_loc_val "_Tuple" loc in
+        make_pattern_loc (P_variant ((t, c), [h; p])) loc
+
+let make_variant t (c, l) =
+  match l with
+    | [] -> c, None
+    | _  -> c, Some (make_tuple_type l)
 %}
 
 %%
@@ -226,7 +234,7 @@ variants:
 
 param_decl:
 | i=ident COLON t=type_expr
-  { make_param_decl i t $startpos $endpos }
+  { (i, t) }
 
 param_decls:
 | l=separated_list(COMMA, param_decl)
@@ -260,7 +268,9 @@ expr:
   { let loc = Location.mk_loc $startpos $endpos in
     let t = Location.mk_loc_val "_Tuple" loc in
     let c = Location.mk_loc_val "Tuple" loc in
-    make_expr (E_constr (t, c, l)) $startpos $endpos }
+    if List.length l = 0
+    then make_expr (E_literal PL_unit) $startpos $endpos
+    else make_expr (E_constr (t, c, l)) $startpos $endpos }
 | e=expr LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_apply(e, l)) $startpos $endpos }
 | e=expr LBRACK i=expr RBRACK
@@ -328,7 +338,11 @@ pattern:
   { let i = make_int_literal l in
     make_pattern (P_literal (PL_int i)) $startpos $endpos }
 | ps=pattern_args
-  { make_pattern (P_tuple ps) $startpos $endpos }
+  { if List.length ps = 0
+    then make_pattern (P_literal PL_unit) $startpos $endpos
+    else if List.length ps = 1
+    then List.hd ps
+    else make_tuple_pattern ps }
 
 pattern_args:
 | LPAREN ps=separated_list(COMMA, pattern) RPAREN
@@ -505,20 +519,20 @@ type_decls:
 | TYPE t=type_decl AND l=separated_list(AND, type_decl)
   { t :: l }
 
-top_decl:
+pre_decl:
 | USE m=ident
-  { Decl_use (make_use [m] $startpos $endpos) }
+  { PDecl_use (make_use [m] $startpos $endpos) }
 | USE LBRACE m=separated_list(COMMA, ident) RBRACE
-  { Decl_use (make_use m $startpos $endpos) }
+  { PDecl_use (make_use m $startpos $endpos) }
 | l=type_decls
-  { Decl_types l }
+  { PDecl_types l }
 | FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
-  { Decl_fun (make_fun_defn f p r e $startpos $endpos) }
+  { PDecl_fun (make_fun_defn f p r e $startpos $endpos) }
 | NTERM LBRACE d=separated_list(COMMA, UID) RBRACE
-  { Decl_nterm (make_nterm_decl d $startpos $endpos) }
+  { PDecl_nterm (make_nterm_decl d $startpos $endpos) }
 | FORMAT LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
-  { Decl_format (make_format d $startpos $endpos) }
+  { PDecl_format (make_format d $startpos $endpos) }
 
 toplevel:
-| decls=list(top_decl) EOF
-  { { decls } }
+| pre_decls=list(pre_decl) EOF
+  { { pre_decls } }

@@ -21,9 +21,7 @@ and type_expr =
     type_expr_loc: Location.t }
 
 type type_rep_desc =
-  (* The type signature in 'type_expr' includes the return type for the
-   * variant constructor 'ident'; i.e. it is a full function signature. *)
-  | TR_variant of (ident * type_expr) list
+  | TR_variant of (ident * type_expr option) list
   | TR_record of (ident * type_expr) list
   | TR_defn of type_expr
 
@@ -42,12 +40,12 @@ type unop =
 type primitive_literal =
   | PL_int of int
   | PL_string of string
+  | PL_unit
 
 type pattern_desc =
   | P_wildcard
   | P_var of ident
   | P_literal of primitive_literal
-  | P_tuple of pattern list
   | P_variant of (ident * ident) * pattern list
 
 and pattern =
@@ -131,17 +129,14 @@ and rule_elem =
   { rule_elem: rule_elem_desc;
     rule_elem_loc: Location.t }
 
-type param_decl =
-  (ident * type_expr) Location.loc
-
 type rule =
   { rule_rhs: rule_elem list;
-    rule_temps: param_decl list;
+    rule_temps: (ident * type_expr) list;
     rule_loc: Location.t }
 
 type attr_list_type =
   | ALT_type of ident  (* TODO: support record instantiation? *)
-  | ALT_decls of param_decl list
+  | ALT_decls of (ident * type_expr) list
 
 type non_term_defn =
   { non_term_name: ident;
@@ -164,7 +159,7 @@ type type_decl =
 
 type fun_defn =
   { fun_defn_ident: ident;
-    fun_defn_params: param_decl list;
+    fun_defn_params: (ident * type_expr) list;
     fun_defn_res_type: type_expr;
     fun_defn_body: expr;
     fun_defn_loc: Location.t }
@@ -195,22 +190,22 @@ type format =
   { format_decls: format_decl list;
     format_loc: Location.t }
 
+type pre_decl =
+  | PDecl_use of use
+  | PDecl_types of type_decl list (* possibly mutually recursive *)
+  | PDecl_fun of fun_defn
+  | PDecl_nterm of nterm_decl
+  | PDecl_format of format
+
+type pre_top_level =
+  { pre_decls: pre_decl list }
+
+(* flattened version after including use files *)
 type top_decl =
-  | Decl_use of use
   | Decl_types of type_decl list (* possibly mutually recursive *)
   | Decl_fun of fun_defn
   | Decl_nterm of nterm_decl
   | Decl_format of format
 
-type top_level =
+type program =
   { decls: top_decl list }
-
-(* flattened version after including use files *)
-type flat_top_decl =
-  | Flat_decl_types of type_decl list (* possibly mutually recursive *)
-  | Flat_decl_fun of fun_defn
-  | Flat_decl_nterm of nterm_decl
-  | Flat_decl_format of format
-
-type flat_top_level =
-  { flat_decls: flat_top_decl list }

@@ -45,18 +45,23 @@ let print_type_rep tr =
   match tr.type_rep with
     | TR_variant cons ->
         let first = ref true in
-        let print_data_cons (id, te) =
+        let print_data_cons dc =
           if !first
           then (pp_print_string !ppf "  ";
                 first := false)
           else (pp_print_break !ppf 0 0;
                 pp_print_string !ppf "| ");
-          pp_print_string !ppf (Location.value id);
-          pp_print_string !ppf " of ";
-          print_type_expr te in
+          match dc with
+            | id, Some te ->
+                pp_print_string !ppf (Location.value id);
+                pp_print_string !ppf " of ";
+                print_type_expr te
+            | id, None ->
+                pp_print_string !ppf (Location.value id)
+        in
         pp_open_vbox !ppf 0;
-        List.iter (fun c ->
-            print_data_cons c
+        List.iter (fun dc ->
+            print_data_cons dc
           ) cons;
         pp_close_box !ppf ()
     | TR_record fields ->
@@ -96,14 +101,12 @@ let rec print_pattern p =
         pp_print_string !ppf "_"
     | P_var id ->
         pp_print_string !ppf (Location.value id)
+    | P_literal PL_unit ->
+        pp_print_string !ppf "()"
     | P_literal (PL_string l) ->
         pp_print_string !ppf (Printf.sprintf "\"%s\"" l)
     | P_literal (PL_int l) ->
         pp_print_string !ppf (string_of_int l)
-    | P_tuple ps ->
-        pp_print_string !ppf "(";
-        print_list ", " print_pattern ps;
-        pp_print_string !ppf ")"
     | P_variant ((t,c), ps) ->
         pp_print_string !ppf
           (Printf.sprintf "%s::%s"
@@ -165,6 +168,8 @@ let rec print_expr e =
         pp_print_string !ppf (Printf.sprintf " %s " (str_of_binop b));
         print_expr r;
         pp_print_string !ppf ")"
+    | E_literal PL_unit ->
+        pp_print_string !ppf "()"
     | E_literal (PL_string l) ->
         pp_print_string !ppf (Printf.sprintf "\"%s\"" l)
     | E_literal (PL_int i) ->
@@ -224,8 +229,7 @@ let rec print_expr e =
         print_type_expr t;
         pp_print_string !ppf ")"
 
-let print_param_decl pd =
-  let pm, ty = Location.value pd in
+let print_param_decl (pm, ty) =
   pp_print_string !ppf (Location.value pm);
   pp_print_string !ppf ": ";
   print_type_expr ty
@@ -495,16 +499,16 @@ let print_format f =
 
 let rec print_decl d =
   match d with
-    | Flat_decl_types typs ->
+    | Decl_types typs ->
         List.iter print_type_decl typs
-    | Flat_decl_fun fd ->
+    | Decl_fun fd ->
         print_fun_defn fd
-    | Flat_decl_nterm nd ->
+    | Decl_nterm nd ->
         print_nterm_decl nd
-    | Flat_decl_format f ->
+    | Decl_format f ->
         print_format f
 
-let rec print_flat_program = function
+let rec print_program = function
   | [] -> ()
   | h :: t -> begin
       pp_open_box !ppf 0;
@@ -512,5 +516,5 @@ let rec print_flat_program = function
       pp_print_newline !ppf ();
       pp_print_newline !ppf ();
       pp_close_box !ppf ();
-      print_flat_program t
+      print_program t
     end

@@ -42,21 +42,21 @@ let rec flatten accum includes pending =
     | [] -> accum
     | d :: rest ->
         (match d with
-           | Decl_types l ->
-               flatten (Flat_decl_types l :: accum) includes rest
-           | Decl_fun f ->
-               flatten (Flat_decl_fun f :: accum) includes rest
-           | Decl_nterm n ->
-               flatten (Flat_decl_nterm n :: accum) includes rest
-           | Decl_format f ->
-               flatten (Flat_decl_format f :: accum) includes rest
-           | Decl_use u ->
+           | PDecl_types l ->
+               flatten (Decl_types l :: accum) includes rest
+           | PDecl_fun f ->
+               flatten (Decl_fun f :: accum) includes rest
+           | PDecl_nterm n ->
+               flatten (Decl_nterm n :: accum) includes rest
+           | PDecl_format f ->
+               flatten (Decl_format f :: accum) includes rest
+           | PDecl_use u ->
                (match u.use_modules with
                   | [] -> flatten accum includes rest
                   | h :: t ->
                       (* pick the first, the others go back to pending *)
                       let pending_use = { u with use_modules = t } in
-                      let pending = Decl_use pending_use :: rest in
+                      let pending = PDecl_use pending_use :: rest in
                       let fname = Printf.sprintf "%s.ply" (Location.value h) in
                       if StringSet.mem fname includes then
                         (* we've already included this, skip *)
@@ -65,12 +65,12 @@ let rec flatten accum includes pending =
                         (*let _ = Printf.fprintf stdout " including %s ...\n" fname in*)
                         let ast = parse_file fname in
                         (* push its decls on top of the pending list *)
-                        flatten accum (StringSet.add fname includes) (ast.decls @ pending)
+                        flatten accum (StringSet.add fname includes) (ast.pre_decls @ pending)
                )
         )
 
 let parse_spec f =
   (*Printf.fprintf stdout " parsing %s ...\n" f;*)
   let ast = parse_file f in
-  let ast = flatten [] (StringSet.add f StringSet.empty) ast.decls in
+  let ast = flatten [] (StringSet.add f StringSet.empty) ast.pre_decls in
   List.rev ast
