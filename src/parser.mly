@@ -1,6 +1,7 @@
 %{
 open Ast
 open Parseerror
+open AstUtils
 %}
 
 %token EOF
@@ -54,19 +55,6 @@ let make_int_literal s =
 let make_type_expr t b e =
   { type_expr = t;
     type_expr_loc = Location.mk_loc b e }
-
-let make_tvar_name name loc =
-  { type_expr = TE_tvar (Location.mk_loc_val name loc);
-    type_expr_loc = loc }
-
-let make_tvar_ident ident =
-  { type_expr = TE_tvar ident;
-    type_expr_loc = Location.loc ident }
-
-let make_type_app_name name args loc =
-  let c = make_tvar_name name loc in
-  { type_expr = TE_tapp (c, args);
-    type_expr_loc = loc }
 
 let make_type_app_ident ident args b e =
   let c = make_tvar_ident ident in
