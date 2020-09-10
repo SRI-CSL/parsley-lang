@@ -40,11 +40,11 @@ exception UnboundRecordField of Location.t * Ast.lname
 
 (** [InvalidDataConstructorDefinition] is raised when the declared
     type scheme of a data constructor is not regular. *)
-exception InvalidDataConstructorDefinition of Location.t * Ast.dname
+exception InvalidDataConstructorDefinition of Ast.ident
 
 (** [InvalidFieldDestructorDefinition] is raised when a field destructor
     scheme is not legal. *)
-exception InvalidFieldDestructorDefinition of Location.t * Ast.lname
+exception InvalidFieldDestructorDefinition of Ast.ident
 
 (** [UnboundTypeVariable] is raised when a variable identifier is
     used although it has not been defined. *)

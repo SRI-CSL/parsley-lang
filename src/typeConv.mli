@@ -30,7 +30,7 @@
 val extract_type : Ast.expr -> (Ast.type_expr * Ast.expr) option
 
 (** [variables_of_typ ty] returns the type variables of [ty]. *)
-val variables_of_typ : Ast.type_expr -> Misc.StringSet.t
+val variables_of_typ : Ast.type_expr -> Location.t Misc.StringMap.t
 
 (** [arrow env x1 x2] builds the internal representation of the
     type [x1 -> x2]. *)
@@ -44,7 +44,7 @@ val arity : Ast.type_expr -> int
 val tycon : TypingEnvironment.environment -> Ast.ident -> MultiEquation.crterm list -> MultiEquation.crterm
 
 (** [intern env ty] converts [ty] into its internal representation. *)
-val intern : Location.t -> TypingEnvironment.environment -> Ast.type_expr -> MultiEquation.crterm
+val intern : TypingEnvironment.environment -> Ast.type_expr -> MultiEquation.crterm
 
 (** [internal_let_env env fqs rqs] internalizes the flexible variables
     [fqs] and the rigid variables [rqs] into [env]. *)

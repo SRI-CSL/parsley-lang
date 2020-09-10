@@ -177,8 +177,8 @@ let rec infer env t =
         unify t.type_expr_loc (infer env tc) kd;
         k
 
-and check loc env t k =
-  unify loc (infer env t) k
+and check env t k =
+  unify t.type_expr_loc (infer env t) k
 
 let rec intern_kind env = function
   | KStar -> star

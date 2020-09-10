@@ -43,11 +43,12 @@ let variables_of_typ =
   let rec vtyp acu t =
     match t.type_expr with
     | TE_tvar (x) ->
-        StringSet.add (Location.value x) acu
+        let loc = Location.loc x in
+        StringMap.add (Location.value x) loc acu
     | TE_tapp (t, ts) ->
         List.fold_left vtyp (vtyp acu t) ts
   in
-    vtyp StringSet.empty
+    vtyp StringMap.empty
 
 let arrow tenv =
   arrow (typcon_variable tenv)
@@ -68,20 +69,20 @@ let arity t =
 let tycon tenv t =
   CoreAlgebra.app (lookup_type_variable tenv (TName (Location.value t)))
 
-let rec intern' pos tenv t : crterm =
+let rec intern' tenv t : crterm =
   match t.type_expr with
     | TE_tvar name ->
         as_fun tenv (TName (Location.value name))
     | TE_tapp (t, args) ->
-        let iargs = List.map (intern' pos tenv) args in
-          CoreAlgebra.app (intern' pos tenv t) iargs
+        let iargs = List.map (intern' tenv) args in
+          CoreAlgebra.app (intern' tenv t) iargs
 
 (** [intern tenv typ] converts the type expression [typ] to a type.
     The environment [tenv] maps type identifiers to types. *)
-let rec intern pos tenv ty =
+let rec intern tenv ty =
   let kind_env = as_kind_env tenv in
-  let _ = KindInferencer.check pos kind_env ty KindInferencer.star in
-    intern' pos tenv ty
+  let _ = KindInferencer.check kind_env ty KindInferencer.star in
+    intern' tenv ty
 
 let intern_let_env pos tenv rs fs =
   let fs = List.map AstUtils.to_tname fs in
@@ -97,5 +98,5 @@ let intern_scheme pos tenv name qs typ =
   let fqs, rtenv = fresh_flexible_vars pos tenv qs in
     TypeConstraint.Scheme (pos, [], fqs, CTrue pos,
                            StringMap.singleton name
-                         ((intern pos (add_type_variables rtenv tenv) typ),
+                         ((intern (add_type_variables rtenv tenv) typ),
                           pos))

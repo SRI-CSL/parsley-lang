@@ -39,9 +39,9 @@ val infer: env -> Ast.type_expr -> t
 (** [intern_kind env kind] internalizes a kind in the user-syntax. *)
 val intern_kind: env -> Ast.kind -> t
 
-(** [check pos env typ kind ] verifies that [typ] can be given the kind
+(** [check env typ kind ] verifies that [typ] can be given the kind
     [kind]. *)
-val check: Location.t -> env -> Ast.type_expr -> t -> unit
+val check: env -> Ast.type_expr -> t -> unit
 
 (** [star] is the kind of ml values. *)
 val star : t

@@ -44,11 +44,11 @@ exception UnboundRecordField of Location.t * lname
 
 (** [InvalidDataConstructorDefinition] is raised when a data constructor
     scheme is not legal. *)
-exception InvalidDataConstructorDefinition of Location.t * dname
+exception InvalidDataConstructorDefinition of ident
 
 (** [InvalidFieldDestructorDefinition] is raised when a field destructor
     scheme is not legal. *)
-exception InvalidFieldDestructorDefinition of Location.t * lname
+exception InvalidFieldDestructorDefinition of ident
 
 (** [UnboundTypeVariable] is raised when a variable identifier is
     used although it has not been defined. *)
