@@ -239,6 +239,25 @@ rec_exp_fields:
 | l=separated_list(COMMA, rec_exp_field)
   { l }
 
+listelems:
+| hd=expr _s=SEMICOLON tl=listelems
+  { let loc = Location.mk_loc $startpos(_s) $endpos(_s) in
+    let t = Location.mk_loc_val "_list" loc in
+    let c = Location.mk_loc_val "_Cons" loc in
+    make_expr (E_constr (t, c, [hd; tl])) $startpos $endpos }
+| e=expr _s=RBRACK
+  { let loc = Location.mk_loc $startpos $endpos in
+    let t  = Location.mk_loc_val "_List" loc in
+    let nl = Location.mk_loc_val "_Nil" loc in
+    let co = Location.mk_loc_val "_Cons" loc in
+    let tl = make_expr (E_constr (t, nl, [])) $startpos(_s) $endpos(_s) in
+    make_expr (E_constr (t, co, [e; tl])) $startpos $endpos }
+| RBRACK
+  { let loc = Location.mk_loc $startpos $endpos in
+    let t = Location.mk_loc_val "_List" loc in
+    let c = Location.mk_loc_val "_Nil" loc in
+    make_expr (E_constr (t, c, [])) $startpos $endpos }
+
 expr:
 | i=ident
   { make_expr (E_var i) $startpos $endpos }
@@ -300,8 +319,8 @@ expr:
   { make_expr (E_binop (Cons, l, r)) $startpos $endpos }
 | e=expr ARROW f=ident
   { make_expr (E_field (e, f)) $startpos $endpos }
-| LBRACK l=separated_list(SEMICOLON, expr) RBRACK
-  { make_expr (E_list l) $startpos $endpos }
+| LBRACK l=listelems
+  { l }
 | LPAREN CASE e=expr OF option(BAR) b=separated_list(BAR, branch) RPAREN
   { make_expr (E_case (e, b)) $startpos $endpos }
 | LET p=pattern EQ e=expr IN b=expr

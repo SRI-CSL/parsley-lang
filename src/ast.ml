@@ -63,7 +63,6 @@ type expr_desc =
   | E_literal of primitive_literal
   | E_field of expr * ident
   | E_mod_member of modident * ident
-  | E_list of expr list
   | E_case of expr * (pattern * expr) list
   | E_let of pattern * expr * expr
   | E_cast of expr * type_expr

@@ -182,10 +182,6 @@ let rec print_expr e =
     | E_mod_member (m, i) ->
         pp_print_string !ppf
           (Printf.sprintf "%s.%s" (Location.value m) (Location.value i))
-    | E_list el ->
-        pp_print_string !ppf "[ ";
-        print_list ", " print_expr el;
-        pp_print_string !ppf " ]"
     | E_match (e, t, c) ->
         pp_print_string !ppf "(";
         print_expr e;
