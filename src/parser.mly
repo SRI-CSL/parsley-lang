@@ -66,10 +66,6 @@ let make_pattern pat b e =
   { pattern = pat;
     pattern_loc = Location.mk_loc b e }
 
-let make_pattern_loc pat loc =
-  { pattern = pat;
-    pattern_loc = loc }
-
 let make_type_rep tr b e =
   { type_rep = tr;
     type_rep_loc = Location.mk_loc b e }

@@ -26,3 +26,13 @@ let rec make_arrow_type (args : type_expr list) loc : type_expr =
     | h :: t ->
         let res = make_arrow_type t loc in
         make_type_app_name "->" [h; res] loc
+
+(* constructing pattern expressions and expressions *)
+
+let make_pattern_loc (pat : pattern_desc) loc =
+  { pattern = pat;
+    pattern_loc = loc }
+
+let make_expr_loc (exp : expr_desc) loc =
+  { expr = exp;
+    expr_loc = loc }
