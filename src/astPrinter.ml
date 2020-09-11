@@ -130,10 +130,8 @@ let str_of_binop = function
 
 let rec print_expr e =
   match e.expr with
-    | E_path p ->
-        print_list "." (fun i ->
-            pp_print_string !ppf (Location.value i)
-          ) p
+    | E_var i ->
+        pp_print_string !ppf (Location.value i)
     | E_constr (t, c, e) ->
         pp_print_string !ppf
           (Printf.sprintf "%s::%s"
@@ -175,24 +173,26 @@ let rec print_expr e =
     | E_literal (PL_int i) ->
         pp_print_string !ppf (string_of_int i)
     | E_field (e, f) ->
-        let complex = (match e.expr with E_path _ -> false | _ -> true) in
+        let complex = (match e.expr with E_var _ -> false | _ -> true) in
         if complex then pp_print_string !ppf "(";
         print_expr e;
         if complex then pp_print_string !ppf ")";
         pp_print_string !ppf ".";
         pp_print_string !ppf (Location.value f)
+    | E_mod_member (m, i) ->
+        pp_print_string !ppf
+          (Printf.sprintf "%s.%s" (Location.value m) (Location.value i))
     | E_list el ->
         pp_print_string !ppf "[ ";
         print_list ", " print_expr el;
         pp_print_string !ppf " ]"
-    | E_match (e, p, c) ->
+    | E_match (e, t, c) ->
         pp_print_string !ppf "(";
         print_expr e;
         pp_print_string !ppf " ~~ ";
-        let p = p @ [c] in
-        print_list "." (fun i ->
-            pp_print_string !ppf (Location.value i)
-          ) p;
+        pp_print_string !ppf
+          (Printf.sprintf "%s::%s"
+             (Location.value t) (Location.value c));
         pp_print_string !ppf ")"
     | E_case (d, clauses) ->
         pp_open_vbox !ppf 2;

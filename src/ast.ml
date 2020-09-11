@@ -1,7 +1,7 @@
-type tvar    = string Location.loc
-type ident   = string Location.loc
-type literal = string Location.loc
-type path    = ident list
+type tvar     = string Location.loc
+type ident    = string Location.loc
+type modident = string Location.loc
+type literal  = string Location.loc
 
 (* names stripped of location, used in the type checker *)
 type tname = MultiEquation.tname
@@ -53,15 +53,16 @@ and pattern =
     pattern_loc: Location.t }
 
 type expr_desc =
-  | E_path of path
+  | E_var of ident
   | E_constr of ident * ident * expr list
   | E_record of (ident * expr) list
   | E_apply of expr * expr list
   | E_unop of unop * expr
   | E_binop of binop * expr * expr
-  | E_match of expr * path * ident
+  | E_match of expr * ident * ident
   | E_literal of primitive_literal
   | E_field of expr * ident
+  | E_mod_member of modident * ident
   | E_list of expr list
   | E_case of expr * (pattern * expr) list
   | E_let of pattern * expr * expr

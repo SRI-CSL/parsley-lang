@@ -42,6 +42,7 @@ open AstUtils
 %nonassoc UMINUS
 %left  LPAREN LBRACK
 %left  ARROW
+%left  DOT
 
 %{
 let parse_error e loc =
@@ -191,12 +192,6 @@ def:
 | d=ident
   { d }
 
-path:
-| p=separated_nonempty_list(DOT, ident)
-  { p }
-| u=UID DOT p=separated_nonempty_list(DOT, ident)
-  { u :: p }
-
 type_expr:
 | tv=TVAR
   { make_tvar_ident tv }
@@ -245,8 +240,12 @@ rec_exp_fields:
   { l }
 
 expr:
-| p=path
-  { make_expr (E_path p) $startpos $endpos }
+| i=ident
+  { make_expr (E_var i) $startpos $endpos }
+| u=UID DOT m=ident
+  { make_expr (E_mod_member (u, m)) $startpos $endpos }
+| e=expr DOT f=ident
+  { make_expr (E_field (e, f)) $startpos $endpos }
 | l=LITERAL
   { make_expr (E_literal (PL_string (Location.value l))) $startpos $endpos }
 | l=INT_LITERAL
@@ -276,7 +275,7 @@ expr:
 | l=expr LOR r=expr
   { make_expr (E_binop (Lor, l, r)) $startpos $endpos }
 | e=expr CONSTR_MATCH c=CONSTR
-  { make_expr (E_match (e, [fst c], snd c)) $startpos $endpos }
+  { make_expr (E_match (e, fst c, snd c)) $startpos $endpos }
 | l=expr PLUS r=expr
   { make_expr (E_binop (Plus, l, r)) $startpos $endpos }
 | l=expr MINUS r=expr
