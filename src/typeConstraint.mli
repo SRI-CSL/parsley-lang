@@ -55,11 +55,11 @@ and ('crterm, 'variable) scheme =
   | Scheme of Location.t * 'variable list * 'variable list
       * ('crterm, 'variable) type_constraint * ('crterm * Location.t) StringMap.t
 
-(** The variables that appear in contraints are the same as the multi-equation
+(** The variables that appear in constraints are the same as the multi-equation
     ones. *)
 type variable = MultiEquation.variable
 
-(** The types in contraints are implemented using the internal data structure
+(** The types in constraints are implemented using the internal data structure
     defined in {!CoreAlgebra}. The same data structure is also used in
     {!MultiEquation}. *)
 type crterm = variable CoreAlgebra.arterm

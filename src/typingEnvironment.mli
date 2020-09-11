@@ -32,10 +32,15 @@ type algebraic_datatype =
   | Variant of (Ast.dname * MultiEquation.variable) list
   | Record of (Ast.lname * MultiEquation.variable) list
 
+type adt_info = {
+  adt: algebraic_datatype;
+  loc: Location.t
+}
+
 (** A type is characterized by a kind, a variable and an optional set of
     algebraic data constructors or destructors. *)
 type type_info =
-    KindInferencer.t * MultiEquation.variable * algebraic_datatype option ref
+    KindInferencer.t * MultiEquation.variable * adt_info option ref
 
 (** A data constructor's type is denoted by an ML scheme. *)
 type data_constructor =
@@ -63,13 +68,13 @@ val add_type_variables: (Ast.tname * type_info) list -> environment -> environme
 (** Add a type constructor into the environment. *)
 val add_type_constructor: environment -> Ast.tname -> type_info -> environment
 
-(** Add a data constructor into the environment. *)
+(** Add a data constructor for an ADT into the environment. *)
 val add_data_constructor:
-  environment -> Ast.dname -> data_constructor -> environment
+  environment -> Ast.tname -> Ast.dname -> data_constructor -> environment
 
-(** Add a field destructor into the environment. *)
+(** Add a field destructor for an ADT into the environment. *)
 val add_field_destructor:
-  environment -> Ast.lname -> field_destructor -> environment
+  environment -> Ast.tname -> Ast.lname -> field_destructor -> environment
 
 (** [is_regular_datacon_scheme env adt_name vs ty] checks that forall vs.ty is
     a valid scheme for a data constructor; that is to say, following the
@@ -83,15 +88,29 @@ val is_regular_datacon_scheme: environment -> Ast.tname -> MultiEquation.variabl
     K :: forall a1 .. an. adt_name a1 ... an -> tau_1 -> ... -> tau_n *)
 val is_regular_field_scheme: environment -> Ast.tname -> MultiEquation.variable list -> MultiEquation.crterm -> bool
 
+(** [lookup_adt env t] gives access to the typing information for the
+    type with name [t]. *)
+val lookup_adt : environment -> Ast.tname -> adt_info option
+
 (** [lookup_datacon env k] gives access to the typing information
     related to the data constructor [k] in [env]. *)
 val lookup_datacon :
-  ?pos:Location.t -> environment -> Ast.dname -> data_constructor
+  environment -> Location.t -> Ast.dname -> data_constructor
 
 (** [lookup_field env f] gives access to the typing information
     related to the record field [f] in [env]. *)
 val lookup_field :
-  ?pos:Location.t -> environment -> Ast.lname -> field_destructor
+  environment -> Location.t -> Ast.lname -> field_destructor
+
+(** [lookup_datacon_adt env k] returns the name of the ADT associated
+    with the data constructor [k] in [env], if any. *)
+val lookup_datacon_adt :
+  environment -> Ast.dname -> Ast.tname option
+
+(** [lookup_field_adt env f] returns the name of the ADT associated
+    with the data constructor [k] in [env], if any. *)
+val lookup_field_adt :
+  environment -> Ast.lname -> Ast.tname option
 
 (** Looks for a type constructor given its name. *)
 val lookup_type_variable :
@@ -117,13 +136,13 @@ val as_kind_env : environment ->
     of data constructor [dname] in [env] and alpha converts it using
     [vs] as a set of names to use preferentially when printing. *)
 val fresh_datacon_scheme :
-  environment -> Ast.dname -> (MultiEquation.variable list * MultiEquation.crterm)
+  environment -> Location.t -> Ast.dname -> (MultiEquation.variable list * MultiEquation.crterm)
 
 (** [fresh_field_scheme env fname vs] retrieves the type scheme
     of record field [fname] in [env] and alpha converts it using
     [vs] as a set of names to use preferentially when printing. *)
 val fresh_field_scheme :
-  environment -> Ast.lname -> (MultiEquation.variable list * MultiEquation.crterm)
+  environment -> Location.t -> Ast.lname -> (MultiEquation.variable list * MultiEquation.crterm)
 
 (** [fresh_flexible_vars pos env vs] returns a list of fresh flexible
     variables whose visible names are [vs] and an environment fragment. *)

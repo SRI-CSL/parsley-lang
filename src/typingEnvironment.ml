@@ -46,8 +46,14 @@ type algebraic_datatype =
   | Variant of (dname * variable) list
   | Record of (lname * variable) list
 
+type adt_info =
+  {
+    adt: algebraic_datatype;
+    loc: Location.t
+  }
+
 type type_info =
-  KindInferencer.t * variable * algebraic_datatype option ref
+  KindInferencer.t * variable * adt_info option ref
 
 let as_type_constructor ((_, v, _) as x) =
   if (UnionFind.find v).kind = Constant then
@@ -75,6 +81,10 @@ type environment =
     type_info        : (tname, type_info) CoreEnv.t;
     data_constructor : (dname, data_constructor) CoreEnv.t;
     field_destructor : (lname, field_destructor) CoreEnv.t;
+
+    (* map constructors and destructors to their owning ADT *)
+    datacon_adts : tname StringMap.t;
+    field_adts   : tname StringMap.t;
   }
 
 let empty_environment =
@@ -82,6 +92,8 @@ let empty_environment =
     type_info        = CoreEnv.empty;
     data_constructor = CoreEnv.empty;
     field_destructor = CoreEnv.empty;
+    datacon_adts     = StringMap.empty;
+    field_adts       = StringMap.empty;
   }
 
 let union_type_variables env1 env2 =
@@ -97,11 +109,13 @@ let add_type_variables var_env env =
 let add_type_constructor env t x =
   { env with type_info = CoreEnv.add env.type_info t x }
 
-let add_data_constructor env t x =
-  { env with data_constructor = CoreEnv.add env.data_constructor t x }
+let add_data_constructor env adt ((DName s) as t) x =
+  { env with data_constructor = CoreEnv.add env.data_constructor t x;
+             datacon_adts = StringMap.add s adt env.datacon_adts }
 
-let add_field_destructor env t f =
-  { env with field_destructor = CoreEnv.add env.field_destructor t f }
+let add_field_destructor env adt ((LName s) as t) f =
+  { env with field_destructor = CoreEnv.add env.field_destructor t f;
+             field_adts = StringMap.add s adt env.field_adts }
 
 (** [lookup_typcon ?pos env t] retrieves typing information about
     the type constructor [t]. *)
@@ -173,21 +187,35 @@ let tycon_name_conflict pos env (fqs, denv) =
   with Not_found ->
     (fqs, List.map (function (n, CoreAlgebra.TVariable v) -> (n, v) | _ -> assert false) denv)
 
+(** [lookup_adt env t] gives access to the typing information for the
+    type with name [t]. *)
+let lookup_adt env t =
+  try
+    let (_, _, adt_ref) = CoreEnv.lookup env.type_info t in
+    !adt_ref
+  with Not_found -> None
+
 (** [lookup_datacon env k] looks for typing information related to
     the data constructor [k] in [env]. *)
-let lookup_datacon ?pos env k =
+let lookup_datacon env pos k =
   try
     CoreEnv.lookup env.data_constructor k
   with Not_found ->
-    raise (UnboundDataConstructor ((Location.loc_or_ghost pos), k))
+    raise (UnboundDataConstructor (pos, k))
 
 (** [lookup_field env f] looks for typing information related to
     the record field [f] in [env]. *)
-let lookup_field ?pos env f =
+let lookup_field env pos f =
   try
     CoreEnv.lookup env.field_destructor f
   with Not_found ->
-    raise (UnboundRecordField ((Location.loc_or_ghost pos), f))
+    raise (UnboundRecordField (pos, f))
+
+let lookup_datacon_adt env (DName k) =
+  StringMap.find_opt k env.datacon_adts
+
+let lookup_field_adt env (LName k) =
+  StringMap.find_opt k env.field_adts
 
 let rigid_args rt =
   List.fold_left (fun acu ->
@@ -205,12 +233,12 @@ let fresh_scheme kvars kt =
   let fresh_kvars_assoc = List.combine kvars fresh_kvars in
   (fresh_kvars, CoreAlgebra.change_arterm_vars fresh_kvars_assoc kt)
 
-let fresh_datacon_scheme tenv k =
-  let (_, kvars, kt) = lookup_datacon tenv k in
+let fresh_datacon_scheme tenv loc k =
+  let (_, kvars, kt) = lookup_datacon tenv loc k in
   fresh_scheme kvars kt
 
-let fresh_field_scheme tenv f =
-  let (kvars, kt) = lookup_field tenv f in
+let fresh_field_scheme tenv loc f =
+  let (kvars, kt) = lookup_field tenv loc f in
   fresh_scheme kvars kt
 
 let is_regular_datacon_scheme tenv (TName adt_name) kvars kt =
