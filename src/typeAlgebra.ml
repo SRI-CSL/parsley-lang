@@ -54,7 +54,10 @@ let builtin_env =
     TName "char",   (Ast.KStar, []);
     TName "string", (Ast.KStar, []);
     TName "unit",   (Ast.KStar,
-                     [ (Ast.DName "_Unit", [], gen_tvar "unit") ])
+                     [ (Ast.DName "_Unit", [], gen_tvar "unit") ]);
+    TName "bool",   (Ast.KStar,
+                     [ (Ast.DName "true", [], gen_tvar "bool");
+                       (Ast.DName "false", [], gen_tvar "bool") ]);
   |]
 
 let init_builtin_env mk_variable =
@@ -76,6 +79,7 @@ let type_of_primitive tenv = function
   | Ast.PL_int _ -> symbol tenv (TName "int")
   | Ast.PL_string _ -> symbol tenv (TName "string")
   | Ast.PL_unit -> symbol tenv (TName "unit")
+  | Ast.PL_bool _ -> symbol tenv (TName "bool")
 
 let arrow tenv t u =
   let v = symbol tenv (TName "->") in

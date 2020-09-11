@@ -107,6 +107,8 @@ let rec print_pattern p =
         pp_print_string !ppf (Printf.sprintf "\"%s\"" l)
     | P_literal (PL_int l) ->
         pp_print_string !ppf (string_of_int l)
+    | P_literal (PL_bool b) ->
+        pp_print_string !ppf (if b then "true" else "false")
     | P_variant ((t,c), ps) ->
         pp_print_string !ppf
           (Printf.sprintf "%s::%s"
@@ -172,6 +174,8 @@ let rec print_expr e =
         pp_print_string !ppf (Printf.sprintf "\"%s\"" l)
     | E_literal (PL_int i) ->
         pp_print_string !ppf (string_of_int i)
+    | E_literal (PL_bool b) ->
+        pp_print_string !ppf (if b then "true" else "false")
     | E_field (e, f) ->
         let complex = (match e.expr with E_var _ -> false | _ -> true) in
         if complex then pp_print_string !ppf "(";

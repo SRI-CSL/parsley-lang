@@ -41,6 +41,7 @@ type primitive_literal =
   | PL_int of int
   | PL_string of string
   | PL_unit
+  | PL_bool of bool
 
 type pattern_desc =
   | P_wildcard
