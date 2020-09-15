@@ -36,3 +36,9 @@ let make_pattern_loc (pat : pattern_desc) loc =
 let make_expr_loc (exp : expr_desc) loc =
   { expr = exp;
     expr_loc = loc }
+
+(* sorting record fields into canonical order *)
+let sort_fields fields =
+  List.sort (fun (f1,_) (f2,_) ->
+      String.compare (Location.value f1) (Location.value f2)
+    ) fields

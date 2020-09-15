@@ -232,7 +232,7 @@ rec_exp_field:
   { (i, e) }
 
 rec_exp_fields:
-| l=separated_list(COMMA, rec_exp_field)
+| l=separated_nonempty_list(COMMA, rec_exp_field)
   { l }
 
 listelems:

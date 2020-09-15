@@ -36,6 +36,14 @@ open CoreEnv
 (** [type_info] denotes information collected during the user-defined
     type constructor analysis. *)
 
+type record_info =
+  {
+    adt: ident;
+    fields: ident list;
+    record_constructor: tname * variable; (* named "<adt>" *)
+    field_destructors: (lname * variable) list;
+  }
+
 (* The following information is stored for each type constructor:
    - its kind ;
    - its associated term (a type variable actually) ;
@@ -44,7 +52,7 @@ open CoreEnv
      destructors. *)
 type algebraic_datatype =
   | Variant of (dname * variable) list
-  | Record of (lname * variable) list
+  | Record of record_info
 
 type adt_info =
   {
@@ -70,6 +78,11 @@ let as_type_variable (_, v, _) =
    - its type *)
 type data_constructor = int * variable list * crterm
 
+(* The following information is stored for each record constructor:
+   - its type variables ;
+   - its type *)
+type record_constructor = variable list * crterm
+
 (* The following information is stored for each field destructor:
    - its type variables ;
    - its type *)
@@ -78,9 +91,10 @@ type field_destructor = variable list * crterm
 (** [environment] denotes typing information associated to identifiers. *)
 type environment =
   {
-    type_info        : (tname, type_info) CoreEnv.t;
-    data_constructor : (dname, data_constructor) CoreEnv.t;
-    field_destructor : (lname, field_destructor) CoreEnv.t;
+    type_info          : (tname, type_info) CoreEnv.t;
+    data_constructor   : (dname, data_constructor) CoreEnv.t;
+    record_constructor : (tname, record_constructor) CoreEnv.t;
+    field_destructor   : (lname, field_destructor) CoreEnv.t;
 
     (* map constructors and destructors to their owning ADT *)
     datacon_adts : tname StringMap.t;
@@ -89,11 +103,13 @@ type environment =
 
 let empty_environment =
   {
-    type_info        = CoreEnv.empty;
-    data_constructor = CoreEnv.empty;
-    field_destructor = CoreEnv.empty;
-    datacon_adts     = StringMap.empty;
-    field_adts       = StringMap.empty;
+    type_info          = CoreEnv.empty;
+    data_constructor   = CoreEnv.empty;
+    record_constructor = CoreEnv.empty;
+    field_destructor   = CoreEnv.empty;
+
+    datacon_adts = StringMap.empty;
+    field_adts   = StringMap.empty;
   }
 
 let union_type_variables env1 env2 =
@@ -112,6 +128,9 @@ let add_type_constructor env t x =
 let add_data_constructor env adt ((DName s) as t) x =
   { env with data_constructor = CoreEnv.add env.data_constructor t x;
              datacon_adts = StringMap.add s adt env.datacon_adts }
+
+let add_record_constructor env adt x =
+  { env with record_constructor = CoreEnv.add env.record_constructor adt x }
 
 let add_field_destructor env adt ((LName s) as t) f =
   { env with field_destructor = CoreEnv.add env.field_destructor t f;
@@ -203,13 +222,21 @@ let lookup_datacon env pos k =
   with Not_found ->
     raise (UnboundDataConstructor (pos, k))
 
-(** [lookup_field env f] looks for typing information related to
-    the record field [f] in [env]. *)
-let lookup_field env pos f =
+(** [lookup_field_destructor env f] looks for typing information
+    for the destructor of the record field [f] in [env]. *)
+let lookup_field_destructor env pos f =
   try
     CoreEnv.lookup env.field_destructor f
   with Not_found ->
     raise (UnboundRecordField (pos, f))
+
+(** [lookup_record_constructor env adt] looks for typing information
+    for the constructor of the record [adt] in [env]. *)
+let lookup_record_constructor env pos adt =
+  try
+    CoreEnv.lookup env.record_constructor adt
+  with Not_found ->
+    raise (UnboundRecord (pos, adt))
 
 let lookup_datacon_adt env (DName k) =
   StringMap.find_opt k env.datacon_adts
@@ -237,8 +264,8 @@ let fresh_datacon_scheme tenv loc k =
   let (_, kvars, kt) = lookup_datacon tenv loc k in
   fresh_scheme kvars kt
 
-let fresh_field_scheme tenv loc f =
-  let (kvars, kt) = lookup_field tenv loc f in
+let fresh_field_destructor_scheme tenv loc f =
+  let (kvars, kt) = lookup_field_destructor tenv loc f in
   fresh_scheme kvars kt
 
 let is_regular_datacon_scheme tenv (TName adt_name) kvars kt =

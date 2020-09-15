@@ -25,7 +25,7 @@ open CoreAlgebra
 
 type builtin_dataconstructor = Ast.dname * Ast.tname list * Ast.type_expr
 
-let builtin_env =
+let builtin_types =
   let ghost_loc = Location.ghost_loc in
   let make_builtin_type (t : Ast.type_expr_desc) =
     { Ast.type_expr = t;
@@ -60,7 +60,7 @@ let builtin_env =
                        (Ast.DName "false", [], gen_tvar "bool") ]);
   |]
 
-let init_builtin_env mk_variable =
+let init_builtin_types mk_variable =
   Array.fold_left
     (fun acu (o, (arity, ds)) ->
        (o, (arity,
@@ -68,7 +68,7 @@ let init_builtin_env mk_variable =
             ds
            )
        ) :: acu)
-    [] builtin_env
+    [] builtin_types
 
 type 'a environment = tname -> 'a arterm
 

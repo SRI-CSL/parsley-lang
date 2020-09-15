@@ -26,11 +26,20 @@
     list of data constructors to a type name.
     The second one records the scheme of the data constructors. *)
 
+(** [record_info] tracks the field names, and the variables associated
+    with their destructors and constructors *)
+type record_info = {
+  adt: Ast.ident;
+  fields: Ast.ident list;
+  record_constructor: Ast.tname * MultiEquation.variable;
+  field_destructors: (Ast.lname * MultiEquation.variable) list;
+}
+
 (** An algebraic datatype is characterized by a list of data
     constructors for variant types and field destructors for record types. *)
 type algebraic_datatype =
   | Variant of (Ast.dname * MultiEquation.variable) list
-  | Record of (Ast.lname * MultiEquation.variable) list
+  | Record of record_info
 
 type adt_info = {
   adt: algebraic_datatype;
@@ -45,6 +54,10 @@ type type_info =
 (** A data constructor's type is denoted by an ML scheme. *)
 type data_constructor =
     int * MultiEquation.variable list * MultiEquation.crterm
+
+(** A record's type is denoted by an ML scheme. *)
+type record_constructor =
+    MultiEquation.variable list * MultiEquation.crterm
 
 (** A record field destructor's type is denoted by an ML scheme. *)
 type field_destructor =
@@ -72,6 +85,10 @@ val add_type_constructor: environment -> Ast.tname -> type_info -> environment
 val add_data_constructor:
   environment -> Ast.tname -> Ast.dname -> data_constructor -> environment
 
+(** Add a constructor for a record ADT into the environment. *)
+val add_record_constructor:
+  environment -> Ast.tname -> record_constructor -> environment
+
 (** Add a field destructor for an ADT into the environment. *)
 val add_field_destructor:
   environment -> Ast.tname -> Ast.lname -> field_destructor -> environment
@@ -97,9 +114,14 @@ val lookup_adt : environment -> Ast.tname -> adt_info option
 val lookup_datacon :
   environment -> Location.t -> Ast.dname -> data_constructor
 
-(** [lookup_field env f] gives access to the typing information
-    related to the record field [f] in [env]. *)
-val lookup_field :
+(** [lookup_record_con env adt] gives access to the record constructor
+    type of [adt] in [env]. *)
+val lookup_record_constructor :
+  environment -> Location.t -> Ast.tname -> record_constructor
+
+(** [lookup_field_destructor env f] gives access to the typing
+    information for the destructor of the record field [f] in [env]. *)
+val lookup_field_destructor :
   environment -> Location.t -> Ast.lname -> field_destructor
 
 (** [lookup_datacon_adt env k] returns the name of the ADT associated
@@ -132,16 +154,14 @@ val as_fun : environment -> (Ast.tname -> MultiEquation.variable CoreAlgebra.art
 val as_kind_env : environment ->
   (Ast.tname -> KindInferencer.t) * (Ast.tname -> KindInferencer.t -> unit)
 
-(** [fresh_datacon_scheme env dname vs] retrieves the type scheme
-    of data constructor [dname] in [env] and alpha converts it using
-    [vs] as a set of names to use preferentially when printing. *)
+(** [fresh_datacon_scheme env dname] retrieves the type scheme
+    of data constructor [dname] in [env]. *)
 val fresh_datacon_scheme :
   environment -> Location.t -> Ast.dname -> (MultiEquation.variable list * MultiEquation.crterm)
 
-(** [fresh_field_scheme env fname vs] retrieves the type scheme
-    of record field [fname] in [env] and alpha converts it using
-    [vs] as a set of names to use preferentially when printing. *)
-val fresh_field_scheme :
+(** [fresh_field_destructor_scheme env fname] retrieves the type
+    scheme of the record field destructor [fname] in [env]. *)
+val fresh_field_destructor_scheme :
   environment -> Location.t -> Ast.lname -> (MultiEquation.variable list * MultiEquation.crterm)
 
 (** [fresh_flexible_vars pos env vs] returns a list of fresh flexible

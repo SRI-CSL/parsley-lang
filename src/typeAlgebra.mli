@@ -58,15 +58,8 @@ val type_of_primitive : 'a environment -> Ast.primitive_literal -> 'a CoreAlgebr
 (** The type of predefined data constructors. *)
 type builtin_dataconstructor = Ast.dname * Ast.tname list * Ast.type_expr
 
-(** [init_builtin_env variable_maker] uses [variable_maker] to build
+(** [init_builtin_types variable_maker] uses [variable_maker] to build
     a typing environment that maps type constructor names to their arities,
     their type variables, and their data constructors. *)
-val init_builtin_env: (?name:Ast.tname -> unit -> 'a)
+val init_builtin_types: (?name:Ast.tname -> unit -> 'a)
   -> (Ast.tname * (Ast.kind * 'a CoreAlgebra.arterm * builtin_dataconstructor list)) list
-
-(** [builtin_env] has entries for each type constructor name that
-   specify its kind and data constructors. *)
-val builtin_env:
-  (Ast.tname
-   * (Ast.kind * (Ast.dname * Ast.tname list * Ast.type_expr) list))
-  array
