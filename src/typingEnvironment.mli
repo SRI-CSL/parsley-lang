@@ -83,7 +83,7 @@ val add_type_constructor: environment -> Ast.tname -> type_info -> environment
 
 (** Add a data constructor for an ADT into the environment. *)
 val add_data_constructor:
-  environment -> Ast.tname -> Ast.dname -> data_constructor -> environment
+  environment -> Location.t -> Ast.tname -> Ast.dname -> data_constructor -> environment
 
 (** Add a constructor for a record ADT into the environment. *)
 val add_record_constructor:
@@ -91,7 +91,7 @@ val add_record_constructor:
 
 (** Add a field destructor for an ADT into the environment. *)
 val add_field_destructor:
-  environment -> Ast.tname -> Ast.lname -> field_destructor -> environment
+  environment -> Location.t -> Ast.tname -> Ast.lname -> field_destructor -> environment
 
 (** [is_regular_datacon_scheme env adt_name vs ty] checks that forall vs.ty is
     a valid scheme for a data constructor; that is to say, following the

@@ -20,79 +20,89 @@
 (*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
 (*  and Didier Rémy.                                                      *)
 
-open Ast
-open MultiEquation
-
-(** This module provides the typing exceptions for the Mini language. *)
-(** {2 Exceptions} *)
+(** This modules declares the exceptions raised by the type inference engine. *)
 
 (** [UnboundTypeIdentifier] is raised when an unbound type identifier
     is found. *)
-exception UnboundTypeIdentifier of Location.t * tname
+exception UnboundTypeIdentifier of Location.t * Ast.tname
+
+(** [DuplicateTypeVariable] is raised when a type variable declaration
+    is repeated in a type definition. *)
+exception DuplicateTypeVariable of Ast.ident
+
+(** [UnusedTypeVariable] is raised when a type variable declaration
+    is not used in a type definition. *)
+exception UnusedTypeVariable of Ast.ident
 
 (** [InvalidTypeVariableIdentifier] is raised when a type variable is
-      overwriting a type constructor. *)
-exception InvalidTypeVariableIdentifier of Location.t * tname
+    overwriting a type constructor. *)
+exception InvalidTypeVariableIdentifier of Location.t * Ast.tname
 
 (** [UnboundDataConstructor] is raised when a constructor identifier is
     used although it has not been defined. *)
-exception UnboundDataConstructor of Location.t * dname
+exception UnboundDataConstructor of Location.t * Ast.dname
+
+(** [DuplicateDataConstructor dc t] is raised when a constructor
+    identifier [dc] of type [t] is defined multiple times, perhaps in
+    different types. *)
+exception DuplicateDataConstructor
+            (* current definition *) (* previous definition *)
+          of Location.t * Ast.dname * Ast.tname * Location.t
 
 (** [UnboundRecordField] is raised when a field label is
     used although it has not been defined. *)
-exception UnboundRecordField of Location.t * lname
+exception UnboundRecordField of Location.t * Ast.lname
 
-(** [InvalidDataConstructorDefinition] is raised when a data constructor
-    scheme is not legal. *)
-exception InvalidDataConstructorDefinition of ident
+(** [UnboundRecord] is raised when a record is used although it has
+ ** not been defined. *)
+exception UnboundRecord of Location.t * Ast.tname
+
+(** [DuplicateRecordField] is raised when a field label is
+    defined multiple times, perhaps in different types. *)
+exception DuplicateRecordField
+            (* current definition *) (* previous definition *)
+          of Location.t * Ast.lname * Ast.tname * Location.t
+
+(** [RepeatedRecordField] is raised when a field label is
+    repeated in a record. *)
+exception RepeatedRecordField of Ast.ident
+
+(** [IncompleteRecord adt f] is raised when a field label [f] is not
+    initialized in a record [adt]. *)
+exception IncompleteRecord of Ast.ident * string
+
+(** [InvalidRecordField f t] is raised when a field label [f] is used
+    for a record type [t] that does not declare it. *)
+exception InvalidRecordField of Ast.ident * Ast.ident
+
+(** [InvalidDataConstructorDefinition] is raised when the declared
+    type scheme of a data constructor is not regular. *)
+exception InvalidDataConstructorDefinition of Ast.ident
 
 (** [InvalidFieldDestructorDefinition] is raised when a field destructor
     scheme is not legal. *)
-exception InvalidFieldDestructorDefinition of ident
+exception InvalidFieldDestructorDefinition of Ast.ident
 
 (** [UnboundTypeVariable] is raised when a variable identifier is
     used although it has not been defined. *)
-exception UnboundTypeVariable of Location.t * tname
-
-(** [MultipleLabels] is raised when the user has built a record
-    with two fields with the same name. *)
-exception MultipleLabels of Location.t * lname
+exception UnboundTypeVariable of Location.t * Ast.tname
 
 (** [NonLinearPattern] is raised when at least two occurrences of a variable
     appear in a pattern. *)
 exception NonLinearPattern of Location.t * string
 
+(** [NotEnoughPatternArgts] is raised when the arity of a data constructor
+    is not respected in a pattern. *)
 exception NotEnoughPatternArgts of Location.t
 
-exception InvalidNumberOfTypeVariable of Location.t
-
-(** This exception is raised by [unify] when a system of equations
-    is found to be unsatisfiable. *)
-exception CannotUnifyHeadWithTerm of Location.t * tname * crterm
-
-(** [CannotGeneralize] when the type of an expression cannot be
-    generalized contrary to what is specified by the programmers
-    using type annotations. *)
-exception CannotGeneralize of Location.t * crterm
-
-exception NonDistinctVariables of Location.t * (variable list)
-
 (** This exception is raised when a match is not complete. *)
-exception NonExhaustiveMatch of Location.t * pattern
+exception NonExhaustiveMatch of Location.t * Ast.pattern
 
-exception UnboundIdentifier of Location.t * tname
+(** [UnboundConstructor] is raised when a type constructor is unbound. *)
+exception UnboundTypeConstructor of Location.t * Ast.tname
 
-exception UnboundTypeConstructor of Location.t * tname
-
+(** [KindError] is raised when the kind of types are not correct. *)
 exception KindError of Location.t
-
-(** [RecursiveDefMustBeVariable] is raised in case of bad formed
-    recursive value definition. *)
-exception RecursiveDefMustBeVariable of Location.t
-
-(** [InvalidDisjunctionPattern] is raised when the subpatterns of a
-    disjunction pattern do not bind the same variables. *)
-exception InvalidDisjunctionPattern of Location.t
 
 (** [PartialDataConstructorApplication] is raised when a data constructor's
     arity is not respected by the programmer. *)

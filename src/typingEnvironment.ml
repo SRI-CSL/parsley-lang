@@ -97,8 +97,8 @@ type environment =
     field_destructor   : (lname, field_destructor) CoreEnv.t;
 
     (* map constructors and destructors to their owning ADT *)
-    datacon_adts : tname StringMap.t;
-    field_adts   : tname StringMap.t;
+    datacon_adts : (tname * Location.t) StringMap.t;
+    field_adts   : (tname * Location.t) StringMap.t;
   }
 
 let empty_environment =
@@ -125,16 +125,26 @@ let add_type_variables var_env env =
 let add_type_constructor env t x =
   { env with type_info = CoreEnv.add env.type_info t x }
 
-let add_data_constructor env adt ((DName s) as t) x =
-  { env with data_constructor = CoreEnv.add env.data_constructor t x;
-             datacon_adts = StringMap.add s adt env.datacon_adts }
+let add_data_constructor env loc adt ((DName s) as t) x =
+  match StringMap.find_opt s env.datacon_adts with
+    | None ->
+        { env with
+          data_constructor = CoreEnv.add env.data_constructor t x;
+          datacon_adts = StringMap.add s (adt, loc) env.datacon_adts }
+    | Some (adt, loc') ->
+        raise (DuplicateDataConstructor (loc, t, adt, loc'))
 
 let add_record_constructor env adt x =
   { env with record_constructor = CoreEnv.add env.record_constructor adt x }
 
-let add_field_destructor env adt ((LName s) as t) f =
-  { env with field_destructor = CoreEnv.add env.field_destructor t f;
-             field_adts = StringMap.add s adt env.field_adts }
+let add_field_destructor env loc adt ((LName s) as t) f =
+  match StringMap.find_opt s env.field_adts with
+    | None ->
+        { env with
+          field_destructor = CoreEnv.add env.field_destructor t f;
+          field_adts = StringMap.add s (adt, loc) env.field_adts }
+    | Some (adt, loc') ->
+        raise (DuplicateRecordField (loc, t, adt, loc'))
 
 (** [lookup_typcon ?pos env t] retrieves typing information about
     the type constructor [t]. *)
@@ -239,10 +249,14 @@ let lookup_record_constructor env pos adt =
     raise (UnboundRecord (pos, adt))
 
 let lookup_datacon_adt env (DName k) =
-  StringMap.find_opt k env.datacon_adts
+  match StringMap.find_opt k env.datacon_adts with
+    | Some (adt, _) -> Some adt
+    | None -> None
 
 let lookup_field_adt env (LName k) =
-  StringMap.find_opt k env.field_adts
+  match StringMap.find_opt k env.field_adts with
+    | Some (adt, _) -> Some adt
+    | None -> None
 
 let rigid_args rt =
   List.fold_left (fun acu ->
