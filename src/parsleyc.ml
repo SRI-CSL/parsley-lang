@@ -1,9 +1,10 @@
+open TypingEnvironment
+open TypeInfer
 let opt_print_ast = ref false
 let input_file = ref []
 
 let usage = Printf.sprintf
               "Usage: %s <options> <file.ply> " (Sys.argv.(0))
-
 let options =
   Arg.align ([
         ( "-p",
