@@ -25,7 +25,7 @@ open CoreAlgebra
 
 type builtin_dataconstructor = Ast.dname * Ast.tname list * Ast.type_expr
 
-let builtin_types =
+let builtin_types, builtin_consts =
   let ghost_loc = Location.ghost_loc in
   let make_builtin_type (t : Ast.type_expr_desc) =
     { Ast.type_expr = t;
@@ -34,41 +34,112 @@ let builtin_types =
     let tvar = Location.mk_loc_val "->" ghost_loc in
     let con = make_builtin_type (Ast.TE_tvar tvar) in
     make_builtin_type (Ast.TE_tapp (con, [ t1; t2 ])) in
-  let tuple_type2 t1 t2 : Ast.type_expr =
+  let tuple_type t1 t2 : Ast.type_expr =
     let tvar = Location.mk_loc_val "*" ghost_loc in
     let con = make_builtin_type (Ast.TE_tvar tvar) in
     make_builtin_type (Ast.TE_tapp (con, [ t1; t2 ])) in
+  let list_type t : Ast.type_expr =
+    let tvar = Location.mk_loc_val "[]" ghost_loc in
+    let con = make_builtin_type (Ast.TE_tvar tvar) in
+    make_builtin_type (Ast.TE_tapp (con, [ t ])) in
   let gen_tvar (v : string) : Ast.type_expr =
     let tvar = Location.mk_loc_val v ghost_loc in
     make_builtin_type (Ast.TE_tvar tvar) in
-  [|
-    TName "->",     (Ast.KArrow (Ast.KStar, Ast.KArrow (Ast.KStar, Ast.KStar)), []);
-    TName "*",      (Ast.KArrow (Ast.KStar, Ast.KArrow (Ast.KStar, Ast.KStar)),
-                         [ (Ast.DName "_Tuple", [ TName "a"; TName "b" ],
-                            arrow_type (gen_tvar "a")
-                              (arrow_type (gen_tvar "b")
-                                 (tuple_type2 (gen_tvar "a") (gen_tvar "b"))))
-                         ]);
+  let builtin_types = [|
+      TName "->",     (Ast.KArrow (Ast.KStar, Ast.KArrow (Ast.KStar, Ast.KStar)), []);
+      TName "*",      (Ast.KArrow (Ast.KStar, Ast.KArrow (Ast.KStar, Ast.KStar)),
+                       [ (Ast.DName "_Tuple", [ TName "a"; TName "b" ],
+                          arrow_type (gen_tvar "a")
+                            (arrow_type (gen_tvar "b")
+                               (tuple_type (gen_tvar "a") (gen_tvar "b"))))
+                      ]);
 
-    TName "int",    (Ast.KStar, []);
-    TName "char",   (Ast.KStar, []);
-    TName "string", (Ast.KStar, []);
-    TName "unit",   (Ast.KStar,
-                     [ (Ast.DName "_Unit", [], gen_tvar "unit") ]);
-    TName "bool",   (Ast.KStar,
-                     [ (Ast.DName "true", [], gen_tvar "bool");
-                       (Ast.DName "false", [], gen_tvar "bool") ]);
-  |]
+      TName "[]",     (Ast.KArrow (Ast.KStar, Ast.KStar),
+                       [ (Ast.DName "::", [ TName "a" ],
+                          arrow_type (gen_tvar "a")
+                            (arrow_type (list_type (gen_tvar "a"))
+                               (list_type (gen_tvar "a"))));
+                         (Ast.DName "[]", [ TName "a" ],
+                          list_type (gen_tvar "a"))]);
+
+      TName "int",    (Ast.KStar, []);
+      TName "char",   (Ast.KStar, []);
+      TName "string", (Ast.KStar, []);
+      TName "unit",   (Ast.KStar,
+                       [ (Ast.DName "_Unit", [], gen_tvar "unit") ]);
+      TName "bool",   (Ast.KStar,
+                       [ (Ast.DName "true", [], gen_tvar "bool");
+                         (Ast.DName "false", [], gen_tvar "bool") ])
+    |] in
+  let builtin_consts = [|
+      (Ast.DName "1-", [], arrow_type (gen_tvar "int") (gen_tvar "int"));
+      (Ast.DName "!",  [], arrow_type (gen_tvar "bool") (gen_tvar "bool"));
+
+      (Ast.DName "+",  [], arrow_type (gen_tvar "int")
+                             (arrow_type (gen_tvar "int") (gen_tvar "int")));
+      (Ast.DName "-",  [], arrow_type (gen_tvar "int")
+                             (arrow_type (gen_tvar "int") (gen_tvar "int")));
+      (Ast.DName "*",  [], arrow_type (gen_tvar "int")
+                             (arrow_type (gen_tvar "int") (gen_tvar "int")));
+      (Ast.DName "/",  [], arrow_type (gen_tvar "int")
+                             (arrow_type (gen_tvar "int") (gen_tvar "int")));
+
+      (Ast.DName "<",  [], arrow_type (gen_tvar "int")
+                             (arrow_type (gen_tvar "int") (gen_tvar "bool")));
+      (Ast.DName ">",  [], arrow_type (gen_tvar "int")
+                             (arrow_type (gen_tvar "int") (gen_tvar "bool")));
+      (Ast.DName "<=", [], arrow_type (gen_tvar "int")
+                             (arrow_type (gen_tvar "int") (gen_tvar "bool")));
+      (Ast.DName ">=", [], arrow_type (gen_tvar "int")
+                             (arrow_type (gen_tvar "int") (gen_tvar "bool")));
+
+      (Ast.DName "&&", [], arrow_type (gen_tvar "bool")
+                             (arrow_type (gen_tvar "bool") (gen_tvar "bool")));
+      (Ast.DName "||", [], arrow_type (gen_tvar "bool")
+                             (arrow_type (gen_tvar "bool") (gen_tvar "bool")));
+
+      (Ast.DName "=",  [ TName "a" ], arrow_type (gen_tvar "a")
+                                        (arrow_type (gen_tvar "a")
+                                           (gen_tvar "bool")));
+      (Ast.DName "!=", [ TName "a" ], arrow_type (gen_tvar "a")
+                                        (arrow_type (gen_tvar "a")
+                                           (gen_tvar "bool")));
+      (Ast.DName "!=", [ TName "a" ], arrow_type (gen_tvar "a")
+                                        (arrow_type (gen_tvar "a")
+                                           (gen_tvar "bool")));
+
+    |] in
+  builtin_types, builtin_consts
 
 let init_builtin_types mk_variable =
   Array.fold_left
     (fun acu (o, (arity, ds)) ->
-       (o, (arity,
-            TVariable (mk_variable ?name:(Some o) ()),
-            ds
-           )
-       ) :: acu)
+      (o, (arity,
+           TVariable (mk_variable ?name:(Some o) ()),
+           ds
+          )
+      ) :: acu)
     [] builtin_types
+
+let unop_const_name = function
+  | Ast.Uminus -> "1-"
+  | Ast.Not    -> "!"
+
+let binop_const_name = function
+  | Ast.Plus  -> "+"
+  | Ast.Minus -> "-"
+  | Ast.Mult  -> "*"
+  | Ast.Div   -> "/"
+  | Ast.Lt    -> "<"
+  | Ast.Gt    -> ">"
+  | Ast.Lteq  -> "<="
+  | Ast.Gteq  -> ">="
+  | Ast.Land  -> "&&"
+  | Ast.Lor   -> "||"
+  | Ast.Eq    -> "="
+  | Ast.Neq   -> "!="
+  | Ast.Cons  -> "::"
+  | Ast.Index -> ".[]"
 
 type 'a environment = tname -> 'a arterm
 

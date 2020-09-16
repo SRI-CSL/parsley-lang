@@ -63,3 +63,13 @@ type builtin_dataconstructor = Ast.dname * Ast.tname list * Ast.type_expr
     their type variables, and their data constructors. *)
 val init_builtin_types: (?name:Ast.tname -> unit -> 'a)
   -> (Ast.tname * (Ast.kind * 'a CoreAlgebra.arterm * builtin_dataconstructor list)) list
+
+(** [builtin_consts] is an array of the builtin data constructors. *)
+val builtin_consts: builtin_dataconstructor array
+
+(** names of builtin operator constants *)
+val unop_const_name: Ast.unop -> string
+val binop_const_name: Ast.binop -> string
+
+(** [builtin_constants variable_maker] uses [variable_maker] to
+    build a typing environment that maps builtin constants [A*)

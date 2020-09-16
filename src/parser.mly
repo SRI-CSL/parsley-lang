@@ -238,20 +238,20 @@ rec_exp_fields:
 listelems:
 | hd=expr _s=SEMICOLON tl=listelems
   { let loc = Location.mk_loc $startpos(_s) $endpos(_s) in
-    let t = Location.mk_loc_val "_list" loc in
-    let c = Location.mk_loc_val "_Cons" loc in
+    let t = Location.mk_loc_val "[]" loc in
+    let c = Location.mk_loc_val "::" loc in
     make_expr (E_constr (t, c, [hd; tl])) $startpos $endpos }
 | e=expr _s=RBRACK
   { let loc = Location.mk_loc $startpos $endpos in
-    let t  = Location.mk_loc_val "_List" loc in
-    let nl = Location.mk_loc_val "_Nil" loc in
-    let co = Location.mk_loc_val "_Cons" loc in
+    let t  = Location.mk_loc_val "[]" loc in
+    let nl = Location.mk_loc_val "[]" loc in
+    let co = Location.mk_loc_val "::" loc in
     let tl = make_expr (E_constr (t, nl, [])) $startpos(_s) $endpos(_s) in
     make_expr (E_constr (t, co, [e; tl])) $startpos $endpos }
 | RBRACK
   { let loc = Location.mk_loc $startpos $endpos in
-    let t = Location.mk_loc_val "_List" loc in
-    let c = Location.mk_loc_val "_Nil" loc in
+    let t = Location.mk_loc_val "[]" loc in
+    let c = Location.mk_loc_val "[]" loc in
     make_expr (E_constr (t, c, [])) $startpos $endpos }
 
 expr:
