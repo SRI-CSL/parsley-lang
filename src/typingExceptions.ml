@@ -107,3 +107,7 @@ exception KindError of Location.t
 (** [PartialDataConstructorApplication] is raised when a data constructor's
     arity is not respected by the programmer. *)
 exception PartialDataConstructorApplication of Location.t * int * int
+
+(** [RepeatedFunctionParameter id idrep] is raised when a parameter
+    with the same name [id] is repeated in a function definition. *)
+exception RepeatedFunctionParameter of Ast.ident * Ast.ident

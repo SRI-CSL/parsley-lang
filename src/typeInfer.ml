@@ -157,10 +157,11 @@ let make_dc_signature adt tvars dc opt_arg =
     | None -> res
     | Some arg -> AstUtils.make_arrow_type [arg; res] (Location.loc dc)
 
-(** [intern_data_constructor adt_name env_info dcon_info] returns
+(** [intern_data_constructor adt_ident env_info dcon_info] returns
     env_info augmented with the data constructor's typing information
     It also checks if its definition is legal. *)
-let intern_data_constructor (adt_name, adt_id) qs env_info dcon_info =
+let intern_data_constructor adt_id qs env_info dcon_info =
+  let adt_name = Location.value adt_id in
   let tenv, acu, lrqs, let_env = env_info
   and dname, opt_arg = dcon_info in
   let typ = make_dc_signature adt_id qs dname opt_arg in
@@ -199,7 +200,8 @@ let make_field_signature adt tvars f typ =
 (** [intern_field_destructor adt_name env_info f_info] returns
     env_info augmented with the field destructor's typing information
     It also checks if its definition is legal. *)
-let intern_field_destructor (adt_name, adt_id) qs env_info f_info =
+let intern_field_destructor adt_id qs env_info f_info =
+  let adt_name = Location.value adt_id in
   let tenv, acu, lrqs, let_env = env_info
   and fname, typ = f_info in
   let destructor = make_field_signature adt_id qs fname typ in
@@ -240,7 +242,8 @@ let make_record_signature adt tvars fields =
     information.  The constructor is named '<adt>' for a record named
     'adt'.
 *)
-let intern_record_constructor (adt_name, adt_id) qs env_info fields =
+let intern_record_constructor adt_id qs env_info fields =
+  let adt_name = Location.value adt_id in
   let tenv, let_env = env_info in
   let rcon = Printf.sprintf "<%s>" adt_name in
   let constructor, fields = make_record_signature adt_id qs fields in
@@ -290,7 +293,7 @@ let infer_type_decl tenv ctxt td =
           let tenv, ctxt = register_tycon () in
           let tenv, ids, rqs, let_env =
             List.fold_left
-              (intern_data_constructor (name, ident) tvars)
+              (intern_data_constructor ident tvars)
               (tenv, [], [], StringMap.empty)
               dcons in
           adt := Some { adt = Variant ids;
@@ -300,11 +303,11 @@ let infer_type_decl tenv ctxt td =
           let tenv, ctxt = register_tycon () in
           let tenv, dids, drqs, let_env =
             List.fold_left
-              (intern_field_destructor (name, ident) tvars)
+              (intern_field_destructor ident tvars)
               (tenv, [], [], StringMap.empty)
               fields in
           let tenv, cid, crqs, let_env =
-            intern_record_constructor (name, ident) tvars
+            intern_record_constructor ident tvars
               (tenv, let_env) fields in
           let fields, _ = List.split fields in
           adt := Some { adt = Record { adt = ident;
@@ -475,8 +478,8 @@ let rec infer_expr tenv e (t : crterm) =
         (t =?= primtyp) e.expr_loc
     | E_case (exp, clauses) ->
         (** The constraint of a [case] makes equal the type of the
-            scrutinee and the type of every branch pattern. The body of each
-            branch must be equal to [t]. *)
+            scrutinee and the type of every branch pattern. The body
+            of each branch must be equal to [t]. *)
         exists (fun exvar ->
             infer_expr tenv exp exvar ^
               conj
@@ -497,16 +500,16 @@ let rec infer_expr tenv e (t : crterm) =
         exists (fun exvar ->
             let fragment = infer_pat_fragment tenv p exvar in
             let def_con = infer_expr tenv def exvar in
-            def_con ^
-              (ex ?pos:(Some e.expr_loc) fragment.vars
+            def_con
+            ^ (ex ?pos:(Some e.expr_loc) fragment.vars
                  (CLet (
-                   (* Bind the variables of [p] via a monomorphic
-                      [let] constraint. *)
-                   [ monoscheme fragment.gamma ],
-                   (* Require [exvar] to be a valid type for [p]. *)
-                   fragment.tconstraint
-                   (* Require [t] to be a valid type for [body]. *)
-                   ^ infer_expr tenv body t))
+                      (* Bind the variables of [p] via a monomorphic
+                         [let] constraint. *)
+                      [ monoscheme fragment.gamma ],
+                      (* Require [exvar] to be a valid type for [p]. *)
+                      fragment.tconstraint
+                      (* Require [t] to be a valid type for [body]. *)
+                      ^ infer_expr tenv body t))
               )
           )
     | E_cast (exp, typ) ->
@@ -533,6 +536,119 @@ let rec infer_expr tenv e (t : crterm) =
                 ^ (SName opid <? typ) e.expr_loc
               )
           )
+(** [infer_fun_defn] examines the function definition [fd] and
+    constraint context [c] in the type environment [tenv] and
+    generates an updated constraint context for [c] and a type
+    signature for [fd]. *)
+(* This currently only handles monomorphic functions.  This will
+ * need to change for the functions in the standard library.  To
+ * handle this, we would also need support in the syntax. *)
+let infer_fun_defn tenv fd c =
+  (* Handle the arguments as a simple case of lambda patterns; this
+     will allow us to extend this later to proper pattern matching if
+     needed. *)
+  let irestyp = TypeConv.intern tenv fd.fun_defn_res_type in
+  let _, bindings, signature =
+    List.fold_left (fun (acu_ids, bindings, signature) (pid, typ) ->
+        let pn, ploc = Location.value pid, Location.loc pid in
+        let acu_ids =
+          match StringMap.find_opt pn acu_ids with
+            | Some repid ->
+                raise (RepeatedFunctionParameter (pid, repid))
+            | None ->
+                StringMap.add pn pid acu_ids in
+        let ityp = TypeConv.intern tenv typ in
+        let v = variable Flexible () in
+        acu_ids,
+        { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
+                    bindings.gamma;
+          tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
+                        ^ bindings.tconstraint;
+          vars = v :: bindings.vars },
+        TypeConv.arrow tenv ityp signature
+      ) (StringMap.empty, empty_fragment, irestyp) fd.fun_defn_params in
+  let scheme = Scheme (fd.fun_defn_loc, [], bindings.vars,
+                       bindings.tconstraint
+                       ^ infer_expr tenv fd.fun_defn_body irestyp,
+                       bindings.gamma) in
+  signature,
+  (fun c -> CLet ([scheme], c))
+
+(** Initialize the typing environment with the builtin types and
+    constants. *)
+let init_tenv () =
+  let builtin_types =
+    init_builtin_types (fun ?name () -> variable Rigid ?name:name ()) in
+
+  (* Add the builtin data constructors into the environment.  The
+     builtins currently only use variant algebraic types. *)
+  let init_ds (TName adt_name) env_info ds =
+    let adt_id = Location.mk_ghost adt_name in
+    let (tenv, dcs, lrqs, let_env) as env_info =
+      List.fold_left
+        (fun env_info (DName d, qs, ty) ->
+          let qs = List.map (fun (TName q) -> Location.mk_ghost q) qs in
+          let d = Location.mk_ghost d in
+          intern_data_constructor adt_id qs env_info (d, Some ty)
+        ) env_info ds in
+    (dcs, env_info) in
+
+  (* Compute the scheme of a builtin constant. *)
+  let intern_const tenv qs typ =
+    let rqs, rtenv = fresh_unnamed_rigid_vars Location.ghost_loc tenv qs in
+    let tenv' = add_type_variables rtenv tenv in
+    let ityp = TypeConv.intern tenv' typ in
+    rqs, ityp in
+
+  (* For each builtin datatype, add a type constructor and any
+     associated data constructors into the environment. *)
+  let (init_tenv, acu, lrqs, let_env) =
+    List.fold_left
+      (fun (tenv, dvs, lrqs, let_env) (n, (kind, v, ds)) ->
+        let r = ref None in
+        let tenv = add_type_constructor tenv n
+                     (KindInferencer.intern_kind (as_kind_env tenv) kind,
+                      variable ~name:n Constant (),
+                      r) in
+        let (dcs, env_info) =
+          init_ds n (tenv, dvs, lrqs, let_env) ds in
+        (* If there are no data constructors, it does not need
+           any adt_info. *)
+        if List.length dcs > 0
+        then r := Some { adt = Variant dcs;
+                         loc = Location.ghost_loc };
+        env_info
+      )
+      (empty_environment, [], [], StringMap.empty)
+      (List.rev builtin_types)
+  in
+  (* Extract the variables bound to the type constructors. *)
+  let vs =
+    fold_type_info (fun vs (n, (_, v, _)) -> v :: vs) [] init_tenv
+  in
+
+  (* Update with the builtin constants. *)
+  let lrqs, let_env =
+    Array.fold_left (fun (lrqs, let_env) (DName c, qs, typ) ->
+        let rqs, ityp = intern_const init_tenv qs typ in
+        rqs @ lrqs,
+        StringMap.add c (ityp, Location.ghost_loc) let_env
+      ) (lrqs, let_env) builtin_consts in
+
+  (* The initial environment is implemented as a constraint
+     context. *)
+  (fun c ->
+    CLet ([ Scheme (Location.ghost_loc, vs, [],
+                    CLet ([ Scheme
+                              (Location.ghost_loc, lrqs, [],
+                               CTrue Location.ghost_loc,
+                               let_env)
+                          ],
+                          c),
+                    StringMap.empty) ],
+          CTrue Location.ghost_loc)),
+  init_tenv
+
 (* TODO *)
 
 let infer_program env prog =
