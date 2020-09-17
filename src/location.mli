@@ -12,6 +12,7 @@ val loc_or_ghost: t option -> t
 type 'a loc
 
 val mk_loc_val:  'a -> t -> 'a loc
+val mk_ghost:    'a -> 'a loc
 val value:       'a loc -> 'a
 val loc:         'a loc -> t
 

@@ -71,6 +71,11 @@ let mk_loc_val a l = {
   ploc  = l
 }
 
+let mk_ghost a = {
+  pelem = a;
+  ploc = ghost_loc
+}
+
 let value l = l.pelem
 
 let loc l = l.ploc
