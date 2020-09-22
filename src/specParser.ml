@@ -73,4 +73,4 @@ let parse_spec f =
   (*Printf.fprintf stdout " parsing %s ...\n" f;*)
   let ast = parse_file f in
   let ast = flatten [] (StringSet.add f StringSet.empty) ast.pre_decls in
-  List.rev ast
+  { decls = List.rev ast }

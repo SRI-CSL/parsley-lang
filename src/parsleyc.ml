@@ -1,6 +1,7 @@
 open TypingEnvironment
 open TypeInfer
 let opt_print_ast = ref false
+let opt_type_check = ref true
 let input_file = ref []
 
 let usage = Printf.sprintf
@@ -17,6 +18,8 @@ let () =
   if List.length !input_file > 1 || List.length !input_file = 0
   then (Printf.eprintf "Please specify a single input file.\n";
         exit 1);
-  let decls = SpecParser.parse_spec (List.hd !input_file) in
+  let spec = SpecParser.parse_spec (List.hd !input_file) in
   if !opt_print_ast then
-    AstPrinter.print_program decls
+    AstPrinter.print_program spec;
+  if !opt_type_check then
+    SpecTyper.type_check spec

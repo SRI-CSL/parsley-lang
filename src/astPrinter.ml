@@ -508,7 +508,7 @@ let rec print_decl d =
     | Decl_format f ->
         print_format f
 
-let rec print_program = function
+let rec print_decls = function
   | [] -> ()
   | h :: t -> begin
       pp_open_box !ppf 0;
@@ -516,5 +516,8 @@ let rec print_program = function
       pp_print_newline !ppf ();
       pp_print_newline !ppf ();
       pp_close_box !ppf ();
-      print_program t
+      print_decls t
     end
+
+let print_program prog =
+  print_decls prog.decls
