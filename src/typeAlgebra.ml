@@ -121,6 +121,11 @@ let init_builtin_types mk_variable =
       ) :: acu)
     [] builtin_types
 
+type symbol = int
+
+let as_symbol name =
+  Misc.just_try (fun () -> Misc.array_associ name builtin_types)
+
 let unop_const_name = function
   | Ast.Uminus -> "1-"
   | Ast.Not    -> "!"

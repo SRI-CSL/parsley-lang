@@ -39,12 +39,16 @@ type solving_step =
   | Generalize of int * TypeConstraint.variable list
 
 (** [solve tracer c] solves [c] by doing in-place modifications resulting
-    in a environment. *)
+    in an environment. *)
 val solve: ?tracer:(solving_step -> unit)
   -> tconstraint -> environment
 
 (** [environment_as_list env] converts [env] into a list. *)
 val environment_as_list : environment -> (string * TypeConstraint.variable) list
+
+(** [print_env printer env] use the variable printer [printer] in
+    order to display [env]. *)
+val print_env: (TypeConstraint.variable -> string) -> environment -> unit
 
 module type SolverException =
 sig

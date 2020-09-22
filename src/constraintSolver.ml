@@ -374,3 +374,12 @@ let solve ?tracer c =
     tracer (Init c);
     (* TEMPORARY integrer un occur check ici aussi *)
     solve tracer env pool c
+
+(** [print_env printer env] use the variable printer [printer] in order to
+    display [env]. *)
+let rec print_env print env =
+  let print_entry (name, t) =
+    if name.[0] <> '_' then
+      Printf.printf "val %s: %s\n" name (print t)
+  in
+  (List.iter print_entry (environment_as_list env))

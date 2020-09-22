@@ -32,6 +32,13 @@
     to the string representation of the type constructor. *)
 type 'a environment = Ast.tname -> 'a CoreAlgebra.arterm
 
+(** Head symbols. *)
+type symbol
+
+(** [as_symbol s] maps the string [s] to a symbol if [s] is a valid
+    symbol name. *)
+val as_symbol: Ast.tname -> symbol option
+
 (** [tuple env ts] returns [t0 * ... * tn]. *)
 val tuple : 'a environment -> 'a CoreAlgebra.arterm list -> 'a CoreAlgebra.arterm
 
@@ -70,6 +77,3 @@ val builtin_consts: builtin_dataconstructor array
 (** names of builtin operator constants *)
 val unop_const_name: Ast.unop -> string
 val binop_const_name: Ast.binop -> string
-
-(** [builtin_constants variable_maker] uses [variable_maker] to
-    build a typing environment that maps builtin constants [A*)
