@@ -35,31 +35,11 @@
 (** [lname] is the type of label. *)
 type lname = LName of string
 
-(** The universe of row labels. This is an ordered, printable
-    abstract type [t]. The ordering is used during unification, see
-    {!Unifier}. The ability to print row labels is used during
-    pretty printing. *)
-module RowLabel : sig
-
-  type t
-
-  (** [compare x y] is a total ordering. It returns a negative integer
-      if [x] is less than [y], 0 if [x] and [y] are equal, and a
-      positive integer if [x] is greater than [y]. *)
-  val compare: t -> t -> int
-
-  val export: t -> lname
-  val import: lname -> t
-
-end
-
 (** {3 Type as tree} *)
 
 (** Terms whose parameters are of type ['a]. This data structure
     represents a tree whose depth is exactly equal to 1. *)
 type 'a term =
-  | RowCons of RowLabel.t * 'a * 'a
-  | RowUniform of 'a
   | App of 'a * 'a
   | Var of 'a
 
@@ -94,12 +74,3 @@ val change_arterm_vars : ('a * 'a) list -> 'a arterm -> 'a arterm
 
 (** [app t ts] built the term corresponding to the [(...((t t0) t1)... tn)]. *)
 val app : 'a arterm -> 'a arterm list -> 'a arterm
-
-(** [uniform t] returns the row type that maps any label to [t]. *)
-val uniform : 'a arterm -> 'a arterm
-
-(** [rowcons l t r] returns the row type [(l: t; r)]. *)
-val rowcons : lname -> 'a arterm -> 'a arterm -> 'a arterm
-
-(** [n_rowcons l ts r] returns the row type [(l0: t0; ...; ln: tn; r)]. *)
-val n_rowcons : (lname * 'a arterm) list -> 'a arterm -> 'a arterm
