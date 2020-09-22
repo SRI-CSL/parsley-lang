@@ -26,33 +26,25 @@ open Unifier
 open MultiEquation
 open CoreAlgebra
 
-module type SolverException =
-sig
-
+type solver_error =
   (** [TypingError] is raised when an inconsistency is detected during
       constraint solving. *)
-  exception TypingError of Location.t
+  | TypingError of Location.t
 
   (** [UnboundIdentifier] is raised when an identifier is undefined in
       a particular context. *)
-  exception UnboundIdentifier of Location.t * string
+  | UnboundIdentifier of Location.t * string
 
   (** [CannotGeneralize] when the type of an expression cannot be
       generalized contrary to what is specified by the programmers
       using type annotations. *)
-  exception CannotGeneralize of Location.t * variable
+  | CannotGeneralize of Location.t * TypeConstraint.variable
 
   (** [NonDistinctVariables] is raised when two rigid type variables have
       been unified. *)
-  exception NonDistinctVariables of Location.t * (variable list)
+  | NonDistinctVariables of Location.t * (TypeConstraint.variable list)
 
-end
-
-exception TypingError of Location.t
-exception UnboundIdentifier of Location.t * string
-exception CannotGeneralize of Location.t * variable
-exception NonDistinctVariables of Location.t * (variable list)
-exception Inconsistency
+exception Error of solver_error
 
 type tconstraint = TypeConstraint.tconstraint
 
@@ -86,7 +78,7 @@ let rec lookup pos name = function
       else lookup pos name env
 
   | EEmpty ->
-      raise (UnboundIdentifier (pos, name))
+      raise (Error (UnboundIdentifier (pos, name)))
 
 (* [generalize] *)
 
@@ -245,7 +237,7 @@ let distinct_variables pos vl =
                    let desc = UnionFind.find v in
                      match desc.structure with
                        | Some _ ->
-                           raise (CannotGeneralize (pos, v))
+                           raise (Error (CannotGeneralize (pos, v)))
                        | _ ->
                            if Mark.same desc.mark m then
                              raise (DuplicatedMark m);
@@ -255,7 +247,7 @@ let distinct_variables pos vl =
       let vl' = List.filter (fun v -> Mark.same (UnionFind.find v).mark m)
                  vl
       in
-        raise (NonDistinctVariables (pos, vl'))
+        raise (Error (NonDistinctVariables (pos, vl')))
 
 (** [generic_variables vl] checks that every variable in the list [vl]
     has rank [none]. *)
@@ -263,7 +255,7 @@ let generic_variables pos vl =
   List.iter (fun v ->
                let desc = UnionFind.find v in
                  if IntRank.compare desc.rank IntRank.none <> 0 then (
-                   raise (CannotGeneralize (pos, v)))
+                   raise (Error (CannotGeneralize (pos, v))))
             ) vl
 
 (* [solve] *)
@@ -274,7 +266,7 @@ let solve tracer env pool c =
     let pos = cposition c in
       try
         solve_constraint env pool c
-      with Inconsistency -> raise (TypingError pos)
+      with Inconsistency -> raise (Error (TypingError pos))
 
   and solve_constraint env pool c =
     tracer (Solve c);
@@ -383,3 +375,24 @@ let rec print_env print env =
       Printf.printf "val %s: %s\n" name (print t)
   in
   (List.iter print_entry (environment_as_list env))
+
+let msg m loc =
+  Printf.sprintf m (Location.str_of_file_loc loc)
+
+let error_msg = function
+  | TypingError p ->
+      msg "%s:\n  Typing error.\n" p
+
+  | UnboundIdentifier (p, t) ->
+      msg "%s:\n Unbound identifier `%s'.\n" p t
+
+  | CannotGeneralize (p, v) ->
+      msg "%s:\n Cannot generalize `%s'.\n"
+        p (TypeEnvPrinter.print_variable false v)
+
+  | NonDistinctVariables (p, vs) ->
+      let lvs = Misc.print_separated_list ";"
+                  (TypeEnvPrinter.print_variable false) vs in
+      msg
+        ("%s:\n The following variables have been unified: [%s].\n")
+        p lvs

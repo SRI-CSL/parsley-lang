@@ -153,8 +153,6 @@ let eqf x = fun y -> y = x
 
 let twice f x y = (f x, f y)
 
-exception Inconsistency
-
 let pmapq conv v =
   match List.assq_opt v conv with
     | Some k -> k
@@ -164,6 +162,7 @@ let default d = function
     Some x -> x
   | None -> d
 
+exception Inconsistency
 let is_now v v' =
   match v with
   | None -> v'

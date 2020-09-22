@@ -132,7 +132,7 @@ let add_data_constructor env loc adt ((DName s) as t) x =
           data_constructor = CoreEnv.add env.data_constructor t x;
           datacon_adts = StringMap.add s (adt, loc) env.datacon_adts }
     | Some (adt, loc') ->
-        raise (DuplicateDataConstructor (loc, t, adt, loc'))
+        raise (Error (DuplicateDataConstructor (loc, t, adt, loc')))
 
 let add_record_constructor env adt x =
   { env with record_constructor = CoreEnv.add env.record_constructor adt x }
@@ -144,7 +144,7 @@ let add_field_destructor env loc adt ((LName s) as t) f =
           field_destructor = CoreEnv.add env.field_destructor t f;
           field_adts = StringMap.add s (adt, loc) env.field_adts }
     | Some (adt, loc') ->
-        raise (DuplicateRecordField (loc, t, adt, loc'))
+        raise (Error (DuplicateRecordField (loc, t, adt, loc')))
 
 (** [lookup_typcon ?pos env t] retrieves typing information about
     the type constructor [t]. *)
@@ -152,7 +152,7 @@ let lookup_typcon ?pos env t =
   try
     as_type_constructor (CoreEnv.lookup env.type_info t)
   with Not_found ->
-    raise (UnboundTypeIdentifier ((Location.loc_or_ghost pos), t))
+    raise (Error (UnboundTypeIdentifier ((Location.loc_or_ghost pos), t)))
 
 (** [find_typcon env t] looks for typing information related to
     the type constructor [t] in [env]. *)
@@ -165,7 +165,7 @@ let lookup_type_variable ?pos env k =
   try
     CoreAlgebra.TVariable (as_type_variable (CoreEnv.lookup env.type_info k))
   with Not_found ->
-    raise (UnboundTypeVariable ((Location.loc_or_ghost pos), k))
+    raise (Error (UnboundTypeVariable ((Location.loc_or_ghost pos), k)))
 
 (* The kind inferencer wants a view on the environment that
    concerns only the kinds. *)
@@ -176,7 +176,7 @@ let as_kind_env env =
       match CoreEnv.lookup (!env).type_info id with
         | (k, _, _) -> k
     with Not_found ->
-      raise (UnboundTypeConstructor (Location.ghost_loc, id)) in
+      raise (Error (UnboundTypeConstructor (Location.ghost_loc, id))) in
   let update i k =
     env := add_type_variable (!env) i (k, variable Flexible ()) in
   (read : tname -> KindInferencer.t),
@@ -212,7 +212,7 @@ let is_typcon env t =
 let tycon_name_conflict pos env (fqs, denv) =
   try
     let (n, _) = List.find (fun (x, _) -> is_typcon env x) denv in
-    raise (InvalidTypeVariableIdentifier (pos, n))
+    raise (Error (InvalidTypeVariableIdentifier (pos, n)))
   with Not_found ->
     (fqs, List.map (function (n, CoreAlgebra.TVariable v) -> (n, v) | _ -> assert false) denv)
 
@@ -230,7 +230,7 @@ let lookup_datacon env pos k =
   try
     CoreEnv.lookup env.data_constructor k
   with Not_found ->
-    raise (UnboundDataConstructor (pos, k))
+    raise (Error (UnboundDataConstructor (pos, k)))
 
 (** [lookup_field_destructor env f] looks for typing information
     for the destructor of the record field [f] in [env]. *)
@@ -238,7 +238,7 @@ let lookup_field_destructor env pos f =
   try
     CoreEnv.lookup env.field_destructor f
   with Not_found ->
-    raise (UnboundRecordField (pos, f))
+    raise (Error (UnboundRecordField (pos, f)))
 
 (** [lookup_record_constructor env adt] looks for typing information
     for the constructor of the record [adt] in [env]. *)
@@ -246,7 +246,7 @@ let lookup_record_constructor env pos adt =
   try
     CoreEnv.lookup env.record_constructor adt
   with Not_found ->
-    raise (UnboundRecord (pos, adt))
+    raise (Error (UnboundRecord (pos, adt)))
 
 let lookup_datacon_adt env (DName k) =
   match StringMap.find_opt k env.datacon_adts with

@@ -20,94 +20,177 @@
 (*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
 (*  and Didier Rémy.                                                      *)
 
-(** This modules declares the exceptions raised by the type inference engine. *)
+(** This module declares the errors raised by the type inference engine. *)
 
-(** [UnboundTypeIdentifier] is raised when an unbound type identifier
-    is found. *)
-exception UnboundTypeIdentifier of Location.t * Ast.tname
+type typing_error =
+  (** [UnboundTypeIdentifier] is raised when an unbound type identifier
+      is found. *)
+  | UnboundTypeIdentifier of Location.t * Ast.tname
 
-(** [DuplicateTypeVariable] is raised when a type variable declaration
-    is repeated in a type definition. *)
-exception DuplicateTypeVariable of Ast.ident
+  (** [DuplicateTypeVariable] is raised when a type variable declaration
+      is repeated in a type definition. *)
+  | DuplicateTypeVariable of Ast.ident
 
-(** [UnusedTypeVariable] is raised when a type variable declaration
-    is not used in a type definition. *)
-exception UnusedTypeVariable of Ast.ident
+  (** [UnusedTypeVariable] is raised when a type variable declaration
+      is not used in a type definition. *)
+  | UnusedTypeVariable of Ast.ident
 
-(** [InvalidTypeVariableIdentifier] is raised when a type variable is
-    overwriting a type constructor. *)
-exception InvalidTypeVariableIdentifier of Location.t * Ast.tname
+  (** [InvalidTypeVariableIdentifier] is raised when a type variable is
+      overwriting a type constructor. *)
+  | InvalidTypeVariableIdentifier of Location.t * Ast.tname
 
-(** [UnboundDataConstructor] is raised when a constructor identifier is
-    used although it has not been defined. *)
-exception UnboundDataConstructor of Location.t * Ast.dname
+  (** [UnboundDataConstructor] is raised when a constructor identifier is
+      used although it has not been defined. *)
+  | UnboundDataConstructor of Location.t * Ast.dname
 
-(** [DuplicateDataConstructor dc t] is raised when a constructor
-    identifier [dc] of type [t] is defined multiple times, perhaps in
-    different types. *)
-exception DuplicateDataConstructor
-            (* current definition *) (* previous definition *)
-          of Location.t * Ast.dname * Ast.tname * Location.t
+  (** [DuplicateDataConstructor dc t] is raised when a constructor
+      identifier [dc] of type [t] is defined multiple times, perhaps in
+      different types. *)
+  | DuplicateDataConstructor
+    (* current definition *) (* previous definition *)
+    of Location.t * Ast.dname * Ast.tname * Location.t
 
-(** [UnboundRecordField] is raised when a field label is
-    used although it has not been defined. *)
-exception UnboundRecordField of Location.t * Ast.lname
+  (** [UnboundRecordField] is raised when a field label is
+      used although it has not been defined. *)
+  | UnboundRecordField of Location.t * Ast.lname
 
-(** [UnboundRecord] is raised when a record is used although it has
- ** not been defined. *)
-exception UnboundRecord of Location.t * Ast.tname
+  (** [UnboundRecord] is raised when a record is used although it has
+      not been defined. *)
+  | UnboundRecord of Location.t * Ast.tname
 
-(** [DuplicateRecordField] is raised when a field label is
-    defined multiple times, perhaps in different types. *)
-exception DuplicateRecordField
+  (** [DuplicateRecordField] is raised when a field label is
+      defined multiple times, perhaps in different types. *)
+  | DuplicateRecordField
             (* current definition *) (* previous definition *)
           of Location.t * Ast.lname * Ast.tname * Location.t
 
-(** [RepeatedRecordField] is raised when a field label is
-    repeated in a record. *)
-exception RepeatedRecordField of Ast.ident
+  (** [RepeatedRecordField] is raised when a field label is
+      repeated in a record. *)
+  | RepeatedRecordField of Ast.ident
 
-(** [IncompleteRecord adt f] is raised when a field label [f] is not
-    initialized in a record [adt]. *)
-exception IncompleteRecord of Ast.ident * string
+  (** [IncompleteRecord adt f] is raised when a field label [f] is not
+      initialized in a record [adt]. *)
+  | IncompleteRecord of Ast.ident * string
 
-(** [InvalidRecordField f t] is raised when a field label [f] is used
-    for a record type [t] that does not declare it. *)
-exception InvalidRecordField of Ast.ident * Ast.ident
+  (** [InvalidRecordField f t] is raised when a field label [f] is used
+      for a record type [t] that does not declare it. *)
+  | InvalidRecordField of Ast.ident * Ast.ident
 
-(** [InvalidDataConstructorDefinition] is raised when the declared
-    type scheme of a data constructor is not regular. *)
-exception InvalidDataConstructorDefinition of Ast.ident
+  (** [InvalidDataConstructorDefinition] is raised when the declared
+      type scheme of a data constructor is not regular. *)
+  | InvalidDataConstructorDefinition of Ast.ident
 
-(** [InvalidFieldDestructorDefinition] is raised when a field destructor
-    scheme is not legal. *)
-exception InvalidFieldDestructorDefinition of Ast.ident
+  (** [InvalidFieldDestructorDefinition] is raised when a field destructor
+      scheme is not legal. *)
+  | InvalidFieldDestructorDefinition of Ast.ident
 
-(** [UnboundTypeVariable] is raised when a variable identifier is
-    used although it has not been defined. *)
-exception UnboundTypeVariable of Location.t * Ast.tname
+  (** [UnboundTypeVariable] is raised when a variable identifier is
+      used although it has not been defined. *)
+  | UnboundTypeVariable of Location.t * Ast.tname
 
-(** [NonLinearPattern] is raised when at least two occurrences of a variable
-    appear in a pattern. *)
-exception NonLinearPattern of Location.t * string
+  (** [NonLinearPattern] is raised when at least two occurrences of a variable
+      appear in a pattern. *)
+  | NonLinearPattern of Location.t * string
 
-(** [NotEnoughPatternArgts] is raised when the arity of a data constructor
-    is not respected in a pattern. *)
-exception NotEnoughPatternArgts of Location.t
+  (** [NotEnoughPatternArgts] is raised when the arity of a data constructor
+      is not respected in a pattern. *)
+  | NotEnoughPatternArgts of Location.t
 
-(** This exception is raised when a match is not complete. *)
-exception NonExhaustiveMatch of Location.t * Ast.pattern
+  (** [UnboundConstructor] is raised when a type constructor is unbound. *)
+  | UnboundTypeConstructor of Location.t * Ast.tname
 
-(** [UnboundConstructor] is raised when a type constructor is unbound. *)
-exception UnboundTypeConstructor of Location.t * Ast.tname
+  (** [KindError] is raised when the kind of types are not correct. *)
+  | KindError of Location.t
 
-(** [KindError] is raised when the kind of types are not correct. *)
-exception KindError of Location.t
+  (** [PartialDataConstructorApplication] is raised when a data constructor's
+      arity is not respected by the programmer. *)
+  | PartialDataConstructorApplication of Location.t * int * int
 
-(** [PartialDataConstructorApplication] is raised when a data constructor's
-    arity is not respected by the programmer. *)
-exception PartialDataConstructorApplication of Location.t * int * int
+  (** [RepeatedFunctionParameter id idrep] is raised when a parameter
+      with the same name [id] is repeated in a function definition. *)
+  | RepeatedFunctionParameter of Ast.ident * Ast.ident
 
-(** [RepeatedFunctionParameter id idrep] is raised when a parameter
-    with the same name [id] is repeated in a function definition. *)
-exception RepeatedFunctionParameter of Ast.ident * Ast.ident
+exception Error of typing_error
+
+let msg m loc =
+  Printf.sprintf m (Location.str_of_file_loc loc)
+
+let error_msg = function
+  | UnboundTypeIdentifier (p, TName t) ->
+      msg "%s:\n Unbound type identifier `%s'.\n" p t
+
+  | DuplicateTypeVariable t ->
+      msg "%s:\n Duplicate type variable `%s'.\n"
+        (Location.loc t) (Location.value t)
+
+  | UnusedTypeVariable t ->
+      msg "%s:\n Unused type variable `%s'.\n"
+        (Location.loc t) (Location.value t)
+
+  | InvalidTypeVariableIdentifier (p, TName v) ->
+      msg "%s:\n `%s' type constructor is used as a type variable.\n"
+        p v
+
+  | UnboundDataConstructor (p, DName t) ->
+      msg "%s:\n Unbound data constructor `%s'.\n" p t
+
+  | DuplicateDataConstructor (ldc, DName dc, TName adt, ladt) ->
+      msg
+        "%s: Data constructor %s has already been defined by ADT %s at %s.\n"
+        ldc dc adt (Location.str_of_file_loc ladt)
+
+  | UnboundRecordField (p, LName t) ->
+      msg "%s:\n Unbound record field `%s'.\n" p t
+
+  | UnboundRecord (p, TName t) ->
+      msg "%s:\n Unbound record `%s'.\n" p t
+
+  | DuplicateRecordField (lr, LName f, TName adt, ladt) ->
+      msg
+        "%s: Record field %s has already been defined by ADT %s at %s.\n"
+        lr f adt (Location.str_of_file_loc ladt)
+
+  | RepeatedRecordField l ->
+      msg "%s: Record field %s is repeated.\n"
+        (Location.loc l) (Location.value l)
+
+  | IncompleteRecord (t, l) ->
+      msg "%s: Field %s of %s is not initialized.\n"
+        (Location.loc t) l (Location.value t)
+
+  | InvalidRecordField (l, t) ->
+      msg "%s: Field %s of %s is not declated.\n"
+        (Location.loc l) (Location.value l) (Location.value t)
+
+  | InvalidDataConstructorDefinition k ->
+      msg "%s:\n The type of the data constructor '%s' is incorrect.\n"
+        (Location.loc k) (Location.value k)
+
+  | InvalidFieldDestructorDefinition f ->
+      msg "%s:\n The type of the field destructor `%s' is incorrect.\n"
+        (Location.loc f) (Location.value f)
+
+  | UnboundTypeVariable (p, TName t) ->
+      msg "%s:\n Unbound type variable `%s'.\n" p t
+
+  | NonLinearPattern (p, x) ->
+      msg "%s:\n The variable '%s' occurs several times.\n" p x
+
+  | NotEnoughPatternArgts p ->
+      msg "%s:\n Not enough pattern arguments.\n" p
+
+  | UnboundTypeConstructor (p, TName t) ->
+      msg "%s:\n Unbound type constructor `%s'.\n" p t
+
+  | KindError p ->
+      msg "%s:\n  Kind error.\n" p
+
+  | PartialDataConstructorApplication (p, d, u) ->
+      msg
+        "%s:\n This data constructor needs %d arguments not %d.\n"
+        p d u
+
+  | RepeatedFunctionParameter (p, p') ->
+      msg "%s: parameter %s is repeated at %s."
+        (Location.loc p) (Location.value p)
+        (Location.str_of_file_loc (Location.loc p'))

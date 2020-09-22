@@ -126,7 +126,7 @@ let assign_point k1 k2 =
     )
 
 let assign pos k1 k2 =
-  iter (fun k -> if UnionFind.equivalent k1 k then raise (KindError pos)) k2;
+  iter (fun k -> if UnionFind.equivalent k1 k then raise (Error (KindError pos))) k2;
   assign_point k1 k2
 
 let occur_check v1 v2 =
@@ -142,17 +142,17 @@ let rec unify pos k1 k2 =
 (*  Printf.eprintf "%s =?= %s\n" (print k1) (print k2); *)
   if not (UnionFind.equivalent k1 k2) then (
     if occur_check k1 k2 then
-      raise (KindError pos);
+      raise (Error (KindError pos));
 
     match structure k1, structure k2 with
 
       | None, None ->
           if (is_constant k1 && is_constant k2 && name k1 <> name k2) then
-            raise (KindError pos);
+            raise (Error (KindError pos));
           assign_point k1 k2
 
       | (None, _ | _, None) when is_constant k1 || is_constant k2 ->
-          raise (KindError pos)
+          raise (Error (KindError pos))
 
       | None, _ ->
           assign pos k1 k2

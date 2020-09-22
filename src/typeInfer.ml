@@ -59,7 +59,7 @@ let rec join_fragment pos f1 f2 =
     gamma =
       (try
          StringMap.strict_union f1.gamma f2.gamma
-       with StringMap.Strict x -> raise (NonLinearPattern (pos, x)));
+       with StringMap.Strict x -> raise (Error (NonLinearPattern (pos, x))));
     vars        = f1.vars @ f2.vars;
     tconstraint = f1.tconstraint ^ f2.tconstraint;
   }
@@ -102,7 +102,7 @@ and infer_pat_fragment tenv p t =
         let rt = result_type (as_fun tenv) ct
         and ats = arg_types (as_fun tenv) ct in
         if (List.length ps <> List.length ats) then
-          raise (NotEnoughPatternArgts pos)
+          raise (Error (NotEnoughPatternArgts pos))
         else
           let fragment = join pos (List.map2 infpat ats ps) in
           { fragment with
@@ -123,7 +123,7 @@ let check_distinct_tvars typid qs =
         then Some var
         else checker (StringSet.add v acc) tl in
   match checker StringSet.empty qs with
-    | Some var -> raise (DuplicateTypeVariable var)
+    | Some var -> raise (Error (DuplicateTypeVariable var))
     | None -> ()
 
 let check_tvars_usage t qs used_set =
@@ -134,13 +134,13 @@ let check_tvars_usage t qs used_set =
     List.fold_left (fun acc q ->
         let v = Location.value q in
         if not (StringMap.mem v used_set)
-        then raise (UnusedTypeVariable q)
+        then raise (Error (UnusedTypeVariable q))
         else StringSet.add v acc
       ) StringSet.empty qs in
   (* make sure all used vars are declared *)
   StringMap.iter (fun v loc ->
       if not (StringSet.mem v decl_vs)
-      then raise (UnboundTypeIdentifier (loc, (TName v)))
+      then raise (Error (UnboundTypeIdentifier (loc, (TName v))))
     ) used_set
 
 (** [make_dc_signature adt tvars dc typ] constructs the function type
@@ -171,7 +171,7 @@ let intern_data_constructor adt_id qs env_info dcon_info =
   let ityp = TypeConv.intern tenv' typ in
   let _ =
     if not (is_regular_datacon_scheme tenv (TName adt_name) rqs ityp) then
-      raise (InvalidDataConstructorDefinition dname) in
+      raise (Error (InvalidDataConstructorDefinition dname)) in
   let pos = Location.loc dname in
   let dname = Location.value dname in
   let v = variable ~structure:ityp Flexible () in
@@ -211,7 +211,7 @@ let intern_field_destructor adt_id qs env_info f_info =
   let ityp = TypeConv.intern tenv' destructor in
   let _ =
     if not (is_regular_field_scheme tenv (TName adt_name) rqs ityp) then
-      raise (InvalidFieldDestructorDefinition fname) in
+      raise (Error (InvalidFieldDestructorDefinition fname)) in
   let pos = Location.loc fname in
   let fname = Location.value fname in
   let v = variable ~structure:ityp Flexible () in
@@ -349,7 +349,7 @@ let lookup_record_adt tenv fields =
   let fid = Location.value f in
   let adtid = match lookup_field_adt tenv (LName fid) with
       | Some adtid -> adtid
-      | None -> raise (UnboundRecordField (Location.loc f, LName fid)) in
+      | None -> raise (Error (UnboundRecordField (Location.loc f, LName fid))) in
   let rec_info, rec_loc = match lookup_adt tenv adtid with
       | Some { adt = Record rec_info; loc = rec_loc } ->
           rec_info, rec_loc
@@ -372,14 +372,14 @@ let lookup_record_adt tenv fields =
   let useset = List.fold_left (fun acc locid ->
                    let id = Location.value locid in
                    if StringSet.mem id acc then
-                     raise (RepeatedRecordField locid)
+                     raise (Error (RepeatedRecordField locid))
                    else if not (StringSet.mem id decset) then
-                     raise (InvalidRecordField (locid, adt_ident))
+                     raise (Error (InvalidRecordField (locid, adt_ident)))
                    else
                      StringSet.add id acc
                  ) StringSet.empty fields in
   (match StringSet.choose_opt (StringSet.diff decset useset) with
-     | Some f -> raise (IncompleteRecord (adt_ident, f))
+     | Some f -> raise (Error (IncompleteRecord (adt_ident, f)))
      | None -> ());
   rec_info
 
@@ -397,7 +397,7 @@ let rec infer_expr tenv e (t : crterm) =
         let arity, _, _ = lookup_datacon tenv dcloc (DName dcid) in
         let nargs = List.length args in
         if nargs <> arity then
-          raise (PartialDataConstructorApplication (dcloc, arity, nargs))
+          raise (Error (PartialDataConstructorApplication (dcloc, arity, nargs)))
         else
           exists_list args (
               fun exs ->
@@ -480,6 +480,7 @@ let rec infer_expr tenv e (t : crterm) =
         (** The constraint of a [case] makes equal the type of the
             scrutinee and the type of every branch pattern. The body
             of each branch must be equal to [t]. *)
+        (* TODO: exhaustiveness check of patterns *)
         exists (fun exvar ->
             infer_expr tenv exp exvar ^
               conj
@@ -554,7 +555,7 @@ let infer_fun_defn tenv c fd =
         let acu_ids =
           match StringMap.find_opt pn acu_ids with
             | Some repid ->
-                raise (RepeatedFunctionParameter (pid, repid))
+                raise (Error (RepeatedFunctionParameter (pid, repid)))
             | None ->
                 StringMap.add pn pid acu_ids in
         let ityp = TypeConv.intern tenv typ in

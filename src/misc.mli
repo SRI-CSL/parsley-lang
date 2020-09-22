@@ -73,6 +73,7 @@ val notf : ('a -> bool) -> 'a -> bool
 
 val eqf : 'a -> ('a -> bool)
 
+exception Inconsistency
 val is_now : 'a option -> 'a option -> 'a option
 
 val itern : int -> (unit -> 'a) -> 'a list
