@@ -536,19 +536,19 @@ let rec infer_expr tenv e (t : crterm) =
                 ^ (SName opid <? typ) e.expr_loc
               )
           )
-(** [infer_fun_defn] examines the function definition [fd] and
-    constraint context [c] in the type environment [tenv] and
+(** [infer_fun_defn tenv c fd] examines the function definition [fd]
+    and constraint context [c] in the type environment [tenv] and
     generates an updated constraint context for [c] and a type
     signature for [fd]. *)
 (* This currently only handles monomorphic functions.  This will
  * need to change for the functions in the standard library.  To
  * handle this, we would also need support in the syntax. *)
-let infer_fun_defn tenv fd c =
+let infer_fun_defn tenv c fd =
   (* Handle the arguments as a simple case of lambda patterns; this
      will allow us to extend this later to proper pattern matching if
      needed. *)
   let irestyp = TypeConv.intern tenv fd.fun_defn_res_type in
-  let _, bindings, signature =
+  let _, bindings, _signature =
     List.fold_left (fun (acu_ids, bindings, signature) (pid, typ) ->
         let pn, ploc = Location.value pid, Location.loc pid in
         let acu_ids =
@@ -571,7 +571,6 @@ let infer_fun_defn tenv fd c =
                        bindings.tconstraint
                        ^ infer_expr tenv fd.fun_defn_body irestyp,
                        bindings.gamma) in
-  signature,
   (fun c -> CLet ([scheme], c))
 
 (** Initialize the typing environment with the builtin types and
@@ -649,10 +648,23 @@ let init_tenv () =
           CTrue Location.ghost_loc)),
   init_tenv
 
-(* TODO *)
-
-let infer_program env prog =
-  TypingEnvironment.empty_environment, (fun c -> c)
+let infer_program tenv prog =
+  List.fold_left (fun (tenv, ctxt) decl ->
+      match decl with
+        | Decl_types tds ->
+            (* TODO: handle recursive declarations *)
+            List.fold_left (fun (te, c) td ->
+                infer_type_decl te c td
+              ) (tenv, ctxt) tds
+        | Decl_fun f ->
+            (* TODO: solve eagerly? *)
+            let c = infer_fun_defn tenv ctxt f in
+            tenv, c
+        | _ ->
+            (* TODO: nterms and rules  *)
+            tenv, ctxt
+    ) (tenv, (fun c -> c)) prog.decls
 
 let generate_constraint prog =
-  CTrue Location.ghost_loc
+  let c, tenv = init_tenv () in
+  c ((snd (infer_program tenv prog)) (CDump Location.ghost_loc))
