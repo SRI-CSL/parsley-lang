@@ -105,6 +105,10 @@ val is_regular_datacon_scheme: environment -> Ast.tname -> MultiEquation.variabl
     K :: forall a1 .. an. adt_name a1 ... an -> tau_1 -> ... -> tau_n *)
 val is_regular_field_scheme: environment -> Ast.tname -> MultiEquation.variable list -> MultiEquation.crterm -> bool
 
+(** [is_defined_type env t] checks whether the type with name [t] is
+    defined in [env]. *)
+val is_defined_type : environment -> Ast.tname -> bool
+
 (** [lookup_adt env t] gives access to the typing information for the
     type with name [t]. *)
 val lookup_adt : environment -> Ast.tname -> adt_info option

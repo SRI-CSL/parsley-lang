@@ -126,7 +126,7 @@ let check_distinct_tvars typid qs =
     | Some var -> raise (Error (DuplicateTypeVariable var))
     | None -> ()
 
-let check_tvars_usage t qs used_set =
+let check_tvars_usage tenv t qs used_set =
   (* TODO: ensure tycons don't cause issues; perhaps only extract
      syntactic type-variables to avoid tycons *)
   (* make sure all declared type variables are used *)
@@ -137,10 +137,12 @@ let check_tvars_usage t qs used_set =
         then raise (Error (UnusedTypeVariable q))
         else StringSet.add v acc
       ) StringSet.empty qs in
-  (* make sure all used vars are declared *)
+  (* make sure all used vars are declared or defined *)
   StringMap.iter (fun v loc ->
-      if not (StringSet.mem v decl_vs)
-      then raise (Error (UnboundTypeIdentifier (loc, (TName v))))
+      if not (StringSet.mem v decl_vs
+              || is_defined_type tenv (TName v))
+      then
+        raise (Error (UnboundTypeIdentifier (loc, (TName v))))
     ) used_set
 
 (** [make_dc_signature adt tvars dc typ] constructs the function type
@@ -260,8 +262,8 @@ let intern_record_constructor adt_id qs env_info fields =
 
 (** [check_valid_type_defn t qs defn] checks whether [defn] is a valid type
     definition for the declared quantified type variables [qs]. *)
-let check_valid_type_defn t qs defn =
-  check_tvars_usage t qs (TypeConv.variables_of_typ defn)
+let check_valid_type_defn tenv t qs defn =
+  check_tvars_usage tenv t qs (TypeConv.variables_of_typ defn)
 
 (** Constraint contexts. *)
 type context = tconstraint -> tconstraint
@@ -317,7 +319,7 @@ let infer_type_decl tenv ctxt td =
                         loc = pos };
           tenv, drqs @ crqs, let_env, ctxt
       | TR_defn d ->
-          check_valid_type_defn ident tvars d;
+          check_valid_type_defn tenv ident tvars d;
           let qs = List.map (fun q -> TName (Location.value q)) tvars in
           let rqs, rtenv = fresh_unnamed_rigid_vars pos tenv qs in
           let tenv' = add_type_variables rtenv tenv in

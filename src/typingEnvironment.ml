@@ -216,6 +216,14 @@ let tycon_name_conflict pos env (fqs, denv) =
   with Not_found ->
     (fqs, List.map (function (n, CoreAlgebra.TVariable v) -> (n, v) | _ -> assert false) denv)
 
+(** [is_defined_type env t] checks whether the type with name [t] is
+    defined in [env]. *)
+let is_defined_type env t =
+  try
+    let _ = CoreEnv.lookup env.type_info t in
+    true
+  with Not_found -> false
+
 (** [lookup_adt env t] gives access to the typing information for the
     type with name [t]. *)
 let lookup_adt env t =
