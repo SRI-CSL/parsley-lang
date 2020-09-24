@@ -102,7 +102,9 @@ and infer_pat_fragment tenv p t =
         let rt = result_type (as_fun tenv) ct
         and ats = arg_types (as_fun tenv) ct in
         if (List.length ps <> List.length ats) then
-          raise (Error (NotEnoughPatternArgts pos))
+          let err =
+            InvalidPatternArgs (pos, c, List.length ats, List.length ps) in
+          raise (Error (err))
         else
           let fragment = join pos (List.map2 infpat ats ps) in
           { fragment with
@@ -407,7 +409,7 @@ let rec infer_expr tenv e (t : crterm) =
         let arity, _, _ = lookup_datacon tenv dcloc (DName dcid) in
         let nargs = List.length args in
         if nargs <> arity then
-          raise (Error (PartialDataConstructorApplication (dcloc, arity, nargs)))
+          raise (Error (PartialDataConstructorApplication (dcon, arity, nargs)))
         else
           exists_list args (
               fun exs ->

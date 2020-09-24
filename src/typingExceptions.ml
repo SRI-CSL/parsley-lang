@@ -92,9 +92,9 @@ type typing_error =
       appear in a pattern. *)
   | NonLinearPattern of Location.t * string
 
-  (** [NotEnoughPatternArgts] is raised when the arity of a data constructor
-      is not respected in a pattern. *)
-  | NotEnoughPatternArgts of Location.t
+  (** [InvalidPatternArgs c exp fnd] is raised when the arity [exp] of
+      data constructor [c] is not respected in a pattern of arity [fnd]. *)
+  | InvalidPatternArgs of Location.t * Ast.ident * int * int
 
   (** [UnboundConstructor] is raised when a type constructor is unbound. *)
   | UnboundTypeConstructor of Location.t * Ast.tname
@@ -102,9 +102,10 @@ type typing_error =
   (** [KindError] is raised when the kind of types are not correct. *)
   | KindError of Location.t
 
-  (** [PartialDataConstructorApplication] is raised when a data constructor's
-      arity is not respected by the programmer. *)
-  | PartialDataConstructorApplication of Location.t * int * int
+  (** [PartialDataConstructorApplication c d u] is raised when the
+      arity [d] of a data constructor [c] does not match the provided
+      number [u] of arguments. *)
+  | PartialDataConstructorApplication of Ast.ident * int * int
 
   (** [RepeatedFunctionParameter id idrep] is raised when a parameter
       with the same name [id] is repeated in a function definition. *)
@@ -176,8 +177,9 @@ let error_msg = function
   | NonLinearPattern (p, x) ->
       msg "%s:\n The variable '%s' occurs several times.\n" p x
 
-  | NotEnoughPatternArgts p ->
-      msg "%s:\n Not enough pattern arguments.\n" p
+  | InvalidPatternArgs (p, c, e, f) ->
+      msg "%s:\n %d pattern arguments used for constructor %s expecting %d.\n"
+        p f (Location.value c) e
 
   | UnboundTypeConstructor (p, TName t) ->
       msg "%s:\n Unbound type constructor `%s'.\n" p t
@@ -185,10 +187,12 @@ let error_msg = function
   | KindError p ->
       msg "%s:\n  Kind error.\n" p
 
-  | PartialDataConstructorApplication (p, d, u) ->
+  | PartialDataConstructorApplication (dc, d, u) ->
       msg
-        "%s:\n This data constructor needs %d arguments not %d.\n"
-        p d u
+        "%s:\n The constructor %s needs %d argument%s not %d.\n"
+        (Location.loc dc) (Location.value dc) d
+        (if d > 1 then "s" else "")
+        u
 
   | RepeatedFunctionParameter (p, p') ->
       msg "%s: parameter %s is repeated at %s."
