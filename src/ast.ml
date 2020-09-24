@@ -160,6 +160,7 @@ type type_decl =
 
 type fun_defn =
   { fun_defn_ident: ident;
+    fun_defn_tvars: tvar list;
     fun_defn_params: (ident * type_expr) list;
     fun_defn_res_type: type_expr;
     fun_defn_body: expr;

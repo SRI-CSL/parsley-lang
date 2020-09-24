@@ -114,8 +114,9 @@ let make_type_decl n k tvs bd b e =
     type_decl_body = bd;
     type_decl_loc = Location.mk_loc b e }
 
-let make_fun_defn n p t bd b e =
+let make_fun_defn n tvs p t bd b e =
   { fun_defn_ident = n;
+    fun_defn_tvars = tvs;
     fun_defn_params = p;
     fun_defn_res_type = t;
     fun_defn_body = bd;
@@ -534,7 +535,10 @@ pre_decl:
 | l=type_decls
   { PDecl_types l }
 | FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
-  { PDecl_fun (make_fun_defn f p r e $startpos $endpos) }
+  { PDecl_fun (make_fun_defn f [] p r e $startpos $endpos) }
+| FUN f=ident LT tvs=separated_list(COMMA, TVAR) GT
+    LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
+  { PDecl_fun (make_fun_defn f tvs p r e $startpos $endpos) }
 | NTERM LBRACE d=separated_list(COMMA, UID) RBRACE
   { PDecl_nterm (make_nterm_decl d $startpos $endpos) }
 | FORMAT LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE

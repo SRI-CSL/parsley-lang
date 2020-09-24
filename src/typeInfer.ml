@@ -551,14 +551,15 @@ let rec infer_expr tenv e (t : crterm) =
     and constraint context [c] in the type environment [tenv] and
     generates an updated constraint context for [c] and a type
     signature for [fd]. *)
-(* This currently only handles monomorphic functions.  This will
- * need to change for the functions in the standard library.  To
- * handle this, we would also need support in the syntax. *)
 let infer_fun_defn tenv c fd =
+  let qs = fd.fun_defn_tvars in
+  let qs = List.map (fun q -> TName (Location.value q)) qs in
+  let rqs, rtenv = fresh_unnamed_rigid_vars fd.fun_defn_loc tenv qs in
+  let tenv' = add_type_variables rtenv tenv in
   (* Handle the arguments as a simple case of lambda patterns; this
      will allow us to extend this later to proper pattern matching if
      needed. *)
-  let irestyp = TypeConv.intern tenv fd.fun_defn_res_type in
+  let irestyp = TypeConv.intern tenv' fd.fun_defn_res_type in
   let _, bindings, _signature =
     List.fold_left (fun (acu_ids, bindings, signature) (pid, typ) ->
         let pn, ploc = Location.value pid, Location.loc pid in
@@ -568,7 +569,7 @@ let infer_fun_defn tenv c fd =
                 raise (Error (RepeatedFunctionParameter (pid, repid)))
             | None ->
                 StringMap.add pn pid acu_ids in
-        let ityp = TypeConv.intern tenv typ in
+        let ityp = TypeConv.intern tenv' typ in
         let v = variable Flexible () in
         acu_ids,
         { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
@@ -578,7 +579,7 @@ let infer_fun_defn tenv c fd =
           vars = v :: bindings.vars },
         TypeConv.arrow tenv ityp signature
       ) (StringMap.empty, empty_fragment, irestyp) fd.fun_defn_params in
-  let scheme = Scheme (fd.fun_defn_loc, [], bindings.vars,
+  let scheme = Scheme (fd.fun_defn_loc, rqs, bindings.vars,
                        bindings.tconstraint
                        ^ infer_expr tenv fd.fun_defn_body irestyp,
                        bindings.gamma) in
