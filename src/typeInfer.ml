@@ -159,14 +159,22 @@ let make_dc_signature adt tvars dc opt_arg =
     | None -> res
     | Some arg -> AstUtils.make_arrow_type [arg; res] (Location.loc dc)
 
-(** [intern_data_constructor adt_ident env_info dcon_info] returns
+(** [intern_data_constructor external adt_ident env_info dcon_info] returns
     env_info augmented with the data constructor's typing information
-    It also checks if its definition is legal. *)
-let intern_data_constructor adt_id qs env_info dcon_info =
+    It also checks if its definition is legal. [internal] specifies
+    whether this is a builtin or from an external spec.
+*)
+let intern_data_constructor internal adt_id qs env_info dcon_info =
   let adt_name = Location.value adt_id in
   let tenv, acu, lrqs, let_env = env_info
   and dname, opt_arg = dcon_info in
-  let typ = make_dc_signature adt_id qs dname opt_arg in
+  let typ =
+    (* Internal builtins have full signatures, whereas parsed
+       signatures leave the result type implicit.  This shows up in
+       constant data constructors, where make_dc_signature would
+       otherwise add an unnecessary return type. *)
+    if internal then unSome opt_arg
+    else make_dc_signature adt_id qs dname opt_arg in
   let qs = List.map (fun q -> TName (Location.value q)) qs in
   let rqs, rtenv = fresh_unnamed_rigid_vars (Location.loc adt_id) tenv qs in
   let tenv' = add_type_variables rtenv tenv in
@@ -295,7 +303,7 @@ let infer_type_decl tenv ctxt td =
           let tenv, ctxt = register_tycon () in
           let tenv, ids, rqs, let_env =
             List.fold_left
-              (intern_data_constructor ident tvars)
+              (intern_data_constructor false ident tvars)
               (tenv, [], [], StringMap.empty)
               dcons in
           adt := Some { adt = Variant ids;
@@ -591,7 +599,7 @@ let init_tenv () =
         (fun env_info (DName d, qs, ty) ->
           let qs = List.map (fun (TName q) -> Location.mk_ghost q) qs in
           let d = Location.mk_ghost d in
-          intern_data_constructor adt_id qs env_info (d, Some ty)
+          intern_data_constructor true adt_id qs env_info (d, Some ty)
         ) env_info ds in
     (dcs, env_info) in
 
