@@ -51,8 +51,7 @@ let builtin_types, builtin_consts =
                        [ (Ast.DName "_Tuple", [ TName "a"; TName "b" ],
                           arrow_type (gen_tvar "a")
                             (arrow_type (gen_tvar "b")
-                               (tuple_type (gen_tvar "a") (gen_tvar "b"))))
-                      ]);
+                               (tuple_type (gen_tvar "a") (gen_tvar "b"))))]);
 
       TName "[]",     (Ast.KArrow (Ast.KStar, Ast.KStar),
                        [ (Ast.DName "::", [ TName "a" ],
@@ -68,8 +67,8 @@ let builtin_types, builtin_consts =
       TName "unit",   (Ast.KStar,
                        [ (Ast.DName "_Unit", [], gen_tvar "unit") ]);
       TName "bool",   (Ast.KStar,
-                       [ (Ast.DName "true", [], gen_tvar "bool");
-                         (Ast.DName "false", [], gen_tvar "bool") ])
+                       [ (Ast.DName "True", [], gen_tvar "bool");
+                         (Ast.DName "False", [], gen_tvar "bool") ])
     |] in
   let builtin_consts = [|
       (Ast.DName "1-", [], arrow_type (gen_tvar "int") (gen_tvar "int"));

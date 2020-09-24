@@ -149,7 +149,7 @@ let make_format decls b e =
 
 let make_list_type a b e =
   let loc = Location.mk_loc b e in
-  make_type_app_name "_List" [a] loc
+  make_type_app_name "[]" [a] loc
 
 let rec make_tuple_type l =
   match l with
@@ -158,7 +158,7 @@ let rec make_tuple_type l =
     | h :: rest ->
           let t = make_tuple_type rest in
           let loc = Location.extent h.type_expr_loc t.type_expr_loc in
-          make_type_app_name "_Tuple" [h; t] loc
+          make_type_app_name "*" [h; t] loc
 
 let rec make_tuple_pattern l =
   match l with
