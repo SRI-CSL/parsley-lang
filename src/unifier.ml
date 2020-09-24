@@ -98,8 +98,8 @@ let unify ?tracer pos register =
          This enables us to give correct and efficient versions of a number
          of auxiliary functions:
 
-         [fresh] specializes [fresh] (defined above) with the minimum rank.
-         [merge] merges the multi-equations, keeping an arbitrary structure.
+         [fresh]  specializes [fresh] (defined above) with the minimum rank.
+         [merge]  merges the multi-equations, keeping an arbitrary structure.
          [merge1] merges the multi-equations, keeping the former's structure.
          [merge2] merges the multi-equations, keeping the latter's structure.
       *)
@@ -149,56 +149,51 @@ let unify ?tracer pos register =
             in
               fresh ?name:name kind rank2, merge2, merge1, merge2 in
 
-      (* Another auxiliary function, for syntactic convenience. *)
+      (* Now, let us look at the structure of the two multi-equations. *)
 
-      let filter v term =
-        unify pos v (fresh (Some term)) in
+      match desc1.structure, desc2.structure, merge1, merge2 with
 
-        (* Now, let us look at the structure of the two multi-equations. *)
+        (* Neither multi-equation contains a term.
+           Merge them; we're done. *)
 
-        match desc1.structure, desc2.structure, merge1, merge2 with
+        | None, None, _, _ when is_flexible v1 && is_flexible v2 ->
+            merge ()
 
-          (* Neither multi-equation contains a term.
-             Merge them; we're done. *)
+        | None, _, _, _ when is_flexible v1 ->
+            merge2 ();
 
-          | None, None, _, _ when is_flexible v1 && is_flexible v2 ->
-              merge ()
+        | _, None, _, _ when is_flexible v2 ->
+            merge1 ();
 
-          | None, _, _, _ when is_flexible v1 ->
-              merge2 ();
+        (* Exactly one multi-equation contains a term; keep it. *)
 
-          | _, None, _, _ when is_flexible v2 ->
-              merge1 ();
+        | Some (Var v), _, _, _ ->
+            unify pos v v2
 
-          (* Exactly one multi-equation contains a term; keep it. *)
+        | _, Some (Var v), _, _ ->
+            unify pos v v1
 
-          | Some (Var v), _, _, _ ->
-              unify pos v v2
+        (* It is forbidden to unify rigid type variables with
+           a structure. *)
 
-          | _, Some (Var v), _, _ ->
-              unify pos v v1
+        | None, _, _, _ (* v1 is rigid. *) ->
+            raise (CannotUnify (pos, TVariable v1, TVariable v2))
 
-          (* It is forbidden to unify rigid type variables with
-             a structure. *)
+        | _, None, _, _ (* v2 is rigid. *) ->
+            raise (CannotUnify (pos, TVariable v1, TVariable v2))
 
-          | None, _, _, _ (* v1 is rigid. *) ->
-              raise (CannotUnify (pos, TVariable v1, TVariable v2))
+        (* Both multi-equations contain terms whose head symbol belong
+           to the free algebra [A]. Merge the multi-equations
+           (dropping one of the terms), then decompose the equation
+           that arises between the two terms. Signal an error if the
+           terms are incompatible, i.e. do not have the same head
+           symbol. *)
 
-          | _, None, _, _ (* v2 is rigid. *) ->
-              raise (CannotUnify (pos, TVariable v1, TVariable v2))
-
-          (* Both multi-equations contain terms whose head symbol belong
-             to the free algebra [A]. Merge the multi-equations
-             (dropping one of the terms), then decompose the equation
-             that arises between the two terms. Signal an error if the
-             terms are incompatible, i.e. do not have the same head
-             symbol. *)
-
-          | Some (App (term1, term2)), Some (App (term1', term2')), _, _ ->
-              begin
-                merge();
-                unify pos term1 term1';
-                unify pos term2 term2'
-              end
+        | Some (App (term1, term2)), Some (App (term1', term2')), _, _ ->
+            begin
+              merge();
+              unify pos term1 term1';
+              unify pos term2 term2'
+            end
 
   in unify pos
