@@ -175,6 +175,11 @@ let make_variant t (c, l) =
   match l with
     | [] -> c, None
     | _  -> c, Some (make_tuple_type l)
+
+let generate_kind tvs =
+  List.fold_left (fun acc _ ->
+      KArrow (KStar, acc)
+    ) KStar tvs
 %}
 
 %%
@@ -499,7 +504,7 @@ type_decl:
     make_type_decl t KStar [] rep $startpos $endpos }
 | t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ r=type_expr
   { let rep = make_type_rep (TR_defn r) $startpos $endpos in
-    make_type_decl t KStar tvs rep $startpos $endpos }
+    make_type_decl t (generate_kind tvs) tvs rep $startpos $endpos }
 | t=ident EQ vs=variants
   { let variants = List.map (make_variant t) vs in
     let rep = make_type_rep (TR_variant variants) $startpos(vs) $endpos(vs) in
@@ -507,13 +512,13 @@ type_decl:
 | t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ vs=variants
   { let variants = List.map (make_variant t) vs in
     let rep = make_type_rep (TR_variant variants) $startpos(vs) $endpos(vs) in
-    make_type_decl t KStar tvs rep $startpos $endpos }
+    make_type_decl t (generate_kind tvs) tvs rep $startpos $endpos }
 | t=ident EQ LBRACE r=rec_typ_fields RBRACE
   { let rep = make_type_rep (TR_record r) $startpos $endpos in
     make_type_decl t KStar [] rep $startpos $endpos }
 | t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ LBRACE r=rec_typ_fields RBRACE
   { let rep = make_type_rep (TR_record r) $startpos $endpos in
-    make_type_decl t KStar tvs rep $startpos $endpos }
+    make_type_decl t (generate_kind tvs) tvs rep $startpos $endpos }
 
 type_decls:
 | TYPE t=type_decl
