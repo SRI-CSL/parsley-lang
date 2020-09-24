@@ -156,7 +156,7 @@ val as_fun : environment -> (Ast.tname -> MultiEquation.variable CoreAlgebra.art
 
 (** [as_kind env] provides a view of [env] as kind environment. *)
 val as_kind_env : environment ->
-  (Ast.tname -> KindInferencer.t) * (Ast.tname -> KindInferencer.t -> unit)
+  (Ast.tname -> Location.t -> KindInferencer.t) * (Ast.tname -> KindInferencer.t -> unit)
 
 (** [fresh_datacon_scheme env dname] retrieves the type scheme
     of data constructor [dname] in [env]. *)

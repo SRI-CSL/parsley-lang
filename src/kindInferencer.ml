@@ -41,7 +41,7 @@ and term =
 
 type t = variable
 
-type env = (tname -> t) * (tname -> t -> unit)
+type env = (tname -> Location.t -> t) * (tname -> t -> unit)
 
 let count = ref 0
 
@@ -64,7 +64,7 @@ let iter_term f = function
 
 let iter f v = iter_term f (unSome (structure v))
 
-let lookup id tenv = (fst tenv) id
+let lookup id loc tenv = (fst tenv) id loc
 
 let bind id t tenv = (snd tenv) id t; tenv
 
@@ -167,7 +167,7 @@ let rec unify pos k1 k2 =
 let rec infer env t =
   match t.type_expr with
     | TE_tvar id ->
-        lookup (TName (Location.value id)) env
+        lookup (TName (Location.value id)) (Location.loc id) env
 
     | TE_tapp (tc, ts) ->
         let k = variable () in

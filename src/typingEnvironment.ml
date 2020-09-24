@@ -171,15 +171,15 @@ let lookup_type_variable ?pos env k =
    concerns only the kinds. *)
 let as_kind_env env =
   let env = ref env in
-  let read id =
+  let read id loc =
     try
       match CoreEnv.lookup (!env).type_info id with
         | (k, _, _) -> k
     with Not_found ->
-      raise (Error (UnboundTypeConstructor (Location.ghost_loc, id))) in
+      raise (Error (UnboundTypeConstructor (loc, id))) in
   let update i k =
     env := add_type_variable (!env) i (k, variable Flexible ()) in
-  (read : tname -> KindInferencer.t),
+  (read : tname -> Location.t -> KindInferencer.t),
   (update : tname -> KindInferencer.t -> unit)
 
 let fold_type_info f init env =

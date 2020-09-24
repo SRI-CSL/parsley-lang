@@ -28,7 +28,7 @@ type t
 
 (** The kind inference engine uses an environment implemented by
     two functions (get, add). *)
-type env = (Ast.tname -> t) * (Ast.tname -> t -> unit)
+type env = (Ast.tname -> Location.t -> t) * (Ast.tname -> t -> unit)
 
 (** [fresh_kind] returns a fresh kind for a type. *)
 val fresh_kind: unit -> t
