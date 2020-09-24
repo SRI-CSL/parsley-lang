@@ -274,8 +274,8 @@ expr:
     make_expr (E_literal (PL_int i)) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, expr) RPAREN
   { let loc = Location.mk_loc $startpos $endpos in
-    let t = Location.mk_loc_val "_Tuple" loc in
-    let c = Location.mk_loc_val "Tuple" loc in
+    let t = Location.mk_loc_val "*" loc in
+    let c = Location.mk_loc_val "_Tuple" loc in
     if List.length l = 0
     then make_expr (E_literal PL_unit) $startpos $endpos
     else make_expr (E_constr (t, c, l)) $startpos $endpos }
