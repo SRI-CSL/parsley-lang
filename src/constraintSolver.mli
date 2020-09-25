@@ -43,6 +43,9 @@ type solving_step =
 val solve: ?tracer:(solving_step -> unit)
   -> tconstraint -> environment
 
+(** a simple tracer *)
+val tracer: unit -> solving_step -> unit
+
 (** [environment_as_list env] converts [env] into a list. *)
 val environment_as_list : environment -> (string * TypeConstraint.variable) list
 
