@@ -15,12 +15,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(*  Adapted from:                                                         *)
 (*  Mini, a type inference engine based on constraint solving.            *)
 (*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
 (*  and Didier Rémy.                                                      *)
-(*                                                                        *)
 
 (** This module implements some common stuff for pretty printer. *)
+
 open Format
 
 type output =
