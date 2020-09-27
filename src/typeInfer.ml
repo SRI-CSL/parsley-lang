@@ -290,11 +290,11 @@ let infer_type_decl tenv ctxt td =
   and pos   = td.type_decl_loc
   and adt   = ref None in
   let ikind = KindInferencer.intern_kind (as_kind_env tenv) kind in
-  let register_tycon ?structure () =
+  let register_tycon ctx ?structure () =
     let ivar  = variable ~name:(TName name) ?structure Constant () in
     let tenv  = add_type_constructor tenv (TName name) (ikind, ivar, adt) in
     let ctxt' = (fun c ->
-        CLet ([Scheme (pos, [ivar], [], ctxt c, StringMap.empty)],
+        CLet ([Scheme (pos, [ivar], [], ctx c, StringMap.empty)],
               CTrue pos)) in
     (tenv, ctxt') in
   let typ   = td.type_decl_body in
@@ -302,7 +302,7 @@ let infer_type_decl tenv ctxt td =
   let tenv, rqs, let_env, ctxt' =
     match typ.type_rep with
       | TR_variant dcons ->
-          let tenv, ctxt = register_tycon () in
+          let tenv, ctxt = register_tycon ctxt () in
           let tenv, ids, rqs, let_env =
             List.fold_left
               (intern_data_constructor false ident tvars)
@@ -312,7 +312,7 @@ let infer_type_decl tenv ctxt td =
                         loc = pos };
           tenv, rqs, let_env, ctxt
       | TR_record fields ->
-          let tenv, ctxt = register_tycon () in
+          let tenv, ctxt = register_tycon ctxt () in
           let tenv, dids, drqs, let_env =
             List.fold_left
               (intern_field_destructor ident tvars)
@@ -334,7 +334,7 @@ let infer_type_decl tenv ctxt td =
           let rqs, rtenv = fresh_unnamed_rigid_vars pos tenv qs in
           let tenv' = add_type_variables rtenv tenv in
           let ityp = TypeConv.intern tenv' d in
-          let tenv, ctxt = register_tycon ~structure:ityp () in
+          let tenv, ctxt = register_tycon ctxt ~structure:ityp () in
           tenv, rqs, StringMap.empty, ctxt in
   let ctxt = (fun c ->
       ctxt' (CLet ([Scheme (pos, rqs, [], CTrue pos, let_env)],
@@ -549,11 +549,11 @@ let rec infer_expr tenv e (t : crterm) =
                 ^ (SName opid <? typ) e.expr_loc
               )
           )
-(** [infer_fun_defn tenv c fd] examines the function definition [fd]
-    and constraint context [c] in the type environment [tenv] and
-    generates an updated constraint context for [c] and a type
+(** [infer_fun_defn tenv ctxt fd] examines the function definition [fd]
+    and constraint context [ctxt] in the type environment [tenv] and
+    generates an updated constraint context for [ctxt] and a type
     signature for [fd]. *)
-let infer_fun_defn tenv c fd =
+let infer_fun_defn tenv ctxt fd =
   let qs = fd.fun_defn_tvars in
   let qs = List.map (fun q -> TName (Location.value q)) qs in
   let rqs, rtenv = fresh_unnamed_rigid_vars fd.fun_defn_loc tenv qs in
@@ -585,7 +585,7 @@ let infer_fun_defn tenv c fd =
                        bindings.tconstraint
                        ^ infer_expr tenv fd.fun_defn_body irestyp,
                        bindings.gamma) in
-  (fun c -> CLet ([scheme], c))
+  (fun c -> ctxt (CLet ([scheme], c)))
 
 (** Initialize the typing environment with the builtin types and
     constants. *)
@@ -650,6 +650,7 @@ let init_tenv () =
 
   (* The initial environment is implemented as a constraint
      context. *)
+  init_tenv,
   (fun c ->
     CLet ([ Scheme (Location.ghost_loc, vs, [],
                     CLet ([ Scheme
@@ -659,8 +660,7 @@ let init_tenv () =
                           ],
                           c),
                     StringMap.empty) ],
-          CTrue Location.ghost_loc)),
-  init_tenv
+          CTrue Location.ghost_loc))
 
 let infer_program tenv prog =
   List.fold_left (fun (tenv, ctxt) decl ->
@@ -680,5 +680,5 @@ let infer_program tenv prog =
     ) (tenv, (fun c -> c)) prog.decls
 
 let generate_constraint prog =
-  let c, tenv = init_tenv () in
+  let tenv, c = init_tenv () in
   c ((snd (infer_program tenv prog)) (CDump Location.ghost_loc))
