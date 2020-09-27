@@ -400,48 +400,50 @@ let error_msg = function
 let tracer () =
   let mode = PrettyPrinter.(Txt (Channel stdout)) in
   TypeConstraintPrinter.active_mode mode;
+
   let fmt = Format.formatter_of_out_channel stdout in
+  let pstring     = Format.pp_print_string fmt in
+  let pnewline    = Format.pp_print_newline fmt in
+  let svar        = TypeConstraintPrinter.print_variable in
+  let sterm       = TypeConstraintPrinter.print_crterm in
+  let pconstraint = TypeConstraintPrinter.printf_constraint mode in
+
   let handle_step =
     function
     | Init c ->
-          Format.pp_print_string fmt "Init: ";
-          Format.pp_print_newline fmt ();
-          TypeConstraintPrinter.printf_constraint mode c
+        pstring "Init: ";
+        pnewline ();
+        pconstraint c
     | Solve c ->
-          Format.pp_print_string fmt "Solve: ";
-          Format.pp_print_newline fmt ();
-          TypeConstraintPrinter.printf_constraint mode c
+        pstring "Solve: ";
+        pnewline ();
+        pconstraint c
     | Solved c ->
-          Format.pp_print_string fmt "Solved: ";
-          Format.pp_print_newline fmt ();
-          TypeConstraintPrinter.printf_constraint mode c
+        pstring "Solved: ";
+        pnewline ();
+        pconstraint c
     | UnifyTerms (l, r) ->
-          Format.pp_print_string fmt "UnifyTerms: ";
-          Format.pp_print_newline fmt ();
-          Format.pp_print_string fmt
-            (TypeConstraintPrinter.print_crterm l);
-          Format.pp_print_string fmt " ~~ ";
-          Format.pp_print_string fmt
-            (TypeConstraintPrinter.print_crterm r);
-          Format.pp_print_newline fmt ()
+        pstring "UnifyTerms: ";
+        pnewline ();
+        pstring (sterm l);
+        pstring " ~~ ";
+        pstring (sterm r);
+        pnewline ()
     | UnifyVars (l, r) ->
-          Format.pp_print_string fmt "UnifyVars: ";
-          Format.pp_print_newline fmt ();
-          Format.pp_print_string fmt
-            (TypeConstraintPrinter.print_variable l);
-          Format.pp_print_string fmt " ~~ ";
-          Format.pp_print_string fmt
-            (TypeConstraintPrinter.print_variable r);
-          Format.pp_print_newline fmt ()
+        pstring "UnifyVars: ";
+        pnewline ();
+        pstring (svar l);
+        pstring " ~~ ";
+        pstring (svar r);
+        pnewline ()
     | Generalize (i, vs) ->
-          let s = Printf.sprintf "Generalize (%d): " i in
-          Format.pp_print_string fmt s;
-          List.iter (fun v ->
-              let s = Printf.sprintf " %s "
-                        (TypeConstraintPrinter.print_variable v) in
-              Format.pp_print_string fmt s
-            ) vs;
-          Format.pp_print_newline fmt ()
+        let s = Printf.sprintf "Generalize (%d): " i in
+        pstring s;
+        List.iter (fun v ->
+            let s = Printf.sprintf " %s " (svar v) in
+            pstring s
+          ) vs;
+        pnewline ()
   in (fun step ->
       Format.open_box 2;
       handle_step step;
