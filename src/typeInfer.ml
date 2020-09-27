@@ -582,10 +582,10 @@ let infer_fun_defn tenv ctxt fd =
         TypeConv.arrow tenv ityp signature
       ) (StringMap.empty, empty_fragment, irestyp) fd.fun_defn_params in
   let scheme = Scheme (fd.fun_defn_loc, rqs, bindings.vars,
-                       bindings.tconstraint
-                       ^ infer_expr tenv fd.fun_defn_body irestyp,
+                       bindings.tconstraint,
                        bindings.gamma) in
-  (fun c -> ctxt (CLet ([scheme], c)))
+  let bodyc = infer_expr tenv' fd.fun_defn_body irestyp in
+  (fun c -> ctxt (CLet ([scheme], bodyc) ^ c))
 
 (** Initialize the typing environment with the builtin types and
     constants. *)
