@@ -54,7 +54,7 @@ type solving_step =
   | Solved of tconstraint
   | UnifyTerms of crterm * crterm
   | UnifyVars of variable * variable
-  | Generalize of int * variable list
+  | Generalize of int * variable list * variable list
 
 type environment =
   | EEmpty
@@ -327,13 +327,12 @@ let solve tracer env pool c =
     | Scheme (pos, rqs, fqs, c1, header) ->
         (
           (* The general case. *)
-          let vars = rqs @ fqs in
           let pool' = new_pool pool in
             List.iter (introduce pool') rqs;
             List.iter (introduce pool') fqs;
             let header = StringMap.map (fun (t, _) -> chop pool' t) header in
               solve env pool' c1;
-              tracer (Generalize (number pool', vars));
+              tracer (Generalize (number pool', rqs, fqs));
               distinct_variables pos rqs;
               generalize pool pool';
               generic_variables pos rqs;
@@ -408,6 +407,11 @@ let tracer () =
   let sterm       = TypeConstraintPrinter.print_crterm in
   let pconstraint = TypeConstraintPrinter.printf_constraint mode in
 
+  let pvars vs = List.iter (fun v ->
+                     let s = Printf.sprintf " %s " (svar v) in
+                     pstring s
+                   ) vs in
+
   let handle_step =
     function
     | Init c ->
@@ -436,13 +440,13 @@ let tracer () =
         pstring " ~~ ";
         pstring (svar r);
         pnewline ()
-    | Generalize (i, vs) ->
+    | Generalize (i, rqs, fqs) ->
         let s = Printf.sprintf "Generalize (%d): " i in
         pstring s;
-        List.iter (fun v ->
-            let s = Printf.sprintf " %s " (svar v) in
-            pstring s
-          ) vs;
+        pvars rqs;
+        pstring " , ";
+        pvars fqs;
+        pstring ".";
         pnewline ()
   in (fun step ->
       Format.open_box 2;

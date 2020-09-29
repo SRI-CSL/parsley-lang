@@ -36,7 +36,9 @@ type solving_step =
   | Solved of tconstraint
   | UnifyTerms of TypeConstraint.crterm * TypeConstraint.crterm
   | UnifyVars of TypeConstraint.variable * TypeConstraint.variable
-  | Generalize of int * TypeConstraint.variable list
+  | Generalize of int
+                  * TypeConstraint.variable list (* rigid variables *)
+                  * TypeConstraint.variable list (* flexible variables *)
 
 (** [solve tracer c] solves [c] by doing in-place modifications resulting
     in an environment. *)
