@@ -29,14 +29,14 @@ type output =
   | Buffer of Buffer.t
 
 type formatter_output = {
-  out		: string -> int -> int -> unit;
-  flush		: unit -> unit;
-  newline	: unit -> unit;
-  spaces	: int -> unit;
-  with_tags	: bool;
-  open_tag	: Format.stag -> unit;
-  close_tag	: Format.stag -> unit;
-  margin	: int;
+  out       : string -> int -> int -> unit;
+  flush     : unit -> unit;
+  newline   : unit -> unit;
+  spaces    : int -> unit;
+  with_tags : bool;
+  open_tag  : Format.stag -> unit;
+  close_tag : Format.stag -> unit;
+  margin    : int;
 }
 
 type mode =
