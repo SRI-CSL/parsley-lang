@@ -101,7 +101,7 @@ and infer_pat_fragment tenv p t =
         let alphas, ct = fresh_datacon_scheme tenv cloc (DName cid) in
         let rt = result_type (as_fun tenv) ct
         and ats = arg_types (as_fun tenv) ct in
-        if (List.length ps <> List.length ats) then
+        if List.length ps <> List.length ats then
           let err =
             InvalidPatternArgs (pos, c, List.length ats, List.length ps) in
           raise (Error (err))
@@ -159,7 +159,7 @@ let make_dc_signature adt tvars dc opt_arg =
            (Location.loc adt) in
   match opt_arg with
     | None -> res
-    | Some arg -> AstUtils.make_arrow_type [arg; res] (Location.loc dc)
+    | Some sign -> AstUtils.add_arrow_result sign res
 
 (** [intern_data_constructor external adt_ident env_info dcon_info] returns
     env_info augmented with the data constructor's typing information

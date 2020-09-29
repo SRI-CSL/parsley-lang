@@ -27,6 +27,20 @@ let rec make_arrow_type (args : type_expr list) loc : type_expr =
         let res = make_arrow_type t loc in
         make_type_app_name "->" [h; res] loc
 
+let arrow_args (typ : type_expr) : type_expr list =
+  let rec helper acc typ =
+    match typ.type_expr with
+      | TE_tapp ({type_expr = TE_tvar c}, h :: res :: [])
+           when Location.value c = "->" ->
+          helper (h :: acc) res
+      | _ -> typ :: acc in
+  helper [] typ
+
+let add_arrow_result (typ : type_expr) (res : type_expr) : type_expr =
+  (* adds a result type to an arrow type *)
+  let args = arrow_args typ in
+  make_arrow_type (args @ [res]) typ.type_expr_loc
+
 (* constructing pattern expressions and expressions *)
 
 let make_pattern_loc (pat : pattern_desc) loc =

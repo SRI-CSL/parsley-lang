@@ -172,10 +172,11 @@ let rec make_tuple_pattern l =
         let c = Location.mk_loc_val "_Tuple" loc in
         make_pattern_loc (P_variant ((t, c), [h; p])) loc
 
-let make_variant t (c, l) =
+let make_variant (c, l) s e =
+  let loc = Location.mk_loc s e in
   match l with
     | [] -> c, None
-    | _  -> c, Some (make_tuple_type l)
+    | _  -> c, Some (make_arrow_type l loc)
 
 let generate_kind tvs =
   List.fold_left (fun acc _ ->
@@ -209,9 +210,9 @@ type_expr:
 
 variant:
 | i=UID
-  { (i, []) }
+  { make_variant (i, []) $startpos $endpos }
 | i=UID OF l=separated_list(STAR, type_expr)
-  { (i, l) }
+  { make_variant (i, l) $startpos $endpos }
 
 variants:
 | l=separated_nonempty_list(BAR, variant)
@@ -507,12 +508,10 @@ type_decl:
   { let rep = make_type_rep (TR_defn r) $startpos $endpos in
     make_type_decl t (generate_kind tvs) tvs rep $startpos $endpos }
 | t=ident EQ vs=variants
-  { let variants = List.map (make_variant t) vs in
-    let rep = make_type_rep (TR_variant variants) $startpos(vs) $endpos(vs) in
+  { let rep = make_type_rep (TR_variant vs) $startpos(vs) $endpos(vs) in
     make_type_decl t KStar [] rep $startpos $endpos }
 | t=ident LPAREN tvs=separated_list(COMMA, TVAR) RPAREN EQ vs=variants
-  { let variants = List.map (make_variant t) vs in
-    let rep = make_type_rep (TR_variant variants) $startpos(vs) $endpos(vs) in
+  { let rep = make_type_rep (TR_variant vs) $startpos(vs) $endpos(vs) in
     make_type_decl t (generate_kind tvs) tvs rep $startpos $endpos }
 | t=ident EQ LBRACE r=rec_typ_fields RBRACE
   { let rep = make_type_rep (TR_record r) $startpos $endpos in
