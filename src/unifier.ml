@@ -21,8 +21,7 @@
 (*  and Didier Rémy.                                                      *)
 
 (** This module implements unification of (ranked) multi-equations
-    over a row algebra, that is, an algebra obtained by extending a
-    free algebra [A] with rows.
+    over a free algebra.
 
     For the purposes of this module, a rank is an element of an
     arbitrary total order. A rank is associated with every
@@ -36,7 +35,10 @@ open Misc
 open CoreAlgebra
 open MultiEquation
 
-exception CannotUnify of Location.t * crterm * crterm
+type unify_error =
+  CannotUnify of Location.t * crterm * crterm
+
+exception Error of unify_error
 
 (* [unify register v1 v2] equates the variables [v1] and [v2]. That
    is, it adds the equation [v1 = v2] to the constraint which it
@@ -177,10 +179,10 @@ let unify ?tracer pos register =
            a structure. *)
 
         | None, _, _, _ (* v1 is rigid. *) ->
-            raise (CannotUnify (pos, TVariable v1, TVariable v2))
+            raise (Error (CannotUnify (pos, TVariable v1, TVariable v2)))
 
         | _, None, _, _ (* v2 is rigid. *) ->
-            raise (CannotUnify (pos, TVariable v1, TVariable v2))
+            raise (Error (CannotUnify (pos, TVariable v2, TVariable v1)))
 
         (* Both multi-equations contain terms whose head symbol belong
            to the free algebra [A]. Merge the multi-equations
@@ -197,3 +199,13 @@ let unify ?tracer pos register =
             end
 
   in unify pos
+
+
+let msg m loc =
+  Printf.sprintf m (Location.str_of_file_loc loc)
+
+open TypeConstraintPrinter
+let error_msg = function
+  | CannotUnify (p, r, t) ->
+      msg "%s:\n Cannot unify rigid variable %s with %s.\n"
+        p (print_crterm r) (print_crterm  t)

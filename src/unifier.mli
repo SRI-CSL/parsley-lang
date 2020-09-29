@@ -21,8 +21,7 @@
 (*  and Didier Rémy.                                                      *)
 
 (** This module implements unification of (ranked) multi-equations
-    over a row algebra, that is, an algebra obtained by extending a
-    free algebra [A] with rows (see module {!CoreAlgebra}).
+    over a free algebra (see module {!CoreAlgebra}).
 
     For the purposes of this module, a rank is an element of an
     arbitrary total order. A rank is associated with every
@@ -31,8 +30,6 @@
 
     It is understood that finite and infinite terms are legal -- no
     occur check is performed here. *)
-
-exception CannotUnify of Location.t * TypeConstraint.crterm * TypeConstraint.crterm
 
 (** [unify pos register v1 v2] equates the variables [v1] and [v2]. That
     is, it adds the equation [v1 = v2] to the system of equations
@@ -49,3 +46,13 @@ exception CannotUnify of Location.t * TypeConstraint.crterm * TypeConstraint.crt
     initialized when [register] is called. *)
 val unify: ?tracer:(TypeConstraint.variable -> TypeConstraint.variable -> unit) -> Location.t
   -> (TypeConstraint.variable -> unit) -> TypeConstraint.variable -> TypeConstraint.variable -> unit
+
+
+type unify_error =
+  CannotUnify of Location.t
+                 * TypeConstraint.crterm (* rigid variable *)
+                 * TypeConstraint.crterm
+
+exception Error of unify_error
+
+val error_msg: unify_error -> string

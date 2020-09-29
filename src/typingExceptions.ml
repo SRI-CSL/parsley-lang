@@ -178,7 +178,7 @@ let error_msg = function
       msg "%s:\n The variable '%s' occurs several times.\n" p x
 
   | InvalidPatternArgs (p, c, e, f) ->
-      msg "%s:\n %d pattern arguments used for constructor %s expecting %d.\n"
+      msg "%s:\n %d pattern arguments used for constructor %s, expecting %d.\n"
         p f (Location.value c) e
 
   | UnboundTypeConstructor (p, TName t) ->

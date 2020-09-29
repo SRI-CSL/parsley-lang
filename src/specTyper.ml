@@ -23,3 +23,6 @@ let type_check spec =
     | ConstraintSolver.Error e ->
         handle_exception
           (Printexc.get_backtrace ()) (ConstraintSolver.error_msg e)
+    | Unifier.Error e ->
+        handle_exception
+          (Printexc.get_backtrace ()) (Unifier.error_msg e)
