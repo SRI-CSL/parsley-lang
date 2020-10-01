@@ -207,5 +207,6 @@ let msg m loc =
 open TypeConstraintPrinter
 let error_msg = function
   | CannotUnify (p, r, t) ->
-      msg "%s:\n Cannot unify rigid variable %s with %s.\n"
-        p (print_crterm r) (print_crterm  t)
+      msg
+        "%s:\n %s was provided where %s was expected.\n"
+        p (print_crterm t) (print_crterm r)
