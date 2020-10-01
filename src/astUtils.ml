@@ -34,7 +34,7 @@ let arrow_args (typ : type_expr) : type_expr list =
            when Location.value c = "->" ->
           helper (h :: acc) res
       | _ -> typ :: acc in
-  helper [] typ
+  List.rev (helper [] typ)
 
 let add_arrow_result (typ : type_expr) (res : type_expr) : type_expr =
   (* adds a result type to an arrow type *)
