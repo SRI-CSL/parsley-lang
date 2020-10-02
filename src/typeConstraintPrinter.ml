@@ -94,8 +94,7 @@ let printf_constraint mode c =
   let rec pconstraint c =
     (match c with
        | CTrue _
-       | CConjunction []
-       | CDisjunction [] ->
+       | CConjunction [] ->
            print_string "true"
 
        | CDump _ ->
@@ -120,12 +119,6 @@ let printf_constraint mode c =
                  pconstraint c
              ) cs;
            printf ")"
-
-       | CDisjunction (c :: []) ->
-           pconstraint c
-
-       | CDisjunction (c :: cs) ->
-           assert false
 
        | CLet ([ Scheme (_, [], fqs, c, h) ], CTrue _)
             when StringMap.empty = h ->

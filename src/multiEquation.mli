@@ -116,12 +116,6 @@ val variable_list_from_names:
   (tname -> variable_kind * tname option) -> tname list
   -> variable list * (tname * crterm) list
 
-(** [variable_set xs] allocates a fresh variable for every element in the
-    set [xs], and returns both a list of these variables and a map of
-    elements to variables. *)
-val variable_set: (tname -> variable_kind * tname option)
-  -> StringSet.t -> variable list * (crterm * Location.t) StringMap.t
-
 (** [is_rigid v] returns true if [v] is a constant or rigid variable. *)
 val is_rigid : variable -> bool
 

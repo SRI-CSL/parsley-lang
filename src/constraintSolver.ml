@@ -307,9 +307,6 @@ let solve tracer env pool c =
            let t' = chop pool term in
              unify_terms pos pool instance t'
 
-       | CDisjunction cs ->
-           assert false
-
     );
     tracer (Solved c)
 

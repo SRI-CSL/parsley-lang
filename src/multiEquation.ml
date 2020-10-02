@@ -341,14 +341,3 @@ let variable_list_from_names kind xs =
        let v = variable k ?name:n () in
          v :: vs, (x, TVariable v) :: xts
     ) xs ([], [])
-
-(** [variable_set xs] allocates a fresh variable for every element in the
-    set [xs], and returns both a list of these variables and a map of
-    elements to variables, viewed as types. *)
-let variable_set kind xs =
-  StringSet.fold
-    (fun x (vs, xts) ->
-       let k, n = kind (TName x) in
-       let v = variable k ?name:n () in
-       v :: vs, StringMap.add x (TVariable v, Location.ghost_loc) xts
-    ) xs ([], StringMap.empty)

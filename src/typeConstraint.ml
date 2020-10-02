@@ -39,7 +39,6 @@ type ('crterm, 'variable) type_constraint =
   | CLet of ('crterm, 'variable) scheme list
       * ('crterm, 'variable) type_constraint
   | CInstance of Location.t * sname * 'crterm
-  | CDisjunction of ('crterm, 'variable) type_constraint list
 
 (** A type scheme is a pair of a constraint [c] and a header [h],
     wrapped within two sets of universal quantifiers [rqs] and
@@ -66,24 +65,6 @@ type tconstraint =
 type tscheme =
     (crterm, variable) scheme
 
-(* TEMPORARY ne pas oublier d'expliquer que les rangs et les pools ne sont
-   pas toujours d'accord entre eux *)
-
-let rec expand_term = function
-  | App (l, r) ->
-      TTerm (map (fun v -> TVariable v ) (App (l, r)))
-
-  | _ -> assert false
-
-let rec expand_term_in_depth t =
-  let expand v =
-    let desc = UnionFind.find v in
-      match desc.structure with
-        | None -> TVariable v
-        | Some t -> expand_term_in_depth t
-  in
-    TTerm (map expand t)
-
 let rec cposition = function
   | CTrue pos ->
       pos
@@ -94,10 +75,10 @@ let rec cposition = function
   | CLet ([], c) ->
       cposition c
 
-  | (CConjunction [] | CDisjunction []) ->
+  | CConjunction [] ->
       Location.ghost_loc
 
-  | (CConjunction l | CDisjunction l) ->
+  | CConjunction l ->
       Location.extent (cposition (List.hd l)) (cposition (last l))
 
   | CLet (l, _) ->
@@ -185,11 +166,3 @@ let forall_list ?pos l f =
 let monoscheme ?pos header =
   Scheme (Location.loc_or_ghost pos, [], [],
           CTrue (Location.loc_or_ghost pos), header)
-
-(** [scheme rqs names f] associates a fresh variable with every name in
-    the set [names], yielding a map [m] of names to variables, and returns
-    the type scheme [forall rqs m [f m] m], where the variables in [rqs]
-    are rigid and the variables in [m] are flexible. *)
-let scheme ?pos rqs names f =
-  let l, m = variable_set (const (Flexible, None)) names in
-    Scheme (Location.loc_or_ghost pos, rqs, l, f m, m)

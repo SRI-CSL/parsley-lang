@@ -41,7 +41,6 @@ type ('crterm, 'variable) type_constraint =
   | CLet of ('crterm, 'variable) scheme list
       * ('crterm, 'variable) type_constraint
   | CInstance of Location.t * sname * 'crterm
-  | CDisjunction of ('crterm, 'variable) type_constraint list
 
 (** A type scheme is a pair of a constraint [c] and a header [h],
     wrapped within two sets of universal quantifiers [rqs] and
@@ -122,10 +121,3 @@ val forall_list:
 
 (** [monoscheme header] turns [header] into a monomorphic type scheme. *)
 val monoscheme: ?pos:Location.t -> (crterm * Location.t) StringMap.t -> tscheme
-
-(** [scheme rqs names f] associates a fresh variable with every name in
-    the set [names], yielding a map [m] of names to variables, and returns
-    the type scheme [forall rqs m [f m] m], where the variables in [rqs]
-    are rigid and the variables in [m] are flexible. *)
-val scheme: ?pos:Location.t -> variable list -> StringSet.t ->
-  ((crterm * Location.t) StringMap.t -> tconstraint) -> tscheme
