@@ -558,11 +558,14 @@ let infer_fun_defn tenv ctxt fd =
   let qs = List.map (fun q -> TName (Location.value q)) qs in
   let rqs, rtenv = fresh_unnamed_rigid_vars fd.fun_defn_loc tenv qs in
   let tenv' = add_type_variables rtenv tenv in
-  (* Handle the arguments as a simple case of lambda patterns; this
-     will allow us to extend this later to proper pattern matching if
-     needed. *)
+
+  (* First construct the function signature and the argument bindings
+     for the body.  Handle the arguments as a simple case of lambda
+     patterns; this will allow us to extend this later to proper
+     pattern matching if needed.*)
+
   let irestyp = TypeConv.intern tenv' fd.fun_defn_res_type in
-  let _, bindings, _signature =
+  let _, argbinders, signature =
     List.fold_left (fun (acu_ids, bindings, signature) (pid, typ) ->
         let pn, ploc = Location.value pid, Location.loc pid in
         let acu_ids =
@@ -581,11 +584,30 @@ let infer_fun_defn tenv ctxt fd =
           vars = v :: bindings.vars },
         TypeConv.arrow tenv ityp signature
       ) (StringMap.empty, empty_fragment, irestyp) fd.fun_defn_params in
-  let scheme = Scheme (fd.fun_defn_loc, rqs, bindings.vars,
-                       bindings.tconstraint,
-                       bindings.gamma) in
-  let bodyc = infer_expr tenv' fd.fun_defn_body irestyp in
-  (fun c -> ctxt (CLet ([scheme], bodyc) ^ c))
+  let arg_schm = Scheme (fd.fun_defn_loc, [], argbinders.vars,
+                         argbinders.tconstraint,
+                         argbinders.gamma) in
+
+  (* Generate the typing constraint for the body. *)
+  let body_c = infer_expr tenv' fd.fun_defn_body irestyp in
+
+  (* Construct the constrained binding for the polymorphic function
+     definition itself. *)
+
+  let v = variable Flexible () in
+  let typ = CoreAlgebra.TVariable v in
+  let scheme =
+    let loc = Location.loc fd.fun_defn_ident
+    and fdn = Location.value fd.fun_defn_ident in
+    let def_c = CLet ([arg_schm],
+                      (typ =?= signature) loc
+                      ^ body_c) in
+    let bind = StringMap.singleton fdn (typ, loc) in
+    Scheme (fd.fun_defn_loc, rqs, [v], def_c, bind) in
+
+  (* Generate the constraint context. *)
+  (fun c -> ctxt (CLet ([scheme], c)))
+
 
 (** Initialize the typing environment with the builtin types and
     constants. *)
