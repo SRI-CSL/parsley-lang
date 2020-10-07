@@ -23,10 +23,8 @@
 (** This module implements a core algebra of first order terms.
 
     The type core algebra contains all the first order terms built using
-    the following four symbols:
+    the following two symbols:
 
-    [RowCons] is the row constructor which appends a label to a row.
-    [RowUniform] denotes the row which maps every label to a particular term.
     [App] is the application of a type to another type.
     [Var] is a type variable.
 
