@@ -583,7 +583,7 @@ let infer_fun_defn tenv ctxt fd =
                         ^ bindings.tconstraint;
           vars = v :: bindings.vars },
         TypeConv.arrow tenv ityp signature
-      ) (StringMap.empty, empty_fragment, irestyp) fd.fun_defn_params in
+      ) (StringMap.empty, empty_fragment, irestyp) (List.rev fd.fun_defn_params) in
   let arg_schm = Scheme (fd.fun_defn_loc, [], argbinders.vars,
                          argbinders.tconstraint,
                          argbinders.gamma) in
