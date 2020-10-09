@@ -164,6 +164,7 @@ type fun_defn =
     fun_defn_params: (ident * type_expr) list;
     fun_defn_res_type: type_expr;
     fun_defn_body: expr;
+    fun_defn_recursive: bool;
     fun_defn_loc: Location.t }
 
 type nterm_decl =
