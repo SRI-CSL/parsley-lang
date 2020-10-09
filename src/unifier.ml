@@ -208,5 +208,5 @@ open TypeConstraintPrinter
 let error_msg = function
   | CannotUnify (p, r, t) ->
       msg
-        "%s:\n %s was provided where %s was expected.\n"
+        "%s:\n %s and %s are not compatible.\n"
         p (print_crterm t) (print_crterm r)
