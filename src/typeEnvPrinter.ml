@@ -109,15 +109,15 @@ let printer is_type_scheme =
       let prefix, c, h =
         if is_type_scheme && IntRank.compare desc.rank IntRank.none = 0
         then
-          "", i, history
+          "''", i, history
         else
-          "_", gi, ghistory
+          "'", gi, ghistory
       in
         try
           Misc.assocp (UnionFind.equivalent v) !h
         with Not_found ->
           incr c;
-          let result = (* prefix ^ *) name_from_int !c in
+          let result = prefix ^ name_from_int !c in
             desc.name <- Some (TName result);
             h := (v, result) :: !h;
             result
