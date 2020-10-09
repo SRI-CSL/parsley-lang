@@ -131,8 +131,12 @@ let add_type_variables var_env env =
   { env with type_info =
       List.fold_left (fun env (x, k) -> CoreEnv.add env x k) env.type_info var_env }
 
-let add_type_constructor env t x =
-  { env with type_info = CoreEnv.add env.type_info t x }
+let add_type_constructor env pos t x =
+  match CoreEnv.lookup_opt env.type_info t with
+    | None ->
+        { env with type_info = CoreEnv.add env.type_info t x }
+    | Some _ ->
+        raise (Error (DuplicateTypeDefinition (pos, t)))
 
 let add_data_constructor env loc adt ((DName s) as t) x =
   match StringMap.find_opt s env.datacon_adts with

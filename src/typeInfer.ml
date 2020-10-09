@@ -292,7 +292,7 @@ let infer_type_decl tenv ctxt td =
   let ikind = KindInferencer.intern_kind (as_kind_env tenv) kind in
   let register_tycon ctx ?structure () =
     let ivar  = variable ~name:(TName name) ?structure Constant () in
-    let tenv  = add_type_constructor tenv (TName name) (ikind, ivar, adt) in
+    let tenv  = add_type_constructor tenv pos (TName name) (ikind, ivar, adt) in
     let ctxt' = (fun c ->
         CLet ([Scheme (pos, [ivar], [], ctx c, StringMap.empty)],
               CTrue pos)) in
@@ -648,7 +648,7 @@ let init_tenv () =
     List.fold_left
       (fun (tenv, dvs, lrqs, let_env) (n, (kind, v, ds)) ->
         let r = ref None in
-        let tenv = add_type_constructor tenv n
+        let tenv = add_type_constructor tenv Location.ghost_loc n
                      (KindInferencer.intern_kind (as_kind_env tenv) kind,
                       variable ~name:n Constant (),
                       r) in

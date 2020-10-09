@@ -39,6 +39,10 @@ type typing_error =
       overwriting a type constructor. *)
   | InvalidTypeVariableIdentifier of Location.t * Ast.tname
 
+  (** [DuplicateTypeDefinition t] is raised when a type [t] is defined
+      multiple times. *)
+  | DuplicateTypeDefinition of Location.t * Ast.tname
+
   (** [UnboundDataConstructor] is raised when a constructor identifier is
       used although it has not been defined. *)
   | UnboundDataConstructor of Location.t * Ast.dname
@@ -135,13 +139,15 @@ let error_msg = function
   | InvalidTypeVariableIdentifier (p, TName v) ->
       msg "%s:\n `%s' type constructor is used as a type variable.\n"
         p v
+  | DuplicateTypeDefinition (p, TName t) ->
+      msg "%s:\n Type '%s' has already been defined.\n" p t
 
   | UnboundDataConstructor (p, DName t) ->
       msg "%s:\n Unbound data constructor `%s'.\n" p t
 
   | DuplicateDataConstructor (ldc, DName dc, TName adt, ladt) ->
       msg
-        "%s: Data constructor %s has already been defined by ADT %s at %s.\n"
+        "%s:\n Data constructor `%s' has already been defined by ADT `%s' at %s.\n"
         ldc dc adt (Location.str_of_file_loc ladt)
 
   | UnboundRecordField (p, LName t) ->
@@ -152,19 +158,19 @@ let error_msg = function
 
   | DuplicateRecordField (lr, LName f, TName adt, ladt) ->
       msg
-        "%s: Record field %s has already been defined by ADT %s at %s.\n"
+        "%s:\n Record field `%s' has already been defined by ADT `%s' at %s.\n"
         lr f adt (Location.str_of_file_loc ladt)
 
   | RepeatedRecordField l ->
-      msg "%s: Record field %s is repeated.\n"
+      msg "%s:\n Record field `%s' is repeated.\n"
         (Location.loc l) (Location.value l)
 
   | IncompleteRecord (t, l) ->
-      msg "%s: Field %s of %s is not initialized.\n"
+      msg "%s:\n Field `%s' of `%s' is not initialized.\n"
         (Location.loc t) l (Location.value t)
 
   | InvalidRecordField (l, t) ->
-      msg "%s: Field %s of %s is not declated.\n"
+      msg "%s:\n Field `%s' of `%s' is not declared.\n"
         (Location.loc l) (Location.value l) (Location.value t)
 
   | InvalidDataConstructorDefinition k ->
@@ -182,7 +188,7 @@ let error_msg = function
       msg "%s:\n The variable '%s' occurs several times.\n" p x
 
   | InvalidPatternArgs (p, c, e, f) ->
-      msg "%s:\n %d pattern arguments used for constructor %s, expecting %d.\n"
+      msg "%s:\n %d pattern arguments used for constructor `%s', expecting %d.\n"
         p f (Location.value c) e
 
   | UnboundTypeConstructor (p, TName t) ->
@@ -193,16 +199,16 @@ let error_msg = function
 
   | PartialDataConstructorApplication (dc, d, u) ->
       msg
-        "%s:\n The constructor %s needs %d argument%s not %d.\n"
+        "%s:\n The constructor `%s' needs %d argument%s not %d.\n"
         (Location.loc dc) (Location.value dc) d
         (if d > 1 then "s" else "")
         u
 
   | RepeatedFunctionParameter (p, p') ->
-      msg "%s: parameter %s is repeated at %s."
+      msg "%s:\n parameter `%s' is repeated at %s.\n"
         (Location.loc p) (Location.value p)
         (Location.str_of_file_loc (Location.loc p'))
 
   | DuplicateNonTerminal (p, NName s, p') ->
-      msg "%s: non-terminal `%s' was already defined at `%s'."
+      msg "%s:\n Non-terminal `%s' was already defined at `%s'.\n"
         p s (Location.str_of_file_loc p')

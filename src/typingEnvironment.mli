@@ -83,7 +83,7 @@ val fold_type_info:
 val add_type_variables: (Ast.tname * type_info) list -> environment -> environment
 
 (** Add a type constructor into the environment. *)
-val add_type_constructor: environment -> Ast.tname -> type_info -> environment
+val add_type_constructor: environment -> Location.t -> Ast.tname -> type_info -> environment
 
 (** Add a data constructor for an ADT into the environment. *)
 val add_data_constructor:
