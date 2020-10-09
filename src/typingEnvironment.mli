@@ -63,6 +63,10 @@ type record_constructor =
 type field_destructor =
     MultiEquation.variable list * MultiEquation.crterm
 
+(** A non-terminal's type definition is typically a monomorphic record. *)
+type non_term_type =
+    MultiEquation.crterm
+
 (** The type of the typing environement. *)
 type environment
 
@@ -92,6 +96,10 @@ val add_record_constructor:
 (** Add a field destructor for an ADT into the environment. *)
 val add_field_destructor:
   environment -> Location.t -> Ast.tname -> Ast.lname -> field_destructor -> environment
+
+(** Add the type definition for a non-terminal into the environment. *)
+val add_non_terminal:
+  environment -> Location.t -> Ast.nname -> non_term_type -> environment
 
 (** [is_regular_datacon_scheme env adt_name vs ty] checks that forall vs.ty is
     a valid scheme for a data constructor; that is to say, following the

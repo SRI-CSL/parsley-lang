@@ -88,6 +88,10 @@ type record_constructor = variable list * crterm
    - its type *)
 type field_destructor = variable list * crterm
 
+(** A non-terminal's type definition is typically a monomorphic record. *)
+type non_term_type =
+    MultiEquation.crterm
+
 (** [environment] denotes typing information associated to identifiers. *)
 type environment =
   {
@@ -99,6 +103,9 @@ type environment =
     (* map constructors and destructors to their owning ADT *)
     datacon_adts : (tname * Location.t) StringMap.t;
     field_adts   : (tname * Location.t) StringMap.t;
+
+    (* grammar types *)
+    non_terms    : (nname, (non_term_type * Location.t)) CoreEnv.t;
   }
 
 let empty_environment =
@@ -110,6 +117,8 @@ let empty_environment =
 
     datacon_adts = StringMap.empty;
     field_adts   = StringMap.empty;
+
+    non_terms    = CoreEnv.empty;
   }
 
 let union_type_variables env1 env2 =
@@ -145,6 +154,13 @@ let add_field_destructor env loc adt ((LName s) as t) f =
           field_adts = StringMap.add s (adt, loc) env.field_adts }
     | Some (adt, loc') ->
         raise (Error (DuplicateRecordField (loc, t, adt, loc')))
+
+let add_non_terminal env loc nt x =
+  match CoreEnv.lookup_opt env.non_terms nt with
+    | None ->
+        { env with non_terms = CoreEnv.add env.non_terms nt (x, loc) }
+    | Some (_, ploc) ->
+        raise (Error (DuplicateNonTerminal (loc, nt, ploc)))
 
 (** [lookup_typcon ?pos env t] retrieves typing information about
     the type constructor [t]. *)

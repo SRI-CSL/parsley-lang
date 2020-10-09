@@ -7,6 +7,7 @@ type literal  = string Location.loc
 type tname = MultiEquation.tname
 type dname = DName of string (* data constructor names *)
 type lname = LName of string (* record field labels *)
+type nname = NName of string (* non-terminal names *)
 
 type kind =
   | KStar
