@@ -45,6 +45,9 @@ let exists =
 let lookup env x =
   List.assoc x env
 
+let lookup_opt env x =
+  List.assoc_opt x env
+
 let filter env f =
   List.fold_left (fun acu (_, x) -> if f x then x :: acu else acu) [] env
 
