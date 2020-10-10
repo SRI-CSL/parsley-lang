@@ -31,8 +31,8 @@ type context = TypeConstraint.tconstraint -> TypeConstraint.tconstraint
     the typing of [p]. *)
 val generate_constraint: Ast.program -> TypeConstraint.tconstraint
 
-(** [infer_program p] generates a constraint context that describes
-    program [p]. *)
-val infer_program: TypingEnvironment.environment ->
-                   Ast.program ->
-                   TypingEnvironment.environment * context
+(** [infer_spec s] generates a constraint context that describes
+    spec [s]. *)
+val infer_spec: TypingEnvironment.environment ->
+                Ast.program ->
+                TypingEnvironment.environment * context

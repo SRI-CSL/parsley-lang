@@ -691,7 +691,9 @@ let init_tenv () =
                     StringMap.empty) ],
           CTrue Location.ghost_loc))
 
-let infer_program tenv prog =
+let infer_expr_lang tenv spec =
+  (* Process the expression language, and the type-definitions
+   * for the non-terminals *)
   List.fold_left (fun (tenv, ctxt) decl ->
       match decl with
         | Decl_types tds ->
@@ -706,8 +708,12 @@ let infer_program tenv prog =
         | _ ->
             (* TODO: nterms and rules  *)
             tenv, ctxt
-    ) (tenv, (fun c -> c)) prog.decls
+    ) (tenv, (fun c -> c)) spec.decls
 
-let generate_constraint prog =
+
+let infer_spec =
+  infer_expr_lang
+
+let generate_constraint spec =
   let tenv, c = init_tenv () in
-  c ((snd (infer_program tenv prog)) (CDump Location.ghost_loc))
+  c ((snd (infer_expr_lang tenv spec)) (CDump Location.ghost_loc))
