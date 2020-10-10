@@ -66,7 +66,8 @@ type field_destructor =
 (** A non-terminal's type definition is typically a monomorphic record
     of its synthesized attributes. *)
 type non_term_type =
-    MultiEquation.crterm
+  | NTT_type of MultiEquation.crterm
+  | NTT_record of MultiEquation.crterm * record_info option ref
 
 (** The type of the typing environement. *)
 type environment

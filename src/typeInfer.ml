@@ -294,8 +294,8 @@ let infer_type_decl tenv ctxt td =
     let ivar  = variable ~name:(TName name) ?structure Constant () in
     let tenv  = add_type_constructor tenv pos (TName name) (ikind, ivar, adt) in
     let ctxt' = (fun c ->
-        CLet ([Scheme (pos, [ivar], [], ctx c, StringMap.empty)],
-              CTrue pos)) in
+        ctx (CLet ([Scheme (pos, [ivar], [], c, StringMap.empty)],
+                   CTrue pos))) in
     (tenv, ctxt') in
   let typ   = td.type_decl_body in
   check_distinct_tvars ident tvars;
@@ -615,6 +615,61 @@ let infer_fun_defn tenv ctxt fd =
   (* Generate the constraint context. *)
   (fun c -> ctxt (CLet ([scheme], c)))
 
+(** [infer_non_term_type tenv ctxt ntd] updates [tenv] with a record
+   type for a non-terminal [ntd] corresponding to its synthesized
+   attributes, and updates ctxt with the names of the corresponding
+   field destructors. *)
+let infer_non_term_type tenv ctxt ntd =
+  let ntid  = ntd.non_term_name
+  and loc   = ntd.non_term_loc in
+  let ntnm  = Location.value ntid
+  and ntpos = Location.loc ntid in
+  match ntd.non_term_syn_attrs with
+    | ALT_type t ->
+        (* t should be a record type, and the non-terminal should be
+           given a flexible variable which is equated to [[t]]. *)
+        let tn = Location.value t in
+        let tloc = Location.loc t in
+        if not (is_record_type tenv (TName tn)) then
+          raise (Error (NTAttributesNotRecordType (ntid, t)));
+        let tvar  = lookup_type_variable ~pos:tloc tenv (TName tn) in
+        let ivar  = variable ~name:(TName ntnm) Flexible () in
+        let cnstr = (CoreAlgebra.TVariable ivar =?= tvar) tloc in
+        let ntt   = NTT_type (CoreAlgebra.TVariable ivar) in
+        let tenv' = add_non_terminal tenv ntpos (NName ntnm) ntt in
+        let ctxt' = (fun c ->
+            ctxt (CLet ([Scheme (loc, [], [ivar], c ^ cnstr, StringMap.empty)],
+                        CTrue loc))
+          ) in
+        tenv', ctxt'
+    | ALT_decls attrs ->
+        (* the non-terminal is given a new monomorphic record type. *)
+        let ivar  = variable ~name:(TName ntnm) Constant () in
+        let rcd   = ref None in
+        let ntt   = NTT_record (CoreAlgebra.TVariable ivar, rcd) in
+        let tenv' = add_non_terminal tenv ntpos (NName ntnm) ntt in
+        let ctxt' = (fun c ->
+            ctxt (CLet ([Scheme (loc, [ivar], [], c, StringMap.empty)],
+                        CTrue loc))
+          ) in
+        let tenv', dids, drqs, let_env =
+          List.fold_left
+            (intern_field_destructor ntid [])
+            (tenv', [], [], StringMap.empty)
+            attrs in
+        let tenv', cid, crqs, let_env =
+          intern_record_constructor ntid []
+            (tenv', let_env) attrs in
+        let fields, _ = List.split attrs in
+        rcd := Some { adt = ntid;
+                      fields;
+                      record_constructor = cid;
+                      field_destructors = dids };
+        let ctxt' = (fun c ->
+            ctxt' (CLet ([Scheme (loc, drqs @ crqs, [], CTrue loc, let_env)],
+                         c))
+          ) in
+        tenv', ctxt'
 
 (** Initialize the typing environment with the builtin types and
     constants. *)
@@ -705,8 +760,12 @@ let infer_expr_lang tenv spec =
             (* TODO: solve eagerly? *)
             let c = infer_fun_defn tenv ctxt f in
             tenv, c
+        | Decl_format f ->
+            List.fold_left (fun (te, c) fd ->
+                let ntd = fd.format_decl in
+                infer_non_term_type te c ntd
+              ) (tenv, ctxt) f.format_decls
         | _ ->
-            (* TODO: nterms and rules  *)
             tenv, ctxt
     ) (tenv, (fun c -> c)) spec.decls
 

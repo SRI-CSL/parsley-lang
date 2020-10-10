@@ -119,6 +119,11 @@ type typing_error =
       [id] has already been defined *)
   | DuplicateNonTerminal of Location.t * Ast.nname * Location.t
 
+  (** [NTAttrsNotRecordType ntid t] is raised when the type [t] given
+      for the attributes of the non-terminal [ntid] is not a record
+      type. *)
+  | NTAttributesNotRecordType of Ast.ident * Ast.ident
+
 exception Error of typing_error
 
 let msg m loc =
@@ -212,3 +217,7 @@ let error_msg = function
   | DuplicateNonTerminal (p, NName s, p') ->
       msg "%s:\n Non-terminal `%s' was already defined at `%s'.\n"
         p s (Location.str_of_file_loc p')
+
+  | NTAttributesNotRecordType (ntid, t) ->
+      msg "%s:\n Type `%s' for the attributes of `%s' is not a record type.\n"
+        (Location.loc t) (Location.value t) (Location.value ntid)
