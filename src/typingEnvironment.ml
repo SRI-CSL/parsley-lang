@@ -88,7 +88,8 @@ type record_constructor = variable list * crterm
    - its type *)
 type field_destructor = variable list * crterm
 
-(** A non-terminal's type definition is typically a monomorphic record. *)
+(** A non-terminal's type definition is typically a monomorphic record
+    of its synthesized attributes. *)
 type non_term_type =
     MultiEquation.crterm
 
@@ -236,21 +237,29 @@ let tycon_name_conflict pos env (fqs, denv) =
   with Not_found ->
     (fqs, List.map (function (n, CoreAlgebra.TVariable v) -> (n, v) | _ -> assert false) denv)
 
-(** [is_defined_type env t] checks whether the type with name [t] is
-    defined in [env]. *)
-let is_defined_type env t =
-  try
-    let _ = CoreEnv.lookup env.type_info t in
-    true
-  with Not_found -> false
-
 (** [lookup_adt env t] gives access to the typing information for the
     type with name [t]. *)
 let lookup_adt env t =
-  try
-    let (_, _, adt_ref) = CoreEnv.lookup env.type_info t in
-    !adt_ref
-  with Not_found -> None
+  match CoreEnv.lookup_opt env.type_info t with
+    | Some (_, _, adt_ref) -> !adt_ref
+    | None -> None
+
+(** [is_{defined,variant,record}_type env t] check whether the type
+    with name [t] is defined in [env] and is of the appropriate type. *)
+let is_defined_type env t =
+  match CoreEnv.lookup_opt env.type_info t with
+    | Some _ -> true
+    | None   -> false
+
+let is_variant_type env t =
+  match lookup_adt env t with
+    | Some { adt = Variant _ } -> true
+    | _ -> false
+
+let is_record_type env t =
+  match lookup_adt env t with
+    | Some { adt = Record _ } -> true
+    | _ -> false
 
 (** [lookup_datacon env k] looks for typing information related to
     the data constructor [k] in [env]. *)

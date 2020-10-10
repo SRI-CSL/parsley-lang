@@ -63,7 +63,8 @@ type record_constructor =
 type field_destructor =
     MultiEquation.variable list * MultiEquation.crterm
 
-(** A non-terminal's type definition is typically a monomorphic record. *)
+(** A non-terminal's type definition is typically a monomorphic record
+    of its synthesized attributes. *)
 type non_term_type =
     MultiEquation.crterm
 
@@ -113,9 +114,11 @@ val is_regular_datacon_scheme: environment -> Ast.tname -> MultiEquation.variabl
     K :: forall a1 .. an. adt_name a1 ... an -> tau_1 -> ... -> tau_n *)
 val is_regular_field_scheme: environment -> Ast.tname -> MultiEquation.variable list -> MultiEquation.crterm -> bool
 
-(** [is_defined_type env t] checks whether the type with name [t] is
-    defined in [env]. *)
+(** [is_{defined,variant,record}_type env t] checks whether the type
+    with name [t] is defined in [env] and of the appropriate type. *)
 val is_defined_type : environment -> Ast.tname -> bool
+val is_variant_type : environment -> Ast.tname -> bool
+val is_record_type  : environment -> Ast.tname -> bool
 
 (** [lookup_adt env t] gives access to the typing information for the
     type with name [t]. *)
