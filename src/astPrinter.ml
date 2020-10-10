@@ -486,12 +486,9 @@ let print_format f =
   pp_print_string !ppf "format {";
   pp_print_cut !ppf ();
   List.iter (fun fd ->
-      match fd.format_decl with
-        | Format_decl_non_term nd ->
-            ( print_nterm_defn nd;
-              pp_print_cut !ppf ();
-              pp_print_cut !ppf ()
-            )
+      print_nterm_defn fd.format_decl;
+      pp_print_cut !ppf ();
+      pp_print_cut !ppf ()
     ) f.format_decls;
   pp_close_box !ppf ();
   pp_print_cut !ppf ();

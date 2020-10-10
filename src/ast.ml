@@ -182,11 +182,8 @@ type attribute =
     attr_args: attribute_arg list;
     attr_loc: Location.t }
 
-type format_decl_desc =
-  | Format_decl_non_term of non_term_defn
-
 type format_decl =
-  { format_decl: format_decl_desc;
+  { format_decl: non_term_defn;
     format_attr: attribute option;
     format_decl_loc: Location.t }
 

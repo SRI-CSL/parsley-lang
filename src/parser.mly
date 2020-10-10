@@ -498,7 +498,7 @@ attr_decl:
 
 format_decl:
 | a=option(attr_decl) d=nt_defn
-  { make_format_decl (Format_decl_non_term d) a $startpos $endpos }
+  { make_format_decl d a $startpos $endpos }
 
 /* TODO: add kind specs */
 type_decl:
