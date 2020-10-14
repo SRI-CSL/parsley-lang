@@ -63,11 +63,12 @@ type record_constructor =
 type field_destructor =
     MultiEquation.variable list * MultiEquation.crterm
 
-(** A non-terminal's type definition is typically a monomorphic record
-    of its synthesized attributes. *)
+(** A non-terminal's type definition *)
 type non_term_type =
+  (* aliased to another type, either declared or inferred *)
   | NTT_type of MultiEquation.crterm
-  | NTT_record of MultiEquation.crterm * record_info option ref
+  (* a monomorphic record of its synthesized attributes *)
+  | NTT_record of MultiEquation.variable * record_info option ref
 
 (** The type of the typing environement. *)
 type environment
@@ -150,9 +151,14 @@ val lookup_datacon_adt :
 val lookup_field_adt :
   environment -> Ast.lname -> Ast.tname option
 
-(** Looks for a type constructor given its name. *)
+(** Looks up the type for a type constructor given its name. *)
 val lookup_type_variable :
   ?pos:Location.t -> environment -> Ast.tname -> MultiEquation.variable CoreAlgebra.arterm
+
+(** [lookup_opt_non_term_type env nt] looks up the type for a
+    non-terminal [nt] in [env], if any. *)
+val lookup_opt_non_term_type :
+  environment -> Ast.nname -> (MultiEquation.variable CoreAlgebra.arterm) option
 
 (** Accessor to the kind of a type. *)
 val typcon_kind : environment -> Ast.tname -> KindInferencer.t

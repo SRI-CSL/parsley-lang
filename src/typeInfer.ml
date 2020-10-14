@@ -615,8 +615,49 @@ let infer_fun_defn tenv ctxt fd =
   (* Generate the constraint context. *)
   (fun c -> ctxt (CLet ([scheme], c)))
 
+
+(** [infer_nt_rhs_type tenv ntd] tries to deduce a type for the
+    right-hand side of the definition of [ntd]. This is done
+    in the following cases:
+    . there is a single production with a single non-terminal
+      - the inferred type is the type of that non-terminal
+    . all the productions are regular expressions
+      - the inferred type is a string
+    There cannot be any action elements, and any constraint elements
+    are ignored.
+
+    TODO: this could be extended, e.g. for the above under a star or option
+    operator, or restricted to views, etc.
+ *)
+let infer_nt_rhs_type tenv ntd =
+  let res =
+    match ntd.non_term_rules with
+      (* a single production with a single non-terminal *)
+      | [{ rule_rhs = [{ rule_elem = RE_non_term (n, _) }] }] ->
+          lookup_opt_non_term_type tenv (NName (Location.value n))
+      (* each production is a sequence of unnamed regular expressions *)
+      | rules ->
+          let is_regexp =
+            List.for_all (fun r ->
+                List.for_all (fun re ->
+                    match re.rule_elem with
+                      | RE_epsilon
+                      | RE_regexp _
+                      | RE_constraint _ -> true
+                      | _ -> false
+                  ) r.rule_rhs
+              ) rules in
+          if is_regexp then
+            Some (lookup_type_variable ~pos:ntd.non_term_loc tenv (TName "string"))
+          else
+            None in
+  match res with
+    | Some t -> t
+    | None ->
+        raise (Error (NTTypeNotInferrable ntd.non_term_name))
+
 (** [infer_non_term_type tenv ctxt ntd] updates [tenv] with a record
-   type for a non-terminal [ntd] corresponding to its synthesized
+   type for a non-terminal (NT) [ntd] corresponding to its synthesized
    attributes, and updates ctxt with the names of the corresponding
    field destructors. *)
 let infer_non_term_type tenv ctxt ntd =
@@ -626,13 +667,19 @@ let infer_non_term_type tenv ctxt ntd =
   and ntpos = Location.loc ntid in
   match ntd.non_term_syn_attrs with
     | ALT_type t ->
-        (* t should be a record type, and the non-terminal should be
+        (* t should be a record type, and the NT should be
            given a flexible variable which is equated to [[t]]. *)
         let tn = Location.value t in
         let tloc = Location.loc t in
         if not (is_record_type tenv (TName tn)) then
           raise (Error (NTAttributesNotRecordType (ntid, t)));
         let tvar  = lookup_type_variable ~pos:tloc tenv (TName tn) in
+        (* This NT cannot be used as a type constructor since it is
+           aliased to the defined type, and it is represented by a
+           flexible variable to create a solvable constraint. If we
+           need to use NT as a type constructor, we will have to
+           modify the tycon lookup logic in the typing environment
+           to not require Constant variables. *)
         let ivar  = variable ~name:(TName ntnm) Flexible () in
         let cnstr = (CoreAlgebra.TVariable ivar =?= tvar) tloc in
         let ntt   = NTT_type (CoreAlgebra.TVariable ivar) in
@@ -642,11 +689,30 @@ let infer_non_term_type tenv ctxt ntd =
                         CTrue loc))
           ) in
         tenv', ctxt'
+    | ALT_decls [] ->
+        (* No type is declared; so it needs to be inferred.  This NT
+           cannot be used as a type constructor. *)
+        let tvar = infer_nt_rhs_type tenv ntd in
+        let ivar  = variable ~name:(TName ntnm) Flexible () in
+        let cnstr = (CoreAlgebra.TVariable ivar =?= tvar) ntd.non_term_loc in
+        let ntt   = NTT_type (CoreAlgebra.TVariable ivar) in
+        let tenv' = add_non_terminal tenv ntpos (NName ntnm) ntt in
+        let ctxt' = (fun c ->
+            ctxt (CLet ([Scheme (loc, [], [ivar], c ^ cnstr, StringMap.empty)],
+                        CTrue loc))
+          ) in
+        tenv', ctxt'
     | ALT_decls attrs ->
-        (* the non-terminal is given a new monomorphic record type. *)
+        (* The NT is given a new monomorphic record type corresponding
+           to the explicitly declared attributes.  This allows the NT
+           to be usable as a type constructor. *)
+        let ikind = KindInferencer.intern_kind (as_kind_env tenv) KStar in
         let ivar  = variable ~name:(TName ntnm) Constant () in
+        let adt   = ref None in
+        let tenv  = add_type_constructor tenv ntpos (TName ntnm)
+                      (ikind, ivar, adt) in
         let rcd   = ref None in
-        let ntt   = NTT_record (CoreAlgebra.TVariable ivar, rcd) in
+        let ntt   = NTT_record (ivar, rcd) in
         let tenv' = add_non_terminal tenv ntpos (NName ntnm) ntt in
         let ctxt' = (fun c ->
             ctxt (CLet ([Scheme (loc, [ivar], [], c, StringMap.empty)],
@@ -661,10 +727,13 @@ let infer_non_term_type tenv ctxt ntd =
           intern_record_constructor ntid []
             (tenv', let_env) attrs in
         let fields, _ = List.split attrs in
-        rcd := Some { adt = ntid;
-                      fields;
-                      record_constructor = cid;
-                      field_destructors = dids };
+        let rec_info = { adt = ntid;
+                         fields;
+                         record_constructor = cid;
+                         field_destructors = dids } in
+        rcd := Some rec_info;
+        adt := Some { adt = Record rec_info;
+                      loc };
         let ctxt' = (fun c ->
             ctxt' (CLet ([Scheme (loc, drqs @ crqs, [], CTrue loc, let_env)],
                          c))

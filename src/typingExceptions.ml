@@ -124,6 +124,11 @@ type typing_error =
       type. *)
   | NTAttributesNotRecordType of Ast.ident * Ast.ident
 
+  (** [NTTypeNotInferrable ntid] is raised when no type is declared
+      for the synthesized attributes of the non-terminal [ntid], and
+      it cannot be inferred from the productions of [ntid]. *)
+  | NTTypeNotInferrable of Ast.ident
+
 exception Error of typing_error
 
 let msg m loc =
@@ -221,3 +226,8 @@ let error_msg = function
   | NTAttributesNotRecordType (ntid, t) ->
       msg "%s:\n Type `%s' for the attributes of `%s' is not a record type.\n"
         (Location.loc t) (Location.value t) (Location.value ntid)
+
+  | NTTypeNotInferrable ntid ->
+      msg
+        "%s:\n Non-terminal `%s' has an undeclared type that cannot be inferred.\n"
+        (Location.loc ntid) (Location.value ntid)

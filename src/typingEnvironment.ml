@@ -88,11 +88,12 @@ type record_constructor = variable list * crterm
    - its type *)
 type field_destructor = variable list * crterm
 
-(** A non-terminal's type definition is typically a monomorphic record
-    of its synthesized attributes. *)
+(** A non-terminal's type definition *)
 type non_term_type =
+  (* aliased to another type, either declared or inferred *)
   | NTT_type of crterm
-  | NTT_record of crterm * record_info option ref
+  (* a monomorphic record of its synthesized attributes *)
+  | NTT_record of variable * record_info option ref
 
 (** [environment] denotes typing information associated to identifiers. *)
 type environment =
@@ -161,12 +162,21 @@ let add_field_destructor env loc adt ((LName s) as t) f =
     | Some (adt, loc') ->
         raise (Error (DuplicateRecordField (loc, t, adt, loc')))
 
+let crterm_of_non_term_type = function
+  | NTT_type t -> t
+  | NTT_record (v, _) -> CoreAlgebra.TVariable v
+
 let add_non_terminal env loc nt x =
   match CoreEnv.lookup_opt env.non_terms nt with
     | None ->
         { env with non_terms = CoreEnv.add env.non_terms nt (x, loc) }
     | Some (_, ploc) ->
         raise (Error (DuplicateNonTerminal (loc, nt, ploc)))
+
+let lookup_opt_non_term_type env nt =
+  match CoreEnv.lookup_opt env.non_terms nt with
+    | None -> None
+    | Some (ntt, _) -> Some (crterm_of_non_term_type ntt)
 
 (** [lookup_typcon ?pos env t] retrieves typing information about
     the type constructor [t]. *)
