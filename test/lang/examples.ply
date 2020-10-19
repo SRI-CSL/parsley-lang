@@ -1,58 +1,58 @@
 format {
 
   // Match a byte.
-  P := UInt8
-  ;;
+  A := (# ["A"] #);;
 
   // Match a range of bytes.
   R := (# ["0" .. "9"] #);;
 
   // Match a set of bytes: need to enumerate the set.
-  S := (# [ "0" | "5" | "9" ] #);;
+  Set := (# [ "0" | "5" | "9" ] #);;
 
   // Pure parser
   Pure p { val : string } := { p.val = "A" };;
 
   // Sequencing and Selection
-  ABC1 p {v:string} := !"Helo"! v=!"ABC"! {p.v := v};;
-  ABC2 p {v:string} := a=!"Helo"! b=!"ABC"! {p.v := a+b};;
-  Select p {val:typ} := P q=Q R {p.val := q};;
+  ABC1 p {a:string} := !"Helo"! v=!"ABC"! {p.a := v};;
+  ABC2 p {b:string} := a=!"Helo"! b=!"ABC"! {p.b := a+b};;
+
+  // Select p {p:typ} := P q=Q R {p.p := q};;
 
   // Local variables
-  Add a {val:int} := x=Uint8 !"+"! y=UInt8 {a.val := x+y};;
+  Add a {sum:int} := x=Uint8 !"+"! y=UInt8 {a.sum := x+y};;
 
   // Structuring
-  S s {x:int, y:string} := x=UInt8 y=!"Hello"! {s.x := x; s.y := y};;
+  Struct s {x:int, y:string} := x=UInt8 y=!"Hello"! {s.x := x; s.y := y};;
 
   // Constraints
-  P p {v:string} :=
+  C p {c:string} :=
       i=(# [ "0" .. "9" ] #)
       [to_int(i) > 5] { p.v := "gt 5" }
-   | { p.v := "leq 5" };;
+   | { p.c := "leq 5" };;
 
   // Example of a common dependent type:
   // 'c' captures a byte that represents the length of a vector of
   // bytes, captured by 'v'.  The conversion of 'c' into the integer length
   // value is done by the library function int_of_byte().
-  DepVec dv { val: [u8] } :=
+  DepVec dv { vec: [byte] } :=
     c=Byte v=(Byte ^ int_of_byte(c))
-    { dv.val := v } ;;
+    { dv.vec := v } ;;
 
   // This data-dependent vector count also applies for non-terminals.
 
-  NonTerm nt { val: u8 } :=
+  NonTerm nt { t: byte } :=
     c=Byte
-    { nt.val := c } ;;
+    { nt.t := c } ;;
 
-  DepNTVec dv { val: [u8] } :=
+  DepNTVec dv { depvec: [byte] } :=
     c=Byte v=(NonTerm ^ int_of_byte(c))
-    { dv.val := v } ;;
+    { dv.depvec := v } ;;
 
   // The dependent count can be an attribute of a previously parsed
   // non-terminal.
 
-  NTDepNTVec dv { val: [u8] } :=
-    c=NonTerm v=(NonTerm ^ c.val)
-    { dv.val := v }
+  NTDepNTVec dv { depntvec: [byte] } :=
+    c=NonTerm v=(NonTerm ^ c.t)
+    { dv.depntvec := v }
 
 }

@@ -63,6 +63,7 @@ let builtin_types, builtin_consts =
 
       TName "int",    (Ast.KStar, []);
       TName "char",   (Ast.KStar, []);
+      TName "byte",   (Ast.KStar, []);
       TName "string", (Ast.KStar, []);
       TName "unit",   (Ast.KStar,
                        [ (Ast.DName "_Unit", [], gen_tvar "unit") ]);
@@ -107,6 +108,9 @@ let builtin_types, builtin_consts =
                                         (arrow_type (gen_tvar "a")
                                            (gen_tvar "bool")));
 
+      (Ast.DName ".[]", [ TName "a" ], arrow_type (list_type (gen_tvar "a"))
+                                        (arrow_type (gen_tvar "int")
+                                           (gen_tvar "a")));
     |] in
   builtin_types, builtin_consts
 
