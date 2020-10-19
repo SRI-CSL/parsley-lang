@@ -373,7 +373,7 @@ let rec print_env print env =
   (List.iter print_entry (environment_as_list env))
 
 let msg m loc =
-  Printf.sprintf m (Location.str_of_file_loc loc)
+  Printf.sprintf m (Location.str_of_loc loc)
 
 let error_msg = function
   | TypingError p ->

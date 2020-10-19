@@ -202,7 +202,7 @@ let unify ?tracer pos register =
 
 
 let msg m loc =
-  Printf.sprintf m (Location.str_of_file_loc loc)
+  Printf.sprintf m (Location.str_of_loc loc)
 
 open TypeConstraintPrinter
 let error_msg = function

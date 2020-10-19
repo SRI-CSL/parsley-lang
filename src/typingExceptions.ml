@@ -132,7 +132,7 @@ type typing_error =
 exception Error of typing_error
 
 let msg m loc =
-  Printf.sprintf m (Location.str_of_file_loc loc)
+  Printf.sprintf m (Location.str_of_loc loc)
 
 let error_msg = function
   | UnboundTypeIdentifier (p, TName t) ->
