@@ -461,7 +461,8 @@ let print_nterm_defn nd =
          pp_print_string !ppf " ";
          pp_print_string !ppf (Location.value v)
      | None -> ());
-  print_attributes nd.non_term_inh_attrs " (" ")";
+  print_attributes
+    (ALT_decls nd.non_term_inh_attrs) " (" ")";
   pp_print_break !ppf 1 2;
   print_attributes nd.non_term_syn_attrs "{" "}";
   pp_print_string !ppf " :=";

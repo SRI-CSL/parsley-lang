@@ -143,7 +143,7 @@ type attr_list_type =
 type non_term_defn =
   { non_term_name: ident;
     non_term_varname: ident option;
-    non_term_inh_attrs: attr_list_type; (* inherited *)
+    non_term_inh_attrs: (ident * type_expr) list; (* inherited *)
     non_term_syn_attrs: attr_list_type; (* synthesized *)
     non_term_rules: rule list;
     non_term_loc: Location.t }

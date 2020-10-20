@@ -469,17 +469,17 @@ nt_param_decls:
 nt_defn:
 | n=UID v=option(ident) COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
-  { make_nt_defn n v (ALT_decls []) (ALT_decls []) r $startpos $endpos }
+  { make_nt_defn n v [] (ALT_decls []) r $startpos $endpos }
 | n=UID v=option(ident)
   LBRACE syn=nt_param_decls RBRACE COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
-  { make_nt_defn n v (ALT_decls []) syn r $startpos $endpos }
+  { make_nt_defn n v [] syn r $startpos $endpos }
 | n=UID v=option(ident)
-  LPAREN inh=nt_param_decls RPAREN COLONEQ
+  LPAREN inh=param_decls RPAREN COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
   { make_nt_defn n v inh (ALT_decls []) r $startpos $endpos }
 | n=UID v=option(ident)
-  LPAREN inh=nt_param_decls RPAREN
+  LPAREN inh=param_decls RPAREN
   LBRACE syn=nt_param_decls RBRACE COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
   { make_nt_defn n v inh syn r $startpos $endpos }
