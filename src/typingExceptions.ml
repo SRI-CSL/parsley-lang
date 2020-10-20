@@ -92,6 +92,11 @@ type typing_error =
       used although it has not been defined. *)
   | UnboundTypeVariable of Location.t * Ast.tname
 
+  (** [PartialTypeConstructorApplication t d u] is raised when the
+      arity [d] of a type constructor [t] does not match the provided
+      number [u] of arguments. *)
+  | PartialTypeConstructorApplication of Location.t * Ast.tname * int * int
+
   (** [NonLinearPattern] is raised when at least two occurrences of a variable
       appear in a pattern. *)
   | NonLinearPattern of Location.t * string
@@ -151,6 +156,13 @@ let error_msg = function
         p v
   | DuplicateTypeDefinition (p, TName t) ->
       msg "%s:\n Type '%s' has already been defined.\n" p t
+
+  | PartialTypeConstructorApplication (p, (TName t), d, u) ->
+      msg
+        "%s:\n Type constructor `%s' needs %d argument%s not %d.\n"
+        p  t d
+        (if d > 1 then "s" else "")
+        u
 
   | UnboundDataConstructor (p, DName t) ->
       msg "%s:\n Unbound data constructor `%s'.\n" p t

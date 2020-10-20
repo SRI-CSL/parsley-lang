@@ -70,6 +70,10 @@ type non_term_type =
   (* a monomorphic record of its synthesized attributes *)
   | NTT_record of MultiEquation.variable * record_info option ref
 
+(** A type abbreviation *)
+type type_abbrev = { type_abbrev_tvars: Ast.tname list;
+                     type_abbrev_type:  Ast.type_expr }
+
 (** The type of the typing environement. *)
 type environment
 
@@ -84,6 +88,10 @@ val fold_type_info:
 (** Add a set of type variables into the environment, associating a
     name to each. *)
 val add_type_variables: (Ast.tname * type_info) list -> environment -> environment
+
+(** Add a type abbreviation into the environment. *)
+val add_type_abbrev:
+  environment -> Location.t -> Ast.tname -> type_abbrev -> environment
 
 (** Add a type constructor into the environment. *)
 val add_type_constructor: environment -> Location.t -> Ast.tname -> type_info -> environment
@@ -125,6 +133,10 @@ val is_record_type  : environment -> Ast.tname -> bool
 (** [lookup_adt env t] gives access to the typing information for the
     type with name [t]. *)
 val lookup_adt : environment -> Ast.tname -> adt_info option
+
+(** [lookup_type_abbrev env t] returns a type abbreviation if present
+    in the environment. *)
+val lookup_type_abbrev: environment -> Ast.tname -> type_abbrev option
 
 (** [lookup_datacon env k] gives access to the typing information
     related to the data constructor [k] in [env]. *)

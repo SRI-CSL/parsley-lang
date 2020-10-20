@@ -302,6 +302,13 @@ let infer_type_decl tenv ctxt td =
   let tenv, rqs, let_env, ctxt' =
     match typ.type_rep with
       | TR_variant dcons ->
+          let dcons =
+            List.map (function
+                | d, None ->
+                    d, None
+                | d, Some te ->
+                    d, Some (AstUtils.expand_type_abbrevs tenv te)
+              ) dcons in
           let tenv, ctxt = register_tycon ctxt () in
           let tenv, ids, rqs, let_env =
             List.fold_left
@@ -312,6 +319,10 @@ let infer_type_decl tenv ctxt td =
                         loc = pos };
           tenv, rqs, let_env, ctxt
       | TR_record fields ->
+          let fields =
+            List.map (fun (f, te) ->
+                f, AstUtils.expand_type_abbrevs tenv te
+              ) fields in
           let tenv, ctxt = register_tycon ctxt () in
           let tenv, dids, drqs, let_env =
             List.fold_left
@@ -329,13 +340,14 @@ let infer_type_decl tenv ctxt td =
                         loc = pos };
           tenv, drqs @ crqs, let_env, ctxt
       | TR_defn d ->
-          check_valid_type_defn tenv ident tvars d;
-          let qs = List.map (fun q -> TName (Location.value q)) tvars in
-          let rqs, rtenv = fresh_unnamed_rigid_vars pos tenv qs in
-          let tenv' = add_type_variables rtenv tenv in
-          let ityp = TypeConv.intern tenv' d in
-          let tenv, ctxt = register_tycon ctxt ~structure:ityp () in
-          tenv, rqs, StringMap.empty, ctxt in
+          let d' = AstUtils.expand_type_abbrevs tenv d in
+          check_valid_type_defn tenv ident tvars d';
+          let tvs =
+            List.map (fun tv -> TName (Location.value tv)) tvars in
+          let abb = { type_abbrev_tvars = tvs;
+                      type_abbrev_type = d' } in
+          let tenv' = add_type_abbrev tenv pos (TName name) abb in
+          tenv', [], StringMap.empty, ctxt in
   let ctxt = (fun c ->
       ctxt' (CLet ([Scheme (pos, rqs, [], CTrue pos, let_env)],
                    c))) in

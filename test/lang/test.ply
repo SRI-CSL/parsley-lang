@@ -24,14 +24,14 @@ type my_list('a) =
    Null
  | Cons of 'a * my_list<'a>
 
-fun cons <'a> (l : my_list<'a>, e : 'a) -> my_list<'a> = {
+fun cons <'a> (e: 'a, l : my_list<'a>) -> my_list<'a> = {
   (case l of
-   | my_list::Null()     -> e
+   | my_list::Null()     -> my_list::Cons(e, my_list::Null())
    | my_list::Cons(h, t) -> my_list::Cons(e, l))
 }
 
 format {
-  DepVec dv { val: [u8] } :=
+  DepVec dv { val: [byte] } :=
     c=Byte
     dummy={ c }
     v=(Byte ^ int_of_byte(c))

@@ -63,6 +63,9 @@ type adt_info =
 type type_info =
   KindInferencer.t * variable * adt_info option ref
 
+type type_abbrev = { type_abbrev_tvars: Ast.tname list;
+                     type_abbrev_type:  Ast.type_expr }
+
 let as_type_constructor ((_, v, _) as x) =
   if (UnionFind.find v).kind = Constant then
     x
@@ -98,6 +101,7 @@ type non_term_type =
 (** [environment] denotes typing information associated to identifiers. *)
 type environment =
   {
+    type_abbrev        : (tname, Location.t * type_abbrev) CoreEnv.t;
     type_info          : (tname, type_info) CoreEnv.t;
     data_constructor   : (dname, data_constructor) CoreEnv.t;
     record_constructor : (tname, record_constructor) CoreEnv.t;
@@ -113,6 +117,7 @@ type environment =
 
 let empty_environment =
   {
+    type_abbrev        = CoreEnv.empty;
     type_info          = CoreEnv.empty;
     data_constructor   = CoreEnv.empty;
     record_constructor = CoreEnv.empty;
@@ -133,6 +138,13 @@ let add_type_variable env t (k, v) =
 let add_type_variables var_env env =
   { env with type_info =
       List.fold_left (fun env (x, k) -> CoreEnv.add env x k) env.type_info var_env }
+
+let add_type_abbrev env pos t x =
+  match CoreEnv.lookup_opt env.type_abbrev t with
+    | None ->
+        { env with type_abbrev = CoreEnv.add env.type_abbrev t (pos, x) }
+    | Some _ ->
+        raise (Error (DuplicateTypeDefinition (pos, t)))
 
 let add_type_constructor env pos t x =
   match CoreEnv.lookup_opt env.type_info t with
@@ -253,6 +265,13 @@ let tycon_name_conflict pos env (fqs, denv) =
 let lookup_adt env t =
   match CoreEnv.lookup_opt env.type_info t with
     | Some (_, _, adt_ref) -> !adt_ref
+    | None -> None
+
+(** [lookup_type_abbreviation env t] returns the type abbreviation for [t]
+    if present in the environment *)
+let lookup_type_abbrev env t =
+  match CoreEnv.lookup_opt env.type_abbrev t with
+    | Some (_, te) -> Some te
     | None -> None
 
 (** [is_{defined,variant,record}_type env t] check whether the type

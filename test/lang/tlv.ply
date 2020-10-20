@@ -3,6 +3,8 @@ type tlv =
  | Port of int
  | Unknown of byte * [byte]
 
+fun byte_to_int(b: byte) -> int = { 0 }
+
 fun ttl_to_int(b : [byte]) -> int = {
   byte_to_int(b[0])
 }
