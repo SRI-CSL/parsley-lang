@@ -167,9 +167,9 @@ val lookup_field_adt :
 val lookup_type_variable :
   ?pos:Location.t -> environment -> Ast.tname -> MultiEquation.variable CoreAlgebra.arterm
 
-(** [lookup_opt_non_term_type env nt] looks up the type for a
+(** [lookup_non_term_type env nt] looks up the type for a
     non-terminal [nt] in [env], if any. *)
-val lookup_opt_non_term_type :
+val lookup_non_term_type :
   environment -> Ast.nname -> (MultiEquation.variable CoreAlgebra.arterm) option
 
 (** Accessor to the kind of a type. *)

@@ -185,7 +185,7 @@ let add_non_terminal env loc nt x =
     | Some (_, ploc) ->
         raise (Error (DuplicateNonTerminal (loc, nt, ploc)))
 
-let lookup_opt_non_term_type env nt =
+let lookup_non_term_type env nt =
   match CoreEnv.lookup_opt env.non_terms nt with
     | None -> None
     | Some (ntt, _) -> Some (crterm_of_non_term_type ntt)

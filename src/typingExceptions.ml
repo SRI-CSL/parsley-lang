@@ -134,6 +134,11 @@ type typing_error =
       it cannot be inferred from the productions of [ntid]. *)
   | NTTypeNotInferrable of Ast.ident
 
+  (** [NTRepeatedBinding nt id id'] is raised when a rule for
+      non-terminal [nt] has a binding [id] with the same name as
+      an earlier binding [id']. *)
+  | NTRepeatedBinding of Ast.ident * Ast.ident * Ast.ident
+
 exception Error of typing_error
 
 let msg m loc =
@@ -243,3 +248,9 @@ let error_msg = function
       msg
         "%s:\n Non-terminal `%s' has an undeclared type that cannot be inferred.\n"
         (Location.loc ntid) (Location.value ntid)
+
+  | NTRepeatedBinding (ntid, id, id') ->
+      msg
+        "%s:\n Binding `%s' of non-terminal `%s' collides with the binding at %s\n."
+        (Location.loc id) (Location.value id) (Location.value ntid)
+        (Location.str_of_file_loc (Location.loc id'))

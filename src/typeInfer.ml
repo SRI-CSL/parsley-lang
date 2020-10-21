@@ -646,7 +646,7 @@ let infer_nt_rhs_type tenv ntd =
     match ntd.non_term_rules with
       (* a single production with a single non-terminal *)
       | [{ rule_rhs = [{ rule_elem = RE_non_term (n, _) }] }] ->
-          lookup_opt_non_term_type tenv (NName (Location.value n))
+          lookup_non_term_type tenv (NName (Location.value n))
       (* each production is a sequence of unnamed regular expressions *)
       | rules ->
           let is_regexp =
@@ -752,6 +752,64 @@ let infer_non_term_type tenv ctxt ntd =
           ) in
         tenv', ctxt'
 
+let infer_non_term_rule tenv ntd rule pids =
+  CTrue rule.rule_loc
+
+let infer_non_term tenv ntd =
+  let ntid = NName (Location.value ntd.non_term_name) in
+  (* compute the local bindings for each rule *)
+  let pids, bindings = match ntd.non_term_varname with
+      | None ->
+          StringMap.empty, empty_fragment
+      | Some n ->
+          let nloc = Location.loc n in
+          let ntt  = match lookup_non_term_type tenv ntid with
+              | None -> assert false
+              | Some t -> t in
+          let v = variable Flexible () in
+          StringMap.singleton (Location.value n) n,
+          { gamma = StringMap.singleton (Location.value n)
+                      (CoreAlgebra.TVariable v, nloc);
+            tconstraint = (CoreAlgebra.TVariable v =?= ntt) nloc;
+            vars = [ v ] } in
+  let pids, bindings =
+    List.fold_left (fun (pids, fragment) (pid, typ) ->
+        let pn, ploc = Location.value pid, Location.loc pid in
+        let pids =
+          match StringMap.find_opt pn pids with
+            | Some repid ->
+                raise (Error (NTRepeatedBinding (ntd.non_term_name, pid, repid)))
+            | None ->
+                StringMap.add pn pid pids in
+        let ityp = TypeConv.intern tenv typ in
+        let v = variable Flexible () in
+        pids,
+        { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
+                    bindings.gamma;
+          tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
+                        ^ bindings.tconstraint;
+          vars = v :: bindings.vars }
+      ) (pids, bindings) ntd.non_term_inh_attrs in
+  (match ntd.non_term_varname with
+     | None -> ()
+     | Some id' ->
+         (match StringMap.find_opt (Location.value id') pids with
+            | None -> ()
+            | Some id ->
+                let err = NTRepeatedBinding (ntd.non_term_name, id, id') in
+                raise (Error err)
+         )
+  );
+  conj
+    (List.map
+       (fun r ->
+         CLet ([ Scheme (r.rule_loc, [],
+                         bindings.vars,
+                         bindings.tconstraint,
+                         bindings.gamma) ],
+               infer_non_term_rule tenv ntd r pids))
+       ntd.non_term_rules)
+
 (** Initialize the typing environment with the builtin types and
     constants. *)
 let init_tenv () =
@@ -827,33 +885,48 @@ let init_tenv () =
                     StringMap.empty) ],
           CTrue Location.ghost_loc))
 
-let infer_expr_lang tenv spec =
-  (* Process the expression language, and the type-definitions
-   * for the non-terminals *)
-  List.fold_left (fun (tenv, ctxt) decl ->
-      match decl with
-        | Decl_types tds ->
-            (* TODO: handle recursive declarations *)
-            List.fold_left (fun (te, c) td ->
-                infer_type_decl te c td
-              ) (tenv, ctxt) tds
-        | Decl_fun f ->
-            (* TODO: solve eagerly? *)
-            let c = infer_fun_defn tenv ctxt f in
-            tenv, c
-        | Decl_format f ->
-            List.fold_left (fun (te, c) fd ->
-                let ntd = fd.format_decl in
-                infer_non_term_type te c ntd
-              ) (tenv, ctxt) f.format_decls
-        | _ ->
-            tenv, ctxt
-    ) (tenv, (fun c -> c)) spec.decls
+let infer_spec tenv spec =
+  (* First pass: process the expression language, and the
+     type-definitions for the non-terminals *)
+  let tenv, ctxt =
+    List.fold_left (fun (tenv, ctxt) decl ->
+        match decl with
+          | Decl_types tds ->
+              (* TODO: handle recursive declarations *)
+              List.fold_left (fun (te, c) td ->
+                  infer_type_decl te c td
+                ) (tenv, ctxt) tds
+          | Decl_fun f ->
+              (* TODO: solve eagerly? *)
+              let c = infer_fun_defn tenv ctxt f in
+              tenv, c
+          | Decl_format f ->
+              List.fold_left (fun (te, c) fd ->
+                  let ntd = fd.format_decl in
+                  infer_non_term_type te c ntd
+                ) (tenv, ctxt) f.format_decls
+          | _ ->
+              tenv, ctxt
+      ) (tenv, (fun c -> c)) spec.decls in
 
+  (* Second pass: process the grammar spec comprising the rules for
+     each non-terminal. *)
+  let cnstr =
+    List.fold_left (fun cnstr decl ->
+        match decl with
+          | Decl_format f ->
+              List.fold_left (fun c fd ->
+                  let ntd = fd.format_decl in
+                  let cnstr = infer_non_term tenv ntd in
+                  c ^ cnstr
+                ) cnstr f.format_decls
+          | _ ->
+              cnstr
+      ) (CTrue Location.ghost_loc) spec.decls in
 
-let infer_spec =
-  infer_expr_lang
+  let ctxt = (fun c -> ctxt (c ^ cnstr)) in
+  tenv, ctxt
 
 let generate_constraint spec =
   let tenv, c = init_tenv () in
-  c ((snd (infer_expr_lang tenv spec)) (CDump Location.ghost_loc))
+  c ((snd (infer_spec tenv spec)) (CDump Location.ghost_loc))
