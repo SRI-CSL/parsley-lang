@@ -752,8 +752,213 @@ let infer_non_term_type tenv ctxt ntd =
           ) in
         tenv', ctxt'
 
+(* returns a constraint ensuring that the non-terminal [id] has a
+   string type *)
+let rec check_string_non_term tenv id =
+  let n = Location.value id in
+  let str = typcon_variable tenv (TName "string") in
+  match lookup_non_term_type tenv (NName n) with
+    | None ->
+        raise (Error (UnknownNonTerminal id))
+    | Some t ->
+        (t =?= str) (Location.loc id)
+
+let rec check_literals tenv ls =
+  match ls.literal_set with
+    | LS_type id ->
+        (* This non-terminal should have string type *)
+        check_string_non_term tenv id
+    | LS_diff (l, r) ->
+        (check_literals tenv l) ^ (check_literals tenv r)
+    | LS_set _ | LS_range (_, _) ->
+        (* Literals will always have the type string *)
+        CTrue ls.literal_set_loc
+
+let rec check_regexp tenv re =
+  match re.regexp with
+    | RX_literals ls ->
+        check_literals tenv ls
+    | RX_wildcard ->
+        CTrue re.regexp_loc
+    | RX_type id ->
+        (* This non-terminal should have string type *)
+        check_string_non_term tenv id
+    | RX_star (re', None) ->
+        check_regexp tenv re'
+    | RX_star (re', Some e) ->
+        let int = typcon_variable tenv (TName "int") in
+        (check_regexp tenv re'
+         ^ infer_expr tenv e int)
+    | RX_opt re' ->
+        check_regexp tenv re'
+    | RX_choice rels ->
+        conj (List.map (check_regexp tenv) rels)
+    | RX_seq rels ->
+        conj (List.map (check_regexp tenv) rels)
+
+let check_stmt tenv s t =
+  match s.stmt with
+    | S_expr e ->
+        infer_expr tenv e t
+    | S_assign (l, r) ->
+        let u = typcon_variable tenv (TName "unit") in
+        exists (fun t' ->
+            (infer_expr tenv l t'
+             ^ infer_expr tenv r t'
+             ^ (t =?= u) s.stmt_loc))
+
+let infer_action tenv act t =
+  (* [t] can only bind the last expression if any of the sequence,
+   * otherwise it should equal [unit]. *)
+  let rec process_stmts = function
+    | [] ->
+        CTrue act.action_loc
+    | [ s ] ->
+        (* [t] applies to the last stmt *)
+        check_stmt tenv s t
+    | s :: t ->
+        (* all non-tail statements must have [unit] type *)
+        let u = typcon_variable tenv (TName "unit") in
+        let c = check_stmt tenv s u in
+        c ^ (process_stmts t)
+  in process_stmts act.action_stmts
+
+let rec infer_rule_elem tenv ntd ctx re t =
+  let pack_constraint c' =
+    (fun c -> ctx (c' ^ c)) in
+  match re.rule_elem with
+    | RE_regexp r ->
+        (* regular expressions have string types *)
+        let s = typcon_variable tenv (TName "string") in
+        let c = ((t =?= s) re.rule_elem_loc
+                 ^ check_regexp tenv r) in
+        pack_constraint c
+    | RE_non_term (nid, None) ->
+        (let n = Location.value nid in
+         match lookup_non_term_type tenv (NName n) with
+           | None ->
+               raise (Error (UnknownNonTerminal nid))
+           | Some ntt ->
+               let c = (t =?= ntt) re.rule_elem_loc in
+               pack_constraint c)
+    | RE_non_term (nid, Some attrvals) ->
+        (* TODO *)
+        let c = CTrue re.rule_elem_loc in
+        pack_constraint c
+    | RE_constraint rc ->
+        let b = typcon_variable tenv (TName "bool") in
+        let c = ((t =?= b) re.rule_elem_loc
+                 ^ infer_expr tenv rc b) in
+        pack_constraint c
+    | RE_action a ->
+        pack_constraint (infer_action tenv a t)
+    | RE_named (id, re') ->
+        (* [id] is bound in the environment when typing [re'] *)
+        let idloc = Location.loc id in
+        let id    = Location.value id in
+        let ctx'  = infer_rule_elem tenv ntd (fun c -> c) re' t in
+        (fun c ->
+          ctx (CLet ([Scheme (re.rule_elem_loc, [], [],
+                              CTrue re.rule_elem_loc,
+                              StringMap.singleton id (t, idloc))],
+                     ctx' c)))
+    | RE_seq rels ->
+        (* A sequence has a tuple type formed from the individual
+           rule elements *)
+        (fun c ->
+          ctx (exists_list rels (fun assoc ->
+                   let ctx' =
+                     List.fold_left (fun ctx' (re', t') ->
+                         infer_rule_elem tenv ntd ctx' re' t'
+                       ) (fun c -> c) assoc in
+                   let qs = snd (List.split assoc) in
+                   let tup = tuple (typcon_variable tenv) qs in
+                   ((t =?= tup) re.rule_elem_loc
+                    ^ ctx' c)))
+        )
+    | RE_choice rels ->
+        (* Each choice should have the same type [t]. *)
+        let ctx' = List.fold_left (fun ctx re ->
+                       infer_rule_elem tenv ntd ctx re t
+                     ) (fun c -> c) rels in
+        (fun c -> ctx (ctx' c))
+    | RE_star (re', None) ->
+        (* [re] has a type [list t'] where [t'] is the type of [re'] *)
+        (fun c ->
+          ctx (exists (fun t' ->
+                   let ctx' =
+                     infer_rule_elem tenv ntd (fun c -> c) re' t' in
+                   let lst = list (typcon_variable tenv) t' in
+                   (ctx' c
+                    ^ (t =?= lst) re.rule_elem_loc))))
+    | RE_star (re', Some e) ->
+        (* [re] has a type [list t'] where [t'] is the type of [re']
+           and [e] has type int *)
+        (fun c ->
+          ctx (exists (fun t' ->
+                   let ctx' =
+                     infer_rule_elem tenv ntd (fun c -> c) re' t' in
+                   let lst = list (typcon_variable tenv) t' in
+                   let int = typcon_variable tenv (TName "int") in
+                   (ctx' c
+                    ^ (t =?= lst) re.rule_elem_loc
+                    ^ infer_expr tenv e int))))
+    | RE_opt re' ->
+        (* [re] has a type [option t'] where [t'] is the type of [re'] *)
+        (fun c ->
+          ctx (exists (fun t' ->
+                   let ctx' =
+                     infer_rule_elem tenv ntd (fun c -> c) re' t' in
+                   let opt = option (typcon_variable tenv) t' in
+                   (ctx' c
+                    ^ (t =?= opt) re.rule_elem_loc))))
+    | RE_epsilon ->
+        let u = typcon_variable tenv (TName "unit") in
+        let c = (t =?= u) re.rule_elem_loc in
+        pack_constraint c
+    | RE_at_pos (pos, re') ->
+        (* TODO *)
+        let c = CTrue re.rule_elem_loc in
+        pack_constraint c
+    | RE_at_buf (buf, re') ->
+        (* TODO *)
+        let c = CTrue re.rule_elem_loc in
+        pack_constraint c
+    | RE_map_bufs (apos, re') ->
+        (* TODO *)
+        let c = CTrue re.rule_elem_loc in
+        pack_constraint c
+
 let infer_non_term_rule tenv ntd rule pids =
-  CTrue rule.rule_loc
+  (* add temporaries to local bindings *)
+  let pids, bindings =
+    List.fold_left (fun (pids, fragment) (pid, typ) ->
+        let pn, ploc = Location.value pid, Location.loc pid in
+        let pids =
+          match StringMap.find_opt pn pids with
+            | Some repid ->
+                raise (Error (NTRepeatedBinding (ntd.non_term_name, pid, repid)))
+            | None ->
+                StringMap.add pn pid pids in
+        let ityp = TypeConv.intern tenv typ in
+        let v = variable Flexible () in
+        pids,
+        { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
+                    fragment.gamma;
+          tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
+                        ^ fragment.tconstraint;
+          vars = v :: fragment.vars }
+      ) (pids, empty_fragment) rule.rule_temps in
+  let qs, ctx = List.fold_left (fun (qs, ctx) re ->
+                    let v = variable Flexible () in
+                    (v :: qs,
+                     infer_rule_elem tenv ntd ctx re (CoreAlgebra.TVariable v))
+                  ) ([], (fun c -> c)) rule.rule_rhs in
+  CLet ([ Scheme (rule.rule_loc, [],
+                  bindings.vars @ qs,
+                  bindings.tconstraint ^ (ctx (CTrue rule.rule_loc)),
+                  bindings.gamma) ],
+        CTrue rule.rule_loc)
 
 let infer_non_term tenv ntd =
   let ntid = NName (Location.value ntd.non_term_name) in
@@ -785,21 +990,11 @@ let infer_non_term tenv ntd =
         let v = variable Flexible () in
         pids,
         { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
-                    bindings.gamma;
+                    fragment.gamma;
           tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
-                        ^ bindings.tconstraint;
-          vars = v :: bindings.vars }
+                        ^ fragment.tconstraint;
+          vars = v :: fragment.vars }
       ) (pids, bindings) ntd.non_term_inh_attrs in
-  (match ntd.non_term_varname with
-     | None -> ()
-     | Some id' ->
-         (match StringMap.find_opt (Location.value id') pids with
-            | None -> ()
-            | Some id ->
-                let err = NTRepeatedBinding (ntd.non_term_name, id, id') in
-                raise (Error err)
-         )
-  );
   conj
     (List.map
        (fun r ->

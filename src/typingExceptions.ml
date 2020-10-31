@@ -120,6 +120,10 @@ type typing_error =
       with the same name [id] is repeated in a function definition. *)
   | RepeatedFunctionParameter of Ast.ident * Ast.ident
 
+  (** [UnknownNonTerminal id] is raised when a non-terminal with name
+      [id] has not been defined *)
+  | UnknownNonTerminal of Ast.ident
+
   (** [DuplicateNonTerminal id] is raised when a non-terminal with name
       [id] has already been defined *)
   | DuplicateNonTerminal of Location.t * Ast.nname * Location.t
@@ -235,6 +239,10 @@ let error_msg = function
       msg "%s:\n parameter `%s' is repeated at %s.\n"
         (Location.loc p) (Location.value p)
         (Location.str_of_file_loc (Location.loc p'))
+
+  | UnknownNonTerminal nid ->
+      msg "%s:\n Non-terminal `%s' is not declared.\n"
+        (Location.loc nid) (Location.value nid)
 
   | DuplicateNonTerminal (p, NName s, p') ->
       msg "%s:\n Non-terminal `%s' was already defined at `%s'.\n"
