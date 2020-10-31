@@ -39,6 +39,12 @@ type symbol
     symbol name. *)
 val as_symbol: Ast.tname -> symbol option
 
+(** [option env t] returns the type [option t] *)
+val option : 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
+
+(** [list env t] returns the type [list t] *)
+val list : 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
+
 (** [tuple env ts] returns [t0 * ... * tn]. *)
 val tuple : 'a environment -> 'a CoreAlgebra.arterm list -> 'a CoreAlgebra.arterm
 

@@ -42,6 +42,10 @@ let builtin_types, builtin_consts =
     let tvar = Location.mk_loc_val "[]" ghost_loc in
     let con = make_builtin_type (Ast.TE_tvar tvar) in
     make_builtin_type (Ast.TE_tapp (con, [ t ])) in
+  let opt_type t : Ast.type_expr =
+    let tvar  = Location.mk_loc_val "option" ghost_loc in
+    let con = make_builtin_type (Ast.TE_tvar tvar) in
+    make_builtin_type (Ast.TE_tapp (con, [ t ])) in
   let gen_tvar (v : string) : Ast.type_expr =
     let tvar = Location.mk_loc_val v ghost_loc in
     make_builtin_type (Ast.TE_tvar tvar) in
@@ -51,7 +55,8 @@ let builtin_types, builtin_consts =
                        [ (Ast.DName "_Tuple", [ TName "a"; TName "b" ],
                           arrow_type (gen_tvar "a")
                             (arrow_type (gen_tvar "b")
-                               (tuple_type (gen_tvar "a") (gen_tvar "b"))))]);
+                               (tuple_type (gen_tvar "a")
+                                  (gen_tvar "b")))) ]);
 
       TName "[]",     (Ast.KArrow (Ast.KStar, Ast.KStar),
                        [ (Ast.DName "::", [ TName "a" ],
@@ -59,7 +64,13 @@ let builtin_types, builtin_consts =
                             (arrow_type (list_type (gen_tvar "a"))
                                (list_type (gen_tvar "a"))));
                          (Ast.DName "[]", [ TName "a" ],
-                          list_type (gen_tvar "a"))]);
+                          list_type (gen_tvar "a")) ]);
+      TName "option", (Ast.KArrow (Ast.KStar, Ast.KStar),
+                       [ (Ast.DName "None", [ TName "a" ],
+                          opt_type (gen_tvar "a"));
+                         (Ast.DName "Some", [ TName "a" ],
+                          arrow_type (gen_tvar "a")
+                            (opt_type (gen_tvar "a"))) ]);
 
       TName "int",    (Ast.KStar, []);
       TName "char",   (Ast.KStar, []);
@@ -160,9 +171,17 @@ let type_of_primitive tenv = function
   | Ast.PL_unit -> symbol tenv (TName "unit")
   | Ast.PL_bool _ -> symbol tenv (TName "bool")
 
+let option tenv t =
+  let v = symbol tenv (TName "option") in
+  TTerm (App (v, t))
+
+let list tenv t =
+  let v = symbol tenv (TName "[]") in
+  TTerm (App (v, t))
+
 let arrow tenv t u =
   let v = symbol tenv (TName "->") in
-    TTerm (App (TTerm (App (v, t)), u))
+  TTerm (App (TTerm (App (v, t)), u))
 
 let n_arrows tenv ts u =
   List.fold_left (fun acu x -> arrow tenv acu x) u ts
@@ -170,7 +189,7 @@ let n_arrows tenv ts u =
 let tuple tenv ps =
   let n = if ps = [] then "unit" else "*" in
   let v = symbol tenv (TName n) in
-    List.fold_left (fun acu x -> TTerm (App (acu, x))) v ps
+  List.fold_left (fun acu x -> TTerm (App (acu, x))) v ps
 
 let result_type tenv t =
   let a = symbol tenv (TName "->") in
