@@ -64,11 +64,13 @@ type field_destructor =
     MultiEquation.variable list * MultiEquation.crterm
 
 (** A non-terminal's type definition *)
-type non_term_type =
+type non_term_inh_type = (MultiEquation.crterm * Location.t) Misc.StringMap.t
+type non_term_syn_type =
   (* aliased to another type, either declared or inferred *)
   | NTT_type of MultiEquation.crterm
   (* a monomorphic record of its synthesized attributes *)
   | NTT_record of MultiEquation.variable * record_info option ref
+type non_term_type = non_term_inh_type * non_term_syn_type
 
 (** A type abbreviation *)
 type type_abbrev = { type_abbrev_tvars: Ast.tname list;
@@ -165,24 +167,29 @@ val lookup_field_adt :
 
 (** Looks up the type for a type constructor given its name. *)
 val lookup_type_variable :
-  ?pos:Location.t -> environment -> Ast.tname -> MultiEquation.variable CoreAlgebra.arterm
+  ?pos:Location.t -> environment -> Ast.tname -> MultiEquation.crterm
+
+(** [lookup_non_term env nt] looks up the type information for a
+    non-terminal [nt] in [env], if any. *)
+val lookup_non_term:
+  environment -> Ast.nname -> (non_term_inh_type * MultiEquation.crterm) option
 
 (** [lookup_non_term_type env nt] looks up the type for a
     non-terminal [nt] in [env], if any. *)
 val lookup_non_term_type :
-  environment -> Ast.nname -> (MultiEquation.variable CoreAlgebra.arterm) option
+  environment -> Ast.nname -> MultiEquation.crterm option
 
 (** Accessor to the kind of a type. *)
 val typcon_kind : environment -> Ast.tname -> KindInferencer.t
 
 (** Accessor to the unification variable of a type. *)
-val typcon_variable : environment -> Ast.tname -> MultiEquation.variable CoreAlgebra.arterm
+val typcon_variable : environment -> Ast.tname -> MultiEquation.crterm
 
 (** [as_fun env] provides a view of [env] as function from names to
     variable. This is used to abstract the environment when it is
     given to the {!TypeAlgebra} module
     (see {!TypeAlgebra.type_of_primitive} for instance). *)
-val as_fun : environment -> (Ast.tname -> MultiEquation.variable CoreAlgebra.arterm)
+val as_fun : environment -> (Ast.tname -> MultiEquation.crterm)
 
 (** [as_kind env] provides a view of [env] as kind environment. *)
 val as_kind_env : environment ->

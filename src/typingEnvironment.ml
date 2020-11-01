@@ -92,11 +92,14 @@ type record_constructor = variable list * crterm
 type field_destructor = variable list * crterm
 
 (** A non-terminal's type definition *)
-type non_term_type =
+type non_term_inh_type = (MultiEquation.crterm * Location.t) StringMap.t
+
+type non_term_syn_type =
   (* aliased to another type, either declared or inferred *)
   | NTT_type of crterm
   (* a monomorphic record of its synthesized attributes *)
   | NTT_record of variable * record_info option ref
+type non_term_type = non_term_inh_type * non_term_syn_type
 
 (** [environment] denotes typing information associated to identifiers. *)
 type environment =
@@ -185,10 +188,16 @@ let add_non_terminal env loc nt x =
     | Some (_, ploc) ->
         raise (Error (DuplicateNonTerminal (loc, nt, ploc)))
 
+let lookup_non_term env nt =
+  match CoreEnv.lookup_opt env.non_terms nt with
+    | None -> None
+    | Some ((inh, syn), _) ->
+        Some (inh, crterm_of_non_term_type syn)
+
 let lookup_non_term_type env nt =
   match CoreEnv.lookup_opt env.non_terms nt with
     | None -> None
-    | Some (ntt, _) -> Some (crterm_of_non_term_type ntt)
+    | Some ((_, syn), _) -> Some (crterm_of_non_term_type syn)
 
 (** [lookup_typcon ?pos env t] retrieves typing information about
     the type constructor [t]. *)

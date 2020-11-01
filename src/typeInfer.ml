@@ -668,6 +668,19 @@ let infer_nt_rhs_type tenv ntd =
     | None ->
         raise (Error (NTTypeNotInferrable ntd.non_term_name))
 
+let infer_non_term_inh_type tenv ntd =
+  let nid = ntd.non_term_name in
+  List.fold_left (fun ats (pid, te) ->
+      let p = Location.value pid in
+      let t = TypeConv.intern tenv te in
+      match StringMap.find_opt p ats with
+        | Some (_, l) ->
+            let repid = Location.mk_loc_val p l in
+            raise (Error (NTRepeatedBinding (nid, pid, repid)))
+        | None ->
+            StringMap.add p (t, Location.loc pid) ats
+    ) StringMap.empty ntd.non_term_inh_attrs
+
 (** [infer_non_term_type tenv ctxt ntd] updates [tenv] with a record
    type for a non-terminal (NT) [ntd] corresponding to its synthesized
    attributes, and updates ctxt with the names of the corresponding
@@ -677,6 +690,7 @@ let infer_non_term_type tenv ctxt ntd =
   and loc   = ntd.non_term_loc in
   let ntnm  = Location.value ntid
   and ntpos = Location.loc ntid in
+  let inh_typ = infer_non_term_inh_type tenv ntd in
   match ntd.non_term_syn_attrs with
     | ALT_type t ->
         (* t should be a record type, and the NT should be
@@ -694,7 +708,7 @@ let infer_non_term_type tenv ctxt ntd =
            to not require Constant variables. *)
         let ivar  = variable ~name:(TName ntnm) Flexible () in
         let cnstr = (CoreAlgebra.TVariable ivar =?= tvar) tloc in
-        let ntt   = NTT_type (CoreAlgebra.TVariable ivar) in
+        let ntt   = (inh_typ, NTT_type (CoreAlgebra.TVariable ivar)) in
         let tenv' = add_non_terminal tenv ntpos (NName ntnm) ntt in
         let ctxt' = (fun c ->
             ctxt (CLet ([Scheme (loc, [], [ivar], c ^ cnstr, StringMap.empty)],
@@ -707,7 +721,7 @@ let infer_non_term_type tenv ctxt ntd =
         let tvar = infer_nt_rhs_type tenv ntd in
         let ivar  = variable ~name:(TName ntnm) Flexible () in
         let cnstr = (CoreAlgebra.TVariable ivar =?= tvar) ntd.non_term_loc in
-        let ntt   = NTT_type (CoreAlgebra.TVariable ivar) in
+        let ntt   = (inh_typ, NTT_type (CoreAlgebra.TVariable ivar)) in
         let tenv' = add_non_terminal tenv ntpos (NName ntnm) ntt in
         let ctxt' = (fun c ->
             ctxt (CLet ([Scheme (loc, [], [ivar], c ^ cnstr, StringMap.empty)],
@@ -724,7 +738,7 @@ let infer_non_term_type tenv ctxt ntd =
         let tenv  = add_type_constructor tenv ntpos (TName ntnm)
                       (ikind, ivar, adt) in
         let rcd   = ref None in
-        let ntt   = NTT_record (ivar, rcd) in
+        let ntt   = (inh_typ, NTT_record (ivar, rcd)) in
         let tenv' = add_non_terminal tenv ntpos (NName ntnm) ntt in
         let ctxt' = (fun c ->
             ctxt (CLet ([Scheme (loc, [ivar], [], c, StringMap.empty)],
@@ -835,15 +849,44 @@ let rec infer_rule_elem tenv ntd ctx re t =
         pack_constraint c
     | RE_non_term (nid, None) ->
         (let n = Location.value nid in
-         match lookup_non_term_type tenv (NName n) with
+         match lookup_non_term tenv (NName n) with
            | None ->
                raise (Error (UnknownNonTerminal nid))
-           | Some ntt ->
-               let c = (t =?= ntt) re.rule_elem_loc in
-               pack_constraint c)
-    | RE_non_term (nid, Some attrvals) ->
-        (* TODO *)
-        let c = CTrue re.rule_elem_loc in
+           | Some (inh, syn) ->
+               (* Check if inherited attributes need to be specified. *)
+               (match StringMap.choose_opt inh with
+                  | None ->
+                      let c = (t =?= syn) re.rule_elem_loc in
+                      pack_constraint c
+                  | Some (id, _) ->
+                      raise (Error (NTInheritedUnspecified (nid, id))))
+        )
+    | RE_non_term (cntid, Some attrvals) ->
+        let cntn = Location.value cntid in
+        let cnti = match lookup_non_term tenv (NName cntn) with
+            | None -> raise (Error (UnknownNonTerminal cntid))
+            | Some (inh_typ, _) -> inh_typ in
+        let pids, cnstrs =
+          List.fold_left (fun (pids, cnstrs) (pid, e) ->
+              let pn = Location.value pid in
+              let pids = match StringMap.find_opt pn pids with
+                  | Some repid ->
+                      raise (Error (NTRepeatedBinding (cntid, pid, repid)))
+                  | None ->
+                      StringMap.add pn pid pids in
+              let typ = match StringMap.find_opt pn cnti with
+                  | Some (typ, _) ->
+                      typ
+                  | None ->
+                      raise (Error (NTUnknownInheritedAttribute (cntid, pid))) in
+              let cnstr = infer_expr tenv e typ in
+              pids, cnstr :: cnstrs
+            ) (StringMap.empty, []) attrvals in
+        StringMap.iter (fun pn _ ->
+            if not (StringMap.mem pn pids)
+            then raise (Error (NTInheritedUnspecified (cntid, pn)))
+          ) cnti;
+        let c = conj cnstrs in
         pack_constraint c
     | RE_constraint rc ->
         let b = typcon_variable tenv (TName "bool") in
@@ -962,6 +1005,13 @@ let infer_non_term_rule tenv ntd rule pids =
 
 let infer_non_term tenv ntd =
   let ntid = NName (Location.value ntd.non_term_name) in
+  let inh_attrs = match lookup_non_term tenv ntid with
+      | None ->
+          (* the type definition is processed in the previous typing
+             pass and should already be present *)
+          assert false
+      | Some (i, _) -> i in
+
   (* compute the local bindings for each rule *)
   let pids, bindings = match ntd.non_term_varname with
       | None ->
@@ -978,15 +1028,14 @@ let infer_non_term tenv ntd =
             tconstraint = (CoreAlgebra.TVariable v =?= ntt) nloc;
             vars = [ v ] } in
   let pids, bindings =
-    List.fold_left (fun (pids, fragment) (pid, typ) ->
-        let pn, ploc = Location.value pid, Location.loc pid in
+    List.fold_left (fun (pids, fragment) (pn, (ityp, ploc)) ->
+        let pid = Location.mk_loc_val pn ploc in
         let pids =
           match StringMap.find_opt pn pids with
             | Some repid ->
                 raise (Error (NTRepeatedBinding (ntd.non_term_name, pid, repid)))
             | None ->
                 StringMap.add pn pid pids in
-        let ityp = TypeConv.intern tenv typ in
         let v = variable Flexible () in
         pids,
         { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
@@ -994,7 +1043,7 @@ let infer_non_term tenv ntd =
           tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
                         ^ fragment.tconstraint;
           vars = v :: fragment.vars }
-      ) (pids, bindings) ntd.non_term_inh_attrs in
+      ) (pids, bindings) (StringMap.bindings inh_attrs) in
   conj
     (List.map
        (fun r ->

@@ -143,6 +143,15 @@ type typing_error =
       an earlier binding [id']. *)
   | NTRepeatedBinding of Ast.ident * Ast.ident * Ast.ident
 
+  (** [NTInheritedUnspecified nt id] is raised when a rule calls a
+      non-terminal but does not specify a value for its inherited
+      attribute [id] *)
+  | NTInheritedUnspecified of Ast.ident * string
+
+  (** [NTUnknownInheritedAttribute nt id] is raised when an attribute [id] is
+      not defined to be part of the definition of non-terminal [nt] *)
+  | NTUnknownInheritedAttribute of Ast.ident * Ast.ident
+
 exception Error of typing_error
 
 let msg m loc =
@@ -259,6 +268,16 @@ let error_msg = function
 
   | NTRepeatedBinding (ntid, id, id') ->
       msg
-        "%s:\n Binding `%s' of non-terminal `%s' collides with the binding at %s\n."
+        "%s:\n Binding `%s' of non-terminal `%s' collides with the binding at %s.\n"
         (Location.loc id) (Location.value id) (Location.value ntid)
         (Location.str_of_file_loc (Location.loc id'))
+
+  | NTInheritedUnspecified (ntid, id) ->
+      msg
+        "%s:\n Inherited attribute `%s' of non-terminal `%s' is unspecified.\n"
+        (Location.loc ntid) (Location.value ntid) id
+
+  | NTUnknownInheritedAttribute (ntid, id) ->
+      msg
+        "%s:\n Non-terminal `%s' does not define inherited attribute `%s'.\n"
+        (Location.loc id) (Location.value ntid) (Location.value id)
