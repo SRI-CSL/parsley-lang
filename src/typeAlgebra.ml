@@ -80,7 +80,8 @@ let builtin_types, builtin_consts =
                        [ (Ast.DName "_Unit", [], gen_tvar "unit") ]);
       TName "bool",   (Ast.KStar,
                        [ (Ast.DName "True", [], gen_tvar "bool");
-                         (Ast.DName "False", [], gen_tvar "bool") ])
+                         (Ast.DName "False", [], gen_tvar "bool") ]);
+      TName "view",   (Ast.KStar, [])
     |] in
   let builtin_consts = [|
       (Ast.DName "1-", [], arrow_type (gen_tvar "int") (gen_tvar "int"));

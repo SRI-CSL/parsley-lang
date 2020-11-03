@@ -937,12 +937,13 @@ let rec infer_rule_elem tenv ntd ctx re t =
     | RE_star (re', Some e) ->
         (* [re] has a type [list t'] where [t'] is the type of [re']
            and [e] has type int *)
+        let int = typcon_variable tenv (TName "int") in
         (fun c ->
           ctx (exists (fun t' ->
                    let ctx' =
                      infer_rule_elem tenv ntd (fun c -> c) re' t' in
                    let lst = list (typcon_variable tenv) t' in
-                   let int = typcon_variable tenv (TName "int") in
+
                    (ctx' c
                     ^ (t =?= lst) re.rule_elem_loc
                     ^ infer_expr tenv e int))))
@@ -959,18 +960,31 @@ let rec infer_rule_elem tenv ntd ctx re t =
         let u = typcon_variable tenv (TName "unit") in
         let c = (t =?= u) re.rule_elem_loc in
         pack_constraint c
-    | RE_at_pos (pos, re') ->
-        (* TODO *)
-        let c = CTrue re.rule_elem_loc in
-        pack_constraint c
+    | RE_at_pos (e, re') ->
+        (* [pos] needs to be an integer and [re'] should have type [t] *)
+        let int = typcon_variable tenv (TName "int") in
+        let ctx' = infer_rule_elem tenv ntd (fun c -> c) re' t in
+        (fun c -> ctx (ctx' c
+                       ^ infer_expr tenv e int))
     | RE_at_buf (buf, re') ->
-        (* TODO *)
-        let c = CTrue re.rule_elem_loc in
-        pack_constraint c
-    | RE_map_bufs (apos, re') ->
-        (* TODO *)
-        let c = CTrue re.rule_elem_loc in
-        pack_constraint c
+        (* [buf] should have type [view] and [re'] should have type [t] *)
+        let view = typcon_variable tenv (TName "view") in
+        let ctx' = infer_rule_elem tenv ntd (fun c -> c) re' t in
+        (fun c -> ctx (ctx' c
+                       ^ infer_expr tenv buf view))
+    | RE_map_bufs (bufs, re') ->
+        (* [bufs] should have type [list view] and [re] should have
+         * type [list t'] where [t'] is the type of [re'] *)
+        let view = typcon_variable tenv (TName "view") in
+        let views = list (typcon_variable tenv) view in
+        (fun c ->
+          ctx (exists (fun t' ->
+                   let ctx' =
+                     infer_rule_elem tenv ntd (fun c -> c) re' t' in
+                   let result = list (typcon_variable tenv) t' in
+                   (ctx' c
+                    ^ infer_expr tenv bufs views
+                    ^ (t =?= result) re.rule_elem_loc))))
 
 let infer_non_term_rule tenv ntd rule pids =
   (* add temporaries to local bindings *)
