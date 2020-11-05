@@ -736,7 +736,7 @@ let infer_non_term_type tenv ctxt ntd =
         let ntt   = (inh_typ, NTT_type (CoreAlgebra.TVariable ivar)) in
         let tenv' = add_non_terminal tenv ntpos (NName ntnm) ntt in
         let ctxt' = (fun c ->
-            ctxt (CLet ([Scheme (loc, [], [ivar], c ^ cnstr, StringMap.empty)],
+            ctxt (CLet ([Scheme (loc, [], [ivar], cnstr ^ c, StringMap.empty)],
                         CTrue loc))
           ) in
         tenv', ctxt'
@@ -749,7 +749,7 @@ let infer_non_term_type tenv ctxt ntd =
         let ntt   = (inh_typ, NTT_type (CoreAlgebra.TVariable ivar)) in
         let tenv' = add_non_terminal tenv ntpos (NName ntnm) ntt in
         let ctxt' = (fun c ->
-            ctxt (CLet ([Scheme (loc, [], [ivar], c ^ cnstr, StringMap.empty)],
+            ctxt (CLet ([Scheme (loc, [], [ivar], cnstr ^ c, StringMap.empty)],
                         CTrue loc))
           ) in
         tenv', ctxt'
