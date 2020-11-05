@@ -8,6 +8,7 @@ type tname = MultiEquation.tname
 type dname = DName of string (* data constructor names *)
 type lname = LName of string (* record field labels *)
 type nname = NName of string (* non-terminal names *)
+type mname = MName of string (* module name *)
 
 type kind =
   | KStar

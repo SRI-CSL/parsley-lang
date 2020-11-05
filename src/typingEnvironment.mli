@@ -114,6 +114,12 @@ val add_field_destructor:
 val add_non_terminal:
   environment -> Location.t -> Ast.nname -> non_term_type -> environment
 
+(** Add a expression module value binding for [mname.dname] with type
+    [forall a1 .. an . tau] into the environment. *)
+val add_mod_item:
+  environment -> Location.t -> Ast.mname -> Ast.dname ->
+  (MultiEquation.variable list * MultiEquation.crterm) -> environment
+
 (** [is_regular_datacon_scheme env adt_name vs ty] checks that forall vs.ty is
     a valid scheme for a data constructor; that is to say, following the
     shape:
@@ -168,6 +174,11 @@ val lookup_field_adt :
 (** Looks up the type for a type constructor given its name. *)
 val lookup_type_variable :
   ?pos:Location.t -> environment -> Ast.tname -> MultiEquation.crterm
+
+(** Looks up the type for a module component. *)
+val lookup_mod_item:
+  Location.t -> environment -> Ast.mname -> Ast.dname
+  -> (MultiEquation.variable list * MultiEquation.crterm)
 
 (** [lookup_non_term env nt] looks up the type information for a
     non-terminal [nt] in [env], if any. *)

@@ -120,6 +120,18 @@ type typing_error =
       with the same name [id] is repeated in a function definition. *)
   | RepeatedFunctionParameter of Ast.ident * Ast.ident
 
+  (** [DuplicateModItem mid vid] is raised when a module [mid]
+      contains multiple definitions of a value named [vid]. **)
+  | DuplicateModItem of Location.t * Ast.mname * Ast.dname * Location.t
+
+  (** [UnknownModule mid] is raised when a module name [mid] is
+      referenced but not defined *)
+  | UnknownModule of Location.t * Ast.mname
+
+  (** [UnknownModItem mid vid] is raised when a value [vid] of module [mid] is
+      referenced but not defined *)
+  | UnknownModItem of Location.t * Ast.mname * Ast.dname
+
   (** [UnknownNonTerminal id] is raised when a non-terminal with name
       [id] has not been defined *)
   | UnknownNonTerminal of Ast.ident
@@ -248,6 +260,18 @@ let error_msg = function
       msg "%s:\n parameter `%s' is repeated at %s.\n"
         (Location.loc p) (Location.value p)
         (Location.str_of_file_loc (Location.loc p'))
+
+  | DuplicateModItem (p, MName m, DName v, loc) ->
+      msg "%s:\n redefinition of value `%s' of module `%s' defined at %s.\n"
+        p v m (Location.str_of_file_loc loc)
+
+  | UnknownModule (p, MName mid) ->
+      msg "%s:\n unknown module `%s'\n."
+        p mid
+
+  | UnknownModItem (p, MName mid, DName vid) ->
+      msg "%s:\n undefined value `%s' of module `%s'.\n"
+        p vid mid
 
   | UnknownNonTerminal nid ->
       msg "%s:\n Non-terminal `%s' is not declared.\n"

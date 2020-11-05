@@ -561,6 +561,16 @@ let rec infer_expr tenv e (t : crterm) =
                 ^ (SName opid <? typ) e.expr_loc
               )
           )
+    | E_mod_member (m, i) ->
+        let mid = Location.value m in
+        let vid = Location.value i in
+        let loc = Location.extent (Location.loc m) (Location.loc i) in
+        let _ = lookup_mod_item loc tenv (MName mid) (DName vid) in
+        (* Use the encoded name registered in the environment *)
+        let id = Printf.sprintf "%s.%s" mid vid in
+        (* This is typed as a regular identifier. *)
+        (SName id <? t) loc
+
 (** [infer_fun_defn tenv ctxt fd] examines the function definition [fd]
     and constraint context [ctxt] in the type environment [tenv] and
     generates an updated constraint context for [ctxt] and a type
@@ -1128,6 +1138,23 @@ let init_tenv () =
         rqs @ lrqs,
         StringMap.add c (ityp, Location.ghost_loc) let_env
       ) (lrqs, let_env) builtin_consts in
+
+  (* Update with the builtin module values. *)
+  let init_tenv, lrqs, let_env =
+    let builtin_loc = Location.ghost_loc in
+    List.fold_left (fun (tenv, lrqs, let_env) minfo ->
+        (List.fold_left
+           (fun (tenv, lrqs, let_env)
+                ((DName vid) as v, qs, typ) ->
+             (* Encode the item name as it appears in the source. *)
+             let MName mid = minfo.mod_name in
+             let id = Printf.sprintf "%s.%s" mid vid in
+             let rqs, ityp = intern_const tenv qs typ in
+             add_mod_item tenv builtin_loc minfo.mod_name v (rqs, ityp),
+             rqs @ lrqs,
+             StringMap.add id (ityp, builtin_loc) let_env
+           ) (tenv, lrqs, let_env) minfo.mod_values)
+      ) (init_tenv, lrqs, let_env) builtin_modules in
 
   (* The initial environment is implemented as a constraint
      context. *)

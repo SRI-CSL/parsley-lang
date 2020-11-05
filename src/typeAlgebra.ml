@@ -23,9 +23,17 @@
 open MultiEquation
 open CoreAlgebra
 
-type builtin_dataconstructor = Ast.dname * Ast.tname list * Ast.type_expr
+type builtin_dataconstructor =
+  Ast.dname * Ast.tname list * Ast.type_expr
+type builtin_type =
+  Ast.tname * (Ast.kind * builtin_dataconstructor list)
 
-let builtin_types, builtin_consts =
+type builtin_module = {
+    mod_name:   Ast.mname;
+    mod_values: builtin_dataconstructor list;
+}
+
+let builtin_types, builtin_consts, builtin_modules =
   let ghost_loc = Location.ghost_loc in
   let make_builtin_type (t : Ast.type_expr_desc) =
     { Ast.type_expr = t;
@@ -46,10 +54,14 @@ let builtin_types, builtin_consts =
     let tvar  = Location.mk_loc_val "option" ghost_loc in
     let con = make_builtin_type (Ast.TE_tvar tvar) in
     make_builtin_type (Ast.TE_tapp (con, [ t ])) in
+  let set_type t : Ast.type_expr =
+    let tvar  = Location.mk_loc_val "set" ghost_loc in
+    let con = make_builtin_type (Ast.TE_tvar tvar) in
+    make_builtin_type (Ast.TE_tapp (con, [ t ])) in
   let gen_tvar (v : string) : Ast.type_expr =
     let tvar = Location.mk_loc_val v ghost_loc in
     make_builtin_type (Ast.TE_tvar tvar) in
-  let builtin_types = [|
+  let builtin_types : builtin_type array = [|
       TName "->",     (Ast.KArrow (Ast.KStar, Ast.KArrow (Ast.KStar, Ast.KStar)), []);
       TName "*",      (Ast.KArrow (Ast.KStar, Ast.KArrow (Ast.KStar, Ast.KStar)),
                        [ (Ast.DName "_Tuple", [ TName "a"; TName "b" ],
@@ -81,9 +93,11 @@ let builtin_types, builtin_consts =
       TName "bool",   (Ast.KStar,
                        [ (Ast.DName "True", [], gen_tvar "bool");
                          (Ast.DName "False", [], gen_tvar "bool") ]);
-      TName "view",   (Ast.KStar, [])
+      (* module types *)
+      TName "view",   (Ast.KStar, []);
+      TName "set",    ((Ast.KArrow (Ast.KStar, Ast.KStar)), []);
     |] in
-  let builtin_consts = [|
+  let builtin_consts : builtin_dataconstructor array = [|
       (Ast.DName "1-", [], arrow_type (gen_tvar "int") (gen_tvar "int"));
       (Ast.DName "!",  [], arrow_type (gen_tvar "bool") (gen_tvar "bool"));
 
@@ -124,7 +138,56 @@ let builtin_types, builtin_consts =
                                         (arrow_type (gen_tvar "int")
                                            (gen_tvar "a")));
     |] in
-  builtin_types, builtin_consts
+  let builtin_modules : builtin_module list = [
+      { mod_name   = Ast.MName "List";
+        mod_values = [
+            (Ast.DName "length", [ TName "a" ],
+             arrow_type (list_type (gen_tvar "a"))
+               (gen_tvar "int"));
+            (Ast.DName "concat", [ TName "a" ],
+             arrow_type (list_type (gen_tvar "a"))
+               (arrow_type (list_type (gen_tvar "a"))
+                  (list_type (gen_tvar "a"))));
+          ];
+      };
+      { mod_name   = Ast.MName "Set";
+        mod_values = [
+            (Ast.DName "empty", [ TName "a" ],
+             (set_type (gen_tvar "a")));
+            (Ast.DName "add", [ TName "a" ],
+             arrow_type (set_type (gen_tvar "a"))
+               (arrow_type (gen_tvar "a")
+                  (set_type (gen_tvar "a"))));
+            (Ast.DName "mem", [ TName "a" ],
+             arrow_type (set_type (gen_tvar "a"))
+               (arrow_type (gen_tvar "a")
+                  (gen_tvar "bool")));
+          ];
+      };
+      { mod_name   = Ast.MName "Window";
+        mod_values = [
+            (Ast.DName "get_current", [],
+             (arrow_type (gen_tvar "unit")
+                (gen_tvar "view")));
+            (Ast.DName "get_current_offset", [],
+             (arrow_type (gen_tvar "unit")
+                (gen_tvar "int")));
+            (Ast.DName "make_current", [],
+             (arrow_type (gen_tvar "view")
+                (gen_tvar "unit")));
+            (Ast.DName "restrict", [],
+             (arrow_type (gen_tvar "view")
+                (arrow_type (gen_tvar "int")
+                   (arrow_type (gen_tvar "int")
+                      (gen_tvar "view")))));
+            (Ast.DName "restrict_from", [],
+             (arrow_type (gen_tvar "view")
+                (arrow_type (gen_tvar "int")
+                   (gen_tvar "view"))));
+          ];
+      };
+    ] in
+  builtin_types, builtin_consts, builtin_modules
 
 let init_builtin_types mk_variable =
   Array.fold_left

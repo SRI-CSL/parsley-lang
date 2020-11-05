@@ -101,6 +101,9 @@ type non_term_syn_type =
   | NTT_record of variable * record_info option ref
 type non_term_type = non_term_inh_type * non_term_syn_type
 
+(* Module type information *)
+type mod_info = ((variable list * crterm) * Location.t) StringMap.t
+
 (** [environment] denotes typing information associated to identifiers. *)
 type environment =
   {
@@ -113,6 +116,9 @@ type environment =
     (* map constructors and destructors to their owning ADT *)
     datacon_adts : (tname * Location.t) StringMap.t;
     field_adts   : (tname * Location.t) StringMap.t;
+
+    (* module information *)
+    modules      : (mod_info * Location.t) StringMap.t;
 
     (* grammar types *)
     non_terms    : (nname, (non_term_type * Location.t)) CoreEnv.t;
@@ -128,6 +134,7 @@ let empty_environment =
 
     datacon_adts = StringMap.empty;
     field_adts   = StringMap.empty;
+    modules      = StringMap.empty;
 
     non_terms    = CoreEnv.empty;
   }
@@ -177,6 +184,17 @@ let add_field_destructor env loc adt ((LName s) as t) f =
     | Some (adt, loc') ->
         raise (Error (DuplicateRecordField (loc, t, adt, loc')))
 
+let add_mod_item env loc ((MName mid) as m) ((DName vid) as v) t =
+  let minfo, mloc =
+    match StringMap.find_opt mid env.modules with
+      | None -> StringMap.empty, loc
+      | Some m -> m in
+  let minfo =
+    match StringMap.find_opt vid minfo with
+      | None -> StringMap.add vid (t, loc) minfo
+      | Some (_, l) -> raise (Error (DuplicateModItem (loc, m, v, l))) in
+  { env with modules = StringMap.add mid (minfo, mloc) env.modules }
+
 let crterm_of_non_term_type = function
   | NTT_type t -> t
   | NTT_record (v, _) -> CoreAlgebra.TVariable v
@@ -219,6 +237,14 @@ let lookup_type_variable ?pos env k =
     CoreAlgebra.TVariable (as_type_variable (CoreEnv.lookup env.type_info k))
   with Not_found ->
     raise (Error (UnboundTypeVariable ((Location.loc_or_ghost pos), k)))
+
+let lookup_mod_item pos env ((MName mid) as m) ((DName vid) as v) =
+  match StringMap.find_opt mid env.modules with
+    | None -> raise (Error (UnknownModule (pos, m)))
+    | Some (minfo, _) ->
+        (match StringMap.find_opt vid minfo with
+           | None -> raise (Error (UnknownModItem (pos, m, v)))
+           | Some (t, _) -> t)
 
 (* The kind inferencer wants a view on the environment that
    concerns only the kinds. *)
