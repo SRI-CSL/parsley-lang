@@ -96,9 +96,11 @@ and infer_pat_fragment tenv p t =
         - forces [t] to be the type of the constructed value ;
         - constraints the types of the subpatterns to be equal to the arguments
         of the data constructor. *)
-    | P_variant ((_typ, c), ps) ->
+    | P_variant ((typ, c), ps) ->
+        let typid = Location.value typ in
         let cid, cloc = Location.value c, Location.loc c in
-        let alphas, ct = fresh_datacon_scheme tenv cloc (DName cid) in
+        let dcid = Printf.sprintf "%s::%s" typid cid in
+        let alphas, ct = fresh_datacon_scheme tenv cloc (DName dcid) in
         let rt = result_type (as_fun tenv) ct
         and ats = arg_types (as_fun tenv) ct in
         if List.length ps <> List.length ats then
@@ -186,12 +188,13 @@ let intern_data_constructor internal adt_id qs env_info dcon_info =
       raise (Error (InvalidDataConstructorDefinition dname)) in
   let pos = Location.loc dname in
   let dname = Location.value dname in
+  let binding = Printf.sprintf "%s::%s" adt_name dname in
   let v = variable ~structure:ityp Flexible () in
-  ((add_data_constructor tenv pos (TName adt_name) (DName dname)
+  ((add_data_constructor tenv pos (TName adt_name) (DName binding)
       (TypeConv.arity typ, rqs, ityp)),
    (DName dname, v) :: acu,
    (rqs @ lrqs),
-   StringMap.add dname (ityp, pos) let_env)
+   StringMap.add binding (ityp, pos) let_env)
 
 (** [make_field_signature adt tvars f typ] constructs the field type
     and the function type signature for a destructor of [adt] named
@@ -418,8 +421,10 @@ let rec infer_expr tenv e (t : crterm) =
     | E_constr (adt, dcon, args) ->
         (** A data constructor application is similar to the usual
             application except that it must be fully applied. *)
-        let dcid, dcloc = Location.value dcon, Location.loc dcon in
-        let arity, _, _ = lookup_datacon tenv dcloc (DName dcid) in
+        let typid = Location.value adt in
+        let cid, cloc = Location.value dcon, Location.loc dcon in
+        let dcid = Printf.sprintf "%s::%s" typid cid in
+        let arity, _, _ = lookup_datacon tenv cloc (DName dcid) in
         let nargs = List.length args in
         if nargs <> arity then
           raise (Error (PartialDataConstructorApplication (dcon, arity, nargs)))

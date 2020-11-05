@@ -163,14 +163,14 @@ let add_type_constructor env pos t x =
     | Some _ ->
         raise (Error (DuplicateTypeDefinition (pos, t)))
 
-let add_data_constructor env loc adt ((DName s) as t) x =
-  match StringMap.find_opt s env.datacon_adts with
+let add_data_constructor env loc adt ((DName d) as dc) x =
+  match StringMap.find_opt d env.datacon_adts with
     | None ->
         { env with
-          data_constructor = CoreEnv.add env.data_constructor t x;
-          datacon_adts = StringMap.add s (adt, loc) env.datacon_adts }
+          data_constructor = CoreEnv.add env.data_constructor dc x;
+          datacon_adts = StringMap.add d (adt, loc) env.datacon_adts }
     | Some (adt, loc') ->
-        raise (Error (DuplicateDataConstructor (loc, t, adt, loc')))
+        raise (Error (DuplicateDataConstructor (loc, dc, adt, loc')))
 
 let add_record_constructor env adt x =
   { env with record_constructor = CoreEnv.add env.record_constructor adt x }
@@ -327,7 +327,7 @@ let is_record_type env t =
     | _ -> false
 
 (** [lookup_datacon env k] looks for typing information related to
-    the data constructor [k] in [env]. *)
+    the fully qualified data constructor [k] in [env]. *)
 let lookup_datacon env pos k =
   try
     CoreEnv.lookup env.data_constructor k
