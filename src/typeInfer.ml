@@ -470,18 +470,25 @@ let rec infer_expr tenv e (t : crterm) =
         (** The constraint of an [apply] makes equal the type of the
             function expression [fexp] and the function type taking the
             types of arguments [args] to [t]. *)
-        exists_list args (
-            fun exs ->
-            let typ, cargs = List.fold_left
-                               (fun (typ, c) (arg, exvar) ->
-                                 TypeConv.arrow tenv exvar typ,
-                                 c ^ infer_expr tenv arg exvar
-                               )
-                               (t, CTrue e.expr_loc)
-                               (List.rev exs) in
-            let cfun = infer_expr tenv fexp typ in
-            cfun ^ cargs
-          )
+
+        (* an empty argument list corresponds to an argument of unit *)
+        if List.length args = 0 then
+          let unit = typcon_variable tenv (TName "unit") in
+          let typ = TypeConv.arrow tenv unit t in
+          infer_expr tenv fexp typ
+        else
+          exists_list args (
+              fun exs ->
+              let typ, cargs = List.fold_left
+                                 (fun (typ, c) (arg, exvar) ->
+                                   TypeConv.arrow tenv exvar typ,
+                                   c ^ infer_expr tenv arg exvar
+                                 )
+                                 (t, CTrue e.expr_loc)
+                                 (List.rev exs) in
+              let cfun = infer_expr tenv fexp typ in
+              cfun ^ cargs
+            )
     | E_match (exp, typ, dc) ->
         (** Desugar this as a case expression:
 
@@ -594,24 +601,30 @@ let infer_fun_defn tenv ctxt fd =
 
   let irestyp = TypeConv.intern tenv' fd.fun_defn_res_type in
   let _, argbinders, signature =
-    List.fold_left (fun (acu_ids, bindings, signature) (pid, typ) ->
-        let pn, ploc = Location.value pid, Location.loc pid in
-        let acu_ids =
-          match StringMap.find_opt pn acu_ids with
-            | Some repid ->
-                raise (Error (RepeatedFunctionParameter (pid, repid)))
-            | None ->
-                StringMap.add pn pid acu_ids in
-        let ityp = TypeConv.intern tenv' typ in
-        let v = variable Flexible () in
-        acu_ids,
-        { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
-                    bindings.gamma;
-          tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
-                        ^ bindings.tconstraint;
-          vars = v :: bindings.vars },
-        TypeConv.arrow tenv ityp signature
-      ) (StringMap.empty, empty_fragment, irestyp) (List.rev fd.fun_defn_params) in
+    if List.length fd.fun_defn_params = 0 then
+      (* functions without args have a signature of unit -> result_type *)
+      let unit = typcon_variable tenv (TName "unit") in
+      let signature = TypeConv.arrow tenv unit irestyp in
+      StringMap.empty, empty_fragment, signature
+    else
+      List.fold_left (fun (acu_ids, bindings, signature) (pid, typ) ->
+          let pn, ploc = Location.value pid, Location.loc pid in
+          let acu_ids =
+            match StringMap.find_opt pn acu_ids with
+              | Some repid ->
+                  raise (Error (RepeatedFunctionParameter (pid, repid)))
+              | None ->
+                  StringMap.add pn pid acu_ids in
+          let ityp = TypeConv.intern tenv' typ in
+          let v = variable Flexible () in
+          acu_ids,
+          { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
+                      bindings.gamma;
+            tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
+                          ^ bindings.tconstraint;
+            vars = v :: bindings.vars },
+          TypeConv.arrow tenv ityp signature
+        ) (StringMap.empty, empty_fragment, irestyp) (List.rev fd.fun_defn_params) in
 
   (* for recursive functions, add the function name to the let context. *)
   let gamma = if fd.fun_defn_recursive
