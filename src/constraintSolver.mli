@@ -67,7 +67,8 @@ type solver_error =
   (** [CannotGeneralize] when the type of an expression cannot be
       generalized contrary to what is specified by the programmers
       using type annotations. *)
-  | CannotGeneralize of Location.t * TypeConstraint.variable
+  | CannotGeneralizeNonVariable of Location.t * TypeConstraint.variable
+  | CannotGeneralizeRank of Location.t * TypeConstraint.variable * IntRank.t
 
   (** [NonDistinctVariables] is raised when two rigid type variables have
       been unified. *)

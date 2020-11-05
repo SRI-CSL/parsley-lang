@@ -38,7 +38,8 @@ type solver_error =
   (** [CannotGeneralize] when the type of an expression cannot be
       generalized contrary to what is specified by the programmers
       using type annotations. *)
-  | CannotGeneralize of Location.t * TypeConstraint.variable
+  | CannotGeneralizeNonVariable of Location.t * TypeConstraint.variable
+  | CannotGeneralizeRank of Location.t * TypeConstraint.variable * IntRank.t
 
   (** [NonDistinctVariables] is raised when two rigid type variables have
       been unified. *)
@@ -237,7 +238,7 @@ let distinct_variables pos vl =
                    let desc = UnionFind.find v in
                      match desc.structure with
                        | Some _ ->
-                           raise (Error (CannotGeneralize (pos, v)))
+                           raise (Error (CannotGeneralizeNonVariable (pos, v)))
                        | _ ->
                            if Mark.same desc.mark m then
                              raise (DuplicatedMark m);
@@ -255,7 +256,7 @@ let generic_variables pos vl =
   List.iter (fun v ->
                let desc = UnionFind.find v in
                  if IntRank.compare desc.rank IntRank.none <> 0 then (
-                   raise (Error (CannotGeneralize (pos, v))))
+                   raise (Error (CannotGeneralizeRank (pos, v, desc.rank))))
             ) vl
 
 (* [solve] *)
@@ -382,9 +383,13 @@ let error_msg = function
   | UnboundIdentifier (p, t) ->
       msg "%s:\n Unbound identifier `%s'.\n" p t
 
-  | CannotGeneralize (p, v) ->
-      msg "%s:\n Cannot generalize `%s'.\n"
+  | CannotGeneralizeNonVariable (p, v) ->
+      msg "%s:\n Cannot generalize non-variable `%s'.\n"
         p (TypeEnvPrinter.print_variable false v)
+
+  | CannotGeneralizeRank (p, v, r) ->
+      msg "%s:\n Cannot generalize `%s' of rank %d.\n"
+        p (TypeEnvPrinter.print_variable false v) r
 
   | NonDistinctVariables (p, vs) ->
       let lvs = Misc.print_separated_list ";"
