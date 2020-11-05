@@ -226,12 +226,13 @@ let intern_field_destructor adt_id qs env_info f_info =
       raise (Error (InvalidFieldDestructorDefinition fname)) in
   let pos = Location.loc fname in
   let fname = Location.value fname in
+  let binding = Printf.sprintf "{%s}" fname in
   let v = variable ~structure:ityp Flexible () in
   ((add_field_destructor tenv pos (TName adt_name) (LName fname)
       (rqs, ityp)),
    (LName fname, v) :: acu,
    (rqs @ lrqs),
-   StringMap.add fname (ityp, pos) let_env)
+   StringMap.add binding (ityp, pos) let_env)
 
 (* The constructor is the function with argument types from the fields
    in increasing order, and with the record as the result type. *)
@@ -461,10 +462,11 @@ let rec infer_expr tenv e (t : crterm) =
             type equal to the type taking [exp] to [t].*)
         let field = Location.value f in
         let _ = lookup_field_destructor tenv (Location.loc f) (LName field) in
+        let binding = Printf.sprintf "{%s}" field in
         exists (fun exvar ->
             let typ = TypeConv.arrow tenv exvar t in
             infer_expr tenv exp exvar
-            ^ (SName field <? typ) e.expr_loc
+            ^ (SName binding <? typ) e.expr_loc
           )
     | E_apply (fexp, args) ->
         (** The constraint of an [apply] makes equal the type of the
