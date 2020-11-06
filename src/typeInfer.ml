@@ -1163,11 +1163,6 @@ let init_tenv () =
   let (init_tenv, lrqs, let_env) =
     intern_types empty_environment StringMap.empty builtin_types in
 
-  (* Extract the variables bound to the type constructors. *)
-  let vs =
-    fold_type_info (fun vs (n, (_, v, _)) -> v :: vs) [] init_tenv
-  in
-
   (* Update with the builtin constants. *)
   let lrqs, let_env =
     Array.fold_left (fun (lrqs, let_env) (DName c, qs, typ) ->
@@ -1193,8 +1188,27 @@ let init_tenv () =
            ) (tenv, lrqs, let_env) minfo.mod_values)
       ) (init_tenv, lrqs, let_env) builtin_modules in
 
-  (* The initial environment is implemented as a constraint
-     context. *)
+  (* Update with the builtin non-terminals.  These are implemented
+     with primitive builtin types and do not have any inherited
+     attributes. *)
+  let init_tenv =
+    Array.fold_left (fun tenv ((NName nid) as nt, TName tid) ->
+        let gloc = Location.ghost_loc in
+        let typ =
+          { type_expr = TE_tvar (Location.mk_loc_val tid gloc);
+            type_expr_loc = gloc } in
+        let typ = TypeConv.intern tenv typ in
+        let syn_typ = NTT_type typ in
+        let inh_typ = StringMap.empty in
+        let ntt = (inh_typ, syn_typ) in
+        add_non_terminal tenv gloc nt ntt
+      ) init_tenv builtin_non_terms in
+
+  (* Extract the variables bound to the type constructors. *)
+  let vs =
+    fold_type_info (fun vs (n, (_, v, _)) -> v :: vs) [] init_tenv in
+
+  (* The initial environment is implemented as a constraint context. *)
   init_tenv,
   (fun c ->
     CLet ([ Scheme (Location.ghost_loc, vs, [],

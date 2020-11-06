@@ -25,15 +25,18 @@ open CoreAlgebra
 
 type builtin_dataconstructor =
   Ast.dname * Ast.tname list * Ast.type_expr
+
 type builtin_type =
   Ast.tname * (Ast.kind * builtin_dataconstructor list)
 
-type builtin_module = {
-    mod_name:   Ast.mname;
-    mod_values: builtin_dataconstructor list;
-}
+type builtin_non_term =
+  Ast.nname * Ast.tname
 
-let builtin_types, builtin_consts, builtin_modules =
+type builtin_module =
+  { mod_name:   Ast.mname;
+    mod_values: builtin_dataconstructor list }
+
+let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
   let ghost_loc = Location.ghost_loc in
   let make_builtin_type (t : Ast.type_expr_desc) =
     { Ast.type_expr = t;
@@ -198,7 +201,11 @@ let builtin_types, builtin_consts, builtin_modules =
           ];
       };
     ] in
-  builtin_types, builtin_consts, builtin_modules
+  (* Builtin non-terminals are encoded as basic types. *)
+  let builtin_non_terms : builtin_non_term array = [|
+      NName "Byte", TName "byte";
+    |] in
+  builtin_types, builtin_consts, builtin_modules, builtin_non_terms
 
 type symbol = int
 
