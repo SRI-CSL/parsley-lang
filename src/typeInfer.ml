@@ -1101,8 +1101,17 @@ let infer_non_term tenv ntd =
 (** Initialize the typing environment with the builtin types and
     constants. *)
 let init_tenv () =
-  let builtin_types =
-    init_builtin_types (fun ?name () -> variable Rigid ?name:name ()) in
+  let mk_variable = (fun ?name () -> variable Rigid ?name:name ()) in
+  let init_builtin_types types =
+    List.rev (
+        Array.fold_left
+          (fun acu (o, (arity, ds)) ->
+            (o, (arity,
+                 CoreAlgebra.TVariable (mk_variable ?name:(Some o) ()),
+                 ds)
+            ) :: acu)
+          [] types) in
+  let builtin_types = init_builtin_types builtin_types in
 
   (* Add the builtin data constructors into the environment.  The
      builtins currently only use variant algebraic types. *)
@@ -1126,26 +1135,34 @@ let init_tenv () =
 
   (* For each builtin datatype, add a type constructor and any
      associated data constructors into the environment. *)
-  let (init_tenv, acu, lrqs, let_env) =
+  let intern_type tenv let_env ((TName id) as n, (kind, v, ds)) =
+    let gloc = Location.ghost_loc in
+    let r = ref None in
+    let tvar = variable ~name:n Constant () in
+    let tenv = add_type_constructor tenv gloc n
+                 (KindInferencer.intern_kind (as_kind_env tenv) kind,
+                  tvar,
+                  r) in
+    let (dcs, env_info) =
+      init_ds n (tenv, [], [], let_env) ds in
+    (* If there are no data constructors, it does not need any adt_info. *)
+    if List.length dcs > 0
+    then r := Some { adt = Variant dcs;
+                     loc = gloc };
+    env_info in
+
+  let intern_types tenv let_env builtins =
     List.fold_left
-      (fun (tenv, dvs, lrqs, let_env) (n, (kind, v, ds)) ->
-        let r = ref None in
-        let tenv = add_type_constructor tenv Location.ghost_loc n
-                     (KindInferencer.intern_kind (as_kind_env tenv) kind,
-                      variable ~name:n Constant (),
-                      r) in
-        let (dcs, env_info) =
-          init_ds n (tenv, dvs, lrqs, let_env) ds in
-        (* If there are no data constructors, it does not need
-           any adt_info. *)
-        if List.length dcs > 0
-        then r := Some { adt = Variant dcs;
-                         loc = Location.ghost_loc };
-        env_info
-      )
-      (empty_environment, [], [], StringMap.empty)
-      (List.rev builtin_types)
-  in
+      (fun (tenv, lrqs, let_env) btyp ->
+        let (tenv, _, lrqs', let_env) =
+          intern_type tenv let_env btyp in
+        tenv, lrqs' @ lrqs, let_env
+      ) (tenv, [], let_env) builtins in
+
+  (* Register the builtin types. *)
+  let (init_tenv, lrqs, let_env) =
+    intern_types empty_environment StringMap.empty builtin_types in
+
   (* Extract the variables bound to the type constructors. *)
   let vs =
     fold_type_info (fun vs (n, (_, v, _)) -> v :: vs) [] init_tenv

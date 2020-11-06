@@ -137,6 +137,9 @@ let builtin_types, builtin_consts, builtin_modules =
       (Ast.DName ".[]", [ TName "a" ], arrow_type (list_type (gen_tvar "a"))
                                         (arrow_type (gen_tvar "int")
                                            (gen_tvar "a")));
+      (* utility convertors *)
+      (Ast.DName "int_of_byte", [], arrow_type (gen_tvar "byte")
+                                      (gen_tvar "int"));
     |] in
   let builtin_modules : builtin_module list = [
       { mod_name   = Ast.MName "List";
@@ -164,6 +167,14 @@ let builtin_types, builtin_consts, builtin_modules =
                   (gen_tvar "bool")));
           ];
       };
+      { mod_name   = Ast.MName "String";
+        mod_values = [
+            (Ast.DName "concat", [],
+             arrow_type (gen_tvar "string")
+               (arrow_type (gen_tvar "string")
+                  (gen_tvar "string")));
+          ];
+      };
       { mod_name   = Ast.MName "Window";
         mod_values = [
             (Ast.DName "get_current", [],
@@ -188,16 +199,6 @@ let builtin_types, builtin_consts, builtin_modules =
       };
     ] in
   builtin_types, builtin_consts, builtin_modules
-
-let init_builtin_types mk_variable =
-  Array.fold_left
-    (fun acu (o, (arity, ds)) ->
-      (o, (arity,
-           TVariable (mk_variable ?name:(Some o) ()),
-           ds
-          )
-      ) :: acu)
-    [] builtin_types
 
 type symbol = int
 
