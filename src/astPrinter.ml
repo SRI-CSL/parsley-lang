@@ -3,6 +3,9 @@ open Format
 
 let ppf = ref std_formatter
 
+let print_flush () =
+  pp_print_flush !ppf ()
+
 let rec print_list sep printer = function
   | [] -> ()
   | [ e ] ->
@@ -36,9 +39,11 @@ let rec print_type_expr ?paren te =
     | TE_tapp (con, args) ->
         if paren <> None then pp_print_string !ppf "(";
         print_type_expr con;
-        pp_print_string !ppf "(";
-        print_list ", " print_type_expr args;
-        pp_print_string !ppf ")";
+        if List.length args > 0 then begin
+            pp_print_string !ppf "(";
+            print_list ", " print_type_expr args;
+            pp_print_string !ppf ")"
+          end;
         if paren <> None then pp_print_string !ppf ")"
 
 let print_type_rep tr =
@@ -134,10 +139,15 @@ let rec print_expr e =
   match e.expr with
     | E_var i ->
         pp_print_string !ppf (Location.value i)
-    | E_constr (t, c, e) ->
+    | E_constr (t, c, args) ->
         pp_print_string !ppf
           (Printf.sprintf "%s::%s"
              (Location.value t) (Location.value c));
+        if List.length args > 0 then begin
+            pp_print_string !ppf "(";
+            print_list ", " print_expr args;
+            pp_print_string !ppf ")";
+          end
     | E_record fields ->
         pp_print_string !ppf "{";
         print_list ", " (fun (f, e) ->
@@ -239,6 +249,13 @@ let rec print_fun_defn fd =
   pp_open_box !ppf 0;
   pp_print_string !ppf "fun ";
   pp_print_string !ppf (Location.value fd.fun_defn_ident);
+  if List.length fd.fun_defn_tvars > 0 then begin
+      pp_print_string !ppf " <";
+      print_list ", " (fun e ->
+          pp_print_string !ppf (Location.value e)
+        ) fd.fun_defn_tvars;
+      pp_print_string !ppf ">"
+    end;
   pp_print_string !ppf "(";
   print_list ", " print_param_decl fd.fun_defn_params;
   pp_print_string !ppf ")";
@@ -518,4 +535,5 @@ let rec print_decls = function
     end
 
 let print_program prog =
-  print_decls prog.decls
+  print_decls prog.decls;
+  print_flush ()
