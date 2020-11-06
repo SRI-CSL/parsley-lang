@@ -111,27 +111,26 @@ let printer is_type_scheme =
         then
           "''", i, history
         else
-          "'", gi, ghistory
-      in
-        try
-          Misc.assocp (UnionFind.equivalent v) !h
-        with Not_found ->
-          incr c;
-          let result = prefix ^ name_from_int !c in
-            desc.name <- Some (TName result);
-            h := (v, result) :: !h;
-            result
-    in
-      (match desc.name with
-        | Some (TName name) ->
-            if desc.kind <> Constant then
-              try
-                Misc.assocp (UnionFind.equivalent v) !history
-              with Not_found ->
-                history := (v, name) :: !history;
-                name
-            else name
-        | _ -> autoname ())
+          "'", gi, ghistory in
+      try
+        Misc.assocp (UnionFind.equivalent v) !h
+      with Not_found ->
+        incr c;
+        let result = prefix ^ name_from_int !c in
+        desc.name <- Some (TName result);
+        h := (v, result) :: !h;
+        result in
+
+    (match desc.name with
+       | Some (TName name) ->
+           if desc.kind <> Constant then
+             try
+               Misc.assocp (UnionFind.equivalent v) !history
+             with Not_found ->
+               history := (v, name) :: !history;
+               name
+           else name
+       | _ -> autoname ())
 (*        ^ ("["^string_of_int desc.rank^"]")*)
 (*        ^ (match desc.kind with Constant -> "#" | Rigid -> "!" | _ -> "?") *)
   in
@@ -142,31 +141,31 @@ let printer is_type_scheme =
     let is_hit v =
       Mark.same (UnionFind.find v).mark hit
     and is_visited v =
-      Mark.same (UnionFind.find v).mark visiting
-    in
+      Mark.same (UnionFind.find v).mark visiting in
     let var_or_sym v =
       (match variable_name v with
-        | Some (TName name) ->
-            (match as_symbol (TName name) with
-               | Some sym ->
-                   (* hardcode infix and associativity of sym for now *)
-                   (v, name, [], false, NonAssoc, false)
-               | None ->
-                   (v, var_name hits visited v, [], false, NonAssoc, false))
-        | None ->
-            (v, var_name hits visited v, [], false, NonAssoc, false))
-    in
+         | Some (TName name) ->
+             (* If this is a builtin symbol, use the given name, else
+                generate a possibly decorated name. *)
+             (match as_symbol (TName name) with
+                | Some sym ->
+                    (* hardcode infix and associativity of sym for now *)
+                    (v, name, [], false, NonAssoc, false)
+                | None ->
+                    (v, var_name hits visited v, [], false, NonAssoc, false))
+         | None ->
+             (v, var_name hits visited v, [], false, NonAssoc, false)) in
     let desc = UnionFind.find v in
 
     (* If this variable was visited already, we mark it as ``hit
        again'', so as to record the fact that we need to print an
        equation at that node when going back up. *)
 
-      if is_hit v || is_visited v then
-        begin
-          desc.mark <- hit;
-          var_or_sym v
-        end
+    if is_hit v || is_visited v then
+      begin
+        desc.mark <- hit;
+        var_or_sym v
+      end
 
     (* If this variable was never visited, we mark it as ``being
        visited'' before processing it, so as to detect cycles.
@@ -182,18 +181,18 @@ let printer is_type_scheme =
         | Some t ->
             let (v', name, args, infix, assoc, p) as r =
               print_term hits visited t in
-              if is_hit v then
-                let vname = var_name hits visited v in
-                (v, vname^" =",
-                 [ Arg (v', name, args, infix, assoc, p) ],
-                 false, assoc, true)
-              else (desc.mark <- Mark.none; r)
+            if is_hit v then
+              let vname = var_name hits visited v in
+              (v, vname^" =",
+               [ Arg (v', name, args, infix, assoc, p) ],
+               false, assoc, true)
+            else (desc.mark <- Mark.none; r)
     end
 
   and print_term hits visited t =
     let at_left  = function [] -> true | [ x ] -> false | _ -> assert false
-    and at_right = function [] -> true | [ x ] -> false | _ -> assert false
-    in
+    and at_right = function [] -> true | [ x ] -> false | _ -> assert false in
+
     let rec print = function
 
       | App (t1, t2) ->
@@ -201,28 +200,27 @@ let printer is_type_scheme =
           let (op1, name1, args1, infix1, assoc1, force_paren1) =
             print_variable hits visited t1
           and (op2, name2, args2, infix2, assoc2, force_paren2) =
-            print_variable hits visited t2
-          in
+            print_variable hits visited t2 in
           let priority name =
             match as_symbol name with
               | Some sym -> -1 (* hardcode priority of sym for now *)
-              | None     -> -1
-          in
-          let paren_t2 = force_paren2 ||
-            if are_equivalent op1 op2 then
-              (assoc2 = AssocLeft && at_right args1)
-              || (assoc2 = AssocRight && at_left args1)
-            else
-              (priority (TName name2) > priority (TName name1))
-          in
-            (op1, name1,
-             (args1 @ [ Arg (op2, name2, args2, infix2, assoc2, paren_t2)]),
-             infix1, assoc1, force_paren1)
+              | None     -> -1 in
+          let paren_t2 =
+            force_paren2 ||
+              if are_equivalent op1 op2 then
+                (assoc2 = AssocLeft && at_right args1)
+                || (assoc2 = AssocRight && at_left args1)
+              else
+                (priority (TName name2) > priority (TName name1)) in
+          (op1, name1,
+           (args1 @ [ Arg (op2, name2, args2, infix2, assoc2, paren_t2)]),
+           infix1, assoc1, force_paren1)
 
       | Var v -> print_variable hits visited v
 
     in print t
   in
+
   let prefix hits visited () =
     if is_type_scheme then
       match !history with
@@ -231,30 +229,30 @@ let printer is_type_scheme =
         | history ->
             List.fold_left
               (fun quantifiers (v, _) ->
-                 quantifiers ^ " " ^ (var_name hits visited v))
+                quantifiers ^ " " ^ (var_name hits visited v))
               "forall" (List.rev history) ^ ". "
-    else ""
+    else "" in
 
-  in let as_string f r =
-      let rec loop (Arg (_, name, args, infix, assoc, is_paren)) =
-        if args = [] then name
-        else
-          paren is_paren
-            (if infix then
-               print_separated_list (" "^^name^^" ") loop args
-             else
-               (match assoc with EnclosedBy (t, _) -> t | _ -> name) ^^
-                 (if args <> [] then " " else "")^^
-                 (print_separated_list " " loop args)^^
-                 (match assoc with EnclosedBy (_,t) -> " "^t | _ -> "")
-            )
-      in
-      let hits, visited = ref [], ref [] in
-      let (op, name, args, infix, assoc, _) = f hits visited r in
-        prefix hits visited ()
-        ^ loop (Arg (op, name, args, infix, assoc, false))
+  let as_string f r =
+    let rec loop (Arg (_, name, args, infix, assoc, is_paren)) =
+         if args = [] then name
+         else
+           paren is_paren
+             (if infix then
+                print_separated_list (" "^^name^^" ") loop args
+              else
+                (match assoc with EnclosedBy (t, _) -> t | _ -> name)
+                ^^ (if args <> [] then " " else "")
+                ^^ (print_separated_list " " loop args)
+                ^^ (match assoc with EnclosedBy (_,t) -> " "^t | _ -> "")
+             ) in
+    let hits, visited = ref [], ref [] in
+    let (op, name, args, infix, assoc, _) = f hits visited r in
+    prefix hits visited ()
+    ^ loop (Arg (op, name, args, infix, assoc, false))
   in
-    (as_string print_variable, as_string print_term)
+
+  (as_string print_variable, as_string print_term)
 
 let print_term b t =
   let t = explode t in

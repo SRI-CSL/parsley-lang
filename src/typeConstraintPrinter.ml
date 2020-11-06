@@ -162,12 +162,12 @@ let printf_constraint mode c =
       print_string forall;
     print_string (print_separated_list " " print_variable fqs);
     if rqs <> [] then
-      printf "{%s}" (print_separated_list " " print_variable rqs);
+      printf " {%s}" (print_separated_list " " print_variable rqs);
     if not (is_true c) then (
       printf "@,[@[<b>";
       pconstraint c;
       printf "@]]");
-    if (len <> 0) then print_string "(";
+    if (len <> 0) then print_string " (";
     let f = ref true in
     let sep () = if !f then (f := false; "") else "; " in
     StringMap.iter (fun name (t, pos) ->
