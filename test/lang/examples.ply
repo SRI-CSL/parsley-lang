@@ -14,21 +14,26 @@ format {
 
   // Sequencing and Selection
   ABC1 p {a:string} := !"Helo"! v=!"ABC"! {p.a := v};;
-  ABC2 p {b:string} := a=!"Helo"! b=!"ABC"! {p.b := a+b};;
+  ABC2 p {b:string} := a=!"Helo"! b=!"ABC"! {p.b := String.concat(a, b)};;
 
   // Select p {p:typ} := P q=Q R {p.p := q};;
 
   // Local variables
-  Add a {sum:int} := x=Uint8 !"+"! y=UInt8 {a.sum := x+y};;
+  Add a {sum:int} := x=Byte !"+"! y=Byte
+    {a.sum := int_of_byte(x) + int_of_byte(y)};;
 
   // Structuring
-  Struct s {x:int, y:string} := x=UInt8 y=!"Hello"! {s.x := x; s.y := y};;
+  Struct s {x:int, y:string} := x=Byte y=!"Hello"!
+    {s.x := int_of_byte(x); s.y := y};;
 
   // Constraints
   C p {c:string} :=
       i=(# [ "0" .. "9" ] #)
-      [to_int(i) > 5] { p.v := "gt 5" }
-   | { p.c := "leq 5" };;
+      (([(case String.to_int(i) of
+          | option::Some(v) -> v > 5
+          | option::None()  -> bool::False())] { p.c := "gt 5" })
+       | { p.c := "leq 5 or not int" }
+      );;
 
   // Example of a common dependent type:
   // 'c' captures a byte that represents the length of a vector of
@@ -36,23 +41,28 @@ format {
   // value is done by the library function int_of_byte().
   DepVec dv { vec: [byte] } :=
     c=Byte v=(Byte ^ int_of_byte(c))
-    { dv.vec := v } ;;
+    { dv.vec := v }
+}
 
-  // This data-dependent vector count also applies for non-terminals.
+// This data-dependent vector count also applies for non-terminals.
+type recd = { t : byte }
+fun byte_of_recd (r : recd) -> byte = { r.t }
 
-  NonTerm nt { t: byte } :=
+format {
+
+  NonTerm nt { recd } :=
     c=Byte
     { nt.t := c } ;;
 
   DepNTVec dv { depvec: [byte] } :=
     c=Byte v=(NonTerm ^ int_of_byte(c))
-    { dv.depvec := v } ;;
+    { dv.depvec := List.map(byte_of_recd, v) } ;;
 
   // The dependent count can be an attribute of a previously parsed
   // non-terminal.
 
   NTDepNTVec dv { depntvec: [byte] } :=
-    c=NonTerm v=(NonTerm ^ c.t)
-    { dv.depntvec := v }
+    c=NonTerm v=(NonTerm ^ int_of_byte(c.t))
+    { dv.depntvec := List.map(byte_of_recd, v) }
 
 }

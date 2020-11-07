@@ -180,6 +180,9 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
              arrow_type (gen_tvar "string")
                (arrow_type (gen_tvar "string")
                   (gen_tvar "string")));
+            (Ast.DName "to_int", [],
+             arrow_type (gen_tvar "string")
+               (opt_type (gen_tvar "int")));
           ];
       };
       { mod_name   = Ast.MName "Window";
