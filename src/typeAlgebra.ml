@@ -154,6 +154,10 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
              arrow_type (list_type (gen_tvar "a"))
                (arrow_type (list_type (gen_tvar "a"))
                   (list_type (gen_tvar "a"))));
+            (Ast.DName "map", [ TName "a"; TName "b" ],
+             arrow_type (arrow_type (gen_tvar "a") (gen_tvar "b"))
+               (arrow_type (list_type (gen_tvar "a"))
+                  (list_type (gen_tvar "b"))));
           ];
       };
       { mod_name   = Ast.MName "Set";
