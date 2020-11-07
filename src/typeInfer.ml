@@ -867,7 +867,15 @@ let infer_action tenv act t =
         c ^ (process_stmts t)
   in process_stmts act.action_stmts
 
-let rec infer_rule_elem tenv ntd ctx re t =
+(** [bound] tracks whether this rule_elem is under a binding.
+    This affects the typing of the '|' choice operator:
+      a=( ... (re | re') ... )
+    requires [re] and [re'] to receive the same type, which does not
+    apply to an unbound choice
+      ... (re | re') ...
+    where re and re' can receive different types.
+ *)
+let rec infer_rule_elem tenv ntd ctx re t bound =
   let pack_constraint c' =
     (fun c -> ctx (c' ^ c)) in
   match re.rule_elem with
@@ -929,7 +937,8 @@ let rec infer_rule_elem tenv ntd ctx re t =
         (* [id] is bound in the environment when typing [re'] *)
         let idloc = Location.loc id in
         let id    = Location.value id in
-        let ctx'  = infer_rule_elem tenv ntd (fun c -> c) re' t in
+        (* re' needs to be typed under a binding *)
+        let ctx'  = infer_rule_elem tenv ntd (fun c -> c) re' t true in
         (fun c ->
           ctx (CLet ([Scheme (re.rule_elem_loc, [], [],
                               CTrue re.rule_elem_loc,
@@ -942,7 +951,7 @@ let rec infer_rule_elem tenv ntd ctx re t =
           ctx (exists_list rels (fun assoc ->
                    let ctx' =
                      List.fold_left (fun ctx' (re', t') ->
-                         infer_rule_elem tenv ntd ctx' re' t'
+                         infer_rule_elem tenv ntd ctx' re' t' bound
                        ) (fun c -> c) assoc in
                    let qs = snd (List.split assoc) in
                    let tup = tuple (typcon_variable tenv) qs in
@@ -950,17 +959,29 @@ let rec infer_rule_elem tenv ntd ctx re t =
                     ^ ctx' c)))
         )
     | RE_choice rels ->
-        (* Each choice should have the same type [t]. *)
-        let ctx' = List.fold_left (fun ctx re ->
-                       infer_rule_elem tenv ntd ctx re t
-                     ) (fun c -> c) rels in
-        (fun c -> ctx (ctx' c))
+        if bound then
+          (* Each choice should have the same type [t]. *)
+          let ctx' = List.fold_left (fun ctx re ->
+                         infer_rule_elem tenv ntd ctx re t bound
+                       ) (fun c -> c) rels in
+          (fun c -> ctx (ctx' c))
+        else
+          (* Each choice can receive a different type. *)
+          (fun c ->
+            ctx (exists_list rels (fun assoc ->
+                     let ctx' =
+                       List.fold_left (fun ctx' (re', t') ->
+                           infer_rule_elem tenv ntd ctx' re' t' bound
+                         ) (fun c -> c) assoc in
+                     ctx' c
+              ))
+          )
     | RE_star (re', None) ->
         (* [re] has a type [list t'] where [t'] is the type of [re'] *)
         (fun c ->
           ctx (exists (fun t' ->
                    let ctx' =
-                     infer_rule_elem tenv ntd (fun c -> c) re' t' in
+                     infer_rule_elem tenv ntd (fun c -> c) re' t' bound in
                    let lst = list (typcon_variable tenv) t' in
                    (ctx' c
                     ^ (t =?= lst) re.rule_elem_loc))))
@@ -971,7 +992,7 @@ let rec infer_rule_elem tenv ntd ctx re t =
         (fun c ->
           ctx (exists (fun t' ->
                    let ctx' =
-                     infer_rule_elem tenv ntd (fun c -> c) re' t' in
+                     infer_rule_elem tenv ntd (fun c -> c) re' t' bound in
                    let lst = list (typcon_variable tenv) t' in
 
                    (ctx' c
@@ -982,7 +1003,7 @@ let rec infer_rule_elem tenv ntd ctx re t =
         (fun c ->
           ctx (exists (fun t' ->
                    let ctx' =
-                     infer_rule_elem tenv ntd (fun c -> c) re' t' in
+                     infer_rule_elem tenv ntd (fun c -> c) re' t' bound in
                    let opt = option (typcon_variable tenv) t' in
                    (ctx' c
                     ^ (t =?= opt) re.rule_elem_loc))))
@@ -993,13 +1014,13 @@ let rec infer_rule_elem tenv ntd ctx re t =
     | RE_at_pos (e, re') ->
         (* [pos] needs to be an integer and [re'] should have type [t] *)
         let int = typcon_variable tenv (TName "int") in
-        let ctx' = infer_rule_elem tenv ntd (fun c -> c) re' t in
+        let ctx' = infer_rule_elem tenv ntd (fun c -> c) re' t bound in
         (fun c -> ctx (ctx' c
                        ^ infer_expr tenv e int))
     | RE_at_buf (buf, re') ->
         (* [buf] should have type [view] and [re'] should have type [t] *)
         let view = typcon_variable tenv (TName "view") in
-        let ctx' = infer_rule_elem tenv ntd (fun c -> c) re' t in
+        let ctx' = infer_rule_elem tenv ntd (fun c -> c) re' t bound in
         (fun c -> ctx (ctx' c
                        ^ infer_expr tenv buf view))
     | RE_map_bufs (bufs, re') ->
@@ -1010,7 +1031,7 @@ let rec infer_rule_elem tenv ntd ctx re t =
         (fun c ->
           ctx (exists (fun t' ->
                    let ctx' =
-                     infer_rule_elem tenv ntd (fun c -> c) re' t' in
+                     infer_rule_elem tenv ntd (fun c -> c) re' t' bound in
                    let result = list (typcon_variable tenv) t' in
                    (ctx' c
                     ^ infer_expr tenv bufs views
@@ -1039,7 +1060,7 @@ let infer_non_term_rule tenv ntd rule pids =
   let qs, ctx = List.fold_left (fun (qs, ctx) re ->
                     let v = variable Flexible () in
                     (v :: qs,
-                     infer_rule_elem tenv ntd ctx re (CoreAlgebra.TVariable v))
+                     infer_rule_elem tenv ntd ctx re (CoreAlgebra.TVariable v) false)
                   ) ([], (fun c -> c)) rule.rule_rhs in
   CLet ([ Scheme (rule.rule_loc, [],
                   bindings.vars @ qs,
