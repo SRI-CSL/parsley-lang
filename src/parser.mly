@@ -441,7 +441,9 @@ rule_elem:
 | v=ident EQ r=rule_elem
   { make_rule_elem (RE_named (v, r)) $startpos $endpos }
 | LPAREN l=list(rule_elem) RPAREN
-  { make_rule_elem (RE_seq l) $startpos $endpos }
+  { if   List.length l == 1
+    then List.nth l 0
+    else make_rule_elem (RE_seq l) $startpos $endpos }
 | r=rule_elem PLUS
   { let k = make_rule_elem (RE_star (r, None)) $startpos $endpos in
     make_rule_elem (RE_seq [r; k]) $startpos $endpos }
