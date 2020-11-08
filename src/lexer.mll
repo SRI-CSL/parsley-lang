@@ -85,6 +85,7 @@ rule token = parse
 | "@(" { AT_POS }
 | "@[" { AT_BUF }
 | "@#["{ AT_MAP }
+| "@"  { AT }
 | "(|" { LPARBAR }
 | "|)" { RPARBAR }
 | "|"  { BAR }
@@ -102,6 +103,7 @@ rule token = parse
 | ":"  { COLON }
 | ";;" { SEMISEMI }
 | ";"  { SEMICOLON}
+| "+_s" { PLUS_S }
 | "+"  { PLUS }
 | "->" { ARROW }
 | "-"  { MINUS }

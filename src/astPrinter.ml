@@ -130,9 +130,9 @@ let str_of_unop = function
 
 let str_of_binop = function
   | Lt -> "<" | Gt -> ">" | Lteq -> "<=" | Gteq -> ">=" | Eq -> "=" | Neq -> "!="
-  | Plus -> "+" | Minus -> "-" | Mult -> "*" | Div -> "/"
+  | Plus -> "+" | Plus_s -> "+_s" | Minus -> "-" | Mult -> "*" | Div -> "/"
   | Land -> "&&" | Lor -> "||"
-  | Cons -> "::"
+  | Cons -> "::" | At -> "@"
   | Index -> assert false (* needs special handling by caller *)
 
 let rec print_expr e =

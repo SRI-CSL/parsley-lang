@@ -34,6 +34,7 @@ and type_rep =
 type binop =
   | Lt | Gt | Lteq | Gteq | Eq | Neq
   | Plus | Minus | Mult | Div | Land | Lor
+  | Plus_s | At
   | Cons | Index
 
 type unop =

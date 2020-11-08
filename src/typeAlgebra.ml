@@ -144,6 +144,8 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
       (* utility convertors *)
       (Ast.DName "int_of_byte", [], arrow_type (gen_tvar "byte")
                                       (gen_tvar "int"));
+      (Ast.DName "byte_of_int_unsafe", [], arrow_type (gen_tvar "int")
+                                             (gen_tvar "byte"));
     |] in
   let builtin_modules : builtin_module list = [
       { mod_name   = Ast.MName "List";
@@ -187,6 +189,9 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
             (Ast.DName "to_int", [],
              arrow_type (gen_tvar "string")
                (opt_type (gen_tvar "int")));
+            (Ast.DName "to_bytes", [],
+             arrow_type (gen_tvar "string")
+               (list_type (gen_tvar "byte")));
           ];
       };
       { mod_name   = Ast.MName "Window";
@@ -253,6 +258,9 @@ let binop_const_name = function
   | Ast.Index -> ".[]"
   (* data constructors *)
   | Ast.Cons  -> "[]::::"
+  (* functions *)
+  | Ast.Plus_s -> "String.concat"
+  | Ast.At     -> "List.concat"
 
 type 'a environment = tname -> 'a arterm
 
