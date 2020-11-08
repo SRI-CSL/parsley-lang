@@ -526,11 +526,9 @@ let rec infer_expr tenv e (t : crterm) =
                 (List.map
                    (fun (p, b) ->
                      let fragment = infer_pat_fragment tenv p exvar in
-                     CLet ([ Scheme (p.pattern_loc, [],
-                                     fragment.vars,
+                     CLet ([ Scheme (p.pattern_loc, [], fragment.vars,
                                      fragment.tconstraint,
-                                     fragment.gamma)
-                           ],
+                                     fragment.gamma) ],
                            infer_expr tenv b t))
                    clauses))
     | E_let (p, def, body) ->
@@ -541,16 +539,13 @@ let rec infer_expr tenv e (t : crterm) =
             let fragment = infer_pat_fragment tenv p exvar in
             let def_con = infer_expr tenv def exvar in
             def_con
-            ^ (ex ?pos:(Some e.expr_loc) fragment.vars
-                 (CLet (
-                      (* Bind the variables of [p] via a monomorphic
-                         [let] constraint. *)
-                      [ monoscheme fragment.gamma ],
-                      (* Require [exvar] to be a valid type for [p]. *)
-                      fragment.tconstraint
-                      (* Require [t] to be a valid type for [body]. *)
-                      ^ infer_expr tenv body t))
-              )
+            ^ CLet ([ Scheme (e.expr_loc, [], fragment.vars,
+                              (* Require [exvar] to be a valid type
+                                 for [p]. *)
+                              fragment.tconstraint,
+                              fragment.gamma) ],
+                    (* Require [t] to be a valid type for [body]. *)
+                    infer_expr tenv body t)
           )
     | E_cast (exp, typ) ->
         (** A type constraint inserts a type equality into the
