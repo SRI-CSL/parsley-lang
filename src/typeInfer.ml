@@ -1110,15 +1110,14 @@ let infer_non_term tenv ntd =
                         ^ fragment.tconstraint;
           vars = v :: fragment.vars }
       ) (pids, bindings) (StringMap.bindings inh_attrs) in
-  conj
-    (List.map
-       (fun r ->
-         CLet ([ Scheme (r.rule_loc, [],
-                         bindings.vars,
-                         bindings.tconstraint,
-                         bindings.gamma) ],
-               infer_non_term_rule tenv ntd r pids))
-       ntd.non_term_rules)
+  CLet ([ Scheme (ntd.non_term_loc, [],
+                  bindings.vars,
+                  bindings.tconstraint,
+                  bindings.gamma) ],
+        conj
+          (List.map
+             (fun r -> infer_non_term_rule tenv ntd r pids)
+             ntd.non_term_rules))
 
 (** Initialize the typing environment with the builtin types and
     constants. *)
