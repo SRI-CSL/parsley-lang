@@ -88,6 +88,7 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
                             (opt_type (gen_tvar "a"))) ]);
 
       TName "int",    (Ast.KStar, []);
+      TName "double", (Ast.KStar, []);
       TName "char",   (Ast.KStar, []);
       TName "byte",   (Ast.KStar, []);
       TName "string", (Ast.KStar, []);
@@ -158,6 +159,9 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
              arrow_type (arrow_type (gen_tvar "a") (gen_tvar "b"))
                (arrow_type (list_type (gen_tvar "a"))
                   (list_type (gen_tvar "b"))));
+            (Ast.DName "rev", [ TName "a" ],
+             arrow_type (list_type (gen_tvar "a"))
+               (list_type (gen_tvar "a")));
           ];
       };
       { mod_name   = Ast.MName "Set";
@@ -210,7 +214,15 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
     ] in
   (* Builtin non-terminals are encoded as basic types. *)
   let builtin_non_terms : builtin_non_term array = [|
-      NName "Byte", TName "byte";
+      NName "Byte",       TName "byte";
+      NName "AsciiChar",  TName "byte";
+      NName "HexChar",    TName "byte";
+      NName "AlphaNum",   TName "byte";
+      NName "Digit",      TName "byte";
+      NName "AsciiCharS", TName "string";
+      NName "HexCharS",   TName "string";
+      NName "AlphaNumS",  TName "string";
+      NName "DigitS",     TName "string";
     |] in
   builtin_types, builtin_consts, builtin_modules, builtin_non_terms
 
