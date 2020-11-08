@@ -1,6 +1,6 @@
-  // Case / unions
+// Case / unions
 
-type choice = Good of char | Bad of char
+type choice = Good of string | Bad of string
 
 format {
   Chk r {v:string} :=

@@ -4,7 +4,7 @@ type my_list('a) =
 
 fun cons <'a> (l : my_list<'a>, e : 'a) -> my_list<'a> = {
   (case l of
-   | my_list::Null()     -> my_list::Cons(e, mylist::Null())
+   | my_list::Null()     -> my_list::Cons(e, my_list::Null())
    | my_list::Cons(_, _) -> my_list::Cons(e, l))
 }
 
