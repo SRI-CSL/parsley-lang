@@ -1282,7 +1282,7 @@ let infer_spec tenv spec =
               cnstr
       ) (CTrue Location.ghost_loc) spec.decls in
 
-  let ctxt = (fun c -> ctxt (c ^ cnstr)) in
+  let ctxt = (fun c -> ctxt (cnstr ^ c)) in
   tenv, ctxt
 
 let generate_constraint spec =
