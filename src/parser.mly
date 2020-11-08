@@ -367,14 +367,17 @@ branch:
   { (p, e) }
 
 stmt:
-| l=expr COLONEQ r=expr
-  { make_stmt (S_assign (l, r)) $startpos $endpos }
-| e=expr
-  { make_stmt (S_expr e)  $startpos $endpos }
+| e=expr DOT f=ident COLONEQ r=expr
+  { let l = make_expr (E_field (e, f)) $startpos(e) $endpos(f) in
+    make_stmt (S_assign (l, r)) $startpos $endpos }
+| LET p=pattern EQ e=expr IN s=stmt
+  { make_stmt (S_let (p, e, s)) $startpos $endpos }
 
 action:
 | sl=separated_list(SEMICOLON, stmt)
-  { make_action sl $startpos $endpos }
+  { make_action (sl, None) $startpos $endpos }
+| sl=separated_list(SEMICOLON, stmt) SEMISEMI e=expr
+  { make_action (sl, Some e) $startpos $endpos }
 
 literal_set:
 | t=UID

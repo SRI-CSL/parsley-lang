@@ -349,17 +349,22 @@ let rec print_regexp re =
         print_list " " print_regexp res;
         pp_print_string !ppf ")"
 
-let print_stmt s =
+let rec print_stmt s =
   match s.stmt with
-    | S_expr e ->
-        print_expr e
     | S_assign (l, r) ->
         print_expr l;
         pp_print_string !ppf " := ";
         print_expr r
+    | S_let (p, e, s) ->
+        pp_print_string !ppf "let ";
+        print_pattern p;
+        pp_print_string !ppf " = ";
+        print_expr e;
+        pp_print_string !ppf " in ";
+        print_stmt s
 
 let print_action a =
-  let stmts = a.action_stmts in
+  let (stmts, e_opt) = a.action_stmts in
   let rec print = function
     | []  -> ()
     | [s] -> print_stmt s
@@ -372,6 +377,11 @@ let print_action a =
   pp_open_vbox !ppf 2;
   pp_print_string !ppf "{ ";
   print stmts;
+  (match e_opt with
+     | None -> ()
+     | Some e ->
+         pp_print_cut !ppf ();
+         print_expr e);
   pp_print_string !ppf " }";
   pp_close_box !ppf ()
 

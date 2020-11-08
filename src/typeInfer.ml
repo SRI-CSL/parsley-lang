@@ -836,31 +836,35 @@ let rec check_regexp tenv re =
     | RX_seq rels ->
         conj (List.map (check_regexp tenv) rels)
 
-let check_stmt tenv s t =
-  match s.stmt with
-    | S_expr e ->
-        infer_expr tenv e t
+let rec infer_stmt tenv s =
+   match s.stmt with
     | S_assign (l, r) ->
-        let u = typcon_variable tenv (TName "unit") in
         exists (fun t' ->
-            (infer_expr tenv l t'
-             ^ infer_expr tenv r t'
-             ^ (t =?= u) s.stmt_loc))
+            infer_expr tenv l t'
+            ^ infer_expr tenv r t')
+    | S_let (p, def, s) ->
+        exists (fun t' ->
+            let fragment = infer_pat_fragment tenv p t' in
+            let def_con = infer_expr tenv def t' in
+            def_con
+            ^ CLet ([ Scheme (s.stmt_loc, [], fragment.vars,
+                              fragment.tconstraint,
+                              fragment.gamma) ],
+                    infer_stmt tenv s))
 
 let infer_action tenv act t =
   (* [t] can only bind the last expression if any of the sequence,
    * otherwise it should equal [unit]. *)
   let rec process_stmts = function
-    | [] ->
-        CTrue act.action_loc
-    | [ s ] ->
-        (* [t] applies to the last stmt *)
-        check_stmt tenv s t
-    | s :: t ->
-        (* all non-tail statements must have [unit] type *)
+    | ([], None) ->
         let u = typcon_variable tenv (TName "unit") in
-        let c = check_stmt tenv s u in
-        c ^ (process_stmts t)
+        (t =?= u) act.action_loc
+    | ([], Some e) ->
+        (* [t] applies to the last expression *)
+        infer_expr tenv e t
+    | (s :: tl, e) ->
+        let c = infer_stmt tenv s in
+        c ^ (process_stmts (tl, e))
   in process_stmts act.action_stmts
 
 (** [bound] tracks whether this rule_elem is under a binding.

@@ -75,15 +75,15 @@ and expr =
     expr_loc: Location.t }
 
 type stmt_desc =
-  | S_expr of expr
   | S_assign of expr * expr
+  | S_let of pattern * expr * stmt
 
 and stmt =
   { stmt: stmt_desc;
     stmt_loc: Location.t }
 
 type rule_action =
-  { action_stmts: stmt list;
+  { action_stmts: stmt list * expr option;
     action_loc: Location.t }
 
 (* for now, use the same expression sublanguage in actions and constraints. *)
