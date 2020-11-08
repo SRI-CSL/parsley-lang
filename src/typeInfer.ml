@@ -496,18 +496,19 @@ let rec infer_expr tenv e (t : crterm) =
               let cfun = infer_expr tenv fexp typ in
               cfun ^ cargs
             )
-    | E_match (exp, typ, dc) ->
+    | E_match (exp, typ, c) ->
         (** Desugar this as a case expression:
 
-            case (exp) { typ::dc _ _ _ => true, _ => false }
+            case (exp) { typ::c _ _ _ => true, _ => false }
 
             We cannot do it in the parser since we need to know the
-            arity of the data constructor [dc] to generate the correct
+            arity of the data constructor [typ::c] to generate the correct
             wildcard case pattern.  The return type is constrained to
             be boolean. *)
-        let dcid, dcloc = Location.value dc, Location.loc dc in
-        let arity, _, _ = lookup_datacon tenv dcloc (DName dcid) in
-        let case_exp = make_match_case_expr exp typ dc arity e.expr_loc in
+        let cid, cloc = Location.value c, Location.loc c in
+        let dcid = Printf.sprintf "%s::%s" (Location.value typ) cid in
+        let arity, _, _ = lookup_datacon tenv cloc (DName dcid) in
+        let case_exp = make_match_case_expr exp typ c arity e.expr_loc in
         let bool_typ = type_of_primitive (as_fun tenv) (PL_bool true) in
         (infer_expr tenv case_exp t) ^ (t =?= bool_typ) e.expr_loc
     | E_literal prim_lit ->
