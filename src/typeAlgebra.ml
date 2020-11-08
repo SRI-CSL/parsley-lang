@@ -231,6 +231,8 @@ type symbol = int
 let as_symbol name =
   Misc.just_try (fun () -> Misc.array_associ name builtin_types)
 
+(** These names are used in the constraints and need to correspond to
+    the type::constructor encoding of the builtin definitions. *)
 let unop_const_name = function
   | Ast.Uminus -> "1-"
   | Ast.Not    -> "!"
@@ -248,8 +250,9 @@ let binop_const_name = function
   | Ast.Lor   -> "||"
   | Ast.Eq    -> "="
   | Ast.Neq   -> "!="
-  | Ast.Cons  -> "::"
   | Ast.Index -> ".[]"
+  (* data constructors *)
+  | Ast.Cons  -> "[]::::"
 
 type 'a environment = tname -> 'a arterm
 
