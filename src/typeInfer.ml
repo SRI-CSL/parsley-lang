@@ -366,7 +366,7 @@ let make_match_case_expr exp typ dcon arity loc =
     if cnt = 0 then pats else mk_pats (wc::pats) (cnt - 1) in
   let pargs = mk_pats [] arity in
   let pattern = AstUtils.make_pattern_loc (P_variant ((typ, dcon), pargs)) loc in
-  let tr, fl = mk_var "true", mk_var "false" in
+  let tr, fl = mk_var "bool::True", mk_var "bool::False" in
   let case_exp = E_case (exp, [pattern, tr; wc, fl]) in
   { expr = case_exp; expr_loc = loc }
 
