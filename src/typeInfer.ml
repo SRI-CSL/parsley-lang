@@ -1064,10 +1064,10 @@ let infer_non_term_rule tenv ntd rule pids =
                      infer_rule_elem tenv ntd ctx re (CoreAlgebra.TVariable v) false)
                   ) ([], (fun c -> c)) rule.rule_rhs in
   CLet ([ Scheme (rule.rule_loc, [],
-                  bindings.vars @ qs,
-                  bindings.tconstraint ^ (ctx (CTrue rule.rule_loc)),
+                  bindings.vars,
+                  bindings.tconstraint,
                   bindings.gamma) ],
-        CTrue rule.rule_loc)
+        (ex ~pos:rule.rule_loc qs (ctx (CTrue rule.rule_loc))))
 
 let infer_non_term tenv ntd =
   let ntid = NName (Location.value ntd.non_term_name) in
