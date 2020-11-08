@@ -202,7 +202,9 @@ type_expr:
 | i=ident
   { make_type_app_ident i [] $startpos $endpos }
 | LPAREN l=separated_list(COMMA, type_expr) RPAREN
-  { make_tuple_type l }
+  { if List.length l = 1
+    then List.nth l 0
+    else make_tuple_type l }
 | LBRACK t=type_expr RBRACK
   { make_list_type t $startpos $endpos }
 | d=def LT l=separated_list(COMMA, type_expr) GT
@@ -280,6 +282,8 @@ expr:
     let c = Location.mk_loc_val "_Tuple" loc in
     if List.length l = 0
     then make_expr (E_literal PL_unit) $startpos $endpos
+    else if List.length l = 1
+    then List.nth l 0
     else make_expr (E_constr (t, c, l)) $startpos $endpos }
 | e=expr LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_apply(e, l)) $startpos $endpos }
