@@ -30,7 +30,7 @@ type builtin_type =
   Ast.tname * (Ast.kind * builtin_dataconstructor list)
 
 type builtin_non_term =
-  Ast.nname * Ast.tname
+  Ast.nname * Ast.type_expr
 
 type builtin_module =
   { mod_name:   Ast.mname;
@@ -146,6 +146,10 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
                                       (gen_tvar "int"));
       (Ast.DName "byte_of_int_unsafe", [], arrow_type (gen_tvar "int")
                                              (gen_tvar "byte"));
+      (Ast.DName "string_of_bytes", [], arrow_type (list_type (gen_tvar "byte"))
+                                          (opt_type (gen_tvar "string")));
+      (Ast.DName "int_of_string", [], arrow_type (gen_tvar "string")
+                                        (opt_type (gen_tvar "int")));
     |] in
   let builtin_modules : builtin_module list = [
       { mod_name   = Ast.MName "List";
@@ -219,15 +223,15 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
     ] in
   (* Builtin non-terminals are encoded as basic types. *)
   let builtin_non_terms : builtin_non_term array = [|
-      NName "Byte",       TName "byte";
-      NName "AsciiChar",  TName "byte";
-      NName "HexChar",    TName "byte";
-      NName "AlphaNum",   TName "byte";
-      NName "Digit",      TName "byte";
-      NName "AsciiCharS", TName "string";
-      NName "HexCharS",   TName "string";
-      NName "AlphaNumS",  TName "string";
-      NName "DigitS",     TName "string";
+      NName "Byte",       gen_tvar "byte";
+      NName "AsciiChar",  gen_tvar "byte";
+      NName "HexChar",    gen_tvar "byte";
+      NName "AlphaNum",   gen_tvar "byte";
+      NName "Digit",      gen_tvar "byte";
+      NName "AsciiCharS", list_type (gen_tvar "byte");
+      NName "HexCharS",   list_type (gen_tvar "byte");
+      NName "AlphaNumS",  list_type (gen_tvar "byte");
+      NName "DigitS",     list_type (gen_tvar "byte");
     |] in
   builtin_types, builtin_consts, builtin_modules, builtin_non_terms
 
@@ -267,12 +271,6 @@ type 'a environment = tname -> 'a arterm
 let symbol tenv (i : Ast.tname) =
   tenv i
 
-let type_of_primitive tenv = function
-  | Ast.PL_int _ -> symbol tenv (TName "int")
-  | Ast.PL_string _ -> symbol tenv (TName "string")
-  | Ast.PL_unit -> symbol tenv (TName "unit")
-  | Ast.PL_bool _ -> symbol tenv (TName "bool")
-
 let option tenv t =
   let v = symbol tenv (TName "option") in
   TTerm (App (v, t))
@@ -292,6 +290,12 @@ let tuple tenv ps =
   let n = if ps = [] then "unit" else "*" in
   let v = symbol tenv (TName n) in
   List.fold_left (fun acu x -> TTerm (App (acu, x))) v ps
+
+let type_of_primitive tenv = function
+  | Ast.PL_int _ -> symbol tenv (TName "int")
+  | Ast.PL_string _ -> list tenv (symbol tenv (TName "byte"))
+  | Ast.PL_unit -> symbol tenv (TName "unit")
+  | Ast.PL_bool _ -> symbol tenv (TName "bool")
 
 let result_type tenv t =
   let a = symbol tenv (TName "->") in

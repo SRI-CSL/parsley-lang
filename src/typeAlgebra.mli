@@ -80,7 +80,7 @@ type builtin_module =
     mod_values: builtin_dataconstructor list }
 
 (** The representation of predefined non-terminals and their types. *)
-type builtin_non_term = Ast.nname * Ast.tname
+type builtin_non_term = Ast.nname * Ast.type_expr
 
 (** [builtin_consts] is an array of the builtin types. *)
 val builtin_types: builtin_type array

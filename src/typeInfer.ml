@@ -794,47 +794,67 @@ let infer_non_term_type tenv ctxt ntd =
 
 (* returns a constraint ensuring that the non-terminal [id] has a
    string type *)
-let rec check_string_non_term tenv id =
+let rec check_bytes_non_term tenv id t =
   let n = Location.value id in
-  let str = typcon_variable tenv (TName "string") in
   match lookup_non_term_type tenv (NName n) with
     | None ->
         raise (Error (UnknownNonTerminal id))
-    | Some t ->
-        (t =?= str) (Location.loc id)
+    | Some t' ->
+        (t =?= t') (Location.loc id)
 
-let rec check_literals tenv ls =
+let rec check_literals tenv ls t =
   match ls.literal_set with
     | LS_type id ->
-        (* This non-terminal should have string type *)
-        check_string_non_term tenv id
+        (* This non-terminal should have byte list type *)
+        check_bytes_non_term tenv id t
     | LS_diff (l, r) ->
-        (check_literals tenv l) ^ (check_literals tenv r)
+        (check_literals tenv l t) ^ (check_literals tenv r t)
     | LS_set _ | LS_range (_, _) ->
-        (* Literals will always have the type string *)
-        CTrue ls.literal_set_loc
+        (* Literals will always be byte lists *)
+        let byte  = typcon_variable tenv (TName "byte") in
+        let bytes = list (typcon_variable tenv) byte in
+        (t =?= bytes) ls.literal_set_loc
 
-let rec check_regexp tenv re =
+let rec infer_regexp tenv re t =
+  let byte  = typcon_variable tenv (TName "byte") in
+  let bytes = list (typcon_variable tenv) byte in
+  let default = (t =?= bytes) re.regexp_loc in
   match re.regexp with
     | RX_literals ls ->
-        check_literals tenv ls
+        check_literals tenv ls bytes
     | RX_wildcard ->
-        CTrue re.regexp_loc
+        default
     | RX_type id ->
-        (* This non-terminal should have string type *)
-        check_string_non_term tenv id
+        (* This non-terminal should have a byte list type *)
+        check_bytes_non_term tenv id bytes
+
+    (* The typing of Star here assumes that the individual matches for
+       [re'] can be flattened into a byte list type for [re' *].  That
+       is, if [re'] |- list byte, then [re' *] |- list byte due to the
+       flattening.  To achieve this, we only need to ensure that [re']
+       can be typed for some [t'], and ensure that the types of the
+       base cases of RX_ are byte lists. *)
     | RX_star (re', None) ->
-        check_regexp tenv re'
+        exists (fun t' -> infer_regexp tenv re' t')
+        ^ default
     | RX_star (re', Some e) ->
         let int = typcon_variable tenv (TName "int") in
-        (check_regexp tenv re'
-         ^ infer_expr tenv e int)
+        infer_expr tenv e int
+        ^ exists (fun t' -> infer_regexp tenv re' t')
+        ^ default
     | RX_opt re' ->
-        check_regexp tenv re'
-    | RX_choice rels ->
-        conj (List.map (check_regexp tenv) rels)
+        infer_regexp tenv re' t
+    (* For the same reasons as for Star above, we only ensure that the
+       individual matches can be typed, and provide a byte list type
+       for the overall type. *)
+    | RX_choice rels
     | RX_seq rels ->
-        conj (List.map (check_regexp tenv) rels)
+        exists_list rels (fun exs ->
+            conj (List.map
+                    (fun (re', t') -> infer_regexp tenv re' t')
+                    exs)
+          )
+        ^ default
 
 let rec infer_stmt tenv s =
    match s.stmt with
@@ -880,10 +900,7 @@ let rec infer_rule_elem tenv ntd ctx re t bound =
     (fun c -> ctx (c' ^ c)) in
   match re.rule_elem with
     | RE_regexp r ->
-        (* regular expressions have string types *)
-        let s = typcon_variable tenv (TName "string") in
-        let c = ((t =?= s) re.rule_elem_loc
-                 ^ check_regexp tenv r) in
+        let c = infer_regexp tenv r t in
         pack_constraint c
     | RE_non_term (nid, None) ->
         (let n = Location.value nid in
@@ -1212,11 +1229,8 @@ let init_tenv () =
      with primitive builtin types and do not have any inherited
      attributes. *)
   let init_tenv =
-    Array.fold_left (fun tenv ((NName nid) as nt, TName tid) ->
+    Array.fold_left (fun tenv ((NName nid) as nt, typ) ->
         let gloc = Location.ghost_loc in
-        let typ =
-          { type_expr = TE_tvar (Location.mk_loc_val tid gloc);
-            type_expr_loc = gloc } in
         let typ = TypeConv.intern tenv typ in
         let syn_typ = NTT_type typ in
         let inh_typ = StringMap.empty in
