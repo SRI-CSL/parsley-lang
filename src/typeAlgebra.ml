@@ -291,6 +291,14 @@ let tuple tenv ps =
   let v = symbol tenv (TName n) in
   List.fold_left (fun acu x -> TTerm (App (acu, x))) v ps
 
+let rec is_regexp_type tenv t =
+  let c = symbol tenv (TName "[]") in
+  match t with
+    | TTerm (App (v, t)) when v = c ->
+        let b = symbol tenv (TName "byte") in
+        t = b
+    | _ -> false
+
 let type_of_primitive tenv = function
   | Ast.PL_int _ -> symbol tenv (TName "int")
   | Ast.PL_string _ -> list tenv (symbol tenv (TName "byte"))

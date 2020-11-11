@@ -68,6 +68,11 @@ val tycon_name : 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
 (** [type_of_primitive p] returns the type of a source language primitive. *)
 val type_of_primitive : 'a environment -> Ast.primitive_literal -> 'a CoreAlgebra.arterm
 
+
+(** [is_regexp_type env t] checks if [t] is the byte list type used
+ ** for regular expressions *)
+val is_regexp_type : 'a environment -> 'a CoreAlgebra.arterm -> bool
+
 (** The type of predefined data constructors. *)
 type builtin_dataconstructor = Ast.dname * Ast.tname list * Ast.type_expr
 

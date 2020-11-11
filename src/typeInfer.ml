@@ -654,6 +654,56 @@ let infer_fun_defn tenv ctxt fd =
   (fun c -> ctxt (CLet ([scheme], c)))
 
 
+(* Guesses whether the rule element [rle] is composed of only regexps.
+   Since no environment is provided, it assumes any non-terminals are
+   not regular expressions. *)
+let rec guess_is_regexp_elem rle =
+  match rle.rule_elem with
+    | RE_epsilon
+      | RE_regexp _
+      | RE_action _
+      | RE_constraint _ -> true
+
+    | RE_named (_, rle')
+      | RE_star (rle', _)
+      | RE_opt rle'
+      | RE_at_pos (_, rle')
+      | RE_at_buf (_, rle') -> guess_is_regexp_elem rle'
+
+    | RE_choice rles
+      | RE_seq rles -> List.for_all guess_is_regexp_elem rles
+
+    | RE_non_term _
+    | RE_map_bufs _ -> false
+
+(* Checks whether the rule element [rle] is composed of only regexps.
+   Since an environment is provided, it looks up the types of any
+   non-terminals to check whether they are regular expressions. *)
+let rec is_regexp_elem tenv rle =
+  match rle.rule_elem with
+    | RE_epsilon
+      | RE_regexp _
+      | RE_action _
+      | RE_constraint _ -> true
+
+    | RE_named (_, rle')
+      | RE_star (rle', _)
+      | RE_opt rle'
+      | RE_at_pos (_, rle')
+      | RE_at_buf (_, rle') -> is_regexp_elem tenv rle'
+
+    | RE_choice rles
+      | RE_seq rles -> List.for_all (is_regexp_elem tenv) rles
+
+    | RE_non_term (nid, _) ->
+        let n = Location.value nid in
+        (match lookup_non_term_type tenv (NName n) with
+           | Some t -> is_regexp_type (typcon_variable tenv) t
+           | None -> false
+        )
+
+    | RE_map_bufs _ -> false
+
 (** [infer_nt_rhs_type tenv ntd] tries to deduce a type for the
     right-hand side of the definition of [ntd]. This is done
     in the following cases:
@@ -677,16 +727,11 @@ let infer_nt_rhs_type tenv ntd =
       | rules ->
           let is_regexp =
             List.for_all (fun r ->
-                List.for_all (fun re ->
-                    match re.rule_elem with
-                      | RE_epsilon
-                      | RE_regexp _
-                      | RE_constraint _ -> true
-                      | _ -> false
-                  ) r.rule_rhs
+                List.for_all guess_is_regexp_elem r.rule_rhs
               ) rules in
           if is_regexp then
-            Some (lookup_type_variable ~pos:ntd.non_term_loc tenv (TName "string"))
+            let byte  = typcon_variable tenv (TName "byte") in
+            Some (list (typcon_variable tenv) byte)
           else
             None in
   match res with
@@ -898,6 +943,9 @@ let infer_action tenv act t =
 let rec infer_rule_elem tenv ntd ctx re t bound =
   let pack_constraint c' =
     (fun c -> ctx (c' ^ c)) in
+  let mk_regexp_type () =
+    let byte = typcon_variable tenv (TName "byte") in
+    list (typcon_variable tenv) byte in
   match re.rule_elem with
     | RE_regexp r ->
         let c = infer_regexp tenv r t in
@@ -961,9 +1009,12 @@ let rec infer_rule_elem tenv ntd ctx re t bound =
                               CTrue re.rule_elem_loc,
                               StringMap.singleton id (t, idloc))],
                      ctx' c)))
+
     | RE_seq rels ->
-        (* A sequence has a tuple type formed from the individual
-           rule elements *)
+        (* A sequence has a tuple type formed from the individual rule
+           elements, unless they are all regexps, in which case they
+           are flattened. *)
+        let is_regexp = List.for_all (is_regexp_elem tenv) rels in
         (fun c ->
           ctx (exists_list rels (fun assoc ->
                    let ctx' =
@@ -971,9 +1022,25 @@ let rec infer_rule_elem tenv ntd ctx re t bound =
                          infer_rule_elem tenv ntd ctx' re' t' bound
                        ) (fun c -> c) assoc in
                    let qs = snd (List.split assoc) in
-                   let tup = tuple (typcon_variable tenv) qs in
-                   ((t =?= tup) re.rule_elem_loc
+                   let typ =
+                     if is_regexp then mk_regexp_type ()
+                     else tuple (typcon_variable tenv) qs in
+                   ((t =?= typ) re.rule_elem_loc
                     ^ ctx' c)))
+        )
+
+    | RE_choice rels when List.for_all (is_regexp_elem tenv) rels ->
+        (* If the sequence is composed purely of regexps, flatten into
+         * a single byte list, after ensuring each element is well-typed. *)
+        (fun c ->
+          ctx (exists_list rels (fun assoc ->
+                   let ctx' =
+                     List.fold_left (fun ctx' (re', t') ->
+                         infer_rule_elem tenv ntd ctx' re' t' bound
+                       ) (fun c -> c) assoc in
+                   let typ = mk_regexp_type () in
+                   ((t =?= typ) re.rule_elem_loc) ^ ctx' c
+            ))
         )
     | RE_choice rels ->
         if bound then
@@ -993,41 +1060,55 @@ let rec infer_rule_elem tenv ntd ctx re t bound =
                      ctx' c
               ))
           )
+
     | RE_star (re', None) ->
-        (* [re] has a type [list t'] where [t'] is the type of [re'] *)
+        (* [re] has a type [list t'] where [t'] is the type of [re'],
+           unless [re'] is a regexp, in which case it is flattened. *)
+        let is_regexp = is_regexp_elem tenv re' in
         (fun c ->
           ctx (exists (fun t' ->
                    let ctx' =
                      infer_rule_elem tenv ntd (fun c -> c) re' t' bound in
-                   let lst = list (typcon_variable tenv) t' in
+                   let typ = if is_regexp
+                             then mk_regexp_type ()
+                             else list (typcon_variable tenv) t' in
                    (ctx' c
-                    ^ (t =?= lst) re.rule_elem_loc))))
+                    ^ (t =?= typ) re.rule_elem_loc))))
     | RE_star (re', Some e) ->
         (* [re] has a type [list t'] where [t'] is the type of [re']
-           and [e] has type int *)
+           (unless [re'] is a regexp) and [e] has type int *)
+        let is_regexp = is_regexp_elem tenv re' in
         let int = typcon_variable tenv (TName "int") in
         (fun c ->
           ctx (exists (fun t' ->
                    let ctx' =
                      infer_rule_elem tenv ntd (fun c -> c) re' t' bound in
-                   let lst = list (typcon_variable tenv) t' in
-
+                   let typ = if is_regexp
+                             then mk_regexp_type ()
+                             else list (typcon_variable tenv) t' in
                    (ctx' c
-                    ^ (t =?= lst) re.rule_elem_loc
+                    ^ (t =?= typ) re.rule_elem_loc
                     ^ infer_expr tenv e int))))
+
     | RE_opt re' ->
-        (* [re] has a type [option t'] where [t'] is the type of [re'] *)
+        (* [re] has a type [option t'] where [t'] is the type of [re']
+           (unless [re'] is a regexp) *)
+        let is_regexp = is_regexp_elem tenv re' in
         (fun c ->
           ctx (exists (fun t' ->
                    let ctx' =
                      infer_rule_elem tenv ntd (fun c -> c) re' t' bound in
-                   let opt = option (typcon_variable tenv) t' in
+                   let typ = if is_regexp
+                             then mk_regexp_type ()
+                             else option (typcon_variable tenv) t' in
                    (ctx' c
-                    ^ (t =?= opt) re.rule_elem_loc))))
+                    ^ (t =?= typ) re.rule_elem_loc))))
+
     | RE_epsilon ->
         let u = typcon_variable tenv (TName "unit") in
         let c = (t =?= u) re.rule_elem_loc in
         pack_constraint c
+
     | RE_at_pos (e, re') ->
         (* [pos] needs to be an integer and [re'] should have type [t] *)
         let int = typcon_variable tenv (TName "int") in
