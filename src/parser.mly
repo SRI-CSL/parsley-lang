@@ -371,18 +371,29 @@ branch:
 | p=pattern ARROW e=expr
   { (p, e) }
 
+assign_lhs_expr:
+| v=ident
+  { make_expr (E_var v) $startpos $endpos }
+| e=assign_lhs_expr DOT f=ident
+  { make_expr (E_field (e, f)) $startpos $endpos }
+| e=assign_lhs_expr LBRACK i=expr RBRACK
+  { make_expr (E_binop (Index, e, i)) $startpos $endpos }
+
 stmt:
-| v=ident COLONEQ r=expr
-  { let l = make_expr (E_var v) $startpos(v) $endpos(v) in
-    make_stmt (S_assign (l, r)) $startpos $endpos }
-| e=expr DOT f=ident COLONEQ r=expr
-  { let l = make_expr (E_field (e, f)) $startpos(e) $endpos(f) in
-    make_stmt (S_assign (l, r)) $startpos $endpos }
-| e=expr LBRACK i=expr RBRACK COLONEQ r=expr
-  { let l = make_expr (E_binop(Index, e, i)) $startpos(e) $endpos(i) in
-    make_stmt (S_assign (l, r)) $startpos $endpos }
+| l=assign_lhs_expr COLONEQ r=expr
+  { make_stmt (S_assign (l, r)) $startpos $endpos }
 | LET p=pattern EQ e=expr IN s=stmt
+  { make_stmt (S_let (p, e, [s])) $startpos $endpos }
+| LET p=pattern EQ e=expr IN LBRACE s=separated_list(SEMICOLON, stmt) RBRACE
   { make_stmt (S_let (p, e, s)) $startpos $endpos }
+| LPAREN CASE e=expr OF option(BAR) c=separated_list(BAR, branchstmt) RPAREN
+  { make_stmt (S_case (e, c)) $startpos $endpos }
+
+branchstmt:
+| p=pattern ARROW s=stmt
+  { (p, [s]) }
+| p=pattern ARROW LBRACE s=separated_nonempty_list(SEMICOLON, stmt) RBRACE
+  { (p, s) }
 
 action:
 | sl=separated_list(SEMICOLON, stmt)

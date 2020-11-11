@@ -135,7 +135,21 @@ let str_of_binop = function
   | Cons -> "::" | At -> "@"
   | Index -> assert false (* needs special handling by caller *)
 
-let rec print_expr e =
+let rec print_clause (p, e) =
+  pp_print_string !ppf "| ";
+  print_pattern p;
+  pp_print_string !ppf " -> ";
+  print_expr e
+
+and print_clauses = function
+  | [] -> ()
+  | [c] -> print_clause c
+  | c :: t ->
+      print_clause c;
+      pp_print_break !ppf 1 0;
+      print_clauses t
+
+and print_expr e =
   match e.expr with
     | E_var i ->
         pp_print_string !ppf (Location.value i)
@@ -210,18 +224,6 @@ let rec print_expr e =
         print_expr d;
         pp_print_string !ppf " of ";
         pp_print_break !ppf 0 0;
-        let rec print_clause (p, e) =
-          pp_print_string !ppf "| ";
-          print_pattern p;
-          pp_print_string !ppf " -> ";
-          print_expr e in
-        let rec print_clauses = function
-          | [] -> ()
-          | [c] -> print_clause c
-          | c :: t ->
-              print_clause c;
-              pp_print_break !ppf 1 0;
-              print_clauses t in
         print_clauses clauses;
         pp_close_box !ppf ();
         pp_print_string !ppf ")"
@@ -349,7 +351,26 @@ let rec print_regexp re =
         print_list " " print_regexp res;
         pp_print_string !ppf ")"
 
-let rec print_stmt s =
+let rec print_clause (p, s) =
+  pp_print_string !ppf "| ";
+  print_pattern p;
+  pp_print_string !ppf " -> ";
+  pp_print_cut !ppf ();
+  pp_open_vbox !ppf 2;
+  pp_print_string !ppf " { ";
+  print_list "; " print_stmt s;
+  pp_print_string !ppf " }";
+  pp_close_box !ppf ()
+
+and print_clauses = function
+  | [] -> ()
+  | [c] -> print_clause c
+  | c :: t ->
+      print_clause c;
+      pp_print_break !ppf 1 0;
+      print_clauses t
+
+and print_stmt s =
   match s.stmt with
     | S_assign (l, r) ->
         print_expr l;
@@ -361,7 +382,21 @@ let rec print_stmt s =
         pp_print_string !ppf " = ";
         print_expr e;
         pp_print_string !ppf " in ";
-        print_stmt s
+        pp_print_cut !ppf ();
+        pp_open_vbox !ppf 2;
+        pp_print_string !ppf " { ";
+        print_list "; " print_stmt s;
+        pp_print_string !ppf " }";
+        pp_close_box !ppf ()
+    | S_case (d, clauses) ->
+        pp_open_vbox !ppf 2;
+        pp_print_string !ppf "(case ";
+        print_expr d;
+        pp_print_string !ppf " of ";
+        pp_print_break !ppf 0 0;
+        print_clauses clauses;
+        pp_close_box !ppf ();
+        pp_print_string !ppf ")"
 
 let print_action a =
   let (stmts, e_opt) = a.action_stmts in
@@ -380,6 +415,7 @@ let print_action a =
   (match e_opt with
      | None -> ()
      | Some e ->
+         pp_print_string !ppf ";;";
          pp_print_cut !ppf ();
          print_expr e);
   pp_print_string !ppf " }";

@@ -77,7 +77,8 @@ and expr =
 
 type stmt_desc =
   | S_assign of expr * expr
-  | S_let of pattern * expr * stmt
+  | S_let of pattern * expr * stmt list
+  | S_case of expr * (pattern * stmt list) list
 
 and stmt =
   { stmt: stmt_desc;

@@ -521,16 +521,16 @@ let rec infer_expr tenv e (t : crterm) =
             of each branch must be equal to [t]. *)
         (* TODO: exhaustiveness check of patterns *)
         exists (fun exvar ->
-            infer_expr tenv exp exvar ^
-              conj
+            infer_expr tenv exp exvar
+            ^ conj
                 (List.map
                    (fun (p, b) ->
                      let fragment = infer_pat_fragment tenv p exvar in
                      CLet ([ Scheme (p.pattern_loc, [], fragment.vars,
                                      fragment.tconstraint,
                                      fragment.gamma) ],
-                           infer_expr tenv b t))
-                   clauses))
+                           infer_expr tenv b t)
+                   ) clauses))
     | E_let (p, def, body) ->
         (** The constraint of this non-generalizing [let] makes equal
             the type of the pattern and the definiens, and requires
@@ -902,12 +902,15 @@ let rec infer_regexp tenv re t =
         ^ default
 
 let rec infer_stmt tenv s =
-   match s.stmt with
+  match s.stmt with
     | S_assign (l, r) ->
+        (** Ensure that there is a type [t'] that is compatible with
+            both sides of the assignment. *)
         exists (fun t' ->
             infer_expr tenv l t'
             ^ infer_expr tenv r t')
-    | S_let (p, def, s) ->
+    | S_let (p, def, ss) ->
+        (** Similar to E_let. *)
         exists (fun t' ->
             let fragment = infer_pat_fragment tenv p t' in
             let def_con = infer_expr tenv def t' in
@@ -915,7 +918,21 @@ let rec infer_stmt tenv s =
             ^ CLet ([ Scheme (s.stmt_loc, [], fragment.vars,
                               fragment.tconstraint,
                               fragment.gamma) ],
-                    infer_stmt tenv s))
+                    conj (List.map (infer_stmt tenv) ss)))
+    | S_case (e, clauses) ->
+        (** Similar to E_case *)
+        (* TODO: pattern exhaustiveness checks. *)
+        exists (fun t' ->
+            infer_expr tenv e t'
+            ^ conj
+                (List.map
+                   (fun (p, ss) ->
+                     let fragment = infer_pat_fragment tenv p t' in
+                     CLet ([ Scheme (p.pattern_loc, [], fragment.vars,
+                                     fragment.tconstraint,
+                                     fragment.gamma) ],
+                           conj (List.map (infer_stmt tenv) ss))
+                   ) clauses))
 
 let infer_action tenv act t =
   (* [t] can only bind the last expression if any of the sequence,
