@@ -33,7 +33,7 @@ fun cons <'a> (e: 'a, l : my_list<'a>) -> my_list<'a> = {
 format {
   DepVec dv { val: [byte] } :=
     c=Byte
-    dummy={ c }
+    dummy={ ;; c }
     v=(Byte ^ int_of_byte(c))
     { dv.val := v }
 }

@@ -1,3 +1,9 @@
+fun more_than_five(b : [byte]) -> bool = {
+  (case int_of_bytes(b) of
+   | option::Some(i) -> i > 5
+   | option::None()  -> bool::False())
+}
+
 format {
 
   // Match a byte.
@@ -10,29 +16,27 @@ format {
   Set := (# [ "0" | "5" | "9" ] #);;
 
   // Pure parser
-  Pure p { val : string } := { p.val = "A" };;
+  Pure p { val: [byte] } := { p.val := "A" };;
 
   // Sequencing and Selection
-  ABC1 p {a:string} := !"Helo"! v=!"ABC"! {p.a := v};;
-  ABC2 p {b:string} := a=!"Helo"! b=!"ABC"! {p.b := String.concat(a, b)};;
+  ABC1 p {a: [byte]} := !"Helo"! v=!"ABC"! {p.a := v};;
+  ABC2 p {b: [byte]} := a=!"Helo"! b=!"ABC"! {p.b := List.concat(a, b)};;
 
-  // Select p {p:typ} := P q=Q R {p.p := q};;
+  // Select p {p: typ} := P q=Q R {p.p := q};;
 
   // Local variables
-  Add a {sum:int} := x=Byte !"+"! y=Byte
+  Add a {sum: int} := x=Byte !"+"! y=Byte
     {a.sum := int_of_byte(x) + int_of_byte(y)};;
 
   // Structuring
-  Struct s {x:int, y:string} := x=Byte y=!"Hello"!
+  Struct s {x: int, y: [byte]} := x=Byte y=!"Hello"!
     {s.x := int_of_byte(x); s.y := y};;
 
   // Constraints
-  C p {c:string} :=
+  C p {c:[byte]} :=
       i=(# [ "0" .. "9" ] #)
-      (([(case String.to_int(i) of
-          | option::Some(v) -> v > 5
-          | option::None()  -> bool::False())] { p.c := "gt 5" })
-       | { p.c := "leq 5 or not int" }
+      (([more_than_five(i)] { p.c := "gt 5" })
+        | { p.c := "leq 5 or not int" }
       );;
 
   // Example of a common dependent type:

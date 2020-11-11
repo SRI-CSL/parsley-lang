@@ -146,10 +146,12 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
                                       (gen_tvar "int"));
       (Ast.DName "byte_of_int_unsafe", [], arrow_type (gen_tvar "int")
                                              (gen_tvar "byte"));
-      (Ast.DName "string_of_bytes", [], arrow_type (list_type (gen_tvar "byte"))
-                                          (opt_type (gen_tvar "string")));
       (Ast.DName "int_of_string", [], arrow_type (gen_tvar "string")
                                         (opt_type (gen_tvar "int")));
+      (Ast.DName "int_of_bytes", [], arrow_type (list_type (gen_tvar "byte"))
+                                       (opt_type (gen_tvar "int")));
+      (Ast.DName "int_of_bytes_unsafe", [], arrow_type (list_type (gen_tvar "byte"))
+                                              (gen_tvar "int"));
     |] in
   let builtin_modules : builtin_module list = [
       { mod_name   = Ast.MName "List";
@@ -186,6 +188,7 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
       };
       { mod_name   = Ast.MName "String";
         mod_values = [
+            (Ast.DName "empty", [], gen_tvar "string");
             (Ast.DName "concat", [],
              arrow_type (gen_tvar "string")
                (arrow_type (gen_tvar "string")
@@ -196,6 +199,9 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
             (Ast.DName "to_bytes", [],
              arrow_type (gen_tvar "string")
                (list_type (gen_tvar "byte")));
+            (Ast.DName "from_bytes", [],
+             arrow_type (list_type (gen_tvar "byte"))
+               (opt_type (gen_tvar "string")));
           ];
       };
       { mod_name   = Ast.MName "Window";

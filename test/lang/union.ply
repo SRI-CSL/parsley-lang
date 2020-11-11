@@ -1,9 +1,9 @@
 // Case / unions
 
-type choice = Good of string | Bad of string
+type choice = Good of [byte] | Bad of [byte]
 
 format {
-  Chk r {v:string} :=
+  Chk r {v: [byte]} :=
     (| res : choice |)
     ( !"G"! { res := choice::Good("G") }
     | !"B"! { res := choice::Bad("B") }

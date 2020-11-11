@@ -2,27 +2,27 @@ format {
   P1 := (# ["0" .. "9"]* #);;
   P2 := (# ["0" .. "9"]* #);;
 
-  ParseTwice pt { p1: string, p2: string} :=
-    w={ Window.get_current() }
+  ParseTwice pt { p1: [byte], p2: [byte]} :=
+    w={ ;; Window.get_current() }
     p1=@[w, P1]
     p2=@[w, P2]
     { pt.p1 := p1; pt.p2 := p2 }
 }
 
 format {
-  LetterFill lf (n : int) {s: string} :=
-    w = { Window.restrict(Window.get_current(), 0, n) }
-    next = { Window.restrict_from(w, n) }
+  LetterFill lf (n : int) {s: [byte]} :=
+    w = { ;; Window.restrict(Window.get_current(), 0, n) }
+    next = { ;; Window.restrict_from(w, n) }
     s=@[w, (# ["0" .. "9"]* [" "]* #)]
     { lf.s := s }
-    { Window.make_current(next) }
+    { ;; Window.make_current(next) }
 }
 
 format {
   OffsetTest ot {a: int, b:int} :=
-    a={ Window.get_current_offset() }
+    a={ ;; Window.get_current_offset() }
     !"AA"!
-    b={ Window.get_current_offset() }
+    b={ ;; Window.get_current_offset() }
     { ot.a := a; ot.b := b }
 }
 
