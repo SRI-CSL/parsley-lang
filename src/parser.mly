@@ -372,6 +372,9 @@ branch:
   { (p, e) }
 
 stmt:
+| v=ident COLONEQ r=expr
+  { let l = make_expr (E_var v) $startpos(v) $endpos(v) in
+    make_stmt (S_assign (l, r)) $startpos $endpos }
 | e=expr DOT f=ident COLONEQ r=expr
   { let l = make_expr (E_field (e, f)) $startpos(e) $endpos(f) in
     make_stmt (S_assign (l, r)) $startpos $endpos }
