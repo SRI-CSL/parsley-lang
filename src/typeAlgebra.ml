@@ -142,18 +142,42 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
                                         (arrow_type (gen_tvar "int")
                                            (gen_tvar "a")));
       (* utility convertors *)
-      (Ast.DName "int_of_byte", [], arrow_type (gen_tvar "byte")
-                                      (gen_tvar "int"));
       (Ast.DName "byte_of_int_unsafe", [], arrow_type (gen_tvar "int")
                                              (gen_tvar "byte"));
-      (Ast.DName "int_of_string", [], arrow_type (gen_tvar "string")
-                                        (opt_type (gen_tvar "int")));
-      (Ast.DName "int_of_bytes", [], arrow_type (list_type (gen_tvar "byte"))
-                                       (opt_type (gen_tvar "int")));
-      (Ast.DName "int_of_bytes_unsafe", [], arrow_type (list_type (gen_tvar "byte"))
-                                              (gen_tvar "int"));
     |] in
   let builtin_modules : builtin_module list = [
+      { mod_name   = Ast.MName "Int";
+        mod_values = [
+            (Ast.DName "of_byte", [],
+             arrow_type (gen_tvar "byte")
+               (gen_tvar "int"));
+            (Ast.DName "of_string", [],
+             arrow_type (gen_tvar "string")
+               (opt_type (gen_tvar "int")));
+            (Ast.DName "of_bytes", [],
+             arrow_type (list_type (gen_tvar "byte"))
+               (opt_type (gen_tvar "int")));
+            (Ast.DName "of_bytes_unsafe", [],
+             arrow_type (list_type (gen_tvar "byte"))
+               (gen_tvar "int"));
+          ];
+      };
+      { mod_name   = Ast.MName "Double";
+        mod_values = [
+            (Ast.DName "of_byte", [],
+             arrow_type (gen_tvar "byte")
+               (gen_tvar "double"));
+            (Ast.DName "of_string", [],
+             arrow_type (gen_tvar "string")
+               (opt_type (gen_tvar "double")));
+            (Ast.DName "of_bytes", [],
+             arrow_type (list_type (gen_tvar "byte"))
+               (opt_type (gen_tvar "double")));
+            (Ast.DName "of_bytes_unsafe", [],
+             arrow_type (list_type (gen_tvar "byte"))
+               (gen_tvar "double"));
+          ];
+      };
       { mod_name   = Ast.MName "List";
         mod_values = [
             (Ast.DName "length", [ TName "a" ],

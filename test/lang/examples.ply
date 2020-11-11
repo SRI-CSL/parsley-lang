@@ -1,5 +1,5 @@
 fun more_than_five(b : [byte]) -> bool = {
-  (case int_of_bytes(b) of
+  (case Int.of_bytes(b) of
    | option::Some(i) -> i > 5
    | option::None()  -> bool::False())
 }
@@ -26,11 +26,11 @@ format {
 
   // Local variables
   Add a {sum: int} := x=Byte !"+"! y=Byte
-    {a.sum := int_of_byte(x) + int_of_byte(y)};;
+    {a.sum := Int.of_byte(x) + Int.of_byte(y)};;
 
   // Structuring
   Struct s {x: int, y: [byte]} := x=Byte y=!"Hello"!
-    {s.x := int_of_byte(x); s.y := y};;
+    {s.x := Int.of_byte(x); s.y := y};;
 
   // Constraints
   C p {c:[byte]} :=
@@ -42,9 +42,9 @@ format {
   // Example of a common dependent type:
   // 'c' captures a byte that represents the length of a vector of
   // bytes, captured by 'v'.  The conversion of 'c' into the integer length
-  // value is done by the library function int_of_byte().
+  // value is done by the library function Int.of_byte().
   DepVec dv { vec: [byte] } :=
-    c=Byte v=(Byte ^ int_of_byte(c))
+    c=Byte v=(Byte ^ Int.of_byte(c))
     { dv.vec := v }
 }
 
@@ -59,14 +59,14 @@ format {
     { nt.t := c } ;;
 
   DepNTVec dv { depvec: [byte] } :=
-    c=Byte v=(NonTerm ^ int_of_byte(c))
+    c=Byte v=(NonTerm ^ Int.of_byte(c))
     { dv.depvec := List.map(byte_of_recd, v) } ;;
 
   // The dependent count can be an attribute of a previously parsed
   // non-terminal.
 
   NTDepNTVec dv { depntvec: [byte] } :=
-    c=NonTerm v=(NonTerm ^ int_of_byte(c.t))
+    c=NonTerm v=(NonTerm ^ Int.of_byte(c.t))
     { dv.depntvec := List.map(byte_of_recd, v) }
 
 }

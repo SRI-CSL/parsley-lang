@@ -18,8 +18,8 @@ format {
   TLV t { val: tlv } :=
     tag=Byte len=Byte v=(Byte ^ byte_to_int(len))
 
-    ( [int_of_byte(tag) = 1] { t.val := tlv::TTL(ttl_to_int(v))   }
-    | [int_of_byte(tag) = 2] { t.val := tlv::Port(port_to_int(v)) }
+    ( [Int.of_byte(tag) = 1] { t.val := tlv::TTL(ttl_to_int(v))   }
+    | [Int.of_byte(tag) = 2] { t.val := tlv::Port(port_to_int(v)) }
     |           { t.val := tlv::Unknown(tag, v)      }
     )
 }

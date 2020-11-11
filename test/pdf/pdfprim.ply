@@ -6,24 +6,24 @@
 // The Parsley definitions essentially use regular expression syntax,
 // except for LitString, which implements a simple CFG.
 
-fun normalize_name (s : string) -> string = {
+fun normalize_name (s : [byte]) -> string = {
   // TODO
-  s
+  String.empty
 }
 
 format {
 
   // Parsers are provided in the standard library for primitives
-  // such as Char for ASCII characters, U8 for unsigned bytes, etc.
+  // such as AsciiChar for ASCII characters, U8 for unsigned bytes, etc.
 
-  // We use syntax like (Char \ "(") for set difference.  To specify
+  // We use syntax like (AsciiChar \ "(") for set difference.  To specify
   // literals directly in a production, we quote them within a matched
   // !! pair.  Regular expression constructions need to be enclosed
   // within (# #), and when bound to an identifier have a byte-vector
   // value.
 
   // The 'Comment' non-terminal will have a byte vector type.
-  Comment := !"%"! (# [Char \ "\n" ]* #) !"\n"!;;
+  Comment := !"%"! (# [AsciiCharS \ "\n" ]* #) !"\n"!;;
 
   // The 'Whitespace' non-terminal has a boolean inherited attribute
   // 'allow_empty', which is used within constraint expressions that
@@ -37,15 +37,15 @@ format {
 
   // The 'Name' non-terminal has a synthesized attribute 'val' that
   // contains the string-valued name without the leading '/'.
-  Name n {val : string} :=
-    !"/"! s=Alphanum+
-    { n.val := normalize_name(s) }
+  Name n { nm : string } :=
+    !"/"! s=AlphaNumS+
+    { n.nm := normalize_name(s) }
   ;;
 
-  Boolean b {val : bool} :=
-    !"true"!  { b.val := true }
+  Boolean b {b : bool} :=
+    !"true"!  { b.b := bool::True() }
   ;
-    !"false"! { b.val := false }
+    !"false"! { b.b := bool::False() }
   ;;
 
   Null := !"null"!;;
@@ -61,37 +61,37 @@ format {
        ["endstream"] #)
     { rs.bytes := b } ;;
 
-  HexString hs {val : [byte]} :=
+  HexString hs {hs : [byte]} :=
     !"<"!
     ( h1=HexChar h2=HexChar
-      { hs.val := (int_of_hex(h1)*16 + int_of_hex(h2)) :: hs.val }
+      { hs.hs := byte_of_int_unsafe((Int.of_byte(h1)*16 + Int.of_byte(h2))) :: hs.hs }
     )*
 
     ( h=HexChar
-      { hs.val := int_of_hex(h1) * 16 :: hs.val}
+      { hs.hs := byte_of_int_unsafe(Int.of_byte(h1) * 16) :: hs.hs}
     )?
     !">"!
-    { hs.val := List.rev(hs.val) }
+    { hs.hs := List.rev(hs.hs) }
     ;;
 
   // The below syntax essentially implements a simple CFG for strings with
   // balanced parentheses, using recursion.
-  LitString ls { val : [byte] } :=
+  LitString ls { ls : [byte] } :=
       !"("!
-        prefix=(# [Char \ "("]* #)
+        prefix=(# [AsciiCharS \ "("]* #)
         n=LitString
-        suffix=(# [Char \ "("]* #)
+        suffix=(# [AsciiCharS \ "("]* #)
       !")"!
-       { ls.val := ")" + prefix + n.val + suffix + ")" } ;
+       { ls.ls := "(" @ prefix @ n.ls @ suffix @ ")" } ;
 
-      (# ["("] #)
-        prefix=(# [Char \ "("]* #)
+      !"("!
+        prefix=(# [AsciiCharS \ "("]* #)
         p=LitString
-        midfix=(# [Char \ "("]* #)
+        midfix=(# [AsciiCharS \ "("]* #)
         q=LitString
-        suffix=(# [Char \ "("]* #)
+        suffix=(# [AsciiCharS \ "("]* #)
       !")"!
-      { ls.val := "(" + prefix + p.val + midfix + q.val + ")" } ;
+      { ls.ls := "(" @ prefix @ p.ls @ midfix @ q.ls @ suffix @ ")" } ;
 
       $epsilon                   // Parsley keyword
 
@@ -99,31 +99,33 @@ format {
 
   // A PDF String is one of the above two string objects.
   String s {val : [byte]} :=
-    h=HexString { s.val := h.val }
+    h=HexString { s.val := h.hs }
   ;
-    l=LitString { s.val := l.val }
+    l=LitString { s.val := l.ls }
   ;;
 
-  // int_of_string() is a function in the Parsley standard library.
-  Integer i { val : int } :=
-    n=(# Digit+ #)             { i.val := int_of_string(n)  }
+  // Int.of_bytes() is a function in the Parsley standard library.
+  // The _unsafe() version could be used if since we can be certain
+  // that the string indeed contains a value convertible to an integer.
+  Integer i { i : int } :=
+    n=(# DigitS+ #)             { i.i := Int.of_bytes_unsafe(n)  }
   ;
-    !"-"! n=(# Digit+ #) { i.val := -int_of_string(n) }
+    !"-"! n=(# DigitS+ #) { i.i := -Int.of_bytes_unsafe(n) }
   ;;
 
   // TODO: we might need to have a user-defined type for PDF reals,
   // since they are not defined in terms of IEEE 754.
-  Real r { val : double } :=
-    n=(# Digit+ #)
-    { val := double_of_string(n)  }
+  Real r { r : double } :=
+    n=(# DigitS+ #)
+    { r.r := Double.of_bytes_unsafe(n)  }
   ;
-    !"-"! n=(# Digit+ #)
-    { val := -double_of_string(n) }
+    !"-"! n=(# DigitS+ #)
+    { r.r := Double.of_bytes_unsafe("-" @ n) }
   ;
-    n=(# Digit+ #) !"."! f=(# Digit+ #)
-    { val :=  double_of_string(n + "." + f) }
+    n=(# DigitS+ #) !"."! f=(# DigitS+ #)
+    { r.r := Double.of_bytes_unsafe(n @ "." @ f) }
   ;
-    !"-"!  n=(# Digit+ #) !"."! f=(# Digit+ #)
-    { val := -double_of_string(n + "." + f) }
+    !"-"!  n=(# DigitS+ #) !"."! f=(# DigitS+ #)
+    { r.r := Double.of_bytes_unsafe("-" @ n @ "." @ f) }
 
 }
