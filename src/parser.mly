@@ -378,6 +378,9 @@ stmt:
 | e=expr DOT f=ident COLONEQ r=expr
   { let l = make_expr (E_field (e, f)) $startpos(e) $endpos(f) in
     make_stmt (S_assign (l, r)) $startpos $endpos }
+| e=expr LBRACK i=expr RBRACK COLONEQ r=expr
+  { let l = make_expr (E_binop(Index, e, i)) $startpos(e) $endpos(i) in
+    make_stmt (S_assign (l, r)) $startpos $endpos }
 | LET p=pattern EQ e=expr IN s=stmt
   { make_stmt (S_let (p, e, s)) $startpos $endpos }
 
