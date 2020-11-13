@@ -96,9 +96,9 @@ let print_type_decl td =
   pp_print_string !ppf " : ";
   print_kind td.type_decl_kind;
   pp_print_string !ppf " = ";
+  print_type_rep td.type_decl_body;
   pp_close_box !ppf ();
   pp_print_cut !ppf ();
-  print_type_rep td.type_decl_body;
   pp_print_newline !ppf ()
 
 let rec print_pattern p =

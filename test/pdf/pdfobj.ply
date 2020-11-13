@@ -2,33 +2,31 @@
 
 use pdfprim
 
-// Dummy map definition (to be defined in prelude, but here until
-// modules and backend-syntax work).
-type map('a, 'b) = [('a, 'b)]
-
-// Since we are using the PDFObj non-terminal below before its
-// definition, we need to declare it.
-nterm {PDFObj}
-
 // The expression sublanguage for semantic actions has access to a
 // Parsley standard library, which contains maps, lists, vectors,
 // sets, etc.  These will be used below.
 
-// This maps object identifiers to their objects.
-type obj_ctxt = map<(int, int), indirectT>
-
-type obj_type =
-   Dict of dictT
- | Array of arrayT
- | Stream of streamT
- | Reference of referenceT
- | Boolean of booleanT
- | Real of realT
- | Integer of integerT
- | String of stringT
- | Name of nameT
+// The type of the basic COS object.
+type basic_obj =
+ | Dict of map<string, basic_obj>
+ | Array of [basic_obj]
+ | Stream of (map<string, basic_obj>, [byte])
+ | Reference of (int, int)
+ | Boolean of bool
+ | Real of double
+ | Integer of int
+ | String of [byte]
+ | Name of string
  | Null
 
+// The type of the indirect object.
+type indirect_obj =
+ { oid: int,
+   ogen: int,
+   obj: basic_obj }
+
+// The parsing context maps object identifers to indirect objects.
+type parse_ctxt = map<(int, int), basic_obj>
 
 format {
 
@@ -37,101 +35,108 @@ format {
   // content between the entities of the production, and not within
   // them.
   #[whitespace(Whitespace:allow_empty=true)]
-  Dict d {val : map<string, obj_type>} :=
+  Dict d {d: map<string, basic_obj>} :=
     // Temporary variable introduced while parsing this production.
     (| s : set<string> |)
 
     !"<<"!
     ( n=Name
-      [ !s.contains(n.val) ]
+      [ !Set.mem(s, n.nm) ]
       o=PDFObj
-      { d.val[n.val] := o;
-        s := Set.add(s, n.val) }
+      { d.d := Map.add(d.d, n.nm, o.o);
+        s := Set.add(s, n.nm) }
     )*
     !">>"!
   ;;
 
+  // Whitespace is not needed to demarcate the objects.
   #[whitespace(Whitespace:allow_empty=true)]
-  Array a {val : [obj_type]} :=
+  Array a {a: [basic_obj]} :=
     !"["!
     ( o=PDFObj
-      { a.val := List.append(a.val, o) }
+      { a.a := o.o :: a.a }
     )*
     !"]"!
+    { a.a := List.rev(a.a) } // restore original ordering
   ;;
 
-  #[whitespace(Whitespace:allow_empty=true)]
+  // Whitespace is needed to separate these tokens.
+  #[whitespace(Whitespace:allow_empty=false)]
   Reference r {id : int, gen : int} :=
-    n=Integer [ n.val >  0 ]
-    g=Integer [ g.val >= 0 ]
+    n=Integer [ n.i >  0 ]
+    g=Integer [ g.i >= 0 ]
     !"R"!
-    { r.id  := n.val;
-      r.gen := g.val }
-  ;;
-
-  #[whitespace(Whitespace:allow_empty=true)]
-  Stream s {dict : dictT, stream : [byte]} :=
-    d=Dict
-    s=RawStream
-    [ d.val.contains("Length") && d.val["Length"] ~~ obj_type::Integer ]
-    [ (case d.val["Length"] of
-       | obj::Integer(i) -> s.val.length() = i.val
-       | _               -> false
-      )
-    ]
-    { dict   := d;
-      stream := s.bytes }
+    { r.id  := n.i;
+      r.gen := g.i }
   ;;
 
   // Note that the PDFObj parsing rule does not parse Streams.
-  PDFObj {val : obj_type} :=
+  PDFObj p {o : basic_obj} :=
     d=Dict
-    { val := obj_type::Dict(d) }
+    { p.o := basic_obj::Dict(d.d) }
   ;
     a=Array
-    { val := obj_type::Array(a) }
+    { p.o := basic_obj::Array(a.a) }
   ;
-    r=ReferenceObj
-    { val := obj_type::Reference(r) }
+    r=Reference
+    { p.o := basic_obj::Reference((r.id, r.gen)) }
   ;
     b=Boolean
-    { val := obj_type::Boolean(b) }
+    { p.o := basic_obj::Boolean(b.b) }
   ;
     r=Real
-    { val := obj_type::Real(r) }
+    { p.o := basic_obj::Real(r.r) }
   ;
     i=Integer
-    { val := obj_type::Integer(i) }
+    { p.o := basic_obj::Integer(i.i) }
   ;
     s=String
-    { val := obj_type::String(s) }
+    { p.o := basic_obj::String(s.s) }
   ;
     n=Name
-    { val := obj_type::Name(n) }
+    { p.o := basic_obj::Name(n.nm) }
   ;
     n=Null
-    { val := obj_type::Null() }
+    { p.o := basic_obj::Null() }
+
+  ;;
+
+  #[whitespace(Whitespace:allow_empty=true)]
+  Stream s {dict : map<string, basic_obj>, stream : [byte]} :=
+    d=Dict
+    [ let key = String.of_bytes_unsafe("Length") in
+      Map.mem(d.d, key)
+      && Map.find_unsafe(d.d, key) ~~ basic_obj::Integer ]
+    len={ ;;
+          let key = String.of_bytes_unsafe("Length") in
+          let basic_obj::Integer(len) = Map.find_unsafe(d.d, key) in
+          len }
+    rs=RawStream<len = len>
+    { s.dict   := d.d;
+      s.stream := rs.bytes }
   ;;
 
   // Indirect object parsers get an inherited attribute of the current
-  // context, which contains the indirect objects parsed so far.
-  // This is used to forbid duplicates.
+  // context, which contains the indirect objects parsed so far.  This
+  // is used to forbid duplicates.
   #[whitespace(Whitespace:allow_empty=true)]
-  Indirect i (ctxt : obj_ctxt)
-             {id : int, gen : int, obj : obj_type}
-  :=
-    n=Integer [ n.val >  0 ]
-    g=Integer [ g.val >= 0 ]
-    [ !i.ctxt.contains((n.val, g.val)) ] // Forbid duplicate definition.
+  Indirect i (ctxt : map<(int, int), basic_obj>)
+             {indirect_obj} :=
+    n=Integer [ n.i >  0 ]
+    g=Integer [ g.i >= 0 ]
+    [ !Map.mem(ctxt, (n.i, g.i)) ] // Forbid duplicate definition.
+
     !"obj"!
-      // Note the special rule for parsing Streams, since they can only be
-      // indirect objects.
-      ( s=Stream { i.obj := obj_type::Stream(s) }
-      | o=PDFObj { i.obj := o }
-      )
+    // Parse the basic object.  Note the special rule for parsing
+    // Streams, since they can only be indirect objects.
+    ( s=Stream { i.obj := basic_obj::Stream((s.dict, s.stream)) }
+    | o=PDFObj { i.obj := o.o }
+    )
     !"endobj"!
-    { i.id  := n;
-      i.gen := g;
-      // register the object in the context
-      i.ctxt := Map.extend(i.ctxt, (n.val, g.val), i.obj) }
+
+    // Set the identifiers, and register the object in the context.
+    { i.oid  := n.i;
+      i.ogen := g.i;
+      ctxt   := Map.add(ctxt, (n.i, g.i), i.obj) }
+
 }

@@ -231,6 +231,13 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
              arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
                (arrow_type (gen_tvar "a")
                   (gen_tvar "bool")));
+            (Ast.DName "find", [ TName "a" ; TName "b" ],
+             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
+               (arrow_type (gen_tvar "a")
+                  (opt_type (gen_tvar "b"))));
+            (Ast.DName "find_unsafe", [ TName "a" ; TName "b" ],
+             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
+               (arrow_type (gen_tvar "a") (gen_tvar "b")));
           ];
       };
       { mod_name   = Ast.MName "String";
@@ -246,9 +253,12 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
             (Ast.DName "to_bytes", [],
              arrow_type (gen_tvar "string")
                (list_type (gen_tvar "byte")));
-            (Ast.DName "from_bytes", [],
+            (Ast.DName "of_bytes", [],
              arrow_type (list_type (gen_tvar "byte"))
                (opt_type (gen_tvar "string")));
+            (Ast.DName "of_bytes_unsafe", [],
+             arrow_type (list_type (gen_tvar "byte"))
+               (gen_tvar "string"));
           ];
       };
       { mod_name   = Ast.MName "Window";

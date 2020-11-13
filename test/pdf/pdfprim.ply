@@ -14,7 +14,7 @@ fun normalize_name (s : [byte]) -> string = {
 format {
 
   // Parsers are provided in the standard library for primitives
-  // such as AsciiChar for ASCII characters, U8 for unsigned bytes, etc.
+  // such as AsciiChar for ASCII characters, Byte for unsigned bytes, etc.
 
   // We use syntax like (AsciiChar \ "(") for set difference.  To specify
   // literals directly in a production, we quote them within a matched
@@ -98,10 +98,10 @@ format {
     ;;
 
   // A PDF String is one of the above two string objects.
-  String s {val : [byte]} :=
-    h=HexString { s.val := h.hs }
+  String s {s : [byte]} :=
+    h=HexString { s.s := h.hs }
   ;
-    l=LitString { s.val := l.ls }
+    l=LitString { s.s := l.ls }
   ;;
 
   // Int.of_bytes() is a function in the Parsley standard library.
