@@ -564,7 +564,7 @@ pre_decl:
 | USE LBRACE m=separated_list(COMMA, ident) RBRACE
   { PDecl_use (make_use m $startpos $endpos) }
 | l=type_decls
-  { PDecl_types l }
+  { PDecl_types (l, Location.mk_loc $startpos $endpos) }
 | FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
   { PDecl_fun (make_fun_defn f false [] p r e $startpos $endpos) }
 | FUN f=ident LT tvs=separated_list(COMMA, TVAR) GT

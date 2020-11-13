@@ -61,6 +61,10 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
     let tvar  = Location.mk_loc_val "set" ghost_loc in
     let con = make_builtin_type (Ast.TE_tvar tvar) in
     make_builtin_type (Ast.TE_tapp (con, [ t ])) in
+  let map_type k v : Ast.type_expr =
+    let tvar  = Location.mk_loc_val "map" ghost_loc in
+    let con = make_builtin_type (Ast.TE_tvar tvar) in
+    make_builtin_type (Ast.TE_tapp (con, [ k; v ])) in
   let gen_tvar (v : string) : Ast.type_expr =
     let tvar = Location.mk_loc_val v ghost_loc in
     make_builtin_type (Ast.TE_tvar tvar) in
@@ -100,6 +104,10 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
       (* module types *)
       TName "view",   (Ast.KStar, []);
       TName "set",    ((Ast.KArrow (Ast.KStar, Ast.KStar)), []);
+      TName "map",    ((Ast.KArrow
+                          (Ast.KStar,
+                           (Ast.KArrow (Ast.KStar, Ast.KStar)))),
+                       []);
     |] in
   let builtin_consts : builtin_dataconstructor array = [|
       (Ast.DName "1-", [], arrow_type (gen_tvar "int") (gen_tvar "int"));
@@ -206,6 +214,21 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
                   (set_type (gen_tvar "a"))));
             (Ast.DName "mem", [ TName "a" ],
              arrow_type (set_type (gen_tvar "a"))
+               (arrow_type (gen_tvar "a")
+                  (gen_tvar "bool")));
+          ];
+      };
+      { mod_name   = Ast.MName "Map";
+        mod_values = [
+            (Ast.DName "empty", [ TName "a"; TName "b" ],
+             (map_type (gen_tvar "a") (gen_tvar "b")));
+            (Ast.DName "add", [ TName "a"; TName "b" ],
+             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
+               (arrow_type (gen_tvar "a")
+                  (arrow_type (gen_tvar "b")
+                     (map_type (gen_tvar "a") (gen_tvar "b")))));
+            (Ast.DName "mem", [ TName "a" ; TName "b" ],
+             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
                (arrow_type (gen_tvar "a")
                   (gen_tvar "bool")));
           ];

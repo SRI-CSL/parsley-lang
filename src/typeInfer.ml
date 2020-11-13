@@ -282,80 +282,125 @@ let check_valid_type_defn tenv t qs defn =
 (** Constraint contexts. *)
 type context = tconstraint -> tconstraint
 
-(** [infer_type_decl examines a type declaration [td] within a
-   typing environment [tenv] and a constraint context [ctxt], and
-   returns updated typing and constraint contexts
- *)
-let infer_type_decl tenv ctxt td =
-  let ident = td.type_decl_ident in
-  let name  = Location.value ident
-  and kind  = td.type_decl_kind
+(** A set of possibly mutually recursive type definitions are
+   processed as follows:
+
+ . each type constructor and its kind in the set is registered in the
+   environment without any [adt_info], but a set of references is
+   collected which point to where their [adt_info] can be updated
+   later.
+
+ . the [type_rep] of each constructor is now processed in this
+   environment, and the computed [adt_info] is registered using the
+   reference for that constructor collected above.
+*)
+
+let rec infer_type_decls tenv ctxt tdsloc tds =
+  let tenv', tdsrefs, vs =
+    List.fold_left (fun (tenv, tdsrefs, vs) td ->
+        let name  = Location.value td.type_decl_ident in
+        let loc   = td.type_decl_loc in
+        let kind  = td.type_decl_kind in
+        let kenv  = as_kind_env tenv in
+        let k     = KindInferencer.intern_kind kenv kind in
+        let v     = variable ~name:(TName name) Constant () in
+        let adt   = ref None in
+        let tenv' =
+          add_type_constructor tenv loc (TName name) (k, v, adt) in
+        tenv', (td, adt) :: tdsrefs, v :: vs
+      ) (tenv, [], []) tds in
+  (* These types and their constructors/destructors need to be placed
+     in the same let binding set, so collect all the variables and
+     bindings involved before creating the context. *)
+  let tenv, rqs, let_env =
+    List.fold_left (fun (tenv, rqs, let_env) (td, adt_ref) ->
+        infer_type_decl (tenv, rqs, let_env) td adt_ref
+      ) (tenv', [], StringMap.empty) tdsrefs in
+  (* Now construct the new constraint context.*)
+  let ctxt =
+    (fun c ->
+      ctxt (
+          (* Universally quantify the type constructor variables in an
+             outer context.*)
+          fl ~pos:tdsloc vs
+            (* Construct the let binding environment for the
+               data constructors and destructors. *)
+            (CLet ([Scheme (tdsloc, rqs, [],
+                            CTrue tdsloc,
+                            let_env)],
+                   (* Place the input constraint under these bindings.*)
+                   c))
+    )) in
+  tenv, ctxt
+
+(* Perform the second step of type declaration processing: the body of
+   each type declaration is processed and added to the environment
+   created in the first step.  This step collects the variables and
+   bindings needed for the final constraint context for the recursive
+   definitions.
+*)
+and infer_type_decl (tenv, rqs, let_env) td adt_ref =
+  let ident = td.type_decl_ident
+  and loc   = td.type_decl_loc
   and tvars = td.type_decl_tvars
-  and pos   = td.type_decl_loc
-  and adt   = ref None in
-  let ikind = KindInferencer.intern_kind (as_kind_env tenv) kind in
-  let register_tycon ctx ?structure () =
-    let ivar  = variable ~name:(TName name) ?structure Constant () in
-    let tenv  = add_type_constructor tenv pos (TName name) (ikind, ivar, adt) in
-    let ctxt' = (fun c ->
-        ctx (CLet ([Scheme (pos, [ivar], [], c, StringMap.empty)],
-                   CTrue pos))) in
-    (tenv, ctxt') in
-  let typ   = td.type_decl_body in
+  and typ   = td.type_decl_body in
+  let name  = Location.value ident in
   check_distinct_tvars ident tvars;
-  let tenv, rqs, let_env, ctxt' =
-    match typ.type_rep with
-      | TR_variant dcons ->
-          let dcons =
-            List.map (function
-                | d, None ->
-                    d, None
-                | d, Some te ->
-                    d, Some (AstUtils.expand_type_abbrevs tenv te)
-              ) dcons in
-          let tenv, ctxt = register_tycon ctxt () in
-          let tenv, ids, rqs, let_env =
-            List.fold_left
-              (intern_data_constructor false ident tvars)
-              (tenv, [], [], StringMap.empty)
-              dcons in
-          adt := Some { adt = Variant ids;
-                        loc = pos };
-          tenv, rqs, let_env, ctxt
-      | TR_record fields ->
-          let fields =
-            List.map (fun (f, te) ->
-                f, AstUtils.expand_type_abbrevs tenv te
-              ) fields in
-          let tenv, ctxt = register_tycon ctxt () in
-          let tenv, dids, drqs, let_env =
-            List.fold_left
-              (intern_field_destructor ident tvars)
-              (tenv, [], [], StringMap.empty)
-              fields in
-          let tenv, cid, crqs, let_env =
-            intern_record_constructor ident tvars
-              (tenv, let_env) fields in
-          let fields, _ = List.split fields in
-          adt := Some { adt = Record { adt = ident;
-                                       fields;
-                                       record_constructor = cid;
-                                       field_destructors = dids };
-                        loc = pos };
-          tenv, drqs @ crqs, let_env, ctxt
-      | TR_defn d ->
-          let d' = AstUtils.expand_type_abbrevs tenv d in
-          check_valid_type_defn tenv ident tvars d';
-          let tvs =
-            List.map (fun tv -> TName (Location.value tv)) tvars in
-          let abb = { type_abbrev_tvars = tvs;
-                      type_abbrev_type = d' } in
-          let tenv' = add_type_abbrev tenv pos (TName name) abb in
-          tenv', [], StringMap.empty, ctxt in
-  let ctxt = (fun c ->
-      ctxt' (CLet ([Scheme (pos, rqs, [], CTrue pos, let_env)],
-                   c))) in
-  (tenv, ctxt)
+  match typ.type_rep with
+    | TR_variant dcons ->
+        (* First expand any type abbreviations in the signatures *)
+        let dcons =
+          List.map (function
+              | d, None ->
+                  d, None
+              | d, Some te ->
+                  d, Some (AstUtils.expand_type_abbrevs tenv te)
+            ) dcons in
+        (* Add the constructor signatures to the environment *)
+        let tenv, ids, rqs, let_env =
+          List.fold_left
+            (* [false] indicates this is user-specified *)
+            (intern_data_constructor false ident tvars)
+            (tenv, [], rqs, let_env)
+            dcons in
+        (* Fill in the adt_info *)
+        adt_ref := Some { adt = Variant ids; loc };
+        tenv, rqs, let_env
+    | TR_record fields ->
+        (* First expand any type abbreviations in the signatures *)
+        let fields =
+          List.map (fun (f, te) ->
+              f, AstUtils.expand_type_abbrevs tenv te
+            ) fields in
+        (* Add the record and field signatures into the environment *)
+        let tenv, dids, drqs, let_env =
+          List.fold_left
+            (intern_field_destructor ident tvars)
+            (tenv, [], rqs, let_env)
+            fields in
+        let tenv, cid, crqs, let_env =
+          intern_record_constructor ident tvars
+            (tenv, let_env) fields in
+        let fields, _ = List.split fields in
+        (* Fill in the adt_info *)
+        adt_ref := Some { adt = Record { adt = ident;
+                                         fields;
+                                         record_constructor = cid;
+                                         field_destructors = dids };
+                          loc };
+        tenv, crqs @ drqs, let_env
+    | TR_defn d ->
+        (* First expand any type abbreviations in this abbreviation *)
+        let d' = AstUtils.expand_type_abbrevs tenv d in
+        (* Check validity of this type expression *)
+        check_valid_type_defn tenv ident tvars d';
+        (* Add it to the environment *)
+        let tvs =
+          List.map (fun tv -> TName (Location.value tv)) tvars in
+        let abb = { type_abbrev_tvars = tvs;
+                    type_abbrev_type = d' } in
+        let tenv = add_type_abbrev tenv loc (TName name) abb in
+        tenv, rqs, let_env
 
 let make_match_case_expr exp typ dcon arity loc =
   let wc = AstUtils.make_pattern_loc P_wildcard loc in
@@ -1359,11 +1404,8 @@ let infer_spec tenv spec =
   let tenv, ctxt =
     List.fold_left (fun (tenv, ctxt) decl ->
         match decl with
-          | Decl_types tds ->
-              (* TODO: handle recursive declarations *)
-              List.fold_left (fun (te, c) td ->
-                  infer_type_decl te c td
-                ) (tenv, ctxt) tds
+          | Decl_types (tds, tdsloc) ->
+              infer_type_decls tenv ctxt tdsloc tds
           | Decl_fun f ->
               (* TODO: solve eagerly? *)
               let c = infer_fun_defn tenv ctxt f in

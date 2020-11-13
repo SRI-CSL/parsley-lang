@@ -98,7 +98,8 @@ let print_type_decl td =
   pp_print_string !ppf " = ";
   pp_close_box !ppf ();
   pp_print_cut !ppf ();
-  print_type_rep td.type_decl_body
+  print_type_rep td.type_decl_body;
+  pp_print_newline !ppf ()
 
 let rec print_pattern p =
   match p.pattern with
@@ -560,7 +561,7 @@ let print_format f =
 
 let rec print_decl d =
   match d with
-    | Decl_types typs ->
+    | Decl_types (typs, _) ->
         List.iter print_type_decl typs
     | Decl_fun fd ->
         print_fun_defn fd

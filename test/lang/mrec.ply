@@ -1,0 +1,7 @@
+// Mutually recursive type definitions
+
+type dict = { d : map<int, node> }
+
+and node =
+  Leaf of int
+| Dict of dict

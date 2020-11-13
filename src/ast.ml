@@ -196,7 +196,7 @@ type format =
 
 type pre_decl =
   | PDecl_use of use
-  | PDecl_types of type_decl list (* possibly mutually recursive *)
+  | PDecl_types of type_decl list * Location.t (* possibly mutually recursive *)
   | PDecl_fun of fun_defn
   | PDecl_nterm of nterm_decl
   | PDecl_format of format
@@ -206,7 +206,7 @@ type pre_top_level =
 
 (* flattened version after including use files *)
 type top_decl =
-  | Decl_types of type_decl list (* possibly mutually recursive *)
+  | Decl_types of type_decl list * Location.t (* possibly mutually recursive *)
   | Decl_fun of fun_defn
   | Decl_nterm of nterm_decl
   | Decl_format of format
