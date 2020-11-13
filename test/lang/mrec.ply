@@ -3,5 +3,5 @@
 type dict = { d : map<int, node> }
 
 and node =
-  Leaf of int
+| Leaf of int
 | Dict of dict

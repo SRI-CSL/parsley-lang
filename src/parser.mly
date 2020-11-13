@@ -219,7 +219,7 @@ variant:
   { make_variant (i, l) $startpos $endpos }
 
 variants:
-| l=separated_nonempty_list(BAR, variant)
+| BAR l=separated_nonempty_list(BAR, variant)
   { l }
 
 param_decl:

@@ -3,7 +3,7 @@ type obj_ctxt = map<(int, int), pdfobj>
 type obj_set = set<pdfobj>
 
 type tree =
-   Node of tree * int * tree
+ | Node of tree * int * tree
  | Leaf of int
 
 fun max (a : int, b: int) -> int = {
@@ -19,7 +19,7 @@ fun pick (arg : (int, int)) -> int = {
 }
 
 type my_list('a) =
-   Null
+ | Null
  | Cons of 'a * my_list<'a>
 
 fun cons <'a> (e: 'a, l : my_list<'a>) -> my_list<'a> = {

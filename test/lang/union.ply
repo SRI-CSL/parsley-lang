@@ -1,6 +1,8 @@
 // Case / unions
 
-type choice = Good of [byte] | Bad of [byte]
+type choice =
+ | Good of [byte]
+ | Bad of [byte]
 
 format {
   Chk r {v: [byte]} :=

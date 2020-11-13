@@ -1,5 +1,5 @@
 type tlv =
-   TTL  of int
+ | TTL  of int
  | Port of int
  | Unknown of byte * [byte]
 
