@@ -344,7 +344,6 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
   and loc   = td.type_decl_loc
   and tvars = td.type_decl_tvars
   and typ   = td.type_decl_body in
-  let name  = Location.value ident in
   check_distinct_tvars ident tvars;
   match typ.type_rep with
     | TR_variant dcons ->
@@ -390,17 +389,37 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
                           loc };
         tenv, crqs @ drqs, let_env
     | TR_defn d ->
+        (* This is prevented by the check for type abbreviations in
+           infer_spec. *)
+        assert false
+
+(* Type abbreviations are just registered in the environment and are
+   fully expanded whereever they are used, and so they do not modify
+   or appear in constraint contexts.  This allows polymorphic
+   abbreviations (which otherwise cannot be supported in this HMX
+   engine), at the expense of larger constraints and suboptimal
+   error messages. *)
+let infer_type_abbrev tenv td =
+  let ident = td.type_decl_ident
+  and tvars = td.type_decl_tvars
+  and pos   = td.type_decl_loc
+  and typ   = td.type_decl_body in
+  let name  = Location.value ident in
+  match typ.type_rep with
+    | TR_defn d ->
         (* First expand any type abbreviations in this abbreviation *)
         let d' = AstUtils.expand_type_abbrevs tenv d in
-        (* Check validity of this type expression *)
+        (* Check validity of the resulting type expression *)
         check_valid_type_defn tenv ident tvars d';
         (* Add it to the environment *)
         let tvs =
           List.map (fun tv -> TName (Location.value tv)) tvars in
         let abb = { type_abbrev_tvars = tvs;
                     type_abbrev_type = d' } in
-        let tenv = add_type_abbrev tenv loc (TName name) abb in
-        tenv, rqs, let_env
+        add_type_abbrev tenv pos (TName name) abb
+    (* non-abbreviations are handled seperately via checks in infer_spec. *)
+    | _ ->
+        assert false
 
 let make_match_case_expr exp typ dcon arity loc =
   let wc = AstUtils.make_pattern_loc P_wildcard loc in
@@ -595,6 +614,7 @@ let rec infer_expr tenv e (t : crterm) =
     | E_cast (exp, typ) ->
         (** A type constraint inserts a type equality into the
             generated constraint. *)
+        let typ  = AstUtils.expand_type_abbrevs tenv typ in
         let ityp = TypeConv.intern tenv typ in
         (t =?= ityp) e.expr_loc ^ infer_expr tenv exp ityp
     | E_unop (op, e) ->
@@ -647,7 +667,8 @@ let infer_fun_defn tenv ctxt fd =
      patterns; this will allow us to extend this later to proper
      pattern matching if needed.*)
 
-  let irestyp = TypeConv.intern tenv' fd.fun_defn_res_type in
+  let restyp = AstUtils.expand_type_abbrevs tenv fd.fun_defn_res_type in
+  let irestyp = TypeConv.intern tenv' restyp in
   let _, argbinders, signature =
     if List.length fd.fun_defn_params = 0 then
       (* functions without args have a signature of unit -> result_type *)
@@ -663,6 +684,7 @@ let infer_fun_defn tenv ctxt fd =
                   raise (Error (RepeatedFunctionParameter (pid, repid)))
               | None ->
                   StringMap.add pn pid acu_ids in
+          let typ = AstUtils.expand_type_abbrevs tenv typ in
           let ityp = TypeConv.intern tenv' typ in
           let v = variable Flexible () in
           acu_ids,
@@ -787,8 +809,9 @@ let infer_nt_rhs_type tenv ntd =
 let infer_non_term_inh_type tenv ntd =
   let nid = ntd.non_term_name in
   List.fold_left (fun ats (pid, te) ->
-      let p = Location.value pid in
-      let t = TypeConv.intern tenv te in
+      let p  = Location.value pid in
+      let te = AstUtils.expand_type_abbrevs tenv te in
+      let t  = TypeConv.intern tenv te in
       match StringMap.find_opt p ats with
         | Some (_, l) ->
             let repid = Location.mk_loc_val p l in
@@ -860,6 +883,9 @@ let infer_non_term_type tenv ctxt ntd =
             ctxt (CLet ([Scheme (loc, [ivar], [], c, StringMap.empty)],
                         CTrue loc))
           ) in
+        let attrs = List.map (fun (id, te) ->
+                        id, AstUtils.expand_type_abbrevs tenv te
+                      ) attrs in
         let tenv', dids, drqs, let_env =
           List.fold_left
             (intern_field_destructor ntid [])
@@ -1398,6 +1424,19 @@ let init_tenv () =
                     StringMap.empty) ],
           CTrue Location.ghost_loc))
 
+let has_type_abbrevs tds =
+  (* Switch to List.fold_map when OCaml 4.10 is more common. *)
+  List.fold_left (fun res td ->
+      match res with
+        | Some _ -> res
+        | None -> (
+          let tr = td.type_decl_body in
+          match tr.type_rep with
+            | TR_defn _ -> Some td
+            | _         -> None
+        )
+    ) None tds
+
 let infer_spec tenv spec =
   (* First pass: process the expression language, and the
      type-definitions for the non-terminals *)
@@ -1405,7 +1444,28 @@ let infer_spec tenv spec =
     List.fold_left (fun (tenv, ctxt) decl ->
         match decl with
           | Decl_types (tds, tdsloc) ->
-              infer_type_decls tenv ctxt tdsloc tds
+              (* If there are multiple declarations, they could be
+                 mutually recursive.  If they contain type
+                 abbreviations, expanding them may not terminate.  For
+                 simplicity, we bar abbreviations from appearing in
+                 potentially recursive declaration sets.  The
+                 treatment of mutually non-recursive
+                 (non-abbreviation) declarations as if they were
+                 recursive still gives (trivially) the desired result.
+               *)
+              (match has_type_abbrevs tds with
+                 | Some td ->
+                     if List.length tds > 1 then
+                       let id = td.type_decl_ident in
+                       let err =
+                         PotentiallyRecursiveTypeAbbreviation id in
+                       raise (Error err)
+                     else
+                       let tenv' = infer_type_abbrev tenv td in
+                       tenv', ctxt
+                 | None ->
+                     infer_type_decls tenv ctxt tdsloc tds
+              )
           | Decl_fun f ->
               (* TODO: solve eagerly? *)
               let c = infer_fun_defn tenv ctxt f in

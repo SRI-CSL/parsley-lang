@@ -28,6 +28,9 @@ type indirect_obj =
 // The parsing context maps object identifers to indirect objects.
 type parse_ctxt = map<(int, int), basic_obj>
 
+// Type abbreviation for the dictionary type.
+type dict = map<string, basic_obj>
+
 format {
 
   // attribute specification that governs the next non-terminal
@@ -35,7 +38,7 @@ format {
   // content between the entities of the production, and not within
   // them.
   #[whitespace(Whitespace:allow_empty=true)]
-  Dict d {d: map<string, basic_obj>} :=
+  Dict d {d: dict} :=
     // Temporary variable introduced while parsing this production.
     (| s : set<string> |)
 
@@ -102,7 +105,7 @@ format {
   ;;
 
   #[whitespace(Whitespace:allow_empty=true)]
-  Stream s {dict : map<string, basic_obj>, stream : [byte]} :=
+  Stream s {dict : dict, stream : [byte]} :=
     d=Dict
     [ let key = String.of_bytes_unsafe("Length") in
       Map.mem(d.d, key)
@@ -120,7 +123,7 @@ format {
   // context, which contains the indirect objects parsed so far.  This
   // is used to forbid duplicates.
   #[whitespace(Whitespace:allow_empty=true)]
-  Indirect i (ctxt : map<(int, int), basic_obj>)
+  Indirect i (ctxt : parse_ctxt)
              {indirect_obj} :=
     n=Integer [ n.i >  0 ]
     g=Integer [ g.i >= 0 ]

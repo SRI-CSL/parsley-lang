@@ -164,6 +164,10 @@ type typing_error =
       not defined to be part of the definition of non-terminal [nt] *)
   | NTUnknownInheritedAttribute of Ast.ident * Ast.ident
 
+  (** Type abbreviations are currently not supported in (potentially) mutually
+      recursive type declarations. *)
+  | PotentiallyRecursiveTypeAbbreviation of Ast.ident
+
 exception Error of typing_error
 
 let msg m loc =
@@ -305,3 +309,8 @@ let error_msg = function
       msg
         "%s:\n Non-terminal `%s' does not define inherited attribute `%s'.\n"
         (Location.loc id) (Location.value ntid) (Location.value id)
+
+  | PotentiallyRecursiveTypeAbbreviation id ->
+      msg
+        "%s:\n Type abbreviations (e.g. `%s') are not supported in type definition sets.\n"
+        (Location.loc id) (Location.value id)
