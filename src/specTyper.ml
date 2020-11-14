@@ -2,7 +2,7 @@ let handle_exception bt msg =
   Printf.fprintf stderr "%s\n" msg;
   Printf.printf "%s\n" bt
 
-let trace_solver = true
+let trace_solver = false
 let get_tracer () =
   if trace_solver
   then Some (ConstraintSolver.tracer ())

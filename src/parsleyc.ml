@@ -10,7 +10,7 @@ let options =
   Arg.align ([
         ( "-p",
           Arg.Set opt_print_ast,
-          " print the parsed AST")
+          " print the parsed AST" )
       ])
 
 let () =
