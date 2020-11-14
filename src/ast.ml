@@ -136,7 +136,7 @@ and rule_elem =
 
 type rule =
   { rule_rhs: rule_elem list;
-    rule_temps: (ident * type_expr) list;
+    rule_temps: (ident * type_expr * expr) list;
     rule_loc: Location.t }
 
 type attr_list_type =

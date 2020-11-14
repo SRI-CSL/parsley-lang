@@ -247,6 +247,13 @@ let print_param_decl (pm, ty) =
   pp_print_string !ppf ": ";
   print_type_expr ty
 
+let print_temp_decl (pm, ty, e) =
+  pp_print_string !ppf (Location.value pm);
+  pp_print_string !ppf ": ";
+  print_type_expr ty;
+  pp_print_string !ppf " := ";
+  print_expr e
+
 let rec print_fun_defn fd =
   pp_open_vbox !ppf 0;
   pp_open_box !ppf 0;
@@ -500,7 +507,7 @@ let rec print_rule_elem rl =
 let print_rule rl =
   if List.length rl.rule_temps > 0 then begin
       pp_print_string !ppf "(|";
-      print_list ", " print_param_decl rl.rule_temps;
+      print_list ", " print_temp_decl rl.rule_temps;
       pp_print_string !ppf "|)";
       pp_print_cut !ppf ();
     end;

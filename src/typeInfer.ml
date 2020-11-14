@@ -1226,7 +1226,7 @@ let rec infer_rule_elem tenv ntd ctx re t bound =
 let infer_non_term_rule tenv ntd rule pids =
   (* add temporaries to local bindings *)
   let pids, bindings =
-    List.fold_left (fun (pids, fragment) (pid, typ) ->
+    List.fold_left (fun (pids, fragment) (pid, typ, exp) ->
         let pn, ploc = Location.value pid, Location.loc pid in
         let pids =
           match StringMap.find_opt pn pids with
@@ -1240,6 +1240,7 @@ let infer_non_term_rule tenv ntd rule pids =
         { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
                     fragment.gamma;
           tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
+                        ^ infer_expr tenv exp ityp
                         ^ fragment.tconstraint;
           vars = v :: fragment.vars }
       ) (pids, empty_fragment) rule.rule_temps in

@@ -230,6 +230,14 @@ param_decls:
 | l=separated_list(COMMA, param_decl)
   { l }
 
+temp_decl:
+| i=ident COLON t=type_expr COLONEQ e=expr
+  { (i, t, e) }
+
+temp_decls:
+| l=separated_list(COMMA, temp_decl)
+  { l }
+
 rec_typ_field:
 | i=ident COLON t=type_expr
   { (i, t) }
@@ -486,7 +494,7 @@ rule_elem:
   { make_rule_elem (RE_map_bufs (e, r)) $startpos $endpos }
 
 rule:
-| LPARBAR d=param_decls RPARBAR l=list(rule_elem)
+| LPARBAR d=temp_decls RPARBAR l=list(rule_elem)
   { make_rule d l $startpos $endpos }
 | l=list(rule_elem)
   { make_rule [] l $startpos $endpos }
