@@ -40,7 +40,7 @@ format {
   #[whitespace(Whitespace:allow_empty=true)]
   Dict d {d: dict} :=
     // Temporary variable introduced while parsing this production.
-    (| s : set<string> |)
+    (| s : set<string> := Set.empty |)
 
     !"<<"!
     ( n=Name

@@ -2,107 +2,100 @@
 
 use {pdfprim, pdfobj}
 
-type free_info  = { next : int }
-type inuse_info = { file_ofs : int }
+type xr_free     = { xr_next: int }
+type xr_inuse    = { xr_file_ofs: int }
+type xr_instream = { xr_stream_obj: int, xr_obj_index: int }
 
-type xref_status =
-    Free of free_info
-  | InUse of inuse_info
+type xr_status =
+  | Free of xr_free
+  | InUse of xr_inuse
+  | InStream of xr_instream
 
 type xref_ent =
-  { obj : int,
-    gen : int,
-    status : xref_status }
+  { xr_obj: int,
+    xr_gen: int,
+    xr_status: xr_status }
+
+type xref_ssect =
+  { xss_start: int, xss_count: int, xss_ents: [xref_ent] }
+
+type xref_sect =
+  { xs_sects: [xref_ssect] }
 
 format {
-  Header h { version : commentT,
-             binary  : option<commentT> }
+  Header h { version : [byte],
+             binary  : option<[byte]> }
   :=
     v=Comment  b=Comment?
-    { version := v;
-      binary  := b
-    }
+    { h.version := v;
+      h.binary  := b }
   ;;
 
-  Body b (ctxt : obj_ctxt) { body: [indirectT] } :=
-    ( i=Indirect<ctxt = b.ctxt>
-      { b.body := List.append(b.body, i) }
-    )*
-  ;;
-
-  // This whitespace attribute does not apply inside XrefSubSect,
-  // i.e. inside any non-terminal on the right-hand-side of the
-  // production.
+  // Straight-line parser that does not use xref table.
   #[whitespace(Whitespace:allow_empty=true)]
-  XrefSect x { sects: [xrefSubSectT] } :=
-    !"xref"!
-    ( s=XrefSubSect
-      { x.sects := List.append(x.sects, s) }
+  Body b (ctxt : parse_ctxt) { body: [indirect_obj] } :=
+    ( i=Indirect<ctxt = ctxt>
+      { b.body := i :: b.body }
     )*
   ;;
 
-  // There is no implicit whitespace between the entities on the
-  // right-hand-side of the production.  All whitespace hence has to
-  // be explicitly specified.
-  #[whitespace(none)]
-  XrefSubSect x {start: int, count: int, ents: [xrefEntT] }
-  :=
-    (| i : int |)  // entry loop counter
+  // XRef entries in Xref table
+  XrefEnt e (idx: int) { xref_ent } :=
+    n=(# DigitS ^ 10 #) !" "!
+    g=(# DigitS ^ 5 #) !" "!
+    [ Int.of_bytes_unsafe(g) <= 65535 ]
 
-    s=Integer [ s.val >= 0 ]
-    !" "!
-    c=Integer [ s.val >  0 ]
-    (# ["\r" | "\n" | "\r\n"] #)
+    (( !"n"!
+       { let iu = { xr_file_ofs: Int.of_bytes_unsafe(n) } in
+         e.xr_status := xr_status::InUse(iu) } )
+     |
+     ( !"f"!
+       { let f = { xr_next: Int.of_bytes_unsafe(n) } in
+         e.xr_status := xr_status::Free(f) }
+     ))
 
-    { x.start := s.val;
-      x.count := c.val }
-
-    ( e=XrefEnt<idx = i>
-      [ List.length(x.ents) < x.count ]
-      { x.ents := List.append(x.ents, e);
-        i := i + 1 }
-    )*
-
-    // Ensure we got the specified number of entries.
-    [ List.length(x.ents) = x.count ]
+    ( !" \r"! | !" \n"! | !"\r\n"! )
+    { e.xr_obj := idx;
+      e.xr_gen := Int.of_bytes_unsafe(g) }
   ;;
 
-  // There is no implicit whitespace between the entities on the
-  // right-hand-side of the production.
-  #[whitespace(none)]
-  XrefEnt x (idx : int) { xref_ent }
-  :=
-    o=(Digit ^ 10) !" "! g=(Digit ^ 5)
-    { x.obj := x.idx;
-      x.gen := string_to_int(g) }
-    (( !" n"!
-       { x.status :=
-           let file_ofs = string_to_int(o) in
-           xref_status::InUse({ file_ofs: file_ofs }) }
-     )
-    |
-     ( !" f"!
-       { // TODO: Ensure that object 0 is free (and is the first entry?).
-         x.status :=
-           let next = string_to_int(o) in
-           xref_status::Free({ next: next }) }
-     )
-    )
-    !"\r\n"!
+  XrefSubSect ss { xref_ssect } :=
+  (| i : int := 0 |)                    // temporary used as counter
+
+  start=(# DigitS+ #) !" "!
+  { i := Int.of_bytes_unsafe(start) }   // initialize the object counter
+
+  count=(# DigitS+ #)
+
+  ( !" \r"! | !" \n"! | !"\r\n"! )      // unclear in the spec
+
+  (xe=XrefEnt<idx = i>
+   { ss.xss_ents := xe :: ss.xss_ents;
+     i := i + 1 }                       // increment counter for next object
+  ) ^ (Int.of_bytes_unsafe(count))
+
+  { ss.xss_ents := List.rev(ss.xss_ents) }
   ;;
 
   #[whitespace(Whitespace:allow_empty=true)]
-  Trailer t {dict: dictT} :=
+  XrefSect xs { xref_sect } :=
+  !"xref"!  PDF_EOL
+  (ss=XrefSubSect { xs.xs_sects := ss :: xs.xs_sects }) *
+  { xs.xs_sects := List.rev(xs.xs_sects) }
+  ;;
+
+  #[whitespace(Whitespace:allow_empty=true)]
+  Trailer t {tdict: dict} :=
     !"trailer"! d=Dict
-    { t.dict := d }
+    { t.tdict := d.d }
   ;;
 
   #[whitespace(Whitespace:allow_empty=false)]
-  StartXref s {val : int} :=
+  StartXref s {sxref : int} :=
     !"startxref"!
     n=Integer
-    [ n.val > 0 ]
-    { s.val := n.val }
+    [ n.i > 0 ]
+    { s.sxref := n.i }
   ;;
 
   EOF {} :=

@@ -22,6 +22,9 @@ format {
   // within (# #), and when bound to an identifier have a byte-vector
   // value.
 
+  // PDF end-of-line characters
+  PDF_EOL := !"\n"! | !"\r"! | !"\r\n"! ;;
+
   // The 'Comment' non-terminal will have a byte vector type.
   Comment := !"%"! (# [AsciiCharS \ "\n" ]* #) !"\n"!;;
 
