@@ -32,6 +32,24 @@ let parse_file fname =
           (print_exception stderr l (Parseerror.error_string e);
            exit 1)
 
+
+(* TODO: include directory management.
+ * make this a list specifiable via cli -I options.
+ * For now, just assume modules are in the same directory as the
+ * top-level file. *)
+let inc_dir = ref None
+let update_inc_dir fname =
+  match !inc_dir with
+    | None ->
+        let dirname = Filename.dirname fname in
+        inc_dir := Some dirname
+    | Some _ -> ()
+let mk_filename modnm =
+  let f = Printf.sprintf "%s.ply" modnm in
+  match !inc_dir with
+    | None -> f
+    | Some d -> Filename.concat d f
+
 (* recursively include all the modules referenced by use declarations
  * to generate a flattened declaration list *)
 module StringSet = Set.Make(struct type t = string
@@ -57,7 +75,7 @@ let rec flatten accum includes pending =
                       (* pick the first, the others go back to pending *)
                       let pending_use = { u with use_modules = t } in
                       let pending = PDecl_use pending_use :: rest in
-                      let fname = Printf.sprintf "%s.ply" (Location.value h) in
+                      let fname = mk_filename (Location.value h) in
                       if StringSet.mem fname includes then
                         (* we've already included this, skip *)
                         flatten accum includes pending
@@ -71,6 +89,7 @@ let rec flatten accum includes pending =
 
 let parse_spec f =
   (*Printf.fprintf stdout " parsing %s ...\n" f;*)
+  update_inc_dir f;
   let ast = parse_file f in
   let ast = flatten [] (StringSet.add f StringSet.empty) ast.pre_decls in
   { decls = List.rev ast }
