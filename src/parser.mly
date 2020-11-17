@@ -5,7 +5,7 @@ open AstUtils
 %}
 
 %token EOF
-%token FORMAT TYPE AND FUN RECFUN NTERM USE OF CASE LET IN
+%token FORMAT TYPE AND FUN RECFUN USE OF CASE LET IN
 %token ATTR
 %token EPSILON
 
@@ -127,10 +127,6 @@ let make_fun_defn n r tvs p t bd b e =
 let make_use m b e =
   { use_modules = m;
     use_loc = Location.mk_loc b e }
-
-let make_nterm_decl d b e =
-  { nterms = d;
-    nterms_loc = Location.mk_loc b e }
 
 let make_format_decl d a b e =
   { format_decl = d;
@@ -583,8 +579,6 @@ pre_decl:
 | RECFUN f=ident LT tvs=separated_list(COMMA, TVAR) GT
     LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
   { PDecl_fun (make_fun_defn f true tvs p r e $startpos $endpos) }
-| NTERM LBRACE d=separated_list(COMMA, UID) RBRACE
-  { PDecl_nterm (make_nterm_decl d $startpos $endpos) }
 | FORMAT LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
   { PDecl_format (make_format d $startpos $endpos) }
 

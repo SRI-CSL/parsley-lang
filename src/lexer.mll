@@ -22,7 +22,6 @@
                 "and",    AND;
                 "fun",    FUN;
                 "recfun", RECFUN;
-                "nterm",  NTERM;
                 "of",     OF;
                 "case",   CASE;
                 "let",    LET;
