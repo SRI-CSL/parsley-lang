@@ -1,23 +1,26 @@
 open Ast
 open Lexing
+module I = Parser.MenhirInterpreter
 
 let print_exception f loc msg =
   Printf.fprintf f "%s: %s\n" (Location.str_of_loc loc) msg
 
-let parse_file fname =
+let parse_file fname cont =
   let lexbuf = from_channel (open_in fname) in
   let lexbuf = {lexbuf with
                  lex_curr_p = {pos_fname = fname;
                                pos_lnum  = 1;
                                pos_bol   = 0;
                                pos_cnum  = 0}} in
+  let start = Parser.Incremental.toplevel lexbuf.lex_curr_p in
+  let supplier = I.lexer_lexbuf_to_supplier Lexer.token lexbuf in
+  let fail _chkpt =
+    Printf.fprintf stderr "%s: parser error at or just before this location\n"
+      (Location.str_of_curr_pos lexbuf);
+    exit 1 in
   try
-    Parser.toplevel Lexer.token lexbuf
+    I.loop_handle cont fail supplier start
   with
-    | Parser.Error ->
-          (Printf.fprintf stderr "%s: parser error at or just before this location\n"
-                          (Location.str_of_curr_pos lexbuf);
-           exit 1)
     | Failure _f ->
           (let _bt = Printexc.get_backtrace () in
            Printf.fprintf stderr "%s: invalid token at or just before this location\n"
@@ -80,15 +83,19 @@ let rec flatten accum includes pending =
                         flatten accum includes pending
                       else
                         (*let _ = Printf.fprintf stdout " including %s ...\n" fname in*)
-                        let ast = parse_file fname in
-                        (* push its decls on top of the pending list *)
-                        flatten accum (StringSet.add fname includes) (ast.pre_decls @ pending)
+                        parse_file fname (fun ast ->
+                            (* push its decls on top of the pending list *)
+                            flatten accum
+                              (StringSet.add fname includes)
+                              (ast.pre_decls @ pending)
+                          )
                )
         )
 
 let parse_spec f =
   (*Printf.fprintf stdout " parsing %s ...\n" f;*)
   update_inc_dir f;
-  let ast = parse_file f in
-  let ast = flatten [] (StringSet.add f StringSet.empty) ast.pre_decls in
-  {decls = List.rev ast}
+  parse_file f (fun ast ->
+      let ast = flatten [] (StringSet.add f StringSet.empty) ast.pre_decls in
+      {decls = List.rev ast}
+    )

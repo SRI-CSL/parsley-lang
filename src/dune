@@ -4,9 +4,10 @@
 
 (menhir
  (modules parser)
- (flags --unused-tokens --explain --dump)
+ (flags --unused-tokens --explain --dump --table)
 )
 
 (executable
  (name parsleyc)
+ (libraries menhirLib)
 )
