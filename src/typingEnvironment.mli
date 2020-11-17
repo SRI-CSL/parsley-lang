@@ -28,12 +28,11 @@
 
 (** [record_info] tracks the field names, and the variables associated
     with their destructors and constructors *)
-type record_info = {
-  adt: Ast.ident;
-  fields: Ast.ident list;
-  record_constructor: Ast.tname * MultiEquation.variable;
-  field_destructors: (Ast.lname * MultiEquation.variable) list;
-}
+type record_info =
+  {adt: Ast.ident;
+   fields: Ast.ident list;
+   record_constructor: Ast.tname * MultiEquation.variable;
+   field_destructors: (Ast.lname * MultiEquation.variable) list}
 
 (** An algebraic datatype is characterized by a list of data
     constructors for variant types and field destructors for record types. *)
@@ -41,10 +40,9 @@ type algebraic_datatype =
   | Variant of (Ast.dname * MultiEquation.variable) list
   | Record of record_info
 
-type adt_info = {
-  adt: algebraic_datatype;
-  loc: Location.t
-}
+type adt_info =
+  {adt: algebraic_datatype;
+   loc: Location.t}
 
 (** A type is characterized by a kind, a variable and an optional set of
     algebraic data constructors or destructors. *)
@@ -73,8 +71,8 @@ type non_term_syn_type =
 type non_term_type = non_term_inh_type * non_term_syn_type
 
 (** A type abbreviation *)
-type type_abbrev = { type_abbrev_tvars: Ast.tname list;
-                     type_abbrev_type:  Ast.type_expr }
+type type_abbrev = {type_abbrev_tvars: Ast.tname list;
+                    type_abbrev_type:  Ast.type_expr}
 
 (** The type of the typing environement. *)
 type environment

@@ -30,19 +30,14 @@ open MultiEquation
 
 (** {2 Typing environment} *)
 
-(* Use a basic implementation. *)
-open CoreEnv
-
 (** [type_info] denotes information collected during the user-defined
     type constructor analysis. *)
 
 type record_info =
-  {
-    adt: ident;
-    fields: ident list;
-    record_constructor: tname * variable; (* named "<adt>" *)
-    field_destructors: (lname * variable) list;
-  }
+  {adt: ident;
+   fields: ident list;
+   record_constructor: tname * variable; (* named "<adt>" *)
+   field_destructors: (lname * variable) list}
 
 (* The following information is stored for each type constructor:
    - its kind ;
@@ -55,16 +50,14 @@ type algebraic_datatype =
   | Record of record_info
 
 type adt_info =
-  {
-    adt: algebraic_datatype;
-    loc: Location.t
-  }
+  {adt: algebraic_datatype;
+   loc: Location.t}
 
 type type_info =
   KindInferencer.t * variable * adt_info option ref
 
-type type_abbrev = { type_abbrev_tvars: Ast.tname list;
-                     type_abbrev_type:  Ast.type_expr }
+type type_abbrev = {type_abbrev_tvars: Ast.tname list;
+                    type_abbrev_type:  Ast.type_expr}
 
 let as_type_constructor ((_, v, _) as x) =
   if (UnionFind.find v).kind = Constant then
@@ -106,81 +99,74 @@ type mod_info = ((variable list * crterm) * Location.t) StringMap.t
 
 (** [environment] denotes typing information associated to identifiers. *)
 type environment =
-  {
-    type_abbrev        : (tname, Location.t * type_abbrev) CoreEnv.t;
-    type_info          : (tname, type_info) CoreEnv.t;
-    data_constructor   : (dname, data_constructor) CoreEnv.t;
-    record_constructor : (tname, record_constructor) CoreEnv.t;
-    field_destructor   : (lname, field_destructor) CoreEnv.t;
+  {type_abbrev        : (tname, Location.t * type_abbrev) CoreEnv.t;
+   type_info          : (tname, type_info) CoreEnv.t;
+   data_constructor   : (dname, data_constructor) CoreEnv.t;
+   record_constructor : (tname, record_constructor) CoreEnv.t;
+   field_destructor   : (lname, field_destructor) CoreEnv.t;
 
-    (* map constructors and destructors to their owning ADT *)
-    datacon_adts : (tname * Location.t) StringMap.t;
-    field_adts   : (tname * Location.t) StringMap.t;
+   (* map constructors and destructors to their owning ADT *)
+   datacon_adts : (tname * Location.t) StringMap.t;
+   field_adts   : (tname * Location.t) StringMap.t;
 
-    (* module information *)
-    modules      : (mod_info * Location.t) StringMap.t;
+   (* module information *)
+   modules      : (mod_info * Location.t) StringMap.t;
 
-    (* grammar types *)
-    non_terms    : (nname, (non_term_type * Location.t)) CoreEnv.t;
-  }
+   (* grammar types *)
+   non_terms    : (nname, (non_term_type * Location.t)) CoreEnv.t}
 
 let empty_environment =
-  {
-    type_abbrev        = CoreEnv.empty;
-    type_info          = CoreEnv.empty;
-    data_constructor   = CoreEnv.empty;
-    record_constructor = CoreEnv.empty;
-    field_destructor   = CoreEnv.empty;
+  {type_abbrev        = CoreEnv.empty;
+   type_info          = CoreEnv.empty;
+   data_constructor   = CoreEnv.empty;
+   record_constructor = CoreEnv.empty;
+   field_destructor   = CoreEnv.empty;
 
-    datacon_adts = StringMap.empty;
-    field_adts   = StringMap.empty;
-    modules      = StringMap.empty;
+   datacon_adts = StringMap.empty;
+   field_adts   = StringMap.empty;
+   modules      = StringMap.empty;
 
-    non_terms    = CoreEnv.empty;
-  }
-
-let union_type_variables env1 env2 =
-  { env1 with type_info = CoreEnv.concat env1.type_info env2.type_info }
+   non_terms    = CoreEnv.empty}
 
 let add_type_variable env t (k, v) =
-  { env with type_info = CoreEnv.add env.type_info t (k, v, ref None) }
+  {env with type_info = CoreEnv.add env.type_info t (k, v, ref None)}
 
 let add_type_variables var_env env =
-  { env with type_info =
-      List.fold_left (fun env (x, k) -> CoreEnv.add env x k) env.type_info var_env }
+  {env with
+    type_info = List.fold_left (fun env (x, k) -> CoreEnv.add env x k) env.type_info var_env}
 
 let add_type_abbrev env pos t x =
   match CoreEnv.lookup_opt env.type_abbrev t with
     | None ->
-        { env with type_abbrev = CoreEnv.add env.type_abbrev t (pos, x) }
+        {env with type_abbrev = CoreEnv.add env.type_abbrev t (pos, x)}
     | Some _ ->
         raise (Error (DuplicateTypeDefinition (pos, t)))
 
 let add_type_constructor env pos t x =
   match CoreEnv.lookup_opt env.type_info t with
     | None ->
-        { env with type_info = CoreEnv.add env.type_info t x }
+        {env with type_info = CoreEnv.add env.type_info t x}
     | Some _ ->
         raise (Error (DuplicateTypeDefinition (pos, t)))
 
 let add_data_constructor env loc adt ((DName d) as dc) x =
   match StringMap.find_opt d env.datacon_adts with
     | None ->
-        { env with
+        {env with
           data_constructor = CoreEnv.add env.data_constructor dc x;
-          datacon_adts = StringMap.add d (adt, loc) env.datacon_adts }
+          datacon_adts = StringMap.add d (adt, loc) env.datacon_adts}
     | Some (adt, loc') ->
         raise (Error (DuplicateDataConstructor (loc, dc, adt, loc')))
 
 let add_record_constructor env adt x =
-  { env with record_constructor = CoreEnv.add env.record_constructor adt x }
+  {env with record_constructor = CoreEnv.add env.record_constructor adt x}
 
 let add_field_destructor env loc adt ((LName s) as t) f =
   match StringMap.find_opt s env.field_adts with
     | None ->
-        { env with
+        {env with
           field_destructor = CoreEnv.add env.field_destructor t f;
-          field_adts = StringMap.add s (adt, loc) env.field_adts }
+          field_adts = StringMap.add s (adt, loc) env.field_adts}
     | Some (adt, loc') ->
         raise (Error (DuplicateRecordField (loc, t, adt, loc')))
 
@@ -193,7 +179,7 @@ let add_mod_item env loc ((MName mid) as m) ((DName vid) as v) t =
     match StringMap.find_opt vid minfo with
       | None -> StringMap.add vid (t, loc) minfo
       | Some (_, l) -> raise (Error (DuplicateModItem (loc, m, v, l))) in
-  { env with modules = StringMap.add mid (minfo, mloc) env.modules }
+  {env with modules = StringMap.add mid (minfo, mloc) env.modules}
 
 let crterm_of_non_term_type = function
   | NTT_type t -> t
@@ -202,7 +188,7 @@ let crterm_of_non_term_type = function
 let add_non_terminal env loc nt x =
   match CoreEnv.lookup_opt env.non_terms nt with
     | None ->
-        { env with non_terms = CoreEnv.add env.non_terms nt (x, loc) }
+        {env with non_terms = CoreEnv.add env.non_terms nt (x, loc)}
     | Some (_, ploc) ->
         raise (Error (DuplicateNonTerminal (loc, nt, ploc)))
 
@@ -276,11 +262,6 @@ let as_fun tenv name =
     | None -> lookup_type_variable tenv name
     | Some (_, v, _) -> CoreAlgebra.TVariable v
 
-let as_env env varlist =
-  List.fold_left
-    (fun env (n, v) -> add_type_variable env n (KindInferencer.fresh_kind (), v))
-    empty_environment varlist
-
 (** [is_typcon env t] check if there exists a type constructor whose
     name is [t]. *)
 let is_typcon env t =
@@ -318,12 +299,12 @@ let is_defined_type env t =
 
 let is_variant_type env t =
   match lookup_adt env t with
-    | Some { adt = Variant _ } -> true
+    | Some {adt = Variant _; _} -> true
     | _ -> false
 
 let is_record_type env t =
   match lookup_adt env t with
-    | Some { adt = Record _ } -> true
+    | Some {adt = Record _; _} -> true
     | _ -> false
 
 (** [lookup_datacon env k] looks for typing information related to
@@ -371,7 +352,7 @@ let rigid_args rt =
 
 let fresh_scheme kvars kt =
   let fresh_kvars =
-    let mkvar ?name v = variable Flexible ?name () in
+    let mkvar ?name _v = variable Flexible ?name () in
     List.map mkvar kvars in
   let fresh_kvars_assoc = List.combine kvars fresh_kvars in
   (fresh_kvars, CoreAlgebra.change_arterm_vars fresh_kvars_assoc kt)
@@ -436,7 +417,7 @@ let fresh_flexible_vars =
 let fresh_rigid_vars =
   fresh_vars Rigid
 
-let fresh_unnamed_rigid_vars pos env vars =
+let fresh_unnamed_rigid_vars _pos _env vars =
   let rqs, denv = variable_list Rigid vars in
   (rqs,
    List.map (function

@@ -1,6 +1,4 @@
-open TypingEnvironment
-open TypeInfer
-let opt_print_ast = ref false
+let opt_print_ast = ref true
 let opt_type_check = ref true
 let input_file = ref []
 

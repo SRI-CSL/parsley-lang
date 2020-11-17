@@ -6,18 +6,18 @@ let to_tname (id : ident) =
 (* constructing type expressions *)
 
 let make_tvar_ident (id : ident) : type_expr =
-  { type_expr = TE_tvar id;
-    type_expr_loc = Location.loc id }
+  {type_expr = TE_tvar id;
+   type_expr_loc = Location.loc id}
 
 let make_tvar_name (name : string) loc : type_expr =
-  { type_expr = TE_tvar (Location.mk_loc_val name loc);
-    type_expr_loc = loc }
+  {type_expr = TE_tvar (Location.mk_loc_val name loc);
+   type_expr_loc = loc}
 
 let make_type_app_name (name : string) (args : type_expr list) loc
     : type_expr =
   let c = make_tvar_name name loc in
-  { type_expr = TE_tapp (c, args);
-    type_expr_loc = loc }
+  {type_expr = TE_tapp (c, args);
+   type_expr_loc = loc}
 
 let rec make_arrow_type (args : type_expr list) loc : type_expr =
   match args with
@@ -30,7 +30,7 @@ let rec make_arrow_type (args : type_expr list) loc : type_expr =
 let arrow_args (typ : type_expr) : type_expr list =
   let rec helper acc typ =
     match typ.type_expr with
-      | TE_tapp ({type_expr = TE_tvar c}, h :: res :: [])
+      | TE_tapp ({type_expr = TE_tvar c; _}, h :: res :: [])
            when Location.value c = "->" ->
           helper (h :: acc) res
       | _ -> typ :: acc in
@@ -44,12 +44,12 @@ let add_arrow_result (typ : type_expr) (res : type_expr) : type_expr =
 (* constructing pattern expressions and expressions *)
 
 let make_pattern_loc (pat : pattern_desc) loc =
-  { pattern = pat;
-    pattern_loc = loc }
+  {pattern = pat;
+   pattern_loc = loc}
 
 let make_expr_loc (exp : expr_desc) loc =
-  { expr = exp;
-    expr_loc = loc }
+  {expr = exp;
+   expr_loc = loc}
 
 (* sorting record fields into canonical order *)
 let sort_fields fields =
@@ -78,12 +78,12 @@ let expand_type_abbrevs env te =
                  else let err =
                         TExc.PartialTypeConstructorApplication (loc, tc, n, 0)
                       in raise (TExc.Error err))
-      | TE_tapp ({ type_expr = TE_tvar t } as c, args) ->
+      | TE_tapp ({type_expr = TE_tvar t; _} as c, args) ->
           let tc = ME.TName (Location.value t) in
           (match TEnv.lookup_type_abbrev env tc with
              | None ->
                  let args' = List.map expand args in
-                 { te with type_expr = TE_tapp (c, args') }
+                 {te with type_expr = TE_tapp (c, args')}
              | Some abb ->
                  let n = List.length abb.TEnv.type_abbrev_tvars in
                  if n != List.length args
@@ -101,7 +101,7 @@ let expand_type_abbrevs env te =
       | TE_tapp (c, args) ->
           let c' = expand c in
           let args' = List.map expand args in
-          { te with type_expr = TE_tapp (c', args') }
+          {te with type_expr = TE_tapp (c', args')}
 
   and subst map te =
     match te.type_expr with
@@ -113,6 +113,6 @@ let expand_type_abbrevs env te =
       | TE_tapp (c, args) ->
           let c' = subst map c in
           let args' = List.map (subst map) args in
-          { te with type_expr = TE_tapp (c', args') }
+          {te with type_expr = TE_tapp (c', args')}
 
   in expand te

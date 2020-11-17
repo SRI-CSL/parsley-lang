@@ -100,11 +100,6 @@ val conj: tconstraint list -> tconstraint
     [exists x.(f x)]. *)
 val exists: ?pos:Location.t -> (crterm -> tconstraint) -> tconstraint
 
-(** [exists3 f] is a shortcut for
-    [exists (fun x -> exists (fun y -> exists (fun z -> f x y z)))]. *)
-val exists3: ?pos:Location.t ->
-  (crterm -> crterm -> crterm -> tconstraint) -> tconstraint
-
 (** [exists_list l f] associates a fresh variable with every element
     in the list [l], yielding an association list [m], and returns
     the constraint [exists m.(f m)]. *)

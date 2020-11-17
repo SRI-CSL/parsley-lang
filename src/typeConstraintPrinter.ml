@@ -49,33 +49,28 @@ let active_mode mode =
         Format.set_tags true;
         let formatter = Format.get_formatter_out_functions () in
         Format.set_formatter_out_functions
-          {
-            formatter with
-            out_string  = r.out;
-            out_flush   = r.flush;
-            out_newline = r.newline;
-            out_spaces  = r.spaces;
-          };
+          {formatter with
+           out_string  = r.out;
+           out_flush   = r.flush;
+           out_newline = r.newline;
+           out_spaces  = r.spaces};
         if r.with_tags then (
           set_formatter_stag_functions
-            {
-              mark_open_stag   = (fun t -> r.open_tag t; "");
-              mark_close_stag  = (fun t -> r.close_tag t; "");
-              print_open_stag  = ignore;
-              print_close_stag = ignore;
-            };
+            {mark_open_stag   = (fun t -> r.open_tag t; "");
+             mark_close_stag  = (fun t -> r.close_tag t; "");
+             print_open_stag  = ignore;
+             print_close_stag = ignore};
           set_margin r.margin)
 
     | Txt out ->
           let _ = Format.set_margin 80 in
           let formatter = Format.get_formatter_out_functions () in
           Format.set_formatter_out_functions
-            { formatter with
+            {formatter with
               out_string  = (fun s b e -> output_string out (String.sub s b e));
               out_flush   = (fun () -> flush out);
               out_newline = (fun () -> output_string out "\n");
-              out_spaces  = (fun n -> for i = 0 to n do output_string out " " done);
-            }
+              out_spaces  = (fun n -> for _ = 0 to n do output_string out " " done)}
 
 let is_let = function
   | CLet _ -> true
@@ -156,7 +151,7 @@ let printf_constraint mode c =
   and is_true = function CTrue _ -> true | _ -> false
 
   and printf_scheme (Scheme (_, rqs, fqs, c, header)) =
-    let len = StringMap.fold (fun x k acu -> acu + 1) header 0 in
+    let len = StringMap.fold (fun _x _k acu -> acu + 1) header 0 in
     printf "";
     if (List.length rqs + List.length fqs <> 0) then
       print_string forall;
@@ -170,7 +165,7 @@ let printf_constraint mode c =
     if (len <> 0) then print_string " (";
     let f = ref true in
     let sep () = if !f then (f := false; "") else "; " in
-    StringMap.iter (fun name (t, pos) ->
+    StringMap.iter (fun name (t, _pos) ->
         printf "%s%s : %s"
           (sep ())  name (print_crterm t)
       ) header;

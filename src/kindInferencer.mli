@@ -45,3 +45,5 @@ val check: env -> Ast.type_expr -> t -> unit
 
 (** [star] is the kind of ml values. *)
 val star : t
+
+val print : t -> string

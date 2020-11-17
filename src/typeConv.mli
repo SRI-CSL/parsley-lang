@@ -23,12 +23,6 @@
 (** This module transforms types from the user's syntax to the
     internal representation of the inference engine. *)
 
-(** [extract_type] examines an expression and looks for a sufficiently
-    explicit type annotation.
-    If it finds one, it returns the type annotation,
-    together with the expression (deprived of its annotation). *)
-val extract_type : Ast.expr -> (Ast.type_expr * Ast.expr) option
-
 (** [variables_of_typ ty] returns the type variables of [ty]. *)
 val variables_of_typ : Ast.type_expr -> Location.t Misc.StringMap.t
 

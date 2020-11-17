@@ -56,22 +56,22 @@ val environment_as_list : environment -> (string * TypeConstraint.variable) list
 val print_env: (TypeConstraint.variable -> string) -> environment -> unit
 
 type solver_error =
-  (** [TypingError] is raised when an inconsistency is detected during
-      constraint solving. *)
+  (* [TypingError] is raised when an inconsistency is detected during
+     constraint solving. *)
   | TypingError of Location.t
 
-  (** [UnboundIdentifier] is raised when an identifier is undefined in
-      a particular context. *)
+  (* [UnboundIdentifier] is raised when an identifier is undefined in
+     a particular context. *)
   | UnboundIdentifier of Location.t * string
 
-  (** [CannotGeneralize] when the type of an expression cannot be
-      generalized contrary to what is specified by the programmers
-      using type annotations. *)
+  (* [CannotGeneralize] when the type of an expression cannot be
+     generalized contrary to what is specified by the programmers
+     using type annotations. *)
   | CannotGeneralizeNonVariable of Location.t * TypeConstraint.variable
   | CannotGeneralizeRank of Location.t * TypeConstraint.variable * IntRank.t
 
-  (** [NonDistinctVariables] is raised when two rigid type variables have
-      been unified. *)
+  (* [NonDistinctVariables] is raised when two rigid type variables have
+     been unified. *)
   | NonDistinctVariables of Location.t * (TypeConstraint.variable list)
 
 exception Error of solver_error

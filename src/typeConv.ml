@@ -27,15 +27,7 @@ open Misc
 open TypeAlgebra
 open MultiEquation
 open TypingEnvironment
-open TypingExceptions
 open Ast
-
-let rec extract_type e =
-  match e.expr with
-  | E_cast (exp, typ) ->
-      Some (typ, exp)
-  | _ ->
-      None
 
 (** {2 From user's syntax to internal term representation} *)
 
@@ -53,13 +45,13 @@ let variables_of_typ =
 let arrow tenv =
   arrow (typcon_variable tenv)
 
-let rec type_of_args t =
+let type_of_args t =
   let rec chop acu typ =
     match typ.type_expr with
-    | TE_tapp ({type_expr = TE_tvar c}, [t1; t2])
+    | TE_tapp ({type_expr = TE_tvar c; _}, [t1; t2])
          when Location.value c = "->" ->
         chop (t1 :: acu) t2
-    | t ->
+    | _ ->
         acu
   in List.rev (chop [] t)
 
@@ -79,7 +71,7 @@ let rec intern' tenv t : crterm =
 
 (** [intern tenv typ] converts the type expression [typ] to a type.
     The environment [tenv] maps type identifiers to types. *)
-let rec intern tenv ty =
+let intern tenv ty =
   let kind_env = as_kind_env tenv in
   let _ = KindInferencer.check kind_env ty KindInferencer.star in
     intern' tenv ty

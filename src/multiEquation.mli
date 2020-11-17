@@ -22,8 +22,6 @@
 
 (** This module implements a data structure for multi-equations. *)
 
-open Misc
-
 (** {3 Multi-equation descriptor} *)
 
 (** The structure of the terms manipulated by a unifier is fixed and

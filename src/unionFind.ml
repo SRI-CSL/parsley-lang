@@ -39,24 +39,21 @@
 
     Information about a class consists of an integer weight (the number
     of elements in the class) and of the class's descriptor. *)
-type 'a point = {
-    mutable link: 'a link
-  }
+type 'a point =
+  {mutable link: 'a link}
 
 and 'a link =
   | Info of 'a info
   | Link of 'a point
 
-and 'a info = {
-    mutable weight: int;
-    mutable descriptor: 'a
-  }
+and 'a info =
+  {mutable weight: int;
+   mutable descriptor: 'a}
 
 (** [fresh desc] creates a fresh point and returns it. It forms an
     equivalence class of its own, whose descriptor is [desc]. *)
-let fresh desc = {
-  link = Info { weight = 1; descriptor = desc }
-}
+let fresh desc =
+  {link = Info {weight = 1; descriptor = desc}}
 
 (** [repr point] returns the representative element of [point]'s
     equivalence class. It is found by starting at [point] and following
@@ -89,17 +86,17 @@ let rec find point =
 
   match point.link with
   | Info info
-  | Link { link = Info info } ->
+  | Link {link = Info info} ->
       info.descriptor
-  | Link { link = Link _ } ->
+  | Link {link = Link _} ->
       find (repr point)
 
 let rec change point v =
   match point.link with
   | Info info
-  | Link { link = Info info } ->
+  | Link {link = Info info} ->
       info.descriptor <- v; info.descriptor
-  | Link { link = Link _ } ->
+  | Link {link = Link _} ->
       change (repr point) v
 
 (** [union point1 point2] merges the equivalence classes associated
@@ -142,7 +139,7 @@ let equivalent point1 point2 =
 (** [redundant] maps all members of an equivalence class, but one, to
     [true]. *)
 let redundant = function
-  | { link = Link _ } ->
+  | {link = Link _} ->
       true
-  | { link = Info _ } ->
+  | {link = Info _} ->
       false

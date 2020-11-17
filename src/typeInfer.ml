@@ -38,31 +38,25 @@ open Ast
     pattern. [tconstraint] is the constraint coming from the instantiation
     of the data constructor scheme. *)
 type fragment =
-  {
-    gamma       : (crterm * Location.t) StringMap.t;
-    vars        : variable list;
-    tconstraint : tconstraint;
-  }
+  {gamma       : (crterm * Location.t) StringMap.t;
+   vars        : variable list;
+   tconstraint : tconstraint}
 
 (** The [empty_fragment] is used when nothing has been bound. *)
 let empty_fragment =
-  {
-    gamma       = StringMap.empty;
-    vars        = [];
-    tconstraint = CTrue Location.ghost_loc;
-  }
+  {gamma       = StringMap.empty;
+   vars        = [];
+   tconstraint = CTrue Location.ghost_loc}
 
 (** Joining two fragments is straightforward except that the environments
     must be disjoint (a pattern cannot bound a variable several times). *)
 let rec join_fragment pos f1 f2 =
-  {
-    gamma =
-      (try
-         StringMap.strict_union f1.gamma f2.gamma
-       with StringMap.Strict x -> raise (Error (NonLinearPattern (pos, x))));
-    vars        = f1.vars @ f2.vars;
-    tconstraint = f1.tconstraint ^ f2.tconstraint;
-  }
+  {gamma =
+     (try
+        StringMap.strict_union f1.gamma f2.gamma
+      with StringMap.Strict x -> raise (Error (NonLinearPattern (pos, x))));
+   vars        = f1.vars @ f2.vars;
+   tconstraint = f1.tconstraint ^ f2.tconstraint}
 
 (** [infer_pat_fragment p t] generates a fragment that represents the
     information gained by a success when matching p. *)
@@ -71,31 +65,28 @@ and infer_pat_fragment tenv p t =
   let rec infpat t p =
     let pos = p.pattern_loc in
     match p.pattern with
-    (** Wildcard pattern does not generate any fragment. *)
+    (* Wildcard pattern does not generate any fragment. *)
     | P_wildcard ->
         empty_fragment
 
-    (** We refer to the algebra to know the type of a primitive. *)
+    (* We refer to the algebra to know the type of a primitive. *)
     | P_literal l ->
-        { empty_fragment with
-          tconstraint = (t =?= type_of_primitive (as_fun tenv) l) pos
-        }
+        {empty_fragment with
+          tconstraint = (t =?= type_of_primitive (as_fun tenv) l) pos}
 
-    (** Matching against a variable generates a fresh flexible variable,
-        binds it to the [name] and forces the variable to be equal to [t]. *)
+    (* Matching against a variable generates a fresh flexible variable,
+       binds it to the [name] and forces the variable to be equal to [t]. *)
     | P_var name ->
         let pos = Location.loc name in
         let v = variable Flexible () in
-        {
-          gamma       = StringMap.singleton (Location.value name) (CoreAlgebra.TVariable v, pos);
-          tconstraint = (CoreAlgebra.TVariable v =?= t) pos;
-          vars        = [ v ]
-        }
+        {gamma       = StringMap.singleton (Location.value name) (CoreAlgebra.TVariable v, pos);
+         tconstraint = (CoreAlgebra.TVariable v =?= t) pos;
+         vars        = [ v ]}
 
-    (** Matching against a data constructor generates the fragment that:
-        - forces [t] to be the type of the constructed value ;
-        - constraints the types of the subpatterns to be equal to the arguments
-        of the data constructor. *)
+    (* Matching against a data constructor generates the fragment that:
+       - forces [t] to be the type of the constructed value ;
+       - constraints the types of the subpatterns to be equal to the arguments
+       of the data constructor. *)
     | P_variant ((typ, c), ps) ->
         let typid = Location.value typ in
         let cid, cloc = Location.value c, Location.loc c in
@@ -109,16 +100,15 @@ and infer_pat_fragment tenv p t =
           raise (Error (err))
         else
           let fragment = join pos (List.map2 infpat ats ps) in
-          { fragment with
+          {fragment with
             tconstraint = fragment.tconstraint ^ (t =?= rt) pos ;
-            vars        = alphas @ fragment.vars;
-          }
+            vars        = alphas @ fragment.vars}
     (* TODO: add record patterns *)
   in infpat t p
 
 (** checks for consistency between the declarations and
     uses of type variables *)
-let check_distinct_tvars typid qs =
+let check_distinct_tvars _typid qs =
   let rec checker acc = function
     | [] -> None
     | var :: tl ->
@@ -130,7 +120,7 @@ let check_distinct_tvars typid qs =
     | Some var -> raise (Error (DuplicateTypeVariable var))
     | None -> ()
 
-let check_tvars_usage tenv t qs used_set =
+let check_tvars_usage tenv _t qs used_set =
   (* TODO: ensure tycons don't cause issues; perhaps only extract
      syntactic type-variables to avoid tycons *)
   (* make sure all declared type variables are used *)
@@ -152,7 +142,7 @@ let check_tvars_usage tenv t qs used_set =
 (** [make_dc_signature adt tvars dc typ] constructs the function type
     signature for a data constructor of [adt] named [dc] given its declared
     argument [typ], which is parameterized over type variables [tvars]. *)
-let make_dc_signature adt tvars dc opt_arg =
+let make_dc_signature adt tvars _dc opt_arg =
   let tvars = List.map AstUtils.make_tvar_ident tvars in
   let res =
     if List.length tvars = 0
@@ -262,7 +252,7 @@ let intern_record_constructor adt_id qs env_info fields =
   let adt_name = Location.value adt_id in
   let tenv, let_env = env_info in
   let rcon = Printf.sprintf "<%s>" adt_name in
-  let constructor, fields = make_record_signature adt_id qs fields in
+  let constructor, _fields = make_record_signature adt_id qs fields in
   let qs = List.map (fun q -> TName (Location.value q)) qs in
   let rqs, rtenv = fresh_unnamed_rigid_vars (Location.loc adt_id) tenv qs in
   let tenv' = add_type_variables rtenv tenv in
@@ -363,7 +353,7 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
             (tenv, [], rqs, let_env)
             dcons in
         (* Fill in the adt_info *)
-        adt_ref := Some { adt = Variant ids; loc };
+        adt_ref := Some {adt = Variant ids; loc};
         tenv, rqs, let_env
     | TR_record fields ->
         (* First expand any type abbreviations in the signatures *)
@@ -382,13 +372,13 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
             (tenv, let_env) fields in
         let fields, _ = List.split fields in
         (* Fill in the adt_info *)
-        adt_ref := Some { adt = Record { adt = ident;
-                                         fields;
-                                         record_constructor = cid;
-                                         field_destructors = dids };
-                          loc };
+        adt_ref := Some {adt = Record {adt = ident;
+                                       fields;
+                                       record_constructor = cid;
+                                       field_destructors = dids};
+                          loc};
         tenv, crqs @ drqs, let_env
-    | TR_defn d ->
+    | TR_defn _ ->
         (* This is prevented by the check for type abbreviations in
            infer_spec. *)
         assert false
@@ -414,8 +404,8 @@ let infer_type_abbrev tenv td =
         (* Add it to the environment *)
         let tvs =
           List.map (fun tv -> TName (Location.value tv)) tvars in
-        let abb = { type_abbrev_tvars = tvs;
-                    type_abbrev_type = d' } in
+        let abb = {type_abbrev_tvars = tvs;
+                   type_abbrev_type = d'} in
         add_type_abbrev tenv pos (TName name) abb
     (* non-abbreviations are handled seperately via checks in infer_spec. *)
     | _ ->
@@ -432,7 +422,7 @@ let make_match_case_expr exp typ dcon arity loc =
   let pattern = AstUtils.make_pattern_loc (P_variant ((typ, dcon), pargs)) loc in
   let tr, fl = mk_var "bool::True", mk_var "bool::False" in
   let case_exp = E_case (exp, [pattern, tr; wc, fl]) in
-  { expr = case_exp; expr_loc = loc }
+  {expr = case_exp; expr_loc = loc}
 
 (** looks up the adt in [tenv] matching the [fields] in a literal
     record expression; it reports mismatch errors at location [loc]. *)
@@ -443,9 +433,9 @@ let lookup_record_adt tenv fields =
       | Some adtid -> adtid
       | None -> raise (Error (UnboundRecordField (Location.loc f, LName fid))) in
   let rec_info, rec_loc = match lookup_adt tenv adtid with
-      | Some { adt = Record rec_info; loc = rec_loc } ->
+      | Some {adt = Record rec_info; loc = rec_loc} ->
           rec_info, rec_loc
-      | Some { adt = Variant _ } ->
+      | Some {adt = Variant _; _} ->
           (* Fields (initial lowercase) and data constructors (initial
              upppercase) cannot collide. *)
           assert false
@@ -480,11 +470,11 @@ let lookup_record_adt tenv fields =
 let rec infer_expr tenv e (t : crterm) =
   match e.expr with
     | E_var id ->
-        (** The type of a variable must be at least as general as [t]. *)
+        (* The type of a variable must be at least as general as [t]. *)
         (SName (Location.value id) <? t) (Location.loc id)
     | E_constr (adt, dcon, args) ->
-        (** A data constructor application is similar to the usual
-            application except that it must be fully applied. *)
+        (* A data constructor application is similar to the usual
+           application except that it must be fully applied. *)
         let typid = Location.value adt in
         let cid, cloc = Location.value dcon, Location.loc dcon in
         let dcid = Printf.sprintf "%s::%s" typid cid in
@@ -506,9 +496,9 @@ let rec infer_expr tenv e (t : crterm) =
             )
 
     | E_record fields ->
-        (** Lookup the record ADT matched by this set of fields, and
-            constrain each field value to the result type of the
-            corresponding field destructor. *)
+        (* Lookup the record ADT matched by this set of fields, and
+           constrain each field value to the result type of the
+           corresponding field destructor. *)
         let fields = AstUtils.sort_fields fields in
         let f_names, f_vals = List.split fields in
         let rec_info = lookup_record_adt tenv f_names in
@@ -526,9 +516,9 @@ let rec infer_expr tenv e (t : crterm) =
             c ^ (SName rcon <? typ) e.expr_loc
           )
     | E_field (exp, f) ->
-        (** A record field index is similar to a data constructor but
-            has no arity check; its constraint makes its destructor
-            type equal to the type taking [exp] to [t].*)
+        (* A record field index is similar to a data constructor but
+           has no arity check; its constraint makes its destructor
+           type equal to the type taking [exp] to [t].*)
         let field = Location.value f in
         let _ = lookup_field_destructor tenv (Location.loc f) (LName field) in
         let binding = Printf.sprintf "{%s}" field in
@@ -538,9 +528,9 @@ let rec infer_expr tenv e (t : crterm) =
             ^ (SName binding <? typ) e.expr_loc
           )
     | E_apply (fexp, args) ->
-        (** The constraint of an [apply] makes equal the type of the
-            function expression [fexp] and the function type taking the
-            types of arguments [args] to [t]. *)
+        (* The constraint of an [apply] makes equal the type of the
+           function expression [fexp] and the function type taking the
+           types of arguments [args] to [t]. *)
 
         (* an empty argument list corresponds to an argument of unit *)
         if List.length args = 0 then
@@ -561,14 +551,14 @@ let rec infer_expr tenv e (t : crterm) =
               cfun ^ cargs
             )
     | E_match (exp, typ, c) ->
-        (** Desugar this as a case expression:
+        (* Desugar this as a case expression:
 
-            case (exp) { typ::c _ _ _ => true, _ => false }
+           case (exp) {typ::c _ _ _ => true, _ => false}
 
-            We cannot do it in the parser since we need to know the
-            arity of the data constructor [typ::c] to generate the correct
-            wildcard case pattern.  The return type is constrained to
-            be boolean. *)
+           We cannot do it in the parser since we need to know the
+           arity of the data constructor [typ::c] to generate the correct
+           wildcard case pattern.  The return type is constrained to
+           be boolean. *)
         let cid, cloc = Location.value c, Location.loc c in
         let dcid = Printf.sprintf "%s::%s" (Location.value typ) cid in
         let arity, _, _ = lookup_datacon tenv cloc (DName dcid) in
@@ -580,9 +570,9 @@ let rec infer_expr tenv e (t : crterm) =
         let primtyp = type_of_primitive (as_fun tenv) prim_lit in
         (t =?= primtyp) e.expr_loc
     | E_case (exp, clauses) ->
-        (** The constraint of a [case] makes equal the type of the
-            scrutinee and the type of every branch pattern. The body
-            of each branch must be equal to [t]. *)
+        (* The constraint of a [case] makes equal the type of the
+           scrutinee and the type of every branch pattern. The body
+           of each branch must be equal to [t]. *)
         (* TODO: exhaustiveness check of patterns *)
         exists (fun exvar ->
             infer_expr tenv exp exvar
@@ -596,9 +586,9 @@ let rec infer_expr tenv e (t : crterm) =
                            infer_expr tenv b t)
                    ) clauses))
     | E_let (p, def, body) ->
-        (** The constraint of this non-generalizing [let] makes equal
-            the type of the pattern and the definiens, and requires
-            the type of the let body to be equal to [t]. *)
+        (* The constraint of this non-generalizing [let] makes equal
+           the type of the pattern and the definiens, and requires
+           the type of the let body to be equal to [t]. *)
         exists (fun exvar ->
             let fragment = infer_pat_fragment tenv p exvar in
             let def_con = infer_expr tenv def exvar in
@@ -612,13 +602,13 @@ let rec infer_expr tenv e (t : crterm) =
                     infer_expr tenv body t)
           )
     | E_cast (exp, typ) ->
-        (** A type constraint inserts a type equality into the
-            generated constraint. *)
+        (* A type constraint inserts a type equality into the
+           generated constraint. *)
         let typ  = AstUtils.expand_type_abbrevs tenv typ in
         let ityp = TypeConv.intern tenv typ in
         (t =?= ityp) e.expr_loc ^ infer_expr tenv exp ityp
     | E_unop (op, e) ->
-        (** This is a special case of a constructor application. *)
+        (* This is a special case of a constructor application. *)
         exists (fun exvar ->
             let opid = unop_const_name op in
             let typ = TypeConv.arrow tenv exvar t in
@@ -646,10 +636,10 @@ let rec infer_expr tenv e (t : crterm) =
         (* This is typed as a regular identifier. *)
         (SName id <? t) loc
 
-(** [infer_fun_defn tenv ctxt fd] examines the function definition [fd]
-    and constraint context [ctxt] in the type environment [tenv] and
-    generates an updated constraint context for [ctxt] and a type
-    signature for [fd]. *)
+(* [infer_fun_defn tenv ctxt fd] examines the function definition [fd]
+   and constraint context [ctxt] in the type environment [tenv] and
+   generates an updated constraint context for [ctxt] and a type
+   signature for [fd]. *)
 let infer_fun_defn tenv ctxt fd =
   let loc = Location.loc fd.fun_defn_ident
   and fdn = Location.value fd.fun_defn_ident
@@ -688,11 +678,11 @@ let infer_fun_defn tenv ctxt fd =
           let ityp = TypeConv.intern tenv' typ in
           let v = variable Flexible () in
           acu_ids,
-          { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
+          {gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
                       bindings.gamma;
             tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
                           ^ bindings.tconstraint;
-            vars = v :: bindings.vars },
+            vars = v :: bindings.vars},
           TypeConv.arrow tenv ityp signature
         ) (StringMap.empty, empty_fragment, irestyp) (List.rev fd.fun_defn_params) in
 
@@ -788,7 +778,7 @@ let infer_nt_rhs_type tenv ntd =
   let res =
     match ntd.non_term_rules with
       (* a single production with a single non-terminal *)
-      | [{ rule_rhs = [{ rule_elem = RE_non_term (n, _) }] }] ->
+      | [{rule_rhs = [{rule_elem = RE_non_term (n, _); _}]; _}] ->
           lookup_non_term_type tenv (NName (Location.value n))
       (* each production is a sequence of unnamed regular expressions *)
       | rules ->
@@ -895,13 +885,12 @@ let infer_non_term_type tenv ctxt ntd =
           intern_record_constructor ntid []
             (tenv', let_env) attrs in
         let fields, _ = List.split attrs in
-        let rec_info = { adt = ntid;
-                         fields;
-                         record_constructor = cid;
-                         field_destructors = dids } in
+        let rec_info = {adt = ntid;
+                        fields;
+                        record_constructor = cid;
+                        field_destructors = dids} in
         rcd := Some rec_info;
-        adt := Some { adt = Record rec_info;
-                      loc };
+        adt := Some {adt = Record rec_info; loc};
         let ctxt' = (fun c ->
             ctxt' (CLet ([Scheme (loc, drqs @ crqs, [], CTrue loc, let_env)],
                          c))
@@ -910,7 +899,7 @@ let infer_non_term_type tenv ctxt ntd =
 
 (* returns a constraint ensuring that the non-terminal [id] has a
    string type *)
-let rec check_bytes_non_term tenv id t =
+let check_bytes_non_term tenv id t =
   let n = Location.value id in
   match lookup_non_term_type tenv (NName n) with
     | None ->
@@ -975,13 +964,13 @@ let rec infer_regexp tenv re t =
 let rec infer_stmt tenv s =
   match s.stmt with
     | S_assign (l, r) ->
-        (** Ensure that there is a type [t'] that is compatible with
-            both sides of the assignment. *)
+        (* Ensure that there is a type [t'] that is compatible with
+           both sides of the assignment. *)
         exists (fun t' ->
             infer_expr tenv l t'
             ^ infer_expr tenv r t')
     | S_let (p, def, ss) ->
-        (** Similar to E_let. *)
+        (* Similar to E_let. *)
         exists (fun t' ->
             let fragment = infer_pat_fragment tenv p t' in
             let def_con = infer_expr tenv def t' in
@@ -991,7 +980,7 @@ let rec infer_stmt tenv s =
                               fragment.gamma) ],
                     conj (List.map (infer_stmt tenv) ss)))
     | S_case (e, clauses) ->
-        (** Similar to E_case *)
+        (* Similar to E_case *)
         (* TODO: pattern exhaustiveness checks. *)
         exists (fun t' ->
             infer_expr tenv e t'
@@ -1225,7 +1214,7 @@ let rec infer_rule_elem tenv ntd ctx re t bound =
 
 let infer_non_term_rule tenv ntd rule pids =
   (* add temporaries to local bindings *)
-  let pids, bindings =
+  let _pids, bindings =
     List.fold_left (fun (pids, fragment) (pid, typ, exp) ->
         let pn, ploc = Location.value pid, Location.loc pid in
         let pids =
@@ -1237,12 +1226,12 @@ let infer_non_term_rule tenv ntd rule pids =
         let ityp = TypeConv.intern tenv typ in
         let v = variable Flexible () in
         pids,
-        { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
-                    fragment.gamma;
-          tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
-                        ^ infer_expr tenv exp ityp
-                        ^ fragment.tconstraint;
-          vars = v :: fragment.vars }
+        {gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
+                   fragment.gamma;
+         tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
+                       ^ infer_expr tenv exp ityp
+                       ^ fragment.tconstraint;
+         vars = v :: fragment.vars}
       ) (pids, empty_fragment) rule.rule_temps in
   let qs, ctx = List.fold_left (fun (qs, ctx) re ->
                     let v = variable Flexible () in
@@ -1275,10 +1264,10 @@ let infer_non_term tenv ntd =
               | Some t -> t in
           let v = variable Flexible () in
           StringMap.singleton (Location.value n) n,
-          { gamma = StringMap.singleton (Location.value n)
-                      (CoreAlgebra.TVariable v, nloc);
-            tconstraint = (CoreAlgebra.TVariable v =?= ntt) nloc;
-            vars = [ v ] } in
+          {gamma = StringMap.singleton (Location.value n)
+                     (CoreAlgebra.TVariable v, nloc);
+           tconstraint = (CoreAlgebra.TVariable v =?= ntt) nloc;
+           vars = [ v ]} in
   let pids, bindings =
     List.fold_left (fun (pids, fragment) (pn, (ityp, ploc)) ->
         let pid = Location.mk_loc_val pn ploc in
@@ -1290,11 +1279,11 @@ let infer_non_term tenv ntd =
                 StringMap.add pn pid pids in
         let v = variable Flexible () in
         pids,
-        { gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
-                    fragment.gamma;
-          tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
-                        ^ fragment.tconstraint;
-          vars = v :: fragment.vars }
+        {gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
+                   fragment.gamma;
+         tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
+                       ^ fragment.tconstraint;
+         vars = v :: fragment.vars}
       ) (pids, bindings) (StringMap.bindings inh_attrs) in
   CLet ([ Scheme (ntd.non_term_loc, [],
                   bindings.vars,
@@ -1324,7 +1313,7 @@ let init_tenv () =
      builtins currently only use variant algebraic types. *)
   let init_ds (TName adt_name) env_info ds =
     let adt_id = Location.mk_ghost adt_name in
-    let (tenv, dcs, lrqs, let_env) as env_info =
+    let (_tenv, dcs, _lrqs, _let_env) as env_info =
       List.fold_left
         (fun env_info (DName d, qs, ty) ->
           let qs = List.map (fun (TName q) -> Location.mk_ghost q) qs in
@@ -1342,7 +1331,7 @@ let init_tenv () =
 
   (* For each builtin datatype, add a type constructor and any
      associated data constructors into the environment. *)
-  let intern_type tenv let_env ((TName id) as n, (kind, v, ds)) =
+  let intern_type tenv let_env (n, (kind, _v, ds)) =
     let gloc = Location.ghost_loc in
     let r = ref None in
     let tvar = variable ~name:n Constant () in
@@ -1354,8 +1343,7 @@ let init_tenv () =
       init_ds n (tenv, [], [], let_env) ds in
     (* If there are no data constructors, it does not need any adt_info. *)
     if List.length dcs > 0
-    then r := Some { adt = Variant dcs;
-                     loc = gloc };
+    then r := Some {adt = Variant dcs; loc = gloc};
     env_info in
 
   let intern_types tenv let_env builtins =
@@ -1399,7 +1387,7 @@ let init_tenv () =
      with primitive builtin types and do not have any inherited
      attributes. *)
   let init_tenv =
-    Array.fold_left (fun tenv ((NName nid) as nt, typ) ->
+    Array.fold_left (fun tenv (nt, typ) ->
         let gloc = Location.ghost_loc in
         let typ = TypeConv.intern tenv typ in
         let syn_typ = NTT_type typ in
@@ -1410,7 +1398,7 @@ let init_tenv () =
 
   (* Extract the variables bound to the type constructors. *)
   let vs =
-    fold_type_info (fun vs (n, (_, v, _)) -> v :: vs) [] init_tenv in
+    fold_type_info (fun vs (_n, (_, v, _)) -> v :: vs) [] init_tenv in
 
   (* The initial environment is implemented as a constraint context. *)
   init_tenv,

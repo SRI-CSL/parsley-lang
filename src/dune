@@ -1,0 +1,12 @@
+(ocamllex
+ (modules lexer)
+)
+
+(menhir
+ (modules parser)
+ (flags --unused-tokens --explain --dump)
+)
+
+(executable
+ (name parsleyc)
+)

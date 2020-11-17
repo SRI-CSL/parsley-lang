@@ -19,8 +19,8 @@ type type_expr_desc =
   | TE_tapp of type_expr * type_expr list
 
 and type_expr =
-  { type_expr: type_expr_desc;
-    type_expr_loc: Location.t }
+  {type_expr: type_expr_desc;
+   type_expr_loc: Location.t}
 
 type type_rep_desc =
   | TR_variant of (ident * type_expr option) list
@@ -28,8 +28,8 @@ type type_rep_desc =
   | TR_defn of type_expr
 
 and type_rep =
-  { type_rep: type_rep_desc;
-    type_rep_loc: Location.t }
+  {type_rep: type_rep_desc;
+   type_rep_loc: Location.t}
 
 type binop =
   | Lt | Gt | Lteq | Gteq | Eq | Neq
@@ -53,8 +53,8 @@ type pattern_desc =
   | P_variant of (ident * ident) * pattern list
 
 and pattern =
-  { pattern: pattern_desc;
-    pattern_loc: Location.t }
+  {pattern: pattern_desc;
+   pattern_loc: Location.t}
 
 type expr_desc =
   | E_var of ident
@@ -72,8 +72,8 @@ type expr_desc =
   | E_cast of expr * type_expr
 
 and expr =
-  { expr: expr_desc;
-    expr_loc: Location.t }
+  {expr: expr_desc;
+   expr_loc: Location.t}
 
 type stmt_desc =
   | S_assign of expr * expr
@@ -81,12 +81,12 @@ type stmt_desc =
   | S_case of expr * (pattern * stmt list) list
 
 and stmt =
-  { stmt: stmt_desc;
-    stmt_loc: Location.t }
+  {stmt: stmt_desc;
+   stmt_loc: Location.t}
 
 type rule_action =
-  { action_stmts: stmt list * expr option;
-    action_loc: Location.t }
+  {action_stmts: stmt list * expr option;
+   action_loc: Location.t}
 
 (* for now, use the same expression sublanguage in actions and constraints. *)
 type rule_constraint =
@@ -99,8 +99,8 @@ type literal_set_desc =
   | LS_range of literal * literal
 
 and literal_set =
-  { literal_set: literal_set_desc;
-    literal_set_loc: Location.t }
+  {literal_set: literal_set_desc;
+   literal_set_loc: Location.t}
 
 type regexp_desc =
   | RX_literals of literal_set
@@ -112,8 +112,8 @@ type regexp_desc =
   | RX_seq of regexp list
 
 and regexp =
-  { regexp: regexp_desc;
-    regexp_loc: Location.t }
+  {regexp: regexp_desc;
+   regexp_loc: Location.t}
 
 type rule_elem_desc =
   | RE_regexp of regexp
@@ -131,68 +131,68 @@ type rule_elem_desc =
   | RE_map_bufs of expr * rule_elem
 
 and rule_elem =
-  { rule_elem: rule_elem_desc;
-    rule_elem_loc: Location.t }
+  {rule_elem: rule_elem_desc;
+   rule_elem_loc: Location.t}
 
 type rule =
-  { rule_rhs: rule_elem list;
-    rule_temps: (ident * type_expr * expr) list;
-    rule_loc: Location.t }
+  {rule_rhs: rule_elem list;
+   rule_temps: (ident * type_expr * expr) list;
+   rule_loc: Location.t}
 
 type attr_list_type =
   | ALT_type of ident  (* TODO: support record instantiation? *)
   | ALT_decls of (ident * type_expr) list
 
 type non_term_defn =
-  { non_term_name: ident;
-    non_term_varname: ident option;
-    non_term_inh_attrs: (ident * type_expr) list; (* inherited *)
-    non_term_syn_attrs: attr_list_type; (* synthesized *)
-    non_term_rules: rule list;
-    non_term_loc: Location.t }
+  {non_term_name: ident;
+   non_term_varname: ident option;
+   non_term_inh_attrs: (ident * type_expr) list; (* inherited *)
+   non_term_syn_attrs: attr_list_type; (* synthesized *)
+   non_term_rules: rule list;
+   non_term_loc: Location.t}
 
 type use =
-  { use_modules: ident list;
-    use_loc: Location.t }
+  {use_modules: ident list;
+   use_loc: Location.t}
 
 type type_decl =
-  { type_decl_ident: ident;
-    type_decl_kind: kind;
-    type_decl_tvars: tvar list;
-    type_decl_body: type_rep;
-    type_decl_loc: Location.t }
+  {type_decl_ident: ident;
+   type_decl_kind: kind;
+   type_decl_tvars: tvar list;
+   type_decl_body: type_rep;
+   type_decl_loc: Location.t}
 
 type fun_defn =
-  { fun_defn_ident: ident;
-    fun_defn_tvars: tvar list;
-    fun_defn_params: (ident * type_expr) list;
-    fun_defn_res_type: type_expr;
-    fun_defn_body: expr;
-    fun_defn_recursive: bool;
-    fun_defn_loc: Location.t }
+  {fun_defn_ident: ident;
+   fun_defn_tvars: tvar list;
+   fun_defn_params: (ident * type_expr) list;
+   fun_defn_res_type: type_expr;
+   fun_defn_body: expr;
+   fun_defn_recursive: bool;
+   fun_defn_loc: Location.t}
 
 type nterm_decl =
-  { nterms: ident list;
-    nterms_loc: Location.t }
+  {nterms: ident list;
+   nterms_loc: Location.t}
 
 type attribute_arg =
   | Attr_key of ident
   | Attr_keyvalue of ident * ident
 
 type attribute =
-  { attr_type: ident;
-    attr_value: ident;
-    attr_args: attribute_arg list;
-    attr_loc: Location.t }
+  {attr_type: ident;
+   attr_value: ident;
+   attr_args: attribute_arg list;
+   attr_loc: Location.t}
 
 type format_decl =
-  { format_decl: non_term_defn;
-    format_attr: attribute option;
-    format_decl_loc: Location.t }
+  {format_decl: non_term_defn;
+   format_attr: attribute option;
+   format_decl_loc: Location.t}
 
 type format =
-  { format_decls: format_decl list;
-    format_loc: Location.t }
+  {format_decls: format_decl list;
+   format_loc: Location.t}
 
 type pre_decl =
   | PDecl_use of use
@@ -202,7 +202,7 @@ type pre_decl =
   | PDecl_format of format
 
 type pre_top_level =
-  { pre_decls: pre_decl list }
+  {pre_decls: pre_decl list}
 
 (* flattened version after including use files *)
 type top_decl =
@@ -212,4 +212,4 @@ type top_decl =
   | Decl_format of format
 
 type program =
-  { decls: top_decl list }
+  {decls: top_decl list}

@@ -27,22 +27,22 @@ open MultiEquation
 open CoreAlgebra
 
 type solver_error =
-  (** [TypingError] is raised when an inconsistency is detected during
-      constraint solving. *)
+  (* [TypingError] is raised when an inconsistency is detected during
+     constraint solving. *)
   | TypingError of Location.t
 
-  (** [UnboundIdentifier] is raised when an identifier is undefined in
-      a particular context. *)
+  (* [UnboundIdentifier] is raised when an identifier is undefined in
+     a particular context. *)
   | UnboundIdentifier of Location.t * string
 
-  (** [CannotGeneralize] when the type of an expression cannot be
-      generalized contrary to what is specified by the programmers
-      using type annotations. *)
+  (* [CannotGeneralize] when the type of an expression cannot be
+     generalized contrary to what is specified by the programmers
+     using type annotations. *)
   | CannotGeneralizeNonVariable of Location.t * TypeConstraint.variable
   | CannotGeneralizeRank of Location.t * TypeConstraint.variable * IntRank.t
 
-  (** [NonDistinctVariables] is raised when two rigid type variables have
-      been unified. *)
+  (* [NonDistinctVariables] is raised when two rigid type variables have
+     been unified. *)
   | NonDistinctVariables of Location.t * (TypeConstraint.variable list)
 
 exception Error of solver_error
@@ -366,7 +366,7 @@ let solve ?tracer c =
 
 (** [print_env printer env] use the variable printer [printer] in order to
     display [env]. *)
-let rec print_env print env =
+let print_env print env =
   let print_entry (name, t) =
     if name.[0] <> '_' then
       Printf.printf "val %s: %s\n" name (print t)

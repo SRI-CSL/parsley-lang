@@ -65,9 +65,6 @@ module StringMap = struct
   let strict_union m1 m2 =
     fold strict_add m1 m2
 
-  let domain m =
-    fold (fun k _ acu -> StringSet.add k acu) m StringSet.empty
-
 end
 
 (** A debugging flag. *)
@@ -95,25 +92,25 @@ let print_separated_list separator print_elem xs =
 
 
 let make_indexes default  =
-  (** A hash table maps all known identifiers to integer values. It
-      provides one direction of the global mapping. *)
+  (* A hash table maps all known identifiers to integer values. It
+     provides one direction of the global mapping. *)
   let table =
     Hashtbl.create 1023
   and
-  (** An infinite array maps all known integer values to identifiers. It
-      provides the other direction of the global mapping. *)
+  (* An infinite array maps all known integer values to identifiers. It
+     provides the other direction of the global mapping. *)
   array =
     InfiniteArray.make default (* Dummy data. *)
-    (** A global counter contains the next available integer label. *)
+    (* A global counter contains the next available integer label. *)
   and counter =
     ref 0
   in
-  (** [import s] associates a unique label with the identifier [s],
-      possibly extending the global mapping if [s] was never encountered
-      so far. Thus, if [s] and [t] are equal strings, possibly allocated
-      in different memory locations, [import s] and [import t] return
-      the same label. The identifier [s] is recorded and may be later
-      recovered via [export]. *)
+  (* [import s] associates a unique label with the identifier [s],
+     possibly extending the global mapping if [s] was never encountered
+     so far. Thus, if [s] and [t] are equal strings, possibly allocated
+     in different memory locations, [import s] and [import t] return
+     the same label. The identifier [s] is recorded and may be later
+     recovered via [export]. *)
   let import s =
     match Hashtbl.find_opt table s with
       | Some i -> i
@@ -125,10 +122,10 @@ let make_indexes default  =
           i
         end
 
-  (** [export i] provides access to the inverse of the global mapping,
-      that is, associates a unique identifier with every label. The
-      identifier associated with a label is the one originally supplied
-      to [import]. *)
+  (* [export i] provides access to the inverse of the global mapping,
+     that is, associates a unique identifier with every label. The
+     identifier associated with a label is the one originally supplied
+     to [import]. *)
   and export i =
     assert (i < !counter);
     InfiniteArray.get array i
@@ -143,7 +140,7 @@ let make_indexes default  =
 let rec last = function
     [] -> raise Not_found
   | [ a ] -> a
-  | a :: q -> last q
+  | _a :: q -> last q
 
 let curry f = fun (x, y) -> f x y
 
@@ -166,7 +163,7 @@ exception Inconsistency
 let is_now v v' =
   match v with
   | None -> v'
-  | Some x -> if (v <> v') then raise Inconsistency else v
+  | Some _x -> if (v <> v') then raise Inconsistency else v
 
 let rec itern n f =
   if n = 0 then [] else (f ()) :: (itern (n-1) f)
@@ -193,9 +190,6 @@ let unSome = function
 
 let unSomef f = fun x -> unSome (f x)
 
-let split3 l = List.fold_left (fun (l1,l2,l3) (a, b, c) -> a::l1, b::l2, c::l3)
-               ([], [], []) l
-
 let split4 l = List.fold_left
                  (fun (l1,l2,l3,l4) (a, b, c, d) -> a::l1, b::l2, c::l3, d::l4)
                ([], [], [], []) l
@@ -209,7 +203,7 @@ let rec transpose l =
   match l with
     | [] -> []
     | [] :: _ -> []
-    | [ a ] :: _ -> [ List.map List.hd l ]
+    | [ _a ] :: _ -> [ List.map List.hd l ]
     | _ -> let hs, ts =
         List.split (List.map (function l -> List.hd l, List.tl l) l)
       in hs :: transpose ts
@@ -223,7 +217,7 @@ let list_removeq x = function
   | a :: q when x == a -> q
   | l -> l
 
-let const f = fun v -> f
+let const f = fun _v -> f
 
 let array_associ x a =
   let len = Array.length a in
@@ -270,7 +264,7 @@ let isNonef f = fun x -> f x = None
 let rec gcombine l r =
   match l, r with
     | [], r -> [], [], r
-    | a :: q, [] -> [], l, []
+    | _a :: _q, [] -> [], l, []
     | a :: p, b :: q -> let g, rl, rr = gcombine p q in
         (a, b) :: g, rl, rr
 
@@ -296,7 +290,7 @@ let one_of e1 e2 =
   in
     match r_e1, r_e2 with
       | (None, Some ex1), (None, Some ex2) -> raise (Failure [ ex1; ex2 ])
-      | (Some v1, None), (Some v2, None)   -> raise NonDisjointCase
+      | (Some _v1, None), (Some _v2, None) -> raise NonDisjointCase
       | (Some v1, None), (None, Some ex)   -> Left  (v1, ex)
       | (None, Some ex), (Some v2, None)   -> Right (v2, ex)
       | _                                  -> assert false

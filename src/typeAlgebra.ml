@@ -33,14 +33,14 @@ type builtin_non_term =
   Ast.nname * Ast.type_expr
 
 type builtin_module =
-  { mod_name:   Ast.mname;
-    mod_values: builtin_dataconstructor list }
+  {mod_name:   Ast.mname;
+   mod_values: builtin_dataconstructor list}
 
 let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
   let ghost_loc = Location.ghost_loc in
   let make_builtin_type (t : Ast.type_expr_desc) =
-    { Ast.type_expr = t;
-      Ast.type_expr_loc = ghost_loc } in
+    {Ast.type_expr = t;
+     Ast.type_expr_loc = ghost_loc} in
   let arrow_type t1 t2 : Ast.type_expr =
     let tvar = Location.mk_loc_val "->" ghost_loc in
     let con = make_builtin_type (Ast.TE_tvar tvar) in
@@ -154,134 +154,134 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
                                              (gen_tvar "byte"));
     |] in
   let builtin_modules : builtin_module list = [
-      { mod_name   = Ast.MName "Int";
-        mod_values = [
-            (Ast.DName "of_byte", [],
-             arrow_type (gen_tvar "byte")
-               (gen_tvar "int"));
-            (Ast.DName "of_string", [],
-             arrow_type (gen_tvar "string")
-               (opt_type (gen_tvar "int")));
-            (Ast.DName "of_bytes", [],
-             arrow_type (list_type (gen_tvar "byte"))
-               (opt_type (gen_tvar "int")));
-            (Ast.DName "of_bytes_unsafe", [],
-             arrow_type (list_type (gen_tvar "byte"))
-               (gen_tvar "int"));
-          ];
+      {mod_name   = Ast.MName "Int";
+       mod_values = [
+           (Ast.DName "of_byte", [],
+            arrow_type (gen_tvar "byte")
+              (gen_tvar "int"));
+           (Ast.DName "of_string", [],
+            arrow_type (gen_tvar "string")
+              (opt_type (gen_tvar "int")));
+           (Ast.DName "of_bytes", [],
+            arrow_type (list_type (gen_tvar "byte"))
+              (opt_type (gen_tvar "int")));
+           (Ast.DName "of_bytes_unsafe", [],
+            arrow_type (list_type (gen_tvar "byte"))
+              (gen_tvar "int"));
+         ];
       };
-      { mod_name   = Ast.MName "Double";
-        mod_values = [
-            (Ast.DName "of_byte", [],
-             arrow_type (gen_tvar "byte")
-               (gen_tvar "double"));
-            (Ast.DName "of_string", [],
-             arrow_type (gen_tvar "string")
-               (opt_type (gen_tvar "double")));
-            (Ast.DName "of_bytes", [],
-             arrow_type (list_type (gen_tvar "byte"))
-               (opt_type (gen_tvar "double")));
-            (Ast.DName "of_bytes_unsafe", [],
-             arrow_type (list_type (gen_tvar "byte"))
-               (gen_tvar "double"));
-          ];
+      {mod_name   = Ast.MName "Double";
+       mod_values = [
+           (Ast.DName "of_byte", [],
+            arrow_type (gen_tvar "byte")
+              (gen_tvar "double"));
+           (Ast.DName "of_string", [],
+            arrow_type (gen_tvar "string")
+              (opt_type (gen_tvar "double")));
+           (Ast.DName "of_bytes", [],
+            arrow_type (list_type (gen_tvar "byte"))
+              (opt_type (gen_tvar "double")));
+           (Ast.DName "of_bytes_unsafe", [],
+            arrow_type (list_type (gen_tvar "byte"))
+              (gen_tvar "double"));
+         ];
       };
-      { mod_name   = Ast.MName "List";
-        mod_values = [
-            (Ast.DName "length", [ TName "a" ],
-             arrow_type (list_type (gen_tvar "a"))
-               (gen_tvar "int"));
-            (Ast.DName "concat", [ TName "a" ],
-             arrow_type (list_type (gen_tvar "a"))
-               (arrow_type (list_type (gen_tvar "a"))
-                  (list_type (gen_tvar "a"))));
-            (Ast.DName "map", [ TName "a"; TName "b" ],
-             arrow_type (arrow_type (gen_tvar "a") (gen_tvar "b"))
-               (arrow_type (list_type (gen_tvar "a"))
-                  (list_type (gen_tvar "b"))));
-            (Ast.DName "rev", [ TName "a" ],
-             arrow_type (list_type (gen_tvar "a"))
-               (list_type (gen_tvar "a")));
-          ];
+      {mod_name   = Ast.MName "List";
+       mod_values = [
+           (Ast.DName "length", [ TName "a" ],
+            arrow_type (list_type (gen_tvar "a"))
+              (gen_tvar "int"));
+           (Ast.DName "concat", [ TName "a" ],
+            arrow_type (list_type (gen_tvar "a"))
+              (arrow_type (list_type (gen_tvar "a"))
+                 (list_type (gen_tvar "a"))));
+           (Ast.DName "map", [ TName "a"; TName "b" ],
+            arrow_type (arrow_type (gen_tvar "a") (gen_tvar "b"))
+              (arrow_type (list_type (gen_tvar "a"))
+                 (list_type (gen_tvar "b"))));
+           (Ast.DName "rev", [ TName "a" ],
+            arrow_type (list_type (gen_tvar "a"))
+              (list_type (gen_tvar "a")));
+         ];
       };
-      { mod_name   = Ast.MName "Set";
-        mod_values = [
-            (Ast.DName "empty", [ TName "a" ],
-             (set_type (gen_tvar "a")));
-            (Ast.DName "add", [ TName "a" ],
-             arrow_type (set_type (gen_tvar "a"))
-               (arrow_type (gen_tvar "a")
-                  (set_type (gen_tvar "a"))));
-            (Ast.DName "mem", [ TName "a" ],
-             arrow_type (set_type (gen_tvar "a"))
-               (arrow_type (gen_tvar "a")
-                  (gen_tvar "bool")));
-          ];
+      {mod_name   = Ast.MName "Set";
+       mod_values = [
+           (Ast.DName "empty", [ TName "a" ],
+            (set_type (gen_tvar "a")));
+           (Ast.DName "add", [ TName "a" ],
+            arrow_type (set_type (gen_tvar "a"))
+              (arrow_type (gen_tvar "a")
+                 (set_type (gen_tvar "a"))));
+           (Ast.DName "mem", [ TName "a" ],
+            arrow_type (set_type (gen_tvar "a"))
+              (arrow_type (gen_tvar "a")
+                 (gen_tvar "bool")));
+         ];
       };
-      { mod_name   = Ast.MName "Map";
-        mod_values = [
-            (Ast.DName "empty", [ TName "a"; TName "b" ],
-             (map_type (gen_tvar "a") (gen_tvar "b")));
-            (Ast.DName "add", [ TName "a"; TName "b" ],
-             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
-               (arrow_type (gen_tvar "a")
-                  (arrow_type (gen_tvar "b")
-                     (map_type (gen_tvar "a") (gen_tvar "b")))));
-            (Ast.DName "mem", [ TName "a" ; TName "b" ],
-             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
-               (arrow_type (gen_tvar "a")
-                  (gen_tvar "bool")));
-            (Ast.DName "find", [ TName "a" ; TName "b" ],
-             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
-               (arrow_type (gen_tvar "a")
-                  (opt_type (gen_tvar "b"))));
-            (Ast.DName "find_unsafe", [ TName "a" ; TName "b" ],
-             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
-               (arrow_type (gen_tvar "a") (gen_tvar "b")));
-          ];
+      {mod_name   = Ast.MName "Map";
+       mod_values = [
+           (Ast.DName "empty", [ TName "a"; TName "b" ],
+            (map_type (gen_tvar "a") (gen_tvar "b")));
+           (Ast.DName "add", [ TName "a"; TName "b" ],
+            arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
+              (arrow_type (gen_tvar "a")
+                 (arrow_type (gen_tvar "b")
+                    (map_type (gen_tvar "a") (gen_tvar "b")))));
+           (Ast.DName "mem", [ TName "a" ; TName "b" ],
+            arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
+              (arrow_type (gen_tvar "a")
+                 (gen_tvar "bool")));
+           (Ast.DName "find", [ TName "a" ; TName "b" ],
+            arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
+              (arrow_type (gen_tvar "a")
+                 (opt_type (gen_tvar "b"))));
+           (Ast.DName "find_unsafe", [ TName "a" ; TName "b" ],
+            arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
+              (arrow_type (gen_tvar "a") (gen_tvar "b")));
+         ];
       };
-      { mod_name   = Ast.MName "String";
-        mod_values = [
-            (Ast.DName "empty", [], gen_tvar "string");
-            (Ast.DName "concat", [],
-             arrow_type (gen_tvar "string")
-               (arrow_type (gen_tvar "string")
-                  (gen_tvar "string")));
-            (Ast.DName "to_int", [],
-             arrow_type (gen_tvar "string")
-               (opt_type (gen_tvar "int")));
-            (Ast.DName "to_bytes", [],
-             arrow_type (gen_tvar "string")
-               (list_type (gen_tvar "byte")));
-            (Ast.DName "of_bytes", [],
-             arrow_type (list_type (gen_tvar "byte"))
-               (opt_type (gen_tvar "string")));
-            (Ast.DName "of_bytes_unsafe", [],
-             arrow_type (list_type (gen_tvar "byte"))
-               (gen_tvar "string"));
-          ];
+      {mod_name   = Ast.MName "String";
+       mod_values = [
+           (Ast.DName "empty", [], gen_tvar "string");
+           (Ast.DName "concat", [],
+            arrow_type (gen_tvar "string")
+              (arrow_type (gen_tvar "string")
+                 (gen_tvar "string")));
+           (Ast.DName "to_int", [],
+            arrow_type (gen_tvar "string")
+              (opt_type (gen_tvar "int")));
+           (Ast.DName "to_bytes", [],
+            arrow_type (gen_tvar "string")
+              (list_type (gen_tvar "byte")));
+           (Ast.DName "of_bytes", [],
+            arrow_type (list_type (gen_tvar "byte"))
+              (opt_type (gen_tvar "string")));
+           (Ast.DName "of_bytes_unsafe", [],
+            arrow_type (list_type (gen_tvar "byte"))
+              (gen_tvar "string"));
+         ];
       };
-      { mod_name   = Ast.MName "Window";
-        mod_values = [
-            (Ast.DName "get_current", [],
-             (arrow_type (gen_tvar "unit")
-                (gen_tvar "view")));
-            (Ast.DName "get_current_offset", [],
-             (arrow_type (gen_tvar "unit")
-                (gen_tvar "int")));
-            (Ast.DName "make_current", [],
-             (arrow_type (gen_tvar "view")
-                (gen_tvar "unit")));
-            (Ast.DName "restrict", [],
-             (arrow_type (gen_tvar "view")
-                (arrow_type (gen_tvar "int")
-                   (arrow_type (gen_tvar "int")
-                      (gen_tvar "view")))));
-            (Ast.DName "restrict_from", [],
-             (arrow_type (gen_tvar "view")
-                (arrow_type (gen_tvar "int")
-                   (gen_tvar "view"))));
-          ];
+      {mod_name   = Ast.MName "Window";
+       mod_values = [
+           (Ast.DName "get_current", [],
+            (arrow_type (gen_tvar "unit")
+               (gen_tvar "view")));
+           (Ast.DName "get_current_offset", [],
+            (arrow_type (gen_tvar "unit")
+               (gen_tvar "int")));
+           (Ast.DName "make_current", [],
+            (arrow_type (gen_tvar "view")
+               (gen_tvar "unit")));
+           (Ast.DName "restrict", [],
+            (arrow_type (gen_tvar "view")
+               (arrow_type (gen_tvar "int")
+                  (arrow_type (gen_tvar "int")
+                     (gen_tvar "view")))));
+           (Ast.DName "restrict_from", [],
+            (arrow_type (gen_tvar "view")
+               (arrow_type (gen_tvar "int")
+                  (gen_tvar "view"))));
+         ];
       };
     ] in
   (* Builtin non-terminals are encoded as basic types. *)
@@ -354,7 +354,7 @@ let tuple tenv ps =
   let v = symbol tenv (TName n) in
   List.fold_left (fun acu x -> TTerm (App (acu, x))) v ps
 
-let rec is_regexp_type tenv t =
+let is_regexp_type tenv t =
   let c = symbol tenv (TName "[]") in
   match t with
     | TTerm (App (v, t)) when v = c ->
@@ -372,7 +372,7 @@ let result_type tenv t =
   let a = symbol tenv (TName "->") in
   let rec chop t =
     match t with
-      | TTerm (App (TTerm (App (v, t)), u)) when v = a -> chop u
+      | TTerm (App (TTerm (App (v, _)), u)) when v = a -> chop u
       | u -> u
   in
     chop t
@@ -381,7 +381,7 @@ let arg_types tenv t =
   let a = symbol tenv (TName "->") in
   let rec chop acu = function
     | TTerm (App (TTerm (App (v, t)), u)) when v = a -> chop (t :: acu) u
-    | x -> acu
+    | _ -> acu
   in
     List.rev (chop [] t)
 
@@ -394,5 +394,5 @@ let tycon_args t =
 
 let rec tycon_name = function
   | TTerm (App (u, _)) -> tycon_name u
-  | TVariable v as t -> t
+  | TVariable _ as t -> t
   | _ -> assert false

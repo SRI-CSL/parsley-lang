@@ -81,8 +81,8 @@ type builtin_type = Ast.tname * (Ast.kind * builtin_dataconstructor list)
 
 (** The type information for a builtin module. *)
 type builtin_module =
-  { mod_name:   Ast.mname;
-    mod_values: builtin_dataconstructor list }
+  {mod_name:   Ast.mname;
+   mod_values: builtin_dataconstructor list}
 
 (** The representation of predefined non-terminals and their types. *)
 type builtin_non_term = Ast.nname * Ast.type_expr

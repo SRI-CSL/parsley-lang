@@ -1,17 +1,16 @@
 open Ast
 open Lexing
-open Location
 
 let print_exception f loc msg =
   Printf.fprintf f "%s: %s\n" (Location.str_of_loc loc) msg
 
 let parse_file fname =
   let lexbuf = from_channel (open_in fname) in
-  let lexbuf = { lexbuf with
-                 lex_curr_p = { pos_fname = fname;
-                                pos_lnum  = 1;
-                                pos_bol   = 0;
-                                pos_cnum  = 0 } } in
+  let lexbuf = {lexbuf with
+                 lex_curr_p = {pos_fname = fname;
+                               pos_lnum  = 1;
+                               pos_bol   = 0;
+                               pos_cnum  = 0}} in
   try
     Parser.toplevel Lexer.token lexbuf
   with
@@ -19,7 +18,7 @@ let parse_file fname =
           (Printf.fprintf stderr "%s: parser error at or just before this location\n"
                           (Location.str_of_curr_pos lexbuf);
            exit 1)
-    | Failure f ->
+    | Failure _f ->
           (let _bt = Printexc.get_backtrace () in
            Printf.fprintf stderr "%s: invalid token at or just before this location\n"
                           (Location.str_of_curr_pos lexbuf);
@@ -73,7 +72,7 @@ let rec flatten accum includes pending =
                   | [] -> flatten accum includes rest
                   | h :: t ->
                       (* pick the first, the others go back to pending *)
-                      let pending_use = { u with use_modules = t } in
+                      let pending_use = {u with use_modules = t} in
                       let pending = PDecl_use pending_use :: rest in
                       let fname = mk_filename (Location.value h) in
                       if StringSet.mem fname includes then
@@ -92,4 +91,4 @@ let parse_spec f =
   update_inc_dir f;
   let ast = parse_file f in
   let ast = flatten [] (StringSet.add f StringSet.empty) ast.pre_decls in
-  { decls = List.rev ast }
+  {decls = List.rev ast}

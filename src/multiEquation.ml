@@ -43,15 +43,14 @@ type variable =
 
     The [mark] field is transient, and may be used by the unifier's
     client for any purpose. *)
-and descriptor = {
-    mutable structure : structure option;
-    mutable rank      : IntRank.t;
-    mutable mark      : Mark.t;
-    mutable kind      : variable_kind;
-    mutable name      : tname option;
-    mutable pos       : Location.t option;
-    mutable var       : variable option
-  }
+and descriptor =
+  {mutable structure : structure option;
+   mutable rank      : IntRank.t;
+   mutable mark      : Mark.t;
+   mutable kind      : variable_kind;
+   mutable name      : tname option;
+   mutable pos       : Location.t option;
+   mutable var       : variable option}
 
 and structure = variable CoreAlgebra.term
 
@@ -68,10 +67,9 @@ and tname = TName of string
 
 type crterm = variable CoreAlgebra.arterm
 
-type pool = {
-            number      : int; (** The present pool's rank. *)
-    mutable inhabitants : variable list
-  }
+type pool =
+  {        number      : int; (** The present pool's rank. *)
+   mutable inhabitants : variable list}
 
 let is_rigid v =
   let desc = UnionFind.find v in
@@ -83,18 +81,15 @@ let is_flexible v =
 
 (** [new_pool pool] returns a new empty pool, whose number is the successor
     of [pool]'s. *)
-let new_pool pool = {
-  number = pool.number + 1;
-  inhabitants = []
-}
+let new_pool pool =
+  {number = pool.number + 1;
+   inhabitants = []}
 
 (** [init] produces a fresh initial state. It consists of an empty
     environment and a fresh, empty pool. *)
 let init () =
-  {
-    number = IntRank.outermost;
-    inhabitants = []
-  }
+  {number = IntRank.outermost;
+   inhabitants = []}
 
 (** [register pool v] adds [v] to the pool [pool]. It is assumed that [v]'s
     rank is already set, so it is not modified. *)
@@ -184,15 +179,13 @@ let instance pool v =
 
     else
       let desc' =
-          {
-            structure = None;
-            rank = pool.number;
-            mark = Mark.none;
-            kind = Flexible;
-            name = (match desc.kind with Rigid -> None | _ -> desc.name);
-            pos = None;
-            var = None
-          }
+          {structure = None;
+           rank = pool.number;
+           mark = Mark.none;
+           kind = Flexible;
+           name = (match desc.kind with Rigid -> None | _ -> desc.name);
+           pos = None;
+           var = None}
       in
       let v' = UnionFind.fresh desc' in
         register pool v';
@@ -250,38 +243,35 @@ let rec chop pool = function
   | TTerm term ->
       let v =
         UnionFind.fresh
-          { (* TEMPORARY invoquer une fonction de c'reation dans Unifier? *)
-            structure = Some (map (chop pool) term);
-            rank = pool.number;
-            mark = Mark.none;
-            kind = Flexible;
-            name = None;
-            pos  = None;
-            var = None
-          } in
+          {(* TEMPORARY invoquer une fonction de c'reation dans Unifier? *)
+           structure = Some (map (chop pool) term);
+           rank = pool.number;
+           mark = Mark.none;
+           kind = Flexible;
+           name = None;
+           pos  = None;
+           var = None} in
         register pool v;
         v
 
 (** [chopi rank term] chops a term. Any freshly created variables
     receive rank [rank], but are not added to any pool. *)
 let chopi rank term =
-  let dummy : pool = {
-    number = rank;
-    inhabitants = []
-  } in
+  let dummy : pool =
+    {number = rank;
+     inhabitants = []} in
   chop dummy term
 
 (** [variable()] creates a new variable, whose rank is [none]. *)
 let variable kind ?name ?structure ?pos () =
-  UnionFind.fresh {
-    structure = structure;
-    rank = IntRank.none;
-    mark = Mark.none;
-    kind = kind;
-    name = name;
-    pos = pos;
-    var = None
-  }
+  UnionFind.fresh
+    {structure = structure;
+     rank = IntRank.none;
+     mark = Mark.none;
+     kind = kind;
+     name = name;
+     pos = pos;
+     var = None}
 
 let explode t =
   (* use of [chopi] is OK here, as this function is used only during pretty-printing *)
@@ -298,9 +288,6 @@ let is_structured v =
 
 let variable_structure v =
   (UnionFind.find v).structure
-
-let is_redundant =
-  UnionFind.redundant
 
 let are_equivalent v1 v2 =
   UnionFind.equivalent v1 v2

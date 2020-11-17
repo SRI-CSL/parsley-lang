@@ -26,6 +26,7 @@ type ('a, 'b) t
 (** [lookup env k] returns the value associated to [k]
     or raises [Not_found]. *)
 val lookup : ('a, 'b) t -> 'a -> 'b
+
 (** exception-less version of above *)
 val lookup_opt : ('a, 'b) t -> 'a -> 'b option
 

@@ -22,7 +22,6 @@
 
 (** This module implements a simple kind inferencer. *)
 
-open CoreAlgebra
 open MultiEquation
 open Ast
 open TypingExceptions
@@ -32,9 +31,9 @@ type variable =
   descriptor UnionFind.point
 
 and descriptor =
-  { mutable structure : term option;
-    mutable name      : tname;
-    mutable constant  : bool }
+  {mutable structure : term option;
+   mutable name      : tname;
+   mutable constant  : bool}
 
 and term =
   | App of variable * variable
@@ -52,7 +51,7 @@ let new_name () =
 let variable ?(name : tname option) () =
   let constant = (name <> None)
   and name = match name with None -> new_name () | Some n -> n in
-  UnionFind.fresh { structure = None; name = name; constant = constant }
+  UnionFind.fresh {structure = None; name = name; constant = constant}
 
 let structure v =
   (UnionFind.find v).structure
@@ -66,19 +65,11 @@ let iter f v = iter_term f (unSome (structure v))
 
 let lookup id loc tenv = (fst tenv) id loc
 
-let bind id t tenv = (snd tenv) id t; tenv
-
 let term_handler t =
-  UnionFind.fresh {
-    name = TName "";
-    structure = Some t;
-    constant = false
-  }
-
-let count = ref 0
-
-let symbol tenv i =
-  (fst tenv) i
+  UnionFind.fresh
+    {name = TName "";
+     structure = Some t;
+     constant = false}
 
 let binop op x y =
   let w = term_handler (App (op, x)) in
@@ -92,9 +83,6 @@ let arrow =
 
 let mkarrow =
   binop arrow
-
-let is_star env k =
-  UnionFind.equivalent k star
 
 let fresh_kind () =
   variable ()

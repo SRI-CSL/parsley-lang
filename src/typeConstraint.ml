@@ -54,8 +54,6 @@ and ('crterm, 'variable) scheme =
 
 type variable = MultiEquation.variable
 
-type variable_kind = MultiEquation.variable_kind
-
 type crterm =
     variable arterm
 
@@ -139,9 +137,6 @@ let exists ?pos f =
   let v = variable Flexible () in
   let c = f (TVariable v) in
   ex ~pos:(Location.loc_or_ghost pos) [ v ] c
-
-let exists3 ?pos f =
-  exists (fun x -> exists (fun y -> exists (fun z -> f x y z)))
 
 (** [exists_list l f] associates a fresh variable with every element
     in the list [l], yielding an association list [m], and returns

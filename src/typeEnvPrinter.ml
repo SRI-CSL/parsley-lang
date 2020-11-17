@@ -32,7 +32,6 @@
 
 open Misc
 open TypeAlgebra
-open Ast
 open CoreAlgebra
 open MultiEquation
 
@@ -42,13 +41,6 @@ type associativity =
   AssocLeft
 | NonAssoc
 | AssocRight
-| EnclosedBy of string * string
-
-(** The things that we print are [variable]s, that is, entry points
-    for types or type schemes. *)
-type variable = MultiEquation.variable
-
-type term = MultiEquation.crterm
 
 (** [name_from_int i] turns the integer [i] into a type variable name. *)
 let rec name_from_int i =
@@ -77,9 +69,6 @@ type arg =
 
 let paren b e = if b then "("^^e^^")" else e
 
-let string_of_label =
-  function LName s -> s
-
 (** [print is_type_scheme v] returns a printable representation of
     the type or type scheme whose entry point is [v]. The parameter
     [is_type_scheme] tells whether [v] should be interpreted as a
@@ -88,22 +77,22 @@ let string_of_label =
     the same variable naming conventions, unless [reset] is called
     in between. *)
 let printer is_type_scheme =
-  (** Create marks to deal with cycles. *)
+  (* Create marks to deal with cycles. *)
   let visiting = Mark.fresh()
   and hit = Mark.fresh() in
 
-  (** Create a local namespace for this type scheme. *)
+  (* Create a local namespace for this type scheme. *)
   let i = ref (-1)
   and history = ref [] in
 
-  (** [name v] looks up or assigns a name to the variable [v]. When
-      dealing with a type scheme, then the local or global namespace
-      is used, depending on whether [v] is universally quantified or
-      not. When dealing with a type, only the global namespace is
-      used. *)
+  (* [name v] looks up or assigns a name to the variable [v]. When
+     dealing with a type scheme, then the local or global namespace
+     is used, depending on whether [v] is universally quantified or
+     not. When dealing with a type, only the global namespace is
+     used. *)
 
   (* FIXME: necessite du prefixe ? *)
-  let rec var_name hits visited v =
+  let var_name v =
     let desc = UnionFind.find v in
     let autoname () =
       let prefix, c, h =
@@ -148,13 +137,13 @@ let printer is_type_scheme =
              (* If this is a builtin symbol, use the given name, else
                 generate a possibly decorated name. *)
              (match as_symbol (TName name) with
-                | Some sym ->
+                | Some _sym ->
                     (* hardcode infix and associativity of sym for now *)
                     (v, name, [], false, NonAssoc, false)
                 | None ->
-                    (v, var_name hits visited v, [], false, NonAssoc, false))
+                    (v, var_name v, [], false, NonAssoc, false))
          | None ->
-             (v, var_name hits visited v, [], false, NonAssoc, false)) in
+             (v, var_name v, [], false, NonAssoc, false)) in
     let desc = UnionFind.find v in
 
     (* If this variable was visited already, we mark it as ``hit
@@ -182,7 +171,7 @@ let printer is_type_scheme =
             let (v', name, args, infix, assoc, p) as r =
               print_term hits visited t in
             if is_hit v then
-              let vname = var_name hits visited v in
+              let vname = var_name v in
               (v, vname^" =",
                [ Arg (v', name, args, infix, assoc, p) ],
                false, assoc, true)
@@ -190,10 +179,10 @@ let printer is_type_scheme =
     end
 
   and print_term hits visited t =
-    let at_left  = function [] -> true | [ x ] -> false | _ -> assert false
-    and at_right = function [] -> true | [ x ] -> false | _ -> assert false in
+    let at_left  = function [] -> true | [ _x ] -> false | _ -> assert false
+    and at_right = function [] -> true | [ _x ] -> false | _ -> assert false in
 
-    let rec print = function
+    let print = function
 
       | App (t1, t2) ->
 
@@ -203,7 +192,7 @@ let printer is_type_scheme =
             print_variable hits visited t2 in
           let priority name =
             match as_symbol name with
-              | Some sym -> -1 (* hardcode priority of sym for now *)
+              | Some _sym -> -1 (* hardcode priority of sym for now *)
               | None     -> -1 in
           let paren_t2 =
             force_paren2 ||
@@ -221,7 +210,7 @@ let printer is_type_scheme =
     in print t
   in
 
-  let prefix hits visited () =
+  let prefix () =
     if is_type_scheme then
       match !history with
         | [] ->
@@ -229,26 +218,25 @@ let printer is_type_scheme =
         | history ->
             List.fold_left
               (fun quantifiers (v, _) ->
-                quantifiers ^ " " ^ (var_name hits visited v))
+                quantifiers ^ " " ^ (var_name v))
               "forall" (List.rev history) ^ ". "
     else "" in
 
   let as_string f r =
-    let rec loop (Arg (_, name, args, infix, assoc, is_paren)) =
+    let rec loop (Arg (_, name, args, infix, _assoc, is_paren)) =
          if args = [] then name
          else
            paren is_paren
              (if infix then
                 print_separated_list (" "^^name^^" ") loop args
               else
-                (match assoc with EnclosedBy (t, _) -> t | _ -> name)
+                name
                 ^^ (if args <> [] then " " else "")
                 ^^ (print_separated_list " " loop args)
-                ^^ (match assoc with EnclosedBy (_,t) -> " "^t | _ -> "")
              ) in
     let hits, visited = ref [], ref [] in
     let (op, name, args, infix, assoc, _) = f hits visited r in
-    prefix hits visited ()
+    prefix ()
     ^ loop (Arg (op, name, args, infix, assoc, false))
   in
 

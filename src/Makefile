@@ -1,11 +1,7 @@
-PROG        := parsleyc
-MENHIR      := menhir
-MENHIRFLAGS := --unused-tokens --explain --dump
-OCAMLBUILD  := ocamlbuild -use-ocamlfind -use-menhir -menhir "$(MENHIR) $(MENHIRFLAGS)" -cflag -annot -cflag -g
+.PHONY: all
 
-all:
-	$(OCAMLBUILD) $(PROG).native
-	-rm -f $(PROG) && ln -s $(PROG).native $(PROG)
+all: Makefile dune
+	dune build
 
-clean:
-	$(OCAMLBUILD) -clean
+clean: Makefile dune
+	dune clean

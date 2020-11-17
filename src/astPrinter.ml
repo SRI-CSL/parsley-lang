@@ -31,7 +31,7 @@ let rec print_type_expr ?paren te =
   match te.type_expr with
     | TE_tvar t ->
         pp_print_string !ppf (Location.value t)
-    | TE_tapp ({type_expr = TE_tvar t}, args)
+    | TE_tapp ({type_expr = TE_tvar t; _}, args)
          when Location.value t = "->" ->
         if paren <> None then pp_print_string !ppf "(";
         print_list " -> " print_type_expr args;
@@ -254,7 +254,7 @@ let print_temp_decl (pm, ty, e) =
   pp_print_string !ppf " := ";
   print_expr e
 
-let rec print_fun_defn fd =
+let print_fun_defn fd =
   pp_open_vbox !ppf 0;
   pp_open_box !ppf 0;
   pp_print_string !ppf "fun ";
@@ -566,7 +566,7 @@ let print_format f =
   pp_print_cut !ppf ();
   pp_print_string !ppf "}"
 
-let rec print_decl d =
+let print_decl d =
   match d with
     | Decl_types (typs, _) ->
         List.iter print_type_decl typs

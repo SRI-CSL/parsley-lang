@@ -24,24 +24,6 @@
 
 type ('a, 'b) t = ('a * 'b) list
 
-(** [filtered_lookup pred env] search for the first element of [env]
-    that verifies the predicate [pred].
-*)
-let filtered_lookup pred =
-  let rec chop = function
-    | [] ->
-        None
-
-    | (a,_) :: q when pred a ->
-        Some a
-
-    | (a,_) :: q ->
-        chop q
-  in chop
-
-let exists =
-  List.exists
-
 let lookup env x =
   List.assoc x env
 

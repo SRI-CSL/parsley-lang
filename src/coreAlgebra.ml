@@ -20,8 +20,6 @@
 (*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
 (*  and Didier Rémy.                                                      *)
 
-open Misc
-
 (** [lname] is the type of label. *)
 type lname = LName of string
 
@@ -38,26 +36,26 @@ type 'a arterm =
   | TVariable of 'a
   | TTerm of ('a arterm) term
 
-let rec iter f = function
+let iter f = function
   | App (l, r) ->
       f l; f r
   | Var v ->
       f v
 
-let rec map f = function
+let map f = function
   | App (l, r) ->
       App (f l, f r)
   | Var v ->
       Var (f v)
 
-let rec fold f term accu =
+let fold f term accu =
   match term with
     | App (l, r) ->
         f r (f l accu)
     | Var v ->
         f v accu
 
-let rec fold2 f term term' accu =
+let fold2 f term term' accu =
   match term, term' with
     | App (l, r), App (l', r') ->
         f r r' (f l l' accu)
@@ -78,14 +76,3 @@ and change_arterm_vars c =
         match List.assq_opt x c with
           | Some y -> y
           | None -> x)
-
-let rec gen_change_term_vars c =
-  map (gen_change_arterm_vars c)
-
-and gen_change_arterm_vars c =
-    function
-      | TTerm term -> TTerm (gen_change_term_vars c term)
-      | TVariable x -> (
-          match List.assq_opt x c with
-            | Some y -> y
-            | None -> TVariable x)

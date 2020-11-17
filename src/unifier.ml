@@ -52,24 +52,23 @@ exception Error of unify_error
 
 let unify ?tracer pos register =
 
-  let tracer = default (fun s -> ignore) tracer in
+  let tracer = default (fun _ -> ignore) tracer in
 
   (* Define an auxiliary function which creates a fresh variable,
      found within a multi-equation of its own, with specified
      rank and structure. *)
 
   let fresh ?name kind rank structure =
-    let v = UnionFind.fresh {
-      structure = structure;
-      rank = rank;
-      mark = Mark.none;
-      kind = kind;
-      name = name;
-      pos = None;
-      var = None
-    }   in
-      register v;
-      v in
+    let v = UnionFind.fresh
+              {structure = structure;
+               rank = rank;
+               mark = Mark.none;
+               kind = kind;
+               name = name;
+               pos = None;
+               var = None}   in
+    register v;
+    v in
 
   (* The main function only has two parameters; [register] remains
      unchanged through recursive calls. *)
@@ -106,11 +105,11 @@ let unify ?tracer pos register =
          [merge2] merges the multi-equations, keeping the latter's structure.
       *)
 
-      let fresh, merge, merge1, merge2 =
+      let _fresh, merge, merge1, merge2 =
         let kind =
           match desc1.kind, desc2.kind with
-              k1, k2 when is_rigid v1 -> k1
-            | k1, k2 when is_rigid v2 -> k2
+              k1, _k2 when is_rigid v1 -> k1
+            | _k1, k2 when is_rigid v2 -> k2
             | _ -> Flexible
         in
         let name =

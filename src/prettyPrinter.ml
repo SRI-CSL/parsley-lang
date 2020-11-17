@@ -22,8 +22,6 @@
 
 (** This module implements some common stuff for pretty printer. *)
 
-open Format
-
 type output =
   | Channel of Stdlib.out_channel
   | Buffer of Buffer.t
@@ -51,4 +49,4 @@ let output_string output =
 let flush output =
   match output with
     | Channel cout -> Stdlib.flush cout
-    | Buffer b -> ()
+    | Buffer _b -> ()

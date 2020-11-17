@@ -1,30 +1,26 @@
 open Lexing
 
-type t = {
-  loc_start: position;
-  loc_end:   position;
-  loc_ghost: bool;
-}
+type t =
+  {loc_start: position;
+   loc_end:   position;
+   loc_ghost: bool}
 
 let init lexbuf fname =
-  lexbuf.lex_curr_p <- {
-    pos_fname = fname;
-    pos_lnum  = 1;
-    pos_bol   = 0;
-    pos_cnum  = 0;
-  }
+  lexbuf.lex_curr_p <-
+    {pos_fname = fname;
+     pos_lnum  = 1;
+     pos_bol   = 0;
+     pos_cnum  = 0}
 
-let curr lexbuf = {
-  loc_start = lexbuf.lex_start_p;
-  loc_end   = lexbuf.lex_curr_p;
-  loc_ghost = false;
-}
+let curr lexbuf =
+  {loc_start = lexbuf.lex_start_p;
+   loc_end   = lexbuf.lex_curr_p;
+   loc_ghost = false}
 
-let _mk_loc b e g = {
-  loc_start = b;
-  loc_end   = e;
-  loc_ghost = g;
-}
+let _mk_loc b e g =
+  {loc_start = b;
+   loc_end   = e;
+   loc_ghost = g}
 
 let mk_loc b e = _mk_loc b e false
 
@@ -61,20 +57,17 @@ let str_of_file_loc loc =
   Printf.sprintf "file \"%s\", line %d, characters %d-%d"
                  file line startchar endchar
 
-type 'a loc = {
-  pelem: 'a;
-  ploc:  t;
-}
+type 'a loc =
+  {pelem: 'a;
+   ploc:  t}
 
-let mk_loc_val a l = {
-  pelem = a;
-  ploc  = l
-}
+let mk_loc_val a l =
+  {pelem = a;
+   ploc  = l}
 
-let mk_ghost a = {
-  pelem = a;
-  ploc = ghost_loc
-}
+let mk_ghost a =
+  {pelem = a;
+   ploc = ghost_loc}
 
 let value l = l.pelem
 
