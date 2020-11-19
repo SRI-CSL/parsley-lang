@@ -14,9 +14,23 @@ let parse_file fname cont =
                                pos_cnum  = 0}} in
   let start = Parser.Incremental.toplevel lexbuf.lex_curr_p in
   let supplier = I.lexer_lexbuf_to_supplier Lexer.token lexbuf in
-  let fail _chkpt =
-    Printf.fprintf stderr "%s: parser error at or just before this location\n"
-      (Location.str_of_curr_pos lexbuf);
+  let fail chkpt =
+    (* current current parser state *)
+    let st =
+      match chkpt with
+        | I.HandlingError env ->
+            I.current_state_number env
+        | _ ->
+            (* supposedly cannot happen *)
+            assert false in
+    let msg =
+      try
+        ParseErrorMessages.message st
+      with Not_found ->
+        Printf.sprintf "Unknown syntax error (in state %d)" st in
+    Printf.fprintf stderr
+      "%s: parser error at or just before this location:\n %s"
+      (Location.str_of_curr_pos lexbuf) msg;
     exit 1 in
   try
     I.loop_handle cont fail supplier start
