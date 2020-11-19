@@ -1395,18 +1395,6 @@ toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET USE
 
 Ill-formed let binding pattern.
 
-toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL ARROW USE
-##
-## Ends in an error in state: 147.
-##
-## expr -> expr ARROW . ident [ UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS OF NEQ MINUS LTEQ LT LPAREN LOR LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR AT_POS AT_MAP AT_BUF AT ARROW ]
-##
-## The known suffix of the stack is as follows:
-## expr ARROW
-##
-
-Ill-formed record field or attribute in expression.
-
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL AT LITERAL USE
 ##
 ## Ends in an error in state: 158.

@@ -42,7 +42,6 @@ open AstUtils
 %left  CARET
 %nonassoc UMINUS
 %left  LPAREN LBRACK
-%left  ARROW
 %left  DOT
 
 %{
@@ -334,8 +333,6 @@ expr:
   { make_expr (E_binop (Neq, l, r)) $startpos $endpos }
 | l=expr COLONCOLON r=expr
   { make_expr (E_binop (Cons, l, r)) $startpos $endpos }
-| e=expr ARROW f=ident
-  { make_expr (E_field (e, f)) $startpos $endpos }
 | LBRACK l=listelems
   { l }
 | LPAREN CASE e=expr OF option(BAR) b=separated_list(BAR, branch) RPAREN
