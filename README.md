@@ -11,7 +11,7 @@ https://opam.ocaml.org/
 Then, install the dependencies using opam:
 
 ```
-$ opam install ocamlbuild menhir dune
+$ opam install menhir dune
 ```
 
 Then,
