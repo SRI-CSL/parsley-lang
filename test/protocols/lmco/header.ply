@@ -1,0 +1,35 @@
+fun convert(b : [byte]) -> int = {
+  (case Int.of_bytes(b) of
+   | option::Some(i) -> i
+   | option::None()  -> 0)
+}
+
+format {
+
+MavlinkHeader header {magic: int, 
+                        payload_length: int, 
+                        incompatibility_flag: int,
+                        compatibility_flag: int, 
+												packet_sequence: int,
+												system_id: int,
+												component_id: int, 
+												message_id: int} :=
+    magic=Byte
+    payloadlength=Byte
+		incompatibility=Byte
+		compatibility=Byte
+    packet_sequence=Byte
+    system_id=Byte
+    component_id=Byte
+    message_id=(Byte ^ 3)
+    [Int.of_byte(magic) = 253 || Int.of_byte(magic) = 254]
+    {
+        header.payload_length  := Int.of_byte(payloadlength);
+        header.incompatibility_flag := Int.of_byte(incompatibility);
+        header.compatibility_flag := Int.of_byte(compatibility);
+        header.packet_sequence := Int.of_byte(packet_sequence);
+        header.system_id := Int.of_byte(system_id);
+        header.component_id := Int.of_byte(component_id);
+        header.message_id := convert(message_id)
+    }
+}

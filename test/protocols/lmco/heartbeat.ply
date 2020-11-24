@@ -1,0 +1,75 @@
+fun convert(b : [byte]) -> int = {
+  (case Int.of_bytes(b) of
+   | option::Some(i) -> i
+   | option::None()  -> 0)
+}
+
+use header
+
+format {
+    
+
+HeartBeatPayload pld {
+								hbp_custom_mode: int,
+								hbp_typ : int,
+								hbp_autopilot: int,
+								hbp_base_mode: int,
+								hbp_system_status: int,	
+								hbp_mavlink_version: int
+							} :=
+
+    custom_mode=(Byte ^ 4)
+    typ=Byte
+		autopilot=Byte
+		base_mode=Byte
+		system_status=Byte
+		mavlink_version=Byte
+    {
+        // Reverses a List
+        // This field is supposed to be little endian, 
+        // whereas convert is big endian
+        pld.hbp_custom_mode := convert(List.rev(custom_mode));
+        pld.hbp_typ := Int.of_byte(typ);
+				pld.hbp_autopilot := Int.of_byte(autopilot);
+				pld.hbp_base_mode := Int.of_byte(base_mode);
+				pld.hbp_system_status := Int.of_byte(system_status);
+				pld.hbp_mavlink_version := Int.of_byte(mavlink_version)
+    }
+    ;;
+
+
+Heartbeat hb {hb_magic: int, 
+                        hb_payload_length: int, 
+                        hb_incompatibility_flag: int,
+                        hb_compatibility_flag: int, 
+												hb_packet_sequence: int,
+												hb_system_id: int,
+												hb_component_id: int, 
+												hb_message_id: int,
+												hb_custom_mode: int,
+												hb_typ : int,
+												hb_autopilot: int,
+												hb_base_mode: int,
+												hb_system_status: int,	
+												hb_mavlink_version: int
+                } := 
+    header=MavlinkHeader
+    payload=HeartBeatPayload
+    [header.payload_length = 9 && header.message_id = 0]
+    {   
+			hb.hb_magic := header.magic;
+			hb.hb_payload_length := header.payload_length;
+			hb.hb_incompatibility_flag := header.incompatibility_flag;
+			hb.hb_compatibility_flag := header.compatibility_flag;
+			hb.hb_packet_sequence := header.packet_sequence;
+			hb.hb_system_id    := header.system_id;
+			hb.hb_component_id := header.component_id;
+			hb.hb_message_id := header.message_id;
+			hb.hb_custom_mode := payload.hbp_custom_mode;
+			hb.hb_typ := payload.hbp_typ;
+			hb.hb_autopilot := payload.hbp_autopilot;
+			hb.hb_base_mode := payload.hbp_base_mode;
+			hb.hb_system_status := payload.hbp_system_status;
+			hb.hb_mavlink_version := payload.hbp_mavlink_version
+		}
+}
