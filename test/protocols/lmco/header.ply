@@ -10,14 +10,14 @@ MavlinkHeader header {magic: int,
                         payload_length: int, 
                         incompatibility_flag: int,
                         compatibility_flag: int, 
-												packet_sequence: int,
-												system_id: int,
-												component_id: int, 
-												message_id: int} :=
+                        packet_sequence: int,
+                        system_id: int,
+                        component_id: int, 
+                        message_id: int} :=
     magic=Byte
     payloadlength=Byte
-		incompatibility=Byte
-		compatibility=Byte
+    incompatibility=Byte
+    compatibility=Byte
     packet_sequence=Byte
     system_id=Byte
     component_id=Byte

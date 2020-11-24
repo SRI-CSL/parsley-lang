@@ -11,5 +11,5 @@ MavlinkPacket mp {
         packet: [byte],
         mp_crc: int
       } := 
-    (hb=Heartbeat | ss=SysStatus)
+    (hb=Heartbeat) | (ss=SysStatus)
 }
