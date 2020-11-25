@@ -6,24 +6,26 @@ fun convert(b : [byte]) -> int = {
 
 use header
 
+type sysstatus_payload = {
+                            ssp_onboard_control_sensors_present: int,
+                            ssp_onboard_control_sensors_enabled: int,
+                            ssp_onboard_control_sensors_health: int,
+                            ssp_load: int,
+                            ssp_voltage_battery : int,
+                            ssp_current_battery: int,
+                            ssp_drop_rate_comm: int,
+                            ssp_errors_comm: int, 
+                            ssp_errors_count1: int, 
+                            ssp_errors_count2: int, 
+                            ssp_errors_count3: int, 
+                            ssp_errors_count4: int, 
+                            ssp_battery_remaining: int
+                          }
+
 format {
     
 
-SysStatusPayload pld {
-                ssp_onboard_control_sensors_present: int,
-                ssp_onboard_control_sensors_enabled: int,
-                ssp_onboard_control_sensors_health: int,
-                ssp_load: int,
-                ssp_voltage_battery : int,
-                ssp_current_battery: int,
-                ssp_drop_rate_comm: int,
-                ssp_errors_comm: int, 
-                ssp_errors_count1: int, 
-                ssp_errors_count2: int, 
-                ssp_errors_count3: int, 
-                ssp_errors_count4: int, 
-                ssp_battery_remaining: int
-              } :=
+SysStatusPayload pld { sysstatus_payload  } :=
     onboard_control_sensors_present=(Byte ^ 4)
     onboard_control_sensors_enabled=(Byte ^ 4)
     onboard_control_sensors_health=(Byte ^ 4)
@@ -55,55 +57,15 @@ SysStatusPayload pld {
     ;;
 
 
-SysStatus ss {ss_magic: int, 
-                        ss_payload_length: int, 
-                        ss_incompatibility_flag: int,
-                        ss_compatibility_flag: int, 
-                        ss_packet_sequence: int,
-                        ss_system_id: int,
-                        ss_component_id: int, 
-                        ss_message_id: int,
-
-                        ss_onboard_control_sensors_present: int,
-                        ss_onboard_control_sensors_enabled: int,
-                        ss_onboard_control_sensors_health: int,
-                        ss_load: int,
-                        ss_voltage_battery : int,
-                        ss_current_battery: int,
-                        ss_drop_rate_comm: int,
-                        ss_errors_comm: int,  
-                        ss_errors_count1: int,  
-                        ss_errors_count2: int,  
-                        ss_errors_count3: int,  
-                        ss_errors_count4: int,  
-                        ss_battery_remaining: int
-
+SysStatus ss {  
+                ss_header: headertype,
+                ss_payload: sysstatus_payload
                 } := 
     header=MavlinkHeader
     payload=SysStatusPayload
     [header.payload_length = 31 && header.message_id = 1]
     {   
-      ss.ss_magic := header.magic;
-      ss.ss_payload_length := header.payload_length;
-      ss.ss_incompatibility_flag := header.incompatibility_flag;
-      ss.ss_compatibility_flag := header.compatibility_flag;
-      ss.ss_packet_sequence := header.packet_sequence;
-      ss.ss_system_id    := header.system_id;
-      ss.ss_component_id := header.component_id;
-      ss.ss_message_id := header.message_id;
-
-      ss.ss_onboard_control_sensors_present := payload.ssp_onboard_control_sensors_present;
-      ss.ss_onboard_control_sensors_enabled := payload.ssp_onboard_control_sensors_enabled;
-      ss.ss_onboard_control_sensors_health := payload.ssp_onboard_control_sensors_health;
-      ss.ss_load := payload.ssp_load;
-      ss.ss_voltage_battery := payload.ssp_voltage_battery;
-      ss.ss_current_battery := payload.ssp_current_battery;
-      ss.ss_drop_rate_comm := payload.ssp_drop_rate_comm;
-      ss.ss_errors_comm := payload.ssp_errors_comm;
-      ss.ss_errors_count1 := payload.ssp_errors_count1;
-      ss.ss_errors_count2 := payload.ssp_errors_count2;
-      ss.ss_errors_count3 := payload.ssp_errors_count3;
-      ss.ss_errors_count4 := payload.ssp_errors_count4;
-      ss.ss_battery_remaining := payload.ssp_battery_remaining
+      ss.ss_header  := header;
+      ss.ss_payload := payload
     }
 }

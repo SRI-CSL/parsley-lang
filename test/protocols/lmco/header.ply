@@ -4,16 +4,18 @@ fun convert(b : [byte]) -> int = {
    | option::None()  -> 0)
 }
 
-format {
-
-MavlinkHeader header {magic: int, 
+type headertype = {magic: int, 
                         payload_length: int, 
                         incompatibility_flag: int,
                         compatibility_flag: int, 
                         packet_sequence: int,
                         system_id: int,
                         component_id: int, 
-                        message_id: int} :=
+                        message_id: int}
+
+format {
+
+MavlinkHeader header {headertype} :=
     magic=Byte
     payloadlength=Byte
     incompatibility=Byte
