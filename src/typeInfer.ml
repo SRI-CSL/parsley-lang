@@ -997,17 +997,15 @@ let rec infer_stmt tenv s =
 let infer_action tenv act t =
   (* [t] can only bind the last expression if any of the sequence,
    * otherwise it should equal [unit]. *)
-  let rec process_stmts = function
-    | ([], None) ->
-        let u = typcon_variable tenv (TName "unit") in
-        (t =?= u) act.action_loc
-    | ([], Some e) ->
-        (* [t] applies to the last expression *)
-        infer_expr tenv e t
-    | (s :: tl, e) ->
-        let c = infer_stmt tenv s in
-        c ^ (process_stmts (tl, e))
-  in process_stmts act.action_stmts
+  let ss, e_opt = act.action_stmts in
+  let css = List.map (infer_stmt tenv) ss in
+  let ce = match e_opt with
+      | None ->
+          let u = typcon_variable tenv (TName "unit") in
+          (t =?= u) act.action_loc
+      | Some e ->
+          infer_expr tenv e t in
+  conj css ^ ce
 
 (** [bound] tracks whether this rule_elem is under a binding.
     This affects the typing of the '|' choice operator:
