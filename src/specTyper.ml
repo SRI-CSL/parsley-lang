@@ -11,7 +11,7 @@ let get_tracer () =
   else None
 
 let check spec =
-  let c = TypeInfer.generate_constraint spec in
+  let c, _spec' = TypeInfer.generate_constraint spec in
   let env = ConstraintSolver.solve ?tracer:(get_tracer ()) c in
   if print_types then
     ConstraintSolver.print_env

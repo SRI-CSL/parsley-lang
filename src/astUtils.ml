@@ -43,13 +43,15 @@ let add_arrow_result (typ : type_expr) (res : type_expr) : type_expr =
 
 (* constructing pattern expressions and expressions *)
 
-let make_pattern_loc (pat : pattern_desc) loc =
+let make_pattern_loc (pat : unit pattern_desc) loc =
   {pattern = pat;
-   pattern_loc = loc}
+   pattern_loc = loc;
+   pattern_aux = ()}
 
-let make_expr_loc (exp : expr_desc) loc =
+let make_expr_loc (exp : unit expr_desc) loc =
   {expr = exp;
-   expr_loc = loc}
+   expr_loc = loc;
+   expr_aux = ()}
 
 (* sorting record fields into canonical order *)
 let sort_fields fields =

@@ -46,51 +46,51 @@ type primitive_literal =
   | PL_unit
   | PL_bool of bool
 
-type pattern_desc =
+type 'a pattern_desc =
   | P_wildcard
   | P_var of ident
   | P_literal of primitive_literal
-  | P_variant of (ident * ident) * pattern list
+  | P_variant of (ident * ident) * 'a pattern list
 
-and pattern =
-  {pattern: pattern_desc;
-   pattern_loc: Location.t}
+and 'a pattern =
+  {pattern: 'a pattern_desc;
+   pattern_loc: Location.t;
+   pattern_aux: 'a}
 
-type expr_desc =
+type 'a expr_desc =
   | E_var of ident
-  | E_constr of ident * ident * expr list
-  | E_record of (ident * expr) list
-  | E_apply of expr * expr list
-  | E_unop of unop * expr
-  | E_binop of binop * expr * expr
-  | E_match of expr * ident * ident
+  | E_constr of ident * ident * 'a expr list
+  | E_record of (ident * 'a expr) list
+  | E_apply of 'a expr * 'a expr list
+  | E_unop of unop * 'a expr
+  | E_binop of binop * 'a expr * 'a expr
+  | E_match of 'a expr * ident * ident
   | E_literal of primitive_literal
-  | E_field of expr * ident
+  | E_field of 'a expr * ident
   | E_mod_member of modident * ident
-  | E_case of expr * (pattern * expr) list
-  | E_let of pattern * expr * expr
-  | E_cast of expr * type_expr
+  | E_case of 'a expr * ('a pattern * 'a expr) list
+  | E_let of 'a pattern * 'a expr * 'a expr
+  | E_cast of 'a expr * type_expr
 
-and expr =
-  {expr: expr_desc;
-   expr_loc: Location.t}
+and 'a expr =
+  {expr: 'a expr_desc;
+   expr_loc: Location.t;
+   expr_aux: 'a}
 
-type stmt_desc =
-  | S_assign of expr * expr
-  | S_let of pattern * expr * stmt list
-  | S_case of expr * (pattern * stmt list) list
+type 'a stmt_desc =
+  | S_assign of 'a expr * 'a expr
+  | S_let of 'a pattern * 'a expr * 'a stmt list
+  | S_case of 'a expr * ('a pattern * 'a stmt list) list
 
-and stmt =
-  {stmt: stmt_desc;
+and 'a stmt =
+  {stmt: 'a stmt_desc;
    stmt_loc: Location.t}
 
-type rule_action =
-  {action_stmts: stmt list * expr option;
+type 'a rule_action =
+  {action_stmts: 'a stmt list * 'a expr option;
    action_loc: Location.t}
 
 (* for now, use the same expression sublanguage in actions and constraints. *)
-type rule_constraint =
-  expr
 
 type literal_set_desc =
   | LS_type of ident
@@ -102,53 +102,55 @@ and literal_set =
   {literal_set: literal_set_desc;
    literal_set_loc: Location.t}
 
-type regexp_desc =
+type 'a regexp_desc =
   | RX_literals of literal_set
   | RX_wildcard
   | RX_type of ident
-  | RX_star of regexp * expr option
-  | RX_opt of regexp
-  | RX_choice of regexp list
-  | RX_seq of regexp list
+  | RX_star of 'a regexp * 'a expr option
+  | RX_opt of 'a regexp
+  | RX_choice of 'a regexp list
+  | RX_seq of 'a regexp list
 
-and regexp =
-  {regexp: regexp_desc;
-   regexp_loc: Location.t}
+and 'a regexp =
+  {regexp: 'a regexp_desc;
+   regexp_loc: Location.t;
+   regexp_aux: 'a}
 
-type rule_elem_desc =
-  | RE_regexp of regexp
-  | RE_non_term of ident * (ident * expr) list option
-  | RE_constraint of rule_constraint
-  | RE_action of rule_action
-  | RE_named of ident * rule_elem
-  | RE_seq of rule_elem list
-  | RE_choice of rule_elem list
-  | RE_star of rule_elem * expr option
-  | RE_opt of rule_elem
+type 'a rule_elem_desc =
+  | RE_regexp of 'a regexp
+  | RE_non_term of ident * (ident * 'a expr) list option
+  | RE_constraint of 'a expr
+  | RE_action of 'a rule_action
+  | RE_named of ident * 'a rule_elem
+  | RE_seq of 'a rule_elem list
+  | RE_choice of 'a rule_elem list
+  | RE_star of 'a rule_elem * 'a expr option
+  | RE_opt of 'a rule_elem
   | RE_epsilon
-  | RE_at_pos of expr * rule_elem
-  | RE_at_buf of expr * rule_elem
-  | RE_map_bufs of expr * rule_elem
+  | RE_at_pos of 'a expr * 'a rule_elem
+  | RE_at_buf of 'a expr * 'a rule_elem
+  | RE_map_bufs of 'a expr * 'a rule_elem
 
-and rule_elem =
-  {rule_elem: rule_elem_desc;
-   rule_elem_loc: Location.t}
+and 'a rule_elem =
+  {rule_elem: 'a rule_elem_desc;
+   rule_elem_loc: Location.t;
+   rule_elem_aux: 'a}
 
-type rule =
-  {rule_rhs: rule_elem list;
-   rule_temps: (ident * type_expr * expr) list;
+type 'a rule =
+  {rule_rhs: 'a rule_elem list;
+   rule_temps: (ident * type_expr * 'a expr) list;
    rule_loc: Location.t}
 
 type attr_list_type =
   | ALT_type of ident  (* TODO: support record instantiation? *)
   | ALT_decls of (ident * type_expr) list
 
-type non_term_defn =
+type 'a non_term_defn =
   {non_term_name: ident;
    non_term_varname: ident option;
    non_term_inh_attrs: (ident * type_expr) list; (* inherited *)
    non_term_syn_attrs: attr_list_type; (* synthesized *)
-   non_term_rules: rule list;
+   non_term_rules: 'a rule list;
    non_term_loc: Location.t}
 
 type use =
@@ -162,18 +164,15 @@ type type_decl =
    type_decl_body: type_rep;
    type_decl_loc: Location.t}
 
-type fun_defn =
+type 'a fun_defn =
   {fun_defn_ident: ident;
    fun_defn_tvars: tvar list;
    fun_defn_params: (ident * type_expr) list;
    fun_defn_res_type: type_expr;
-   fun_defn_body: expr;
+   fun_defn_body: 'a expr;
    fun_defn_recursive: bool;
-   fun_defn_loc: Location.t}
-
-type nterm_decl =
-  {nterms: ident list;
-   nterms_loc: Location.t}
+   fun_defn_loc: Location.t;
+   fun_defn_aux: 'a}
 
 type attribute_arg =
   | Attr_key of ident
@@ -185,31 +184,29 @@ type attribute =
    attr_args: attribute_arg list;
    attr_loc: Location.t}
 
-type format_decl =
-  {format_decl: non_term_defn;
+type 'a format_decl =
+  {format_decl: 'a non_term_defn;
    format_attr: attribute option;
    format_decl_loc: Location.t}
 
-type format =
-  {format_decls: format_decl list;
+type 'a format =
+  {format_decls: 'a format_decl list;
    format_loc: Location.t}
 
-type pre_decl =
+type 'a pre_decl =
   | PDecl_use of use
   | PDecl_types of type_decl list * Location.t (* possibly mutually recursive *)
-  | PDecl_fun of fun_defn
-  | PDecl_nterm of nterm_decl
-  | PDecl_format of format
+  | PDecl_fun of 'a fun_defn
+  | PDecl_format of 'a format
 
-type pre_top_level =
-  {pre_decls: pre_decl list}
+type 'a pre_top_level =
+  {pre_decls: 'a pre_decl list}
 
 (* flattened version after including use files *)
-type top_decl =
+type 'a top_decl =
   | Decl_types of type_decl list * Location.t (* possibly mutually recursive *)
-  | Decl_fun of fun_defn
-  | Decl_nterm of nterm_decl
-  | Decl_format of format
+  | Decl_fun of 'a fun_defn
+  | Decl_format of 'a format
 
-type program =
-  {decls: top_decl list}
+type 'a program =
+  {decls: 'a top_decl list}

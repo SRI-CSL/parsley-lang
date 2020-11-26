@@ -281,13 +281,6 @@ let print_fun_defn fd =
   pp_print_newline !ppf ();
   pp_print_string !ppf "}"
 
-let print_nterm_decl nd =
-  pp_print_string !ppf "nterm {";
-  print_list ", " (fun nt ->
-      pp_print_string !ppf (Location.value nt)
-    ) nd.nterms;
-  pp_print_string !ppf "}"
-
 let print_attributes at op cl =
   match at with
     | ALT_type t ->
@@ -572,8 +565,6 @@ let print_decl d =
         List.iter print_type_decl typs
     | Decl_fun fd ->
         print_fun_defn fd
-    | Decl_nterm nd ->
-        print_nterm_decl nd
     | Decl_format f ->
         print_format f
 

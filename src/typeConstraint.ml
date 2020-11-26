@@ -138,6 +138,11 @@ let exists ?pos f =
   let c = f (TVariable v) in
   ex ~pos:(Location.loc_or_ghost pos) [ v ] c
 
+let exists_aux ?pos f =
+  let v = variable Flexible () in
+  let c, aux = f (TVariable v) in
+  (ex ~pos:(Location.loc_or_ghost pos) [ v ] c), aux
+
 (** [exists_list l f] associates a fresh variable with every element
     in the list [l], yielding an association list [m], and returns
     the constraint [exists m.(f m)]. *)
@@ -145,10 +150,15 @@ let exists_list ?pos l f =
   let l, m = variable_list Flexible l in
   ex ?pos:pos l (f m)
 
+let exists_list_aux ?pos l f =
+  let l, m = variable_list Flexible l in
+  let c, aux = f m in
+  ex ?pos:pos l c, aux
+
 (** [forall_list l f] associates a fresh variable with every element
     in the list [l], yielding an association list [m], and returns
     the constraint [forall m.(f m)]. *)
-let forall_list ?pos l f =
+let _forall_list ?pos l f =
   let l, m =
     List.fold_right (fun x (vs, xts) ->
                        let v = variable Rigid ~name:x () in
@@ -158,6 +168,6 @@ let forall_list ?pos l f =
   fl ~pos:(Location.loc_or_ghost pos) l (f m)
 
 (** [monoscheme header] turns [header] into a monomorphic type scheme. *)
-let monoscheme ?pos header =
+let _monoscheme ?pos header =
   Scheme (Location.loc_or_ghost pos, [], [],
           CTrue (Location.loc_or_ghost pos), header)

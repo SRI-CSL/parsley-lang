@@ -28,11 +28,11 @@
 type context = TypeConstraint.tconstraint -> TypeConstraint.tconstraint
 
 (** [generate_constraint p] generates a closed constraint that describes
-    the typing of [p]. *)
-val generate_constraint: Ast.program -> TypeConstraint.tconstraint
+    the typing of [p] and an annotated version of [p]. *)
+val generate_constraint: unit Ast.program ->
+  TypeConstraint.tconstraint * MultiEquation.crterm Ast.program
 
 (** [infer_spec s] generates a constraint context that describes
-    spec [s]. *)
-val infer_spec: TypingEnvironment.environment ->
-                Ast.program ->
-                TypingEnvironment.environment * context
+    spec [s] and an annotated version of [s]. *)
+val infer_spec: TypingEnvironment.environment -> unit Ast.program ->
+  TypingEnvironment.environment * context * MultiEquation.crterm Ast.program

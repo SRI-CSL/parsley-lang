@@ -98,7 +98,10 @@ val conj: tconstraint list -> tconstraint
 
 (** [exists f] creates a fresh variable [x] and returns the constraint
     [exists x.(f x)]. *)
-val exists: ?pos:Location.t -> (crterm -> tconstraint) -> tconstraint
+val exists: ?pos:Location.t -> (crterm -> tconstraint) ->
+            tconstraint
+val exists_aux: ?pos:Location.t -> (crterm -> tconstraint * 'b) ->
+            tconstraint * 'b
 
 (** [exists_list l f] associates a fresh variable with every element
     in the list [l], yielding an association list [m], and returns
@@ -106,13 +109,6 @@ val exists: ?pos:Location.t -> (crterm -> tconstraint) -> tconstraint
 val exists_list:
   ?pos:Location.t -> 'a list -> (('a * crterm) list -> tconstraint)
   -> tconstraint
-
-(** [forall_list l f] associates a fresh variable with every element
-    in the list [l], yielding an association list [m], and returns
-    the constraint [forall m.(f m)]. *)
-val forall_list:
-  ?pos:Location.t -> MultiEquation.tname list -> ((MultiEquation.tname * crterm) list -> tconstraint)
-  -> tconstraint
-
-(** [monoscheme header] turns [header] into a monomorphic type scheme. *)
-val monoscheme: ?pos:Location.t -> (crterm * Location.t) StringMap.t -> tscheme
+val exists_list_aux:
+  ?pos:Location.t -> 'a list -> (('a * crterm) list -> tconstraint * 'b)
+  -> tconstraint * 'b
