@@ -101,12 +101,13 @@ let print_type_decl td =
   pp_print_cut !ppf ();
   pp_print_newline !ppf ()
 
-let rec print_pattern p =
+let rec print_pattern auxp p =
   match p.pattern with
     | P_wildcard ->
         pp_print_string !ppf "_"
     | P_var id ->
-        pp_print_string !ppf (Location.value id)
+        pp_print_string !ppf (Location.value id);
+        pp_print_string !ppf (auxp p.pattern_aux)
     | P_literal PL_unit ->
         pp_print_string !ppf "()"
     | P_literal (PL_string l) ->
@@ -121,7 +122,7 @@ let rec print_pattern p =
              (Location.value t) (Location.value c));
         if List.length ps > 0 then begin
             pp_print_string !ppf "(";
-            print_list ", " print_pattern ps;
+            print_list ", " (print_pattern auxp) ps;
             pp_print_string !ppf ")"
           end
 
@@ -136,31 +137,32 @@ let str_of_binop = function
   | Cons -> "::" | At -> "@"
   | Index -> assert false (* needs special handling by caller *)
 
-let rec print_clause (p, e) =
+let rec print_clause auxp (p, e) =
   pp_print_string !ppf "| ";
-  print_pattern p;
+  print_pattern auxp p;
   pp_print_string !ppf " -> ";
-  print_expr e
+  print_expr auxp e
 
-and print_clauses = function
+and print_clauses auxp = function
   | [] -> ()
-  | [c] -> print_clause c
+  | [c] -> print_clause auxp c
   | c :: t ->
-      print_clause c;
+      print_clause auxp c;
       pp_print_break !ppf 1 0;
-      print_clauses t
+      print_clauses auxp t
 
-and print_expr e =
+and print_expr auxp e =
   match e.expr with
     | E_var i ->
-        pp_print_string !ppf (Location.value i)
+        pp_print_string !ppf (Location.value i);
+        pp_print_string !ppf (auxp e.expr_aux)
     | E_constr (t, c, args) ->
         pp_print_string !ppf
           (Printf.sprintf "%s::%s"
              (Location.value t) (Location.value c));
         if List.length args > 0 then begin
             pp_print_string !ppf "(";
-            print_list ", " print_expr args;
+            print_list ", " (print_expr auxp) args;
             pp_print_string !ppf ")";
           end
     | E_record fields ->
@@ -168,30 +170,30 @@ and print_expr e =
         print_list ", " (fun (f, e) ->
             pp_print_string !ppf (Location.value f);
             pp_print_string !ppf ": ";
-            print_expr e;
+            print_expr auxp e;
           ) fields;
         pp_print_string !ppf "}"
     | E_apply (f, args) ->
         pp_print_string !ppf "(";
-        print_expr f;
+        print_expr auxp f;
         pp_print_string !ppf " ";
-        print_list " " print_expr args;
+        print_list " " (print_expr auxp) args;
         pp_print_string !ppf ")"
     | E_unop (u, e) ->
         pp_print_string !ppf (str_of_unop u);
         pp_print_string !ppf "(";
-        print_expr e;
+        print_expr auxp e;
         pp_print_string !ppf ")"
     | E_binop (Index, l, r) ->
-        print_expr l;
+        print_expr auxp l;
         pp_print_string !ppf "[";
-        print_expr r;
+        print_expr auxp r;
         pp_print_string !ppf "]"
     | E_binop (b, l, r) ->
         pp_print_string !ppf "(";
-        print_expr l;
+        print_expr auxp l;
         pp_print_string !ppf (Printf.sprintf " %s " (str_of_binop b));
-        print_expr r;
+        print_expr auxp r;
         pp_print_string !ppf ")"
     | E_literal PL_unit ->
         pp_print_string !ppf "()"
@@ -204,7 +206,7 @@ and print_expr e =
     | E_field (e, f) ->
         let complex = (match e.expr with E_var _ -> false | _ -> true) in
         if complex then pp_print_string !ppf "(";
-        print_expr e;
+        print_expr auxp e;
         if complex then pp_print_string !ppf ")";
         pp_print_string !ppf ".";
         pp_print_string !ppf (Location.value f)
@@ -213,7 +215,7 @@ and print_expr e =
           (Printf.sprintf "%s.%s" (Location.value m) (Location.value i))
     | E_match (e, t, c) ->
         pp_print_string !ppf "(";
-        print_expr e;
+        print_expr auxp e;
         pp_print_string !ppf " ~~ ";
         pp_print_string !ppf
           (Printf.sprintf "%s::%s"
@@ -222,22 +224,22 @@ and print_expr e =
     | E_case (d, clauses) ->
         pp_open_vbox !ppf 2;
         pp_print_string !ppf "(case ";
-        print_expr d;
+        print_expr auxp d;
         pp_print_string !ppf " of ";
         pp_print_break !ppf 0 0;
-        print_clauses clauses;
+        print_clauses auxp clauses;
         pp_close_box !ppf ();
         pp_print_string !ppf ")"
     | E_let (p, e, b) ->
         pp_print_string !ppf "let ";
-        print_pattern p;
+        print_pattern auxp p;
         pp_print_string !ppf " = ";
-        print_expr e;
+        print_expr auxp e;
         pp_print_string !ppf " in ";
-        print_expr b
+        print_expr auxp b
     | E_cast (e, t) ->
         pp_print_string !ppf "(";
-        print_expr e;
+        print_expr auxp e;
         pp_print_string !ppf " : ";
         print_type_expr t;
         pp_print_string !ppf ")"
@@ -247,14 +249,14 @@ let print_param_decl (pm, ty) =
   pp_print_string !ppf ": ";
   print_type_expr ty
 
-let print_temp_decl (pm, ty, e) =
+let print_temp_decl auxp (pm, ty, e) =
   pp_print_string !ppf (Location.value pm);
   pp_print_string !ppf ": ";
   print_type_expr ty;
   pp_print_string !ppf " := ";
-  print_expr e
+  print_expr auxp e
 
-let print_fun_defn fd =
+let print_fun_defn auxp fd =
   pp_open_vbox !ppf 0;
   pp_open_box !ppf 0;
   pp_print_string !ppf "fun ";
@@ -276,7 +278,7 @@ let print_fun_defn fd =
   pp_print_cut !ppf ();
   pp_open_box !ppf 2;
   pp_print_break !ppf 2 0;
-  print_expr fd.fun_defn_body;
+  print_expr auxp fd.fun_defn_body;
   pp_close_box !ppf ();
   pp_print_newline !ppf ();
   pp_print_string !ppf "}"
@@ -316,7 +318,7 @@ let rec print_literal_set ls =
         pp_print_string !ppf (Printf.sprintf "\"%s\"" (Location.value e));
         pp_print_string !ppf ")"
 
-let rec print_regexp re =
+let rec print_regexp auxp re =
   match re.regexp with
     | RX_literals ls ->
         pp_print_string !ppf "[";
@@ -330,82 +332,82 @@ let rec print_regexp re =
         (match bound with
            | Some e ->
                pp_print_string !ppf "(";
-               print_regexp re;
+               print_regexp auxp re;
                pp_print_string !ppf ") ^ (";
-               print_expr e;
+               print_expr auxp e;
                pp_print_string !ppf ")"
            | None ->
                pp_print_string !ppf "(";
-               print_regexp re;
+               print_regexp auxp re;
                pp_print_string !ppf ")*"
         )
     | RX_opt re ->
         pp_print_string !ppf "(";
-        print_regexp re;
+        print_regexp auxp re;
         pp_print_string !ppf ")?"
     | RX_choice res ->
         pp_print_string !ppf "(";
-        print_list "| " print_regexp res;
+        print_list "| " (print_regexp auxp) res;
         pp_print_string !ppf ")"
     | RX_seq res ->
         pp_print_string !ppf "(";
-        print_list " " print_regexp res;
+        print_list " " (print_regexp auxp) res;
         pp_print_string !ppf ")"
 
-let rec print_clause (p, s) =
+let rec print_clause auxp (p, s) =
   pp_print_string !ppf "| ";
-  print_pattern p;
+  print_pattern auxp p;
   pp_print_string !ppf " -> ";
   pp_print_cut !ppf ();
   pp_open_vbox !ppf 2;
   pp_print_string !ppf " { ";
-  print_list "; " print_stmt s;
+  print_list "; " (print_stmt auxp) s;
   pp_print_string !ppf " }";
   pp_close_box !ppf ()
 
-and print_clauses = function
+and print_clauses auxp = function
   | [] -> ()
-  | [c] -> print_clause c
+  | [c] -> print_clause auxp c
   | c :: t ->
-      print_clause c;
+      print_clause auxp c;
       pp_print_break !ppf 1 0;
-      print_clauses t
+      print_clauses auxp t
 
-and print_stmt s =
+and print_stmt auxp s =
   match s.stmt with
     | S_assign (l, r) ->
-        print_expr l;
+        print_expr auxp l;
         pp_print_string !ppf " := ";
-        print_expr r
+        print_expr auxp r
     | S_let (p, e, s) ->
         pp_print_string !ppf "let ";
-        print_pattern p;
+        print_pattern auxp p;
         pp_print_string !ppf " = ";
-        print_expr e;
+        print_expr auxp e;
         pp_print_string !ppf " in ";
         pp_print_cut !ppf ();
         pp_open_vbox !ppf 2;
         pp_print_string !ppf " { ";
-        print_list "; " print_stmt s;
+        print_list "; " (print_stmt auxp) s;
         pp_print_string !ppf " }";
         pp_close_box !ppf ()
     | S_case (d, clauses) ->
         pp_open_vbox !ppf 2;
         pp_print_string !ppf "(case ";
-        print_expr d;
+        print_expr auxp d;
         pp_print_string !ppf " of ";
         pp_print_break !ppf 0 0;
-        print_clauses clauses;
+        print_clauses auxp clauses;
         pp_close_box !ppf ();
         pp_print_string !ppf ")"
 
-let print_action a =
+let print_action auxp a =
   let (stmts, e_opt) = a.action_stmts in
   let rec print = function
     | []  -> ()
-    | [s] -> print_stmt s
+    | [s] -> print_stmt auxp s
     | s :: t ->
-        print_stmt s;
+        print_stmt auxp s;
         pp_print_string !ppf ";";
         pp_print_cut !ppf ();
         print t in
@@ -418,15 +420,15 @@ let print_action a =
      | Some e ->
          pp_print_string !ppf ";;";
          pp_print_cut !ppf ();
-         print_expr e);
+         print_expr auxp e);
   pp_print_string !ppf " }";
   pp_close_box !ppf ()
 
-let rec print_rule_elem rl =
+let rec print_rule_elem auxp rl =
   match rl.rule_elem with
     | RE_regexp re ->
         pp_print_string !ppf "(#";
-        print_regexp re;
+        print_regexp auxp re;
         pp_print_string !ppf "#) "
     | RE_epsilon ->
         pp_print_string !ppf "$epsilon"
@@ -438,7 +440,7 @@ let rec print_rule_elem rl =
                print_list ", " (fun (k, v) ->
                    pp_print_string !ppf (Location.value k);
                    pp_print_string !ppf " = ";
-                   print_expr v
+                   print_expr auxp v
                  ) attrs;
                pp_print_string !ppf ">";
            | None -> ()
@@ -446,70 +448,71 @@ let rec print_rule_elem rl =
     | RE_constraint c ->
         pp_print_cut !ppf ();
         pp_print_string !ppf "[";
-        print_expr c;
+        print_expr auxp c;
         pp_print_string !ppf "]";
         pp_print_cut !ppf ();
     | RE_action a ->
-        print_action a
+        print_action auxp a
     | RE_named (id, rl) ->
         pp_print_string !ppf (Location.value id);
+        pp_print_string !ppf (auxp rl.rule_elem_aux);
         pp_print_string !ppf "=";
-        print_rule_elem rl
+        print_rule_elem auxp rl
     | RE_seq rls ->
         pp_print_string !ppf "(";
-        print_list " " print_rule_elem rls;
+        print_list " " (print_rule_elem auxp) rls;
         pp_print_string !ppf ")"
     | RE_choice rls ->
-        print_list "| " print_rule_elem rls
+        print_list "| " (print_rule_elem auxp) rls
     | RE_star (r, bound) ->
         (match bound with
            | Some e ->
                pp_print_string !ppf "(";
-               print_rule_elem r;
+               print_rule_elem auxp r;
                pp_print_string !ppf ") ^ (";
-               print_expr e;
+               print_expr auxp e;
                pp_print_string !ppf ")"
            | None ->
                pp_print_string !ppf "(";
-               print_rule_elem r;
+               print_rule_elem auxp r;
                pp_print_string !ppf ")*"
         )
     | RE_opt r ->
         pp_print_string !ppf "(";
-        print_rule_elem r;
+        print_rule_elem auxp r;
         pp_print_string !ppf ")?*"
     | RE_at_pos (e, rl) ->
         pp_print_string !ppf "@(";
-        print_expr e;
+        print_expr auxp e;
         pp_print_string !ppf ", ";
-        print_rule_elem rl;
+        print_rule_elem auxp rl;
         pp_print_string !ppf ")"
     | RE_at_buf (e, rl) ->
         pp_print_string !ppf "@[";
-        print_expr e;
+        print_expr auxp e;
         pp_print_string !ppf ", ";
-        print_rule_elem rl;
+        print_rule_elem auxp rl;
         pp_print_string !ppf "]"
     | RE_map_bufs (e, rl) ->
         pp_print_string !ppf "@#[";
-        print_expr e;
+        print_expr auxp e;
         pp_print_string !ppf ", ";
-        print_rule_elem rl;
+        print_rule_elem auxp rl;
         pp_print_string !ppf "]"
 
-let print_rule rl =
+let print_rule auxp rl =
   if List.length rl.rule_temps > 0 then begin
       pp_print_string !ppf "(|";
-      print_list ", " print_temp_decl rl.rule_temps;
+      print_list ", " (print_temp_decl auxp) rl.rule_temps;
       pp_print_string !ppf "|)";
       pp_print_cut !ppf ();
     end;
   pp_open_box !ppf 2;
   let rec print = function
     | [] -> ()
-    | [r] -> print_rule_elem r
+    | [r] -> print_rule_elem auxp r
     | r :: t -> begin
-        print_rule_elem r;
+        print_rule_elem auxp r;
         pp_print_break !ppf 2 0;
         print t
       end in
@@ -517,7 +520,7 @@ let print_rule rl =
   pp_close_box !ppf ();
   pp_print_cut !ppf ()
 
-let print_nterm_defn nd =
+let print_nterm_defn auxp nd =
   pp_open_box !ppf 0;
   pp_print_string !ppf (Location.value nd.non_term_name);
   (match nd.non_term_varname with
@@ -536,9 +539,9 @@ let print_nterm_defn nd =
   pp_print_string !ppf "  ";
   let rec print = function
     | [] -> ()
-    | [h] -> print_rule h
+    | [h] -> print_rule auxp h
     | h :: t ->
-        print_rule h;
+        print_rule auxp h;
         pp_print_string !ppf ";";
         pp_print_cut !ppf ();
         print t
@@ -546,12 +549,12 @@ let print_nterm_defn nd =
   pp_close_box !ppf ();
   pp_print_string !ppf ";;"
 
-let print_format f =
+let print_format auxp f =
   pp_open_vbox !ppf 2;
   pp_print_string !ppf "format {";
   pp_print_cut !ppf ();
   List.iter (fun fd ->
-      print_nterm_defn fd.format_decl;
+      print_nterm_defn auxp fd.format_decl;
       pp_print_cut !ppf ();
       pp_print_cut !ppf ()
     ) f.format_decls;
@@ -559,26 +562,36 @@ let print_format f =
   pp_print_cut !ppf ();
   pp_print_string !ppf "}"
 
-let print_decl d =
+let print_decl auxp d =
   match d with
     | Decl_types (typs, _) ->
         List.iter print_type_decl typs
     | Decl_fun fd ->
-        print_fun_defn fd
+        print_fun_defn auxp fd
     | Decl_format f ->
-        print_format f
+        print_format auxp f
 
-let rec print_decls = function
+let rec print_decls auxp = function
   | [] -> ()
   | h :: t -> begin
       pp_open_box !ppf 0;
-      print_decl h;
+      print_decl auxp h;
       pp_print_newline !ppf ();
       pp_print_newline !ppf ();
       pp_close_box !ppf ();
-      print_decls t
+      print_decls auxp t
     end
 
-let print_program prog =
-  print_decls prog.decls;
+let print_spec auxp spec =
+  print_decls auxp spec.decls;
   print_flush ()
+
+let print_parsed_spec spec =
+  let auxp () = "" in
+  print_spec auxp spec
+
+let print_typed_spec spec =
+  let auxp t =
+    let s = TypeConstraintPrinter.print_crterm t in
+    Printf.sprintf " (: %s) " s in
+  print_spec auxp spec

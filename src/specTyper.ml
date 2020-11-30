@@ -4,6 +4,7 @@ let handle_exception bt msg =
 
 let trace_solver = false
 let print_types  = false
+let print_typed_ast = ref false
 
 let get_tracer () =
   if trace_solver
@@ -11,14 +12,16 @@ let get_tracer () =
   else None
 
 let check spec =
-  let c, _spec' = TypeInfer.generate_constraint spec in
+  let c, spec' = TypeInfer.generate_constraint spec in
   let env = ConstraintSolver.solve ?tracer:(get_tracer ()) c in
   if print_types then
     ConstraintSolver.print_env
       (TypeEnvPrinter.print_variable true)
       env
   else
-    ()
+    ();
+  if !print_typed_ast then
+    AstPrinter.print_typed_spec spec'
 
 let type_check spec_file spec =
   try
