@@ -1,0 +1,45 @@
+fun convert(b : [byte]) -> int = {
+  (case Int.of_bytes(b) of
+   | option::Some(i) -> i
+   | option::None()  -> 0)
+}
+
+// how would i fix this?
+
+// fun str_convert(b: [byte]) -> string = {
+//  (case String.of_bytes(b) of
+//   | option::Some(s) -> s
+//   | option::None() -> 0)
+// }
+
+type pbm_file_contents = {
+  magic_bytes: int,
+  height: int,
+  width: int,
+  img: int}
+
+format {
+  Comment := !"#"! (# [AsciiCharS \ "\n" \ "\r"]*  ["\r" | "\n"] #);;
+  Whitespace := (# [" " | "\t" | "\r" | "\n"]* #);;  // missing some newline chars...will need to add later
+  NonNewlineWhitespace := (# [" " | "\t" | "\r"]* #);;
+  DimensionValue := DigitS;;
+  BinaryDigit := (# ["0" | "1"] #);;
+  TokenSeparator := (# (Comment | Whitespace)* Whitespace #);;
+  TokenSeparatorRaster := (# TokenSeparator Whitespace #);;
+  
+  PBM_FC fc {pbm_file_contents} :=
+    magic_bytes = (Byte^2)
+    TokenSeparator
+    height = DimensionValue
+    TokenSeparator
+    width = DimensionValue
+    TokenSeparator
+      
+    img = (BinaryDigit^convert(width))
+    [convert(magic_bytes) = 123]
+    {
+      fc.magic_bytes := convert(magic_bytes);
+      fc.height := convert(height);
+      fc.width := convert(width)
+    }
+}
