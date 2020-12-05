@@ -920,7 +920,7 @@ let infer_non_term_type tenv ctxt ntd =
             ctxt (CLet ([Scheme (loc, [ivar], [], c, StringMap.empty)],
                         CTrue loc))
           ) in
-        let attrs = List.map (fun (id, te) ->
+        let attrs = List.map (fun (id, te, _) ->
                         id, AstUtils.expand_type_abbrevs tenv te
                       ) attrs in
         let tenv', dids, drqs, let_env =
@@ -1363,7 +1363,29 @@ let infer_non_term tenv ntd =
           assert false
       | Some (i, _) -> i in
 
-  (* compute the local bindings for each rule *)
+  (* If there are any initializers for the synthesized attributes,
+   * collect their typing constraints.
+   *)
+  let csyn_attrs, non_term_syn_attrs =
+    match ntd.non_term_syn_attrs with
+      | ALT_type t ->
+          [], ALT_type t
+      | ALT_decls d ->
+          let c, d' =
+            List.fold_left (fun (cs, ds) (pid, typ, exp) ->
+                match exp with
+                  | None ->
+                      cs, (pid, typ, None) :: ds
+                  | Some e ->
+                      let ityp = TypeConv.intern tenv typ in
+                      let c, e' = infer_expr tenv e ityp in
+                      c :: cs, (pid, typ, Some e') :: ds
+              ) ([], []) d in
+          c, ALT_decls (List.rev d') in
+  (* compute the local bindings for each rule: this includes any
+   * name for the non-terminal itself, along with the bindings
+   * for the inherited attributes.
+   *)
   let pids, bindings = match ntd.non_term_varname with
       | None ->
           StringMap.empty, empty_fragment
@@ -1399,15 +1421,17 @@ let infer_non_term tenv ntd =
                  (fun r -> infer_non_term_rule tenv ntd r pids)
                  ntd.non_term_rules in
   let cs, rules' = List.split crules' in
-  CLet ([ Scheme (ntd.non_term_loc, [],
-                  bindings.vars,
-                  bindings.tconstraint,
-                  bindings.gamma) ],
-        conj cs),
+  let cprod =
+    CLet ([ Scheme (ntd.non_term_loc, [],
+                    bindings.vars,
+                    bindings.tconstraint,
+                    bindings.gamma) ],
+          conj cs) in
+  (conj csyn_attrs) ^ cprod,
   {non_term_name      = ntd.non_term_name;
    non_term_varname   = ntd.non_term_varname;
    non_term_inh_attrs = ntd.non_term_inh_attrs;
-   non_term_syn_attrs = ntd.non_term_syn_attrs;
+   non_term_syn_attrs = non_term_syn_attrs;
    non_term_rules     = rules';
    non_term_loc       = ntd.non_term_loc}
 

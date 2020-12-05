@@ -21,6 +21,8 @@ format {
 
   // Pure parser
   Pure p { val: [byte] } := { p.val := "A" };;
+  // with optional initializer
+  Pure2 p { val2: [byte] := [] } := { p.val2 := "A" };;
 
   // Sequencing and Selection
   ABC1 p {a: [byte]} := !"Helo"! v=!"ABC"! {p.a := v};;

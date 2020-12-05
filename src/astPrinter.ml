@@ -249,6 +249,16 @@ let print_param_decl (pm, ty) =
   pp_print_string !ppf ": ";
   print_type_expr ty
 
+let print_attr_decl auxp (pm, ty, ex) =
+  pp_print_string !ppf (Location.value pm);
+  pp_print_string !ppf ": ";
+  print_type_expr ty;
+  (match ex with
+     | None -> ()
+     | Some e ->
+         pp_print_string !ppf " := ";
+         print_expr auxp e)
+
 let print_temp_decl auxp (pm, ty, e) =
   pp_print_string !ppf (Location.value pm);
   pp_print_string !ppf ": ";
@@ -283,7 +293,7 @@ let print_fun_defn auxp fd =
   pp_print_newline !ppf ();
   pp_print_string !ppf "}"
 
-let print_attributes at op cl =
+let print_attributes auxp at op cl =
   match at with
     | ALT_type t ->
         pp_print_string !ppf op;
@@ -293,7 +303,7 @@ let print_attributes at op cl =
         if List.length pd > 0
         then (
           pp_print_string !ppf op;
-          print_list ", " print_param_decl pd;
+          print_list ", " (print_attr_decl auxp) pd;
           pp_print_string !ppf cl
         )
 
@@ -528,10 +538,10 @@ let print_nterm_defn auxp nd =
          pp_print_string !ppf " ";
          pp_print_string !ppf (Location.value v)
      | None -> ());
-  print_attributes
-    (ALT_decls nd.non_term_inh_attrs) " (" ")";
+  if List.length nd.non_term_inh_attrs > 0
+  then print_list ", " print_param_decl nd.non_term_inh_attrs;
   pp_print_break !ppf 1 2;
-  print_attributes nd.non_term_syn_attrs "{" "}";
+  print_attributes auxp nd.non_term_syn_attrs "{" "}";
   pp_print_string !ppf " :=";
   pp_close_box !ppf ();
   pp_print_cut !ppf ();

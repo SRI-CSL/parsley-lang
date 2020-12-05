@@ -141,15 +141,15 @@ type 'a rule =
    rule_temps: (ident * type_expr * 'a expr) list;
    rule_loc: Location.t}
 
-type attr_list_type =
-  | ALT_type of ident  (* TODO: support record instantiation? *)
-  | ALT_decls of (ident * type_expr) list
+type 'a attr_list_type =
+  | ALT_type of ident
+  | ALT_decls of (ident * type_expr * 'a expr option) list
 
 type 'a non_term_defn =
   {non_term_name: ident;
    non_term_varname: ident option;
    non_term_inh_attrs: (ident * type_expr) list; (* inherited *)
-   non_term_syn_attrs: attr_list_type; (* synthesized *)
+   non_term_syn_attrs: 'a attr_list_type; (* synthesized *)
    non_term_rules: 'a rule list;
    non_term_loc: Location.t}
 

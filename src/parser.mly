@@ -497,8 +497,18 @@ rule:
 | l=list(rule_elem)
   { make_rule [] l $startpos $endpos }
 
+nt_attr_decl:
+| i=ident COLON t=type_expr
+  { (i, t, None) }
+| i=ident COLON t=type_expr COLONEQ e=expr
+  { (i, t, Some e) }
+
+nt_attr_decls:
+| l=separated_list(COMMA, nt_attr_decl)
+  { l }
+
 nt_param_decls:
-| d=param_decls
+| d=nt_attr_decls
   { ALT_decls d }
 | i=ident
   { ALT_type i }
