@@ -35,7 +35,7 @@ format {
     [allow_empty]
     (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
   ; [!allow_empty]
-    (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
+    (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )+ #)
   ;;
 
   // The 'Name' non-terminal has a synthesized attribute 'val' that
