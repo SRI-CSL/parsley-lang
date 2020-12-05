@@ -30,7 +30,7 @@ type builtin_type =
   Ast.tname * (Ast.kind * builtin_dataconstructor list)
 
 type builtin_non_term =
-  Ast.nname * Ast.type_expr
+  Ast.nname * (Ast.ident * Ast.type_expr) list * Ast.type_expr
 
 type builtin_module =
   {mod_name:   Ast.mname;
@@ -38,6 +38,8 @@ type builtin_module =
 
 let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
   let ghost_loc = Location.ghost_loc in
+  let make_ident (s: string) =
+    Location.mk_ghost s in
   let make_builtin_type (t : Ast.type_expr_desc) =
     {Ast.type_expr = t;
      Ast.type_expr_loc = ghost_loc} in
@@ -101,6 +103,9 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
       TName "bool",   (Ast.KStar,
                        [ (Ast.DName "True", [], gen_tvar "bool");
                          (Ast.DName "False", [], gen_tvar "bool") ]);
+      TName "endian", (Ast.KStar,
+                       [ (Ast.DName "Big", [], gen_tvar "endian");
+                         (Ast.DName "Little", [], gen_tvar "endian") ]);
       (* module types *)
       TName "view",   (Ast.KStar, []);
       TName "set",    ((Ast.KArrow (Ast.KStar, Ast.KStar)), []);
@@ -286,15 +291,26 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
     ] in
   (* Builtin non-terminals are encoded as basic types. *)
   let builtin_non_terms : builtin_non_term array = [|
-      NName "Byte",       gen_tvar "byte";
-      NName "AsciiChar",  gen_tvar "byte";
-      NName "HexChar",    gen_tvar "byte";
-      NName "AlphaNum",   gen_tvar "byte";
-      NName "Digit",      gen_tvar "byte";
-      NName "AsciiCharS", list_type (gen_tvar "byte");
-      NName "HexCharS",   list_type (gen_tvar "byte");
-      NName "AlphaNumS",  list_type (gen_tvar "byte");
-      NName "DigitS",     list_type (gen_tvar "byte");
+      (* atomic values *)
+      NName "Byte",       [], gen_tvar "byte";
+      NName "AsciiChar",  [], gen_tvar "byte";
+      NName "HexChar",    [], gen_tvar "byte";
+      NName "AlphaNum",   [], gen_tvar "byte";
+      NName "Digit",      [], gen_tvar "byte";
+      (* composable with regular expressions *)
+      NName "AsciiCharS", [], list_type (gen_tvar "byte");
+      NName "HexCharS",   [], list_type (gen_tvar "byte");
+      NName "AlphaNumS",  [], list_type (gen_tvar "byte");
+      NName "DigitS",     [], list_type (gen_tvar "byte");
+      (* binary integer types *)
+      NName "Int8",   [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "UInt8",  [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "Int16",  [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "UInt16", [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "Int32",  [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "UInt32", [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "Int64",  [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "UInt64", [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
     |] in
   builtin_types, builtin_consts, builtin_modules, builtin_non_terms
 

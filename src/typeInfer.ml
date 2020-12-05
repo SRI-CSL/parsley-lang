@@ -839,8 +839,7 @@ let infer_nt_rhs_type tenv ntd =
     | None ->
         raise (Error (NTTypeNotInferrable ntd.non_term_name))
 
-let infer_non_term_inh_type tenv ntd =
-  let nid = ntd.non_term_name in
+let infer_non_term_attrs tenv nid attrs =
   List.fold_left (fun ats (pid, te) ->
       let p  = Location.value pid in
       let te = AstUtils.expand_type_abbrevs tenv te in
@@ -851,7 +850,12 @@ let infer_non_term_inh_type tenv ntd =
             raise (Error (NTRepeatedBinding (nid, pid, repid)))
         | None ->
             StringMap.add p (t, Location.loc pid) ats
-    ) StringMap.empty ntd.non_term_inh_attrs
+    ) StringMap.empty attrs
+
+let infer_non_term_inh_type tenv ntd =
+  let nid = ntd.non_term_name in
+  let attrs = ntd.non_term_inh_attrs in
+  infer_non_term_attrs tenv nid attrs
 
 (** [infer_non_term_type tenv ctxt ntd] updates [tenv] with a record
    type for a non-terminal (NT) [ntd] corresponding to its synthesized
@@ -1500,11 +1504,12 @@ let init_tenv () =
      with primitive builtin types and do not have any inherited
      attributes. *)
   let init_tenv =
-    Array.fold_left (fun tenv (nt, typ) ->
+    Array.fold_left (fun tenv ((NName n) as nt, inh_attrs, typ) ->
         let gloc = Location.ghost_loc in
+        let nid = Location.mk_ghost n in
         let typ = TypeConv.intern tenv typ in
         let syn_typ = NTT_type typ in
-        let inh_typ = StringMap.empty in
+        let inh_typ = infer_non_term_attrs tenv nid inh_attrs in
         let ntt = (inh_typ, syn_typ) in
         add_non_terminal tenv gloc nt ntt
       ) init_tenv builtin_non_terms in
