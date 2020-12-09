@@ -22,9 +22,28 @@ type xref_ssect =
 type xref_sect =
   { xs_sects: [xref_ssect] }
 
+// Construct the views for top-level indirect objects.
+fun inuse_ent_offsets(e: xref_ent) -> [int] = {
+  (case e.xr_status of
+   | xr_status::InUse(iu) -> [iu.xr_file_ofs]
+   | _ -> []
+  )
+}
+fun top_ssect_offsets(ss: xref_ssect) -> [int] = {
+  List.flatten(List.map(inuse_ent_offsets, ss.xss_ents))
+}
+fun top_sect_offsets(s: xref_sect) -> [int] = {
+  List.flatten(List.map(top_ssect_offsets, s.xs_sects))
+}
+fun top_views(s: xref_sect, base: view) -> [view] = {
+  let offs = top_sect_offsets(s) in
+  let b = List.repl(base, List.length(offs)) in
+  List.map2(Window.restrict_from, b, offs)
+}
+
 format {
-  Header h { version : [byte],
-             binary  : option<[byte]> }
+  Header h { version: [byte],
+             binary:  option<[byte]> }
   :=
     v=Comment  b=Comment?
     { h.version := v;
@@ -33,10 +52,17 @@ format {
 
   // Straight-line parser that does not use xref table.
   #[whitespace(Whitespace:allow_empty=true)]
-  Body b (ctxt : parse_ctxt) { body: [indirect_obj] } :=
+  Body b (ctxt: parse_ctxt) { body: [indirect_obj] } :=
     ( i=Indirect<ctxt = ctxt>
       { b.body := i :: b.body }
     )*
+  ;;
+
+  // View-based parser using the xref table.
+  TopObjs t (ctxt: parse_ctxt, s: xref_sect) { top_objs: [indirect_obj] } :=
+    views={;; top_views(s, Window.get_base()) }
+    objs=@#[views, Indirect<ctxt = ctxt>]
+    { t.top_objs := objs }
   ;;
 
   // XRef entries in Xref table
@@ -60,7 +86,7 @@ format {
   ;;
 
   XrefSubSect ss { xref_ssect } :=
-  (| i : int := 0 |)                    // temporary used as counter
+  (| i: int := 0 |)                     // temporary used as counter
 
   start=(# DigitS+ #) !" "!
   { i := Int.of_bytes_unsafe(start) }   // initialize the object counter
@@ -91,7 +117,7 @@ format {
   ;;
 
   #[whitespace(Whitespace:allow_empty=false)]
-  StartXref s {sxref : int} :=
+  StartXref s {sxref: int} :=
     !"startxref"!
     n=Integer
     [ n.i > 0 ]
