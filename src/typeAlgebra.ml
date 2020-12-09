@@ -200,6 +200,9 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
             arrow_type (list_type (gen_tvar "a"))
               (arrow_type (list_type (gen_tvar "a"))
                  (list_type (gen_tvar "a"))));
+           (Ast.DName "flatten", [ TName "a" ],
+            arrow_type (list_type (list_type (gen_tvar "a")))
+              (list_type (gen_tvar "a")));
            (Ast.DName "map", [ TName "a"; TName "b" ],
             arrow_type (arrow_type (gen_tvar "a") (gen_tvar "b"))
               (arrow_type (list_type (gen_tvar "a"))
@@ -207,6 +210,15 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
            (Ast.DName "rev", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (list_type (gen_tvar "a")));
+           (Ast.DName "map2", [ TName "a"; TName "b"; TName "c" ],
+            arrow_type (arrow_type (gen_tvar "a")
+                          (arrow_type (gen_tvar "b") (gen_tvar "c")))
+              (arrow_type (list_type (gen_tvar "a"))
+                 (arrow_type (list_type (gen_tvar "b"))
+                    (list_type (gen_tvar "c")))));
+           (Ast.DName "repl", [ TName "a" ],
+            arrow_type (gen_tvar "a")
+              (arrow_type (gen_tvar "int") (list_type (gen_tvar "a"))));
          ];
       };
       {mod_name   = Ast.MName "Set";
@@ -268,6 +280,9 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
       };
       {mod_name   = Ast.MName "Window";
        mod_values = [
+           (Ast.DName "get_base", [],
+            (arrow_type (gen_tvar "unit")
+               (gen_tvar "view")));
            (Ast.DName "get_current", [],
             (arrow_type (gen_tvar "unit")
                (gen_tvar "view")));
