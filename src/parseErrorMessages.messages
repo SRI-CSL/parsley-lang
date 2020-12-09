@@ -3997,7 +3997,7 @@ toplevel: TYPE ID EQ ID AND ID EQ TVAR UNDERSCORE
 ## type_decl
 ##
 
-Ill-formed type declaration.
+Ill-formed declaration.
 
 toplevel: TYPE ID EQ ID AND UNDERSCORE
 ##
@@ -4183,7 +4183,7 @@ toplevel: TYPE ID EQ TVAR UNDERSCORE
 ## TYPE type_decl
 ##
 
-Ill-formed type declaration.
+Ill-formed declaration.
 
 toplevel: TYPE ID EQ UID LT TVAR RPAREN
 ##
