@@ -146,12 +146,12 @@ within `<` and `>`.
 Functions can also be *self-recursive*, and are declared using the `recfun` keyword:
 
 ....
-  recfun len <'a> (l: my_list<'a>) -> int = {
-    (case l of
-    | my_list::Null()     -> 0
-    | my_list::Cons(_, t) -> 1 + len(t)
-    )
-}
+ recfun len <'a> (l: my_list<'a>) -> int = {
+   (case l of
+   | my_list::Null()     -> 0
+   | my_list::Cons(_, t) -> 1 + len(t)
+   )
+ }
 ....
 
 Functions are applied using the syntax `f(arg1, arg2, ...)`, as in the
@@ -257,10 +257,10 @@ variables, and the wildcard pattern `_`.  They are composed with data
 constructors of variant types or the tuple constructor.
 
 ....
-  recfun len <'a> (l: my_list<'a>) -> int = {
-    (case l of
-    | my_list::Null()     -> 0
-    | my_list::Cons(_, t) -> 1 + len(t)
-    )
-}
+ recfun len <'a> (l: my_list<'a>) -> int = {
+   (case l of
+   | my_list::Null()     -> 0
+   | my_list::Cons(_, t) -> 1 + len(t)
+   )
+ }
 ....
