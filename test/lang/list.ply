@@ -2,14 +2,16 @@ type my_list('a) =
  | Null
  | Cons of 'a * my_list<'a>
 
-fun cons <'a> (l : my_list<'a>, e : 'a) -> my_list<'a> = {
+fun cons <'a> (l: my_list<'a>, e: 'a) -> my_list<'a> = {
   (case l of
-   | my_list::Null()     -> my_list::Cons(e, my_list::Null())
-   | my_list::Cons(_, _) -> my_list::Cons(e, l))
+  | my_list::Null()     -> my_list::Cons(e, my_list::Null())
+  | my_list::Cons(_, _) -> my_list::Cons(e, l)
+  )
 }
 
-recfun len <'a> (l : my_list<'a>) -> int = {
+recfun len <'a> (l: my_list<'a>) -> int = {
   (case l of
-   | my_list::Null()     -> 0
-   | my_list::Cons(_, t) -> 1 + len(t))
+  | my_list::Null()     -> 0
+  | my_list::Cons(_, t) -> 1 + len(t)
+  )
 }

@@ -2,18 +2,23 @@ type pdfobj = int
 type obj_ctxt = map<(int, int), pdfobj>
 type obj_set = set<pdfobj>
 
-type tree =
- | Node of tree * int * tree
- | Leaf of int
+type tree ('a) =
+ | Node of tree<'a> * 'a * tree<'a>
+ | Leaf of 'a
 
-fun max (a : int, b: int) -> int = {
+type point ('a, 'b) = {
+  xcoord : 'a,
+  ycoord : 'b
+}
+
+fun max (a: int, b: int) -> int = {
   (case a < b of
-   | bool::True  -> b
-   | bool::False -> a
+   | bool::True()  -> b
+   | bool::False() -> a
   )
 }
 
-fun pick (arg : (int, int)) -> int = {
+fun pick (arg: (int, int)) -> int = {
   let (i, _) = arg in
   i
 }
@@ -22,7 +27,7 @@ type my_list('a) =
  | Null
  | Cons of 'a * my_list<'a>
 
-fun cons <'a> (e: 'a, l : my_list<'a>) -> my_list<'a> = {
+fun cons <'a> (e: 'a, l: my_list<'a>) -> my_list<'a> = {
   (case l of
    | my_list::Null()     -> my_list::Cons(e, my_list::Null())
    | my_list::Cons(h, t) -> my_list::Cons(e, l))

@@ -117,7 +117,7 @@ following:
 
 * inclusions of declarations from other Parsley files through `use` specifiers
 * `type` definitions
-* `fun` (function) definitions
+* `fun` (function) or `recfun` (recursive function) definitions
 * a set of non-terminal definitions, contained within a `format` block
 
 File inclusion allows a specification to be split across multiple

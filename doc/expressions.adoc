@@ -1,0 +1,266 @@
+= The expression sublanguage
+
+The functional language embedded in Parsley is a standard strict
+expression-oriented language, essentially a simple version of the core
+languages of Standard ML or OCaml.  It is simpler than those languages
+since it does not support first-class functions and closures.  Its
+main use in Parsley is to allow the user to define types and functions
+that are used for computations performed within the grammar-oriented
+fragments of the Parsley specification.
+
+== Types
+
+The type system has builtin atomic types, some standard polymorphic
+type constructors, and support for polymorphic user-defined types.
+
+==== Atomic types
+
+The basic atomic types in this language are `byte`, `int`, `double`,
+`string`, `bool`, `endian`, and `unit` (known as `void` in C-like
+languages).  In addition, the language includes parsing buffers as
+atomic values, which belong to a special atomic type called `view`.
+
+==== Type constructors
+
+The builtin type constructors are lists, tuples and options.
+User-defined types typically use the variant and record type
+constructors.
+
+Lists and tuples have syntactic support: lists are denoted with `[`
+and `]` enclosing the element type, while tuples are denoted within
+`(` and `)` with `,` separating the tuple element types.
+
+User-defined types are introduced with the `type` keyword, and must
+begin with a lowercase letter.
+....
+ type list_of_bytes = [ byte ]
+ type pair_of_ints  = ( int, int )
+ type list_of_pairs = [ (int, int) ]
+....
+
+*Type variables* in polymorphic types are denoted with identifiers
+prefixed by a ' (tick).  They are declared as arguments to the type
+constructor within `(` and `)` and separated by `,`.  A polymorphic
+type is instantiated with the type arguments supplied within `<` and
+`>` and separated by `,`.
+
+....
+ type list_of_generic_pairs ('a, 'b) = [ ('a, 'b) ]
+ type list_of_int_pairs = list_of_generic_pairs<int,int>
+....
+
+*Variant types* are declared as follows, as a sequence of data
+constructors separated by `|`, where the data constructors are
+required to have an initial uppercase letter.
+
+....
+ type my_list =
+ | Null
+ | Cons of int * my_list
+
+ type tree ('a) =
+ | Node of tree<'a> * 'a * tree<'a>
+ | Leaf of 'a
+....
+
+When used to construct values or patterns, the data constructors of a
+variant type need to be prefixed with the type.  For example, some
+values in the `my_list` type are `my_list::Null()` and
+`my_list::Cons(2, my_list::Null())`.  Note in particular that nullary
+data constructors such as `Null` in this example require `()` as an
+argument to generate a value of `my_list`.
+
+The `bool` builtin type is a variant type, with values of
+`bool::True()` and `bool::False()`.  The `endian` type is similar,
+with values of `endian::Big()` and endian::Little()`.
+
+*Record types* are declared using the following syntax:
+
+....
+ type point ('a, 'b) =
+ { xcoord: 'a,
+   ycoord: 'b }
+....
+
+For example, one value of the record type `point<int,int>` is
+`{xcoord: 1, ycoord: 2}`.
+
+Fields of record values are accessed through the usual `.` operator.
+For example, if `p` is a variable of the above `point` type, its
+fields are accessed as `p.xcoord` and `p.ycoord`.  Fields, unlike data
+constructors, do not require a type prefix.  However, this means that
+they need to be globally unique: two record types cannot use the same
+field name.
+
+Types can also be *mutually recursive*, and are declared within a
+`type` declaration and separated by `and`:
+
+....
+ type dict ('a) =
+ { d: (int, node<'a>) }
+
+ and node ('a) =
+ | Leaf of 'a
+ | Dict of dict<'a>
+....
+
+==== Library types
+
+The Parsley standard library provides polymorphic data structures such
+as `set` (used as `set<element>`, where `element` is the element
+type), and `map` (used as `map<k, v>`, where `k` and `v` are the types
+of the key and value).  In addition, the library provides a `string`
+type, that is differentiated from a byte list in that its content
+conforms to a valid character encoding.
+
+NOTE: Full support for character encodings in strings is not yet
+present.
+
+==== Function declarations
+
+Functions are declared with the `fun` keyword, and with explicit
+parameter types and a return type, with the following syntax:
+
+....
+ fun max (a: int, b: int) -> int = {
+   (case a < b of
+   | bool::True()  -> b
+   | bool::False() -> a
+   )
+ }
+....
+
+Functions can be *polymorphic*, and type variables are indicated using a
+similar syntax as type declarations, except that they are declared
+within `<` and `>`.
+
+....
+ fun cons <'a> (l: my_list<'a>, e: 'a) -> my_list<'a> = {
+   (case l of
+   | my_list::Null()     -> my_list::Cons(e, my_list::Null())
+   | my_list::Cons(_, _) -> my_list::Cons(e, l)
+   )
+ }
+....
+
+Functions can also be *self-recursive*, and are declared using the `recfun` keyword:
+
+....
+  recfun len <'a> (l: my_list<'a>) -> int = {
+    (case l of
+    | my_list::Null()     -> 0
+    | my_list::Cons(_, t) -> 1 + len(t)
+    )
+}
+....
+
+Functions are applied using the syntax `f(arg1, arg2, ...)`, as in the
+`len` example above.  Partial application to form closures is not
+supported.
+
+==== Expressions
+
+The primitive expressions are *literal values*, which can either be
+integer literals like `21`, strings like "this is a string", or the
+unit value `()`.  Literal values can also be constructed from data
+constructors of variant and record types, such as `my_list::Null()`
+and `{xcoord:1, ycoord:2}` above.
+
+*Variables* are denoted by identifiers containing alphanumeric
+characters, `_` and `@`, and are required to start with a lowercase
+alphabetic character.
+
+Expressions can be combined with unary and binary *operators*.  Unless
+specified, the operators below are binary and take two arguments.
+
+.Operators
+[%header, cols=2*]
+|===
+| Operator symbol
+| Semantics
+
+| -
+| Integer negation (unary)
+
+| +
+| Integer addition
+
+| -
+| Integer subtraction
+
+| *
+| Integer multiplication
+
+| /
+| Integer division
+
+| &&
+| Boolean and
+
+| \|\|
+| Boolean or
+
+| <=
+| Integer less-than-equal
+
+| >=
+| Integer greater-than-equal
+
+| <=
+| Integer less-than-equal
+
+| =
+| Polymorphic equal
+
+| !=
+| Polymorphic not-equal
+
+| +_s
+| String concatenation
+
+| ::
+| List cons
+
+| @
+| List concatenation
+|===
+
+Expressions can be formed by function application.  Partial function
+application or currying is not supported; all arguments to a function
+must be provided.
+
+Variables `v` or functions `f` provided by a module `M` can be
+accessed as `M.v` and `M.f`.  Module names always begin with an
+uppercase letter.
+
+*Let* expressions allow for locally scoped variables, and are
+ useful for abbreviation:
+....
+  let i = _complicated_expression_ in
+  _expression_body_using_i_
+....
+
+It is often useful to restrict the type of an expression, either for
+improved code readability, or for better type-checking diagnostics.
+This is expressed as `(e : t)` where the expression `e` is restricted
+to have the type `t`.
+
+*Case* expressions allow pattern matching over the various
+constructors of a variant type, as can be seen in the `len` function,
+repeated below.  Case expressions need to be enclosed within
+parentheses, and its branches are separated by `|`.  Each branch has
+two parts separated by an `->`: a pattern to the left, and an
+expression on the right.
+
+*Patterns* are formed from primitive patterns such as literal values,
+variables, and the wildcard pattern `_`.  They are composed with data
+constructors of variant types or the tuple constructor.
+
+....
+  recfun len <'a> (l: my_list<'a>) -> int = {
+    (case l of
+    | my_list::Null()     -> 0
+    | my_list::Cons(_, t) -> 1 + len(t)
+    )
+}
+....
