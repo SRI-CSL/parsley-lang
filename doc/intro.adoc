@@ -1,0 +1,129 @@
+= Introduction to Parsley
+
+Parsley is a specification language for describing data formats.  It
+is comprised of two sub-languages: an expression sub-language that looks
+like a functional language, and a grammar sub-language that looks like
+an extended Backus-Naur Form notation which incorporates elements of
+an attribute grammar and the combinators from parsing expression
+grammars (PEGs).
+
+Parsley seeks to provide the following features that are not often
+found in conventional grammar description systems that are based on
+context-free grammars:
+
+* Clean support for context sensitivity, especially context that may
+  be distant from the current parsing location.  This is provided
+  using the attribute grammar system, in which inherited attributes
+  are used to communicate this context.
+
+* A constraint system that can compute over this context to control
+  the parsing rules that are applied at a parsing location.
+
+* A typed functional language in which to express the computations
+  involved in computing attribute values and the constraints.
+
+* A module system to compose independent specifications, which allows
+  specifying container data formats that contain nested objects or
+  payloads conforming to different formats.
+
+A high-level introduction to the sub-languages and a Parsley
+specification file follow.
+
+== The expression sub-language
+
+Parsley uses a fairly typical typed functional language as the
+expression sub-language.  This language allows a user to specify types
+and functions.  These can be then used in the grammar sub-language to
+specify the types of the grammar non-terminals, the computations in
+constraint expressions, and the computation of values to be assigned
+to synthesized attributes.
+
+The basic atomic types in this language are `byte`, `int`, `double`,
+`string`, `bool`, `endian`, and `unit` (known as `void` in C-like
+languages).  In addition, the language includes parsing buffers as
+atomic values, which belong to a special atomic type called `view`.
+The basic type constructors are lists, tuples, and option types.
+User-specified types include records and variants, and can be mutually
+recursive.
+
+The language is equipped with a module system, which provides access
+to a standard library of data structures such as lists, sets and maps,
+and of operations on and conversions between the atomic types.
+
+[NOTE]
+====
+The functional language is currently first-order: it does not
+support first-class functions or closures.  All functions need to be
+completely applied, and cannot be curried.  Functions can currently be
+self-recursive, but not mutually recursive.
+
+The module system is currently restricted to language builtins: new
+modules cannot be specified by the user.
+====
+
+== The grammar sub-language
+
+The grammar sub-language is used to define the non-terminals in the
+grammar.  A non-terminal is defined in terms of a sequence of
+production rules.  These rules form an ordered choice: later rules in
+the sequence are only tried if the earlier rules fail to apply to the
+input.
+
+Each standard non-terminal can be specified to have a set of
+synthesized attributes, each with a declared type.  The type of such a
+non-terminal thus forms a record, with each synthesized attribute
+corresponding to a field in the record.
+
+A production rule is itself a sequence of rule elements.  Primitive
+rule elements are literals, references to other non-terminals,
+constraints, and action blocks.  Action blocks are typically used to
+compute the synthesized attributes of the non-terminal being defined.
+These primitive elements can be combined using typical grammar
+combinators such as Kleene star and ordered choice.  Each rule element
+can be bound to a name, which can be used later in the rule to refer
+to the value matched by that element.  In addition, rule elements can
+be restricted to certain offsets within the parsing buffer, a
+different parsing buffer (represented by a value of type `view`), or
+applied to each view in a list of views.
+
+The Parsley type-checker computes a type for each element of the
+production rule, to ensure that the computations performed in the rule
+are well-typed.
+
+For convenience, the sub-language provides special syntactic support
+for simple regular expressions, where the attribute grammar machinery
+can be unnecessarily heavy.  In such cases, no synthesized attributes
+are specified for regular-expression non-terminals, and the type of
+these non-terminals is a list of bytes.
+
+The standard library provides some useful primitive non-terminals that
+can be used to match basic types.  Individual bytes can be matched
+against the non-terminals `AsciiChar`, `HexChar`, `AlphaNum`, `Digit`
+and `Byte`, each of which have the `byte` type.  The `S`-suffixed
+versions of these non-terminals (such as `AsciiCharS`, `DigitS`, ... )
+represent the match as single-element list containing the matched
+byte. This allows them to be used in with combinators that combine
+list-valued non-terminals.
+
+Other primitive non-terminals support parsing binary integers of
+various widths, signedness and endianness.
+
+== Structure of a Parsley specification file
+
+The specification of a format can be split across multiple files.  Any
+one of these files will have the same structure.  A file typically
+contains a sequence of declarations, each of which can be one of the
+following:
+
+* inclusions of declarations from other Parsley files through `use` specifiers
+* `type` definitions
+* `fun` (function) definitions
+* a set of non-terminal definitions, contained within a `format` block
+
+File inclusion allows a specification to be split across multiple
+files, with closely related declarations appearing in the same file.
+There will be typically a top-level Parsley file for the entire
+specification, and this is the only file that needs to be passed to
+the Parsley compiler.
+
+NOTE: The files currently need to be in the same directory.
