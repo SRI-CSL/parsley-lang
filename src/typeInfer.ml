@@ -810,7 +810,7 @@ let rec is_regexp_elem tenv rle =
     . there is a single production with a single non-terminal
       - the inferred type is the type of that non-terminal
     . all the productions are regular expressions
-      - the inferred type is a string
+      - the inferred type is a list of bytes
     There cannot be any action elements, and any constraint elements
     are ignored.
 
@@ -944,9 +944,7 @@ let infer_non_term_type tenv ctxt ntd =
           ) in
         tenv', ctxt'
 
-(* returns a constraint ensuring that the non-terminal [id] has a
-   string type *)
-let check_bytes_non_term tenv id t =
+let check_non_term tenv id t =
   let n = Location.value id in
   match lookup_non_term_type tenv (NName n) with
     | None ->
@@ -958,7 +956,7 @@ let rec check_literals tenv ls t =
   match ls.literal_set with
     | LS_type id ->
         (* This non-terminal should have byte list type *)
-        check_bytes_non_term tenv id t
+        check_non_term tenv id t
     | LS_diff (l, r) ->
         (check_literals tenv l t) ^ (check_literals tenv r t)
     | LS_set _ | LS_range (_, _) ->
@@ -980,7 +978,7 @@ let rec infer_regexp tenv re t =
         default, mk_auxregexp RX_wildcard
     | RX_type id ->
         (* This non-terminal should have a byte list type *)
-        check_bytes_non_term tenv id bytes,
+        check_non_term tenv id bytes,
         mk_auxregexp (RX_type id)
 
     (* The typing of Star here assumes that the individual matches for
