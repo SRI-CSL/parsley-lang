@@ -37,19 +37,15 @@ format {
   // definition.  the whitespace attribute only controls implicit
   // content between the entities of the production, and not within
   // them.
-  #[whitespace(Whitespace:allow_empty=true)]
-  Dict d {d: dict} :=
-    // Temporary variable introduced while parsing this production.
-    (| s : set<string> := Set.empty |)
 
-    !"<<"!
-    ( n=Name
-      [ !Set.mem(s, n.nm) ]
-      o=PDFObj
-      { d.d := Map.add(d.d, n.nm, o.o);
-        s := Set.add(s, n.nm) }
-    )*
-    !">>"!
+  // Whitespace is needed to separate these tokens.
+  #[whitespace(Whitespace:allow_empty=false)]
+  Reference r {id : int, gen : int} :=
+    n=Integer [ n.i >  0 ]
+    g=Integer [ g.i >= 0 ]
+    !"R"!
+    { r.id  := n.i;
+      r.gen := g.i }
   ;;
 
   // Whitespace is not needed to demarcate the objects.
@@ -63,14 +59,19 @@ format {
     { a.a := List.rev(a.a) } // restore original ordering
   ;;
 
-  // Whitespace is needed to separate these tokens.
-  #[whitespace(Whitespace:allow_empty=false)]
-  Reference r {id : int, gen : int} :=
-    n=Integer [ n.i >  0 ]
-    g=Integer [ g.i >= 0 ]
-    !"R"!
-    { r.id  := n.i;
-      r.gen := g.i }
+  #[whitespace(Whitespace:allow_empty=true)]
+  Dict d {d: dict} :=
+    // Temporary variable introduced while parsing this production.
+    (| s : set<string> := Set.empty |)
+
+    !"<<"!
+    ( n=Name
+      [ !Set.mem(s, n.nm) ]
+      o=PDFObj
+      { d.d := Map.add(d.d, n.nm, o.o);
+        s := Set.add(s, n.nm) }
+    )*
+    !">>"!
   ;;
 
   // Note that the PDFObj parsing rule does not parse Streams.
