@@ -1,6 +1,6 @@
 // Mutually recursive polymorphic type definitions
 
-type dict ('a) = { d : map<int, node<'a>> }
+type dict ('a) = { d: map<int, node<'a>> }
 
 and node ('a) =
 | Leaf of 'a

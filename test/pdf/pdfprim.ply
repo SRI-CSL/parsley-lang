@@ -6,7 +6,7 @@
 // The Parsley definitions essentially use regular expression syntax,
 // except for LitString, which implements a simple CFG.
 
-fun normalize_name (s : [byte]) -> string = {
+fun normalize_name (s: [byte]) -> string = {
   // TODO
   String.empty
 }
@@ -31,7 +31,7 @@ format {
   // The 'Whitespace' non-terminal has a boolean inherited attribute
   // 'allow_empty', which is used within constraint expressions that
   // are enclosed in [].  It has a byte-vector value.
-  Whitespace w (allow_empty : bool) :=
+  Whitespace w (allow_empty: bool) :=
     [allow_empty]
     (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
   ; [!allow_empty]
@@ -40,12 +40,12 @@ format {
 
   // The 'Name' non-terminal has a synthesized attribute 'val' that
   // contains the string-valued name without the leading '/'.
-  Name n { nm : string } :=
+  Name n { nm: string } :=
     !"/"! s=AlphaNumS+
     { n.nm := normalize_name(s) }
   ;;
 
-  Boolean b {b : bool} :=
+  Boolean b {b: bool} :=
     !"true"!  { b.b := bool::True() }
   ;
     !"false"! { b.b := bool::False() }
@@ -57,14 +57,14 @@ format {
   // specified by (NT ^ N), where N has to have an integer value.
   // RawStream is given an inherited attribute 'len' that controls how
   // long the payload is.
-  RawStream rs (len : int) {bytes : [byte]} :=
+  RawStream rs (len: int) {bytes: [byte]} :=
     (# ["stream"] ["\n" | "\r\n"] #)
     b=(Byte ^ len)
     (# ["\r" | "\n" | "\r\n"]
        ["endstream"] #)
     { rs.bytes := b } ;;
 
-  HexString hs {hs : [byte]} :=
+  HexString hs {hs: [byte]} :=
     !"<"!
     ( h1=HexChar h2=HexChar
       { hs.hs := byte_of_int_unsafe((Int.of_byte(h1)*16 + Int.of_byte(h2))) :: hs.hs }
@@ -79,7 +79,7 @@ format {
 
   // The below syntax essentially implements a simple CFG for strings with
   // balanced parentheses, using recursion.
-  LitString ls { ls : [byte] } :=
+  LitString ls { ls: [byte] } :=
       !"("!
         prefix=(# [AsciiCharS \ "("]* #)
         n=LitString
@@ -101,7 +101,7 @@ format {
     ;;
 
   // A PDF String is one of the above two string objects.
-  String s {s : [byte]} :=
+  String s {s: [byte]} :=
     h=HexString { s.s := h.hs }
   ;
     l=LitString { s.s := l.ls }
@@ -110,7 +110,7 @@ format {
   // Int.of_bytes() is a function in the Parsley standard library.
   // The _unsafe() version could be used if since we can be certain
   // that the string indeed contains a value convertible to an integer.
-  Integer i { i : int } :=
+  Integer i { i: int } :=
     n=(# DigitS+ #)             { i.i := Int.of_bytes_unsafe(n)  }
   ;
     !"-"! n=(# DigitS+ #) { i.i := -Int.of_bytes_unsafe(n) }
@@ -118,7 +118,7 @@ format {
 
   // TODO: we might need to have a user-defined type for PDF reals,
   // since they are not defined in terms of IEEE 754.
-  Real r { r : double } :=
+  Real r { r: double } :=
     n=(# DigitS+ #)
     { r.r := Double.of_bytes_unsafe(n)  }
   ;

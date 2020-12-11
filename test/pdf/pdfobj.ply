@@ -40,7 +40,7 @@ format {
 
   // Whitespace is needed to separate these tokens.
   #[whitespace(Whitespace:allow_empty=false)]
-  Reference r {id : int, gen : int} :=
+  Reference r {id: int, gen: int} :=
     n=Integer [ n.i >  0 ]
     g=Integer [ g.i >= 0 ]
     !"R"!
@@ -62,7 +62,7 @@ format {
   #[whitespace(Whitespace:allow_empty=true)]
   Dict d {d: dict} :=
     // Temporary variable introduced while parsing this production.
-    (| s : set<string> := Set.empty |)
+    (| s: set<string> := Set.empty |)
 
     !"<<"!
     ( n=Name
@@ -75,7 +75,7 @@ format {
   ;;
 
   // Note that the PDFObj parsing rule does not parse Streams.
-  PDFObj p {o : basic_obj} :=
+  PDFObj p {o: basic_obj} :=
     d=Dict
     { p.o := basic_obj::Dict(d.d) }
   ;
@@ -106,7 +106,7 @@ format {
   ;;
 
   #[whitespace(Whitespace:allow_empty=true)]
-  Stream s {dict : dict, stream : [byte]} :=
+  Stream s {dict: dict, stream: [byte]} :=
     d=Dict
     [ let key = String.of_bytes_unsafe("Length") in
       Map.mem(d.d, key)
@@ -124,7 +124,7 @@ format {
   // context, which contains the indirect objects parsed so far.  This
   // is used to forbid duplicates.
   #[whitespace(Whitespace:allow_empty=true)]
-  Indirect i (ctxt : parse_ctxt)
+  Indirect i (ctxt: parse_ctxt)
              {indirect_obj} :=
     n=Integer [ n.i >  0 ]
     g=Integer [ g.i >= 0 ]
