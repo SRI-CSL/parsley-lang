@@ -212,9 +212,6 @@ specified, the operators below are binary and take two arguments.
 | >=
 | Integer greater-than-equal
 
-| <=
-| Integer less-than-equal
-
 | =
 | Polymorphic equal
 

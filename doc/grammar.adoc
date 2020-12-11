@@ -12,11 +12,6 @@ the first rule that succeeds is used to compute the value of the
 non-terminal (i.e. the synthesized attributes for a standard
 non-terminal).
 
-Each production rule is composed of a sequence of rule elements.  A
-rule matches successfully if each element of the rule matches the
-input in order.  Parsley provides some primitive rule elements, and
-combinators to combine them into more complex elements.
-
 == Defining Non-terminals
 
 A standard Parsley non-terminal is given a name beginning with an
@@ -32,7 +27,8 @@ separator.
 A value of such a non-terminal has a record type whose fields
 correspond to these synthesized attributes.  In fact, a record type
 can be used as an abbreviation for the declaration of the synthesized
-attributes.  For example, the declaration of `NT` above is equivalent to the one below:
+attributes.  For example, the declaration of `NT` above is equivalent
+to the one below:
 ....
  type nt = {s1: int, s2: bool}
 
@@ -62,7 +58,7 @@ attributes.
 
 The non-terminal being defined can be given a short name, which can
 used in the right-hand side of the definition for the assignment of
-the computed values for the synthesized attributes.
+the computed values of the synthesized attributes.
 ....
  NT n {s1: int, s2: bool} := ...  {n.s1 := ...; n.s2 := ...} ...
 ....
@@ -75,3 +71,16 @@ the definition:
  NT n (i1: bool, i2: int) {s1: int, s2: bool} := ... {n.s1 := i2; n.s2 := i1} ...
 ....
 
+==== Rules and Rule elements
+
+We now turn our focus to the right-hand side of the `:=` of a
+non-terminal definition, which consists of a sequence of production
+rules separated by `;`.
+
+Each production rule is composed of a sequence of rule elements.  A
+rule matches successfully if each element of the rule matches the
+input in order.  Parsley provides some primitive rule elements, and
+combinators to combine them into more complex elements.
+
+The primitive rule elements are: regular expressions, non-terminals,
+constraints, and actions.
