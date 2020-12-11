@@ -95,7 +95,6 @@ rule token = parse
 | "["  { LBRACK }
 | "]"  { RBRACK }
 | "."  { DOT }
-| "_"  { UNDERSCORE }
 | ","  { COMMA }
 | ":=" { COLONEQ }
 | "::" { COLONCOLON }
@@ -135,7 +134,7 @@ rule token = parse
       let v = Location.mk_loc_val v (Location.curr lexbuf) in
       CONSTR (c, v) }
 
-| "$"? alpha ident*
+| "$"? "_"* alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }
 
 | "'" alpha ident*
@@ -145,6 +144,8 @@ rule token = parse
 | int_literal
     { let s = Lexing.lexeme lexbuf in
       INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| "_"  { UNDERSCORE }
 
 | eof
     { EOF }
