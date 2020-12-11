@@ -127,3 +127,20 @@ specification, and this is the only file that needs to be passed to
 the Parsley compiler.
 
 NOTE: The files currently need to be in the same directory.
+
+Conceptually, the contents of the included file are placed at the
+point of the first including `use` declaration.  Subsequent `use`
+declarations of the same file do not have any effect.  The
+specification is only processed once all `use` declarations have been
+substituted away, and all subsequent processing is performed on the
+entire specification.
+
+The scoping of `type` and `fun`/`recfun` is lexical: a `type`
+definition can only use the types defined by definitions in scope at
+that point.  Similarly, a `fun`/`recfun` function definition can only
+refer to types or call other functions that have been defined in
+definitions in scope.
+
+`type` and `fun`/`recfun` definitions are processed before any format
+block, so all type and function definitions are in scope in every
+format block.
