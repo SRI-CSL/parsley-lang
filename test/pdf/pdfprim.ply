@@ -31,6 +31,9 @@ format {
   // The 'Whitespace' non-terminal has a boolean inherited attribute
   // 'allow_empty', which is used within constraint expressions that
   // are enclosed in [].  It has a byte-vector value.
+  //
+  // The ';' is an ordered choice combinator that combines a sequence
+  // of rules.
   Whitespace w (allow_empty: bool) :=
     [allow_empty]
     (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
@@ -38,7 +41,7 @@ format {
     (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )+ #)
   ;;
 
-  // The 'Name' non-terminal has a synthesized attribute 'val' that
+  // The 'Name' non-terminal has a synthesized attribute 'nm' that
   // contains the string-valued name without the leading '/'.
   Name n { nm: string } :=
     !"/"! s=AlphaNumS+

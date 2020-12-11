@@ -33,12 +33,16 @@ type dict = map<string, basic_obj>
 
 format {
 
-  // attribute specification that governs the next non-terminal
-  // definition.  the whitespace attribute only controls implicit
-  // content between the entities of the production, and not within
-  // them.
+  // Decorators that annotate non-terminal definitions are encosed
+  // within '#[' and ']', and are placed immediately before the
+  // definition.  One such decorator defines the whitespace handling
+  // for the definition.
+  //
+  // The whitespace decorator only controls implicit content between
+  // the entities of the production rules, and not within them.
 
-  // Whitespace is needed to separate these tokens.
+  // Whitespace is needed to separate these tokens.  The decorator uses the
+  // Whitespace non-terminal defined in pdfprim.
   #[whitespace(Whitespace:allow_empty=false)]
   Reference r {id: int, gen: int} :=
     n=Integer [ n.i >  0 ]
@@ -74,7 +78,11 @@ format {
     !">>"!
   ;;
 
-  // Note that the PDFObj parsing rule does not parse Streams.
+  // Note that the PDFObj parsing rule does not parse Streams, since
+  // those are indirect objects.  The rule ordering here matters.  In
+  // particular, the rule for Reference needs to be tried before that
+  // for Real or Integer; similarly, Real needs to be tried before
+  // Integer.
   PDFObj p {o: basic_obj} :=
     d=Dict
     { p.o := basic_obj::Dict(d.d) }
