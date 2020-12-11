@@ -62,6 +62,11 @@ let make_type_app_ident ident args b e =
   {type_expr = TE_tapp (c, args);
    type_expr_loc = Location.mk_loc b e}
 
+let make_unit_type b e =
+  let loc = Location.mk_loc b e in
+  let unit = Location.mk_loc_val "unit" loc in
+  make_type_app_ident unit [] b e
+
 let make_pattern pat b e =
   {pattern = pat;
    pattern_loc = Location.mk_loc b e;
@@ -203,7 +208,9 @@ type_expr:
 | i=ident
   { make_type_app_ident i [] $startpos $endpos }
 | LPAREN l=separated_list(COMMA, type_expr) RPAREN
-  { if List.length l = 1
+  { if List.length l = 0
+    then make_unit_type $startpos $endpos
+    else if List.length l = 1
     then List.nth l 0
     else make_tuple_type l }
 | LBRACK t=type_expr RBRACK
