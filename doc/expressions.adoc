@@ -1,4 +1,4 @@
-= The expression sublanguage
+= The expression sub-language
 
 The functional language embedded in Parsley is a standard strict
 expression-oriented language, essentially a simple version of the core
@@ -37,6 +37,12 @@ begin with a lowercase letter.
  type pair_of_ints  = ( int, int )
  type list_of_pairs = [ (int, int) ]
 ....
+
+NOTE: The `->` arrow type constructor used for function types, common
+in higher-order functional languages, is not available in Parsley for
+user-defined type definitions.  This makes Parsley a first-order
+language, without support for closures and partial function
+applications.
 
 *Type variables* in polymorphic types are denoted with identifiers
 prefixed by a ' (tick).  They are declared as arguments to the type
@@ -168,7 +174,7 @@ and `{xcoord:1, ycoord:2}` above.
 
 *Variables* are denoted by identifiers containing alphanumeric
 characters, `_` and `@`, and are required to start with a lowercase
-alphabetic character.
+letter.
 
 Expressions can be combined with unary and binary *operators*.  Unless
 specified, the operators below are binary and take two arguments.
