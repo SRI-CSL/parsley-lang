@@ -3,32 +3,33 @@ format {
   P2 := (# ["0" .. "9"]* #);;
 
   ParseTwice pt { p1: [byte], p2: [byte]} :=
-    w={ ;; Window.get_current() }
+    w={ ;; View.get_current() }
+    v={ ;; View.clone(w) }
     p1=@[w, P1]
-    p2=@[w, P2]
+    p2=@[v, P2]
     { pt.p1 := p1; pt.p2 := p2 }
 }
 
 format {
   LetterFill lf (n : int) {s: [byte]} :=
-    w = { ;; Window.restrict(Window.get_current(), 0, n) }
-    next = { ;; Window.restrict_from(w, n) }
+    w = { ;; View.restrict(View.get_current(), 0, n) }
+    next = { ;; View.restrict_from(w, n) }
     s=@[w, (# ["0" .. "9"]* [" "]* #)]
     { lf.s := s }
-    { ;; Window.make_current(next) }
+    { ;; View.make_current(next) }
 }
 
 format {
   OffsetTest ot {a: int, b:int} :=
-    a={ ;; Window.get_current_offset() }
+    a={ ;; View.get_current_cursor() }
     !"AA"!
-    b={ ;; Window.get_current_offset() }
+    b={ ;; View.get_current_cursor() }
     { ot.a := a; ot.b := b }
 }
 
 //format {
 //  CatStream (a: Vector<byte>, b: Vector<byte>) {} :=
-//    w={ Window.make(Vector.concat([a; b])) }
+//    w={ View.make(Vector.concat([a; b])) }
 //    @[w, !"AA"!]
 //    {}
 //}

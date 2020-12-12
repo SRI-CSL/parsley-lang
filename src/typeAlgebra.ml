@@ -278,7 +278,7 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
               (gen_tvar "string"));
          ];
       };
-      {mod_name   = Ast.MName "Window";
+      {mod_name   = Ast.MName "View";
        mod_values = [
            (Ast.DName "get_base", [],
             (arrow_type (gen_tvar "unit")
@@ -286,7 +286,7 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
            (Ast.DName "get_current", [],
             (arrow_type (gen_tvar "unit")
                (gen_tvar "view")));
-           (Ast.DName "get_current_offset", [],
+           (Ast.DName "get_current_cursor", [],
             (arrow_type (gen_tvar "unit")
                (gen_tvar "int")));
            (Ast.DName "make_current", [],
@@ -301,6 +301,9 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
             (arrow_type (gen_tvar "view")
                (arrow_type (gen_tvar "int")
                   (gen_tvar "view"))));
+           (Ast.DName "clone", [],
+            (arrow_type (gen_tvar "view")
+               (gen_tvar "view")));
          ];
       };
     ] in

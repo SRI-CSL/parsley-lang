@@ -429,7 +429,7 @@ literal_set:
 regexp:
 | LBRACK l=literal_set RBRACK
   { make_regexp (RX_literals l) $startpos $endpos }
-| HASH
+| DOT | HASH
   { make_regexp RX_wildcard $startpos $endpos }
 | i=UID
   { make_regexp  (RX_type i) $startpos $endpos }

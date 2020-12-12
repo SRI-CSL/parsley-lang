@@ -1,4 +1,5 @@
 = The expression sub-language
+:sectanchors:
 
 The functional language embedded in Parsley is a standard strict
 expression-oriented language, essentially a simple version of the core
@@ -13,14 +14,14 @@ fragments of the Parsley specification.
 The type system has builtin atomic types, some standard polymorphic
 type constructors, and support for polymorphic user-defined types.
 
-==== Atomic types
+=== Atomic types
 
 The basic atomic types in this language are `byte`, `int`, `double`,
 `string`, `bool`, `endian`, and `unit` (known as `void` in C-like
 languages).  In addition, the language includes parsing buffers as
 atomic values, which belong to a special atomic type called `view`.
 
-==== Type constructors
+=== Type constructors
 
 The builtin type constructors are lists, tuples and options.
 User-defined types typically use the variant and record type
@@ -110,7 +111,7 @@ Types can also be *mutually recursive*, and are declared within a
  | Dict of dict<'a>
 ....
 
-==== Library types
+=== Library types
 
 The Parsley standard library provides polymorphic data structures such
 as `set` (used as `set<element>`, where `element` is the element
@@ -122,7 +123,7 @@ conforms to a valid character encoding.
 NOTE: Full support for character encodings in strings is not yet
 present.
 
-==== Function declarations
+== Function declarations
 
 Functions are declared with the `fun` keyword, and with explicit
 parameter types and a return type, with the following syntax:
@@ -164,7 +165,7 @@ Functions are applied using the syntax `f(arg1, arg2, ...)`, as in the
 `len` example above.  Partial application to form closures is not
 supported.
 
-==== Expressions
+== Expressions
 
 The primitive expressions are *literal values*, which can either be
 integer literals like `21`, strings like "this is a string", or the
@@ -267,3 +268,46 @@ constructors of variant types or the tuple constructor.
    )
  }
 ....
+
+=== Views
+
+Parsley provides first-class access to *parsing buffers*, which are
+presented as opaque values of the `view` type, and created and
+manipulated operated on using functions of the `View` module.  Values
+of view type can be stored in and retrieved from data structures, and
+synthesized attributes.  A value of `view` type can be considered to
+represent the current state of a parsing buffer, viz. a bytestream of
+a specific bounded size, and a cursor location within those bounds.
+
+Their most important use is in the grammar sub-language, which
+provides view-mapping combinators that perform parsing actions within
+the bounds of a particular view.  Since view computations are
+performed within the expression sub-language, but used within the
+grammar sub-language, they need to be communicated across this
+'language barrier'.  This is done using the variables bound to action
+blocks, where the last expression in the block can return a value to
+the binding variable of the block, as described in the
+<<grammar.adoc#rules-and-rule-elements,grammar documentation>>.
+
+Although the all values of other primitive types in the expression
+sub-language are stateless, values of `view` type are stateful.  When
+used in a successfully matching parsing rule, the cursor location is
+updated to point past the bytes consumed by the parsing rule.
+Similarly, if the parsing rule fails after a partial match, the cursor
+location is rewound to its original location at the start of that
+parsing rule, before the next rule in any ordered choice is applied.
+
+Although values of `view` type are opaque, they can be compared for
+equality and inequality using the generic `=` and `!=` operators.
+
+Different values of view type have independent state.  View values
+created or cloned from originating parent views do not affect the
+parent views when the child views are used in a parsing action.
+
+=== Exceptions
+
+The evaluation of expressions can result in failure; this results in
+an exception being thrown within the Parsley execution engine, and an
+error returned to the application using the engine.
+
+NOTE: The parsing state after this exception is currently unspecified.

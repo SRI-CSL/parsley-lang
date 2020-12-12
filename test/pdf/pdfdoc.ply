@@ -38,7 +38,7 @@ fun top_sect_offsets(s: xref_sect) -> [int] = {
 fun top_views(s: xref_sect, base: view) -> [view] = {
   let offs = top_sect_offsets(s) in
   let b = List.repl(base, List.length(offs)) in
-  List.map2(Window.restrict_from, b, offs)
+  List.map2(View.restrict_from, b, offs)
 }
 
 format {
@@ -60,7 +60,7 @@ format {
 
   // View-based parser using the xref table.
   TopObjs t (ctxt: parse_ctxt, s: xref_sect) { top_objs: [indirect_obj] } :=
-    views={;; top_views(s, Window.get_base()) }
+    views={;; top_views(s, View.get_base()) }
     objs=@#[views, Indirect<ctxt = ctxt>]
     { t.top_objs := objs }
   ;;

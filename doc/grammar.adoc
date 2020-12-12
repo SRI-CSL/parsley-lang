@@ -1,22 +1,32 @@
 = Grammar sub-language
+:sectanchors:
 
 The contents of a `format` block in a Parsley specification are
 written in the Parsley grammar sub-language.  This block contains a
-sequence of definitions of the non-terminals in the grammar.
+sequence of definitions of the non-terminals in the grammar.  Each
+definition is separated from the subsequent definition by a `;;`
+marker.  The last definition in the sequence should be terminated by
+the terminating `}` of the `format` block.
 
-A non-terminal is defined in terms of a sequence of production rules.
-The rules in this sequence are separated by a `;`, which acts as a
-top-level ordered choice operator.  When trying to match a
-non-terminal at a parsing location, each rule is tried in order, and
+A non-terminal is defined in terms of a sequence of production
+*rules*.  The rules in this sequence are separated by a `;`, which
+acts as a top-level *ordered choice combinator*.  When trying to match
+a non-terminal at a parsing location, each rule is tried in order, and
 the first rule that succeeds is used to compute the value of the
 non-terminal (i.e. the synthesized attributes for a standard
 non-terminal).
 
+A non-terminal defined with production rules that are only composed of
+regular expressions is called a *regular expression non-terminal*.
+Unlike standard non-terminals, such a non-terminal does not have any
+synthesized attributes; its type is a byte list as opposed to a
+record.
+
 == Defining Non-terminals
 
 A standard Parsley non-terminal is given a name beginning with an
-uppercase letter and is declared to have a set of synthesized
-attributes, each with an explicitly specified type.  A `:` separates
+uppercase letter and is declared to have a set of *synthesized
+attributes*, each with an explicitly specified type.  A `:` separates
 the attribute name from its type, and these name-type pairs are listed
 within `{` and `}`, and separated by `,`.  The production rules for
 the non-terminal are specified on the right-hand side of a `:=`
@@ -45,11 +55,11 @@ In this case, the `{` and `}` can be omitted.
 NOTE: As with user-defined types, attributes cannot contain function
 types.
 
-A non-terminal could have inherited attributes.  These are specified
+A non-terminal could have *inherited attributes*.  These are specified
 in name-type pairs similar to synthesized attributes, except that they
 are enclosed in `(` and `)` (i.e. in parentheses instead of braces).
 ....
- NT (i1: bool, i2: int) {s1: int, s2: bool} :=
+ NTI (i1: bool, i2: int) {is1: int, is2: bool} :=
 ....
 Inherited attributes, if present, need to be specified before any
 synthesized attributes.  The declaration of inherited attributes
@@ -60,7 +70,7 @@ The non-terminal being defined can be given a short name, which can
 used in the right-hand side of the definition for the assignment of
 the computed values of the synthesized attributes.
 ....
- NT n {s1: int, s2: bool} := ...  {n.s1 := ...; n.s2 := ...} ...
+ NT n {s1: int, s2: bool} := ... {n.s1 := ...; n.s2 := ...} ...
 ....
 Such a name should start with a lowercase letter, and needs to appear
 immediately after the non-terminal name.
@@ -68,19 +78,262 @@ immediately after the non-terminal name.
 Inherited attributes are accessed directly on the right-hand side of
 the definition:
 ....
- NT n (i1: bool, i2: int) {s1: int, s2: bool} := ... {n.s1 := i2; n.s2 := i1} ...
+ NTI n (i1: bool, i2: int) {is1: int, is2: bool} := ... {n.is1 := i2; n.is2 := i1} ...
 ....
 
-==== Rules and Rule elements
+=== Rules and Rule elements
 
 We now turn our focus to the right-hand side of the `:=` of a
 non-terminal definition, which consists of a sequence of production
-rules separated by `;`.
+*rules* separated by the `;` ordered choice rule combinator.
 
-Each production rule is composed of a sequence of rule elements.  A
+Each production rule is composed of a sequence of *rule elements*.  A
 rule matches successfully if each element of the rule matches the
-input in order.  Parsley provides some primitive rule elements, and
-combinators to combine them into more complex elements.
+input in order.
 
-The primitive rule elements are: regular expressions, non-terminals,
-constraints, and actions.
+There is occasionally a need to keep track of some state during the
+matching progress of a production rule.  This state may be required
+only for certain rules, and is typically discarded at the end of the
+rule matching.  This use case is supported through *temporaries*,
+which are variables declared and initialized at the beginning of the
+rule.  These are placed within `(|` and `|)` markers before the first
+rule element.  These variables are within scope for each rule element
+in the rule.
+....
+... := (| s: set<int> := Set.empty, i: int := 0 |) ...
+....
+
+Each rule element can optionally be named (with an identifier that
+begins with a lowercase), allowing the value matched by that rule
+element to be used within later rule elements that are within scope.
+....
+... := ... (<a not in scope> a=RE ... <scope of a> ...) <a not in scope>
+....
+In the above example, `a` is bound to some rule element `RE` within a
+rule element subsequence (grouped within `(` and `)`).  `a` is not in
+scope before its binding in the subsequence, and also not in scope
+outside the subsequence.  The type of `a` corresponds to the type of
+the element matched by `RE`.
+
+Parsley provides some primitive rule elements, and combinators to
+combine them into more complex elements.  The primitive rule elements
+are: regular expressions, non-terminals, constraints, and actions.
+
+*Regular expressions* are supported using special syntax that reduces
+the overhead of the attribute grammar machinery.  This special syntax
+needs to be bounded within the `(#` and `#)` markers.  *Literal
+strings* are a common case of regular expression, and can be directly
+as a rule element by quoting the string within a matching pair of `!`
+markers.
+....
+... := a=(# ... #) ... !"some string"!
+....
+The special syntax for regular expressions is further described <<Regular Expressions,below>>.
+A regular expression matches a list of bytes, and a variable (such as
+`a` above) bound to it will have the corresponding type.
+
+A *non-terminal* used as a rule element matches the sequence of bytes
+corresponding to its definition as an ordered choice of production
+rules.  A variable bound to a non-terminal has the type given to the
+non-terminal; for a standard non-terminal, this will be the record
+type corresponding to its synthesized attributes (or unit if it has no
+synthesized attributes).  If the non-terminal has inherited
+attributes, their values need to specified within a pair of `<` and
+`>`.  The value specifying expressions for an inherited attributed can
+be expressed in terms of all the attributes and bound rule elements in
+scope at that point.
+
+The example below illustrates the use, as rule elements, of the `NT`
+and `NTI` non-terminals discussed above. Both `n` and `ni` will have a
+record type, corresponding to the types of `NT` and `NTI` respectively.
+....
+... := ... n=NT ... ni=NTI<i1=bool::False(), i2=3> ...
+....
+
+*Constraints* are boolean-valued expressions placed within `[` and `]`
+markers.  These expressions are expressed in terms of all the
+attributes and bound rule elements in scope at that point.  The
+constraint rule element does not match any input, but instead controls
+the matching progress of the rule element subsequence it occurs in.
+If it evaluates to true, the matching continues to the next rule
+element in the subsequence.  Otherwise, it unwinds to the innermost
+ordered choice combinator, and starts with the rule or rule element in
+the choice.
+
+NOTE: It is not very useful to bind a variable to a constraint rule
+element.  Its value will always be true in its scope, since the rule
+elements in its scope will not be executed if evaluates to false.
+
+*Actions* are blocks, demarcated within `{` and `}` markers, within
+which some computation is done.  This computation typically does one
+of more of: assign values to the synthesized attributes of the
+non-terminal being defined, update a temporary, or return a
+value to the variable binding the action block.  Action blocks do not
+match any input.  An action consists of a (possibly empty) sequence of
+*assignment statements* separated by `;`.  If a value needs to be
+returned to a binding for the block, the expression computing the
+value should be specified after a `;;` marker placed after the last
+statement (if any).  If there is no such expression, an action binder
+gets a value of the `unit` type.
+
+Assignment statements are of the form `lvalue := rvalue`, where
+`rvalue` is an expression.  `lvalue` is typically a synthesized
+attribute or a temporary.  For convenience, these assignment
+sequences can be placed in the bodies of `let` bindings or the branch
+bodies of `case` discriminators.
+....
+  Act a {v: int, w: int} :=
+    b=[bool::True()]
+    { let c = b in
+      (case c of
+      | bool::True()  -> {a.v := 0; a.w := 1}
+      | bool::False() -> {a.v := 1; a.w := 0}
+      )
+    }
+....
+
+==== Combinators
+
+As mentioned above, these primitive rule elements can be combined into
+more complex elements through *combinators*.  We've already come
+across the simplest combinator, which is *sequence*.  A sequence of
+rule elements is matched by matching each rule element in order; if
+any element fails, the sequence fails.  If a variable is bound to a
+sequence, its value is a tuple containing the values of each rule
+element, and hence its type is a tuple of the corresponding types.
+However, in the special case when all the rule elements are formed
+from regular expressions, the sequence is itself considered a regular
+expression, and its value is a flattened byte list formed from the
+values of the individual expressions in the sequence.
+
+For convenience, rule elements can be grouped between `(` and `)` when
+composing with combinators.
+
+The *ordered choice* combinator is denoted by an infix `|` between the
+rule elements comprising the choice.  This value matched by this
+combinator is the value matched by the first successfully matching
+rule element in the choice; the combinator fails if every element
+fails to match.  If a variable is bound to this combinator, each
+element in the choice is constrained to have the same type; if there
+is no binding, there is no such constraint.  Again, regular
+expressions form a special case: if every element in the choice is a
+regular expression, the combinator itself is treated as a regular
+expression.
+
+NOTE: The `|` is an ordered choice combinator for rule elements, while
+`;` is an ordered choice combinator for rules.  The difference between
+the two is only for specification and syntactic convenience, and they
+function the same in terms of the dynamic matching semantics.
+
+The *unbounded repeat* combinator is denoted by a postfix `*` applied
+to a rule element.  The combinator matches zero or more matches of the
+element, and hence can never fail.  If the type of the match returned
+by the element is `t`, the type of the value matched by the combinator
+is the list type `[t]`.  However, if the element is a regular
+expression, the combinator itself is considered a regular expression,
+and the value matched by the combinator is a flattened list of the
+matches of the element.
+
+The *bounded repeat* combinator is denoted by the caret `^`, placed
+infix between a rule element and an integer-valued bound expression.
+If the bound expression evaluates to `n` during matching, this
+combinator matches exactly `n` consecutive matches of the element,
+otherwise it fails.  As in the case of the unbounded repeat, the type
+of this combinator is `[t]`, where `t` is the type of the element,
+except in the case of a regular expression element, in which case the
+type is a byte list, and the value is a flattened list of the `n`
+matches.
+
+The *option* combinator is denoted by a postfix `?` applied to a rule
+element.  The combinator matches at most one match of the element, and
+hence can never fail.  If the type of the match returned by the
+element is `t`, the type of the value matched by the combinator is
+`option<t>`.  If the element is a regular expression, however, the
+combinator itself is a regular expression, and its value is an empty
+list on failure.
+
+===== View mapping combinators
+
+The matching performed by a rule element can be restricted to a `view`
+using the view-mapping combinators.  By default, all parsing is
+performed at the *current cursor* location within an implicit *current
+view*. `View.get_current` returns a copy of this current view, and
+`View.get_current_cursor` provides the (integer) value of the current
+cursor in the current view.  `View.get_base` provides a copy of the
+current view with the cursor location set to the start of the buffer.
+`View.make_current` takes a view and makes it the current view.
+
+The *at-position* combinator `@(p, RE)` operates on an integer
+expression `p` and a rule element `RE`.  This combinator creates a new
+view, say `v`, from the current view, with its cursor pointing at the
+integer offset given by the evaluation of `p`.  The value returned by
+the combinator is the value matched by `RE` in `v`.  Hence, the type
+of this combinator application is the same as the type of `RE`.
+The combinator fails if `RE` fails to match.  After the combinator is
+processed, whether to success or failure, the view `v` created for the
+combinator is discarded, and the current view active before the
+combinator was processed is unmodified and remains current.
+
+NOTE: Within the processing of `RE`, a call to `View.get_current` will
+typically return a view derived from `v`.
+
+CAUTION: If `p` generates an offset that is out of bounds of the
+current view, an exception is thrown as described in
+<<expressions.adoc#exceptions,Exceptions>>.
+
+The *at-view* combinator `@[v, RE]` operates on a view `v` and a rule
+element `RE`.  It operates similarly to the at-position combinator,
+except that no new view is created and `v` is directly used.
+
+The *map-views* combinator `@#[views, RE]` operates on a list of views
+given by `views`.  Conceptually, it is a map of `@[v, RE]` for each
+`v` in `views`, and returns a list of the corresponding matches.
+Hence, if a match of `RE` has type `t`, then the type of the match
+returned by this combinator is `[t]`.  The map-views combinator fails
+if `RE` fails at any view in `views`.
+
+==== Regular Expressions
+
+A regular expression rule element can use a special syntax within a
+block enclosed by `(#` and `#)` to form a composite expression using
+regular expression combinators.  The primitive expressions are literal
+sets, wildcards, and non-terminals, and can be composed using the
+usual unbounded repeat, bounded repeat, option, choice and sequence
+combinators.  These combinators are denoted by the same symbol used by
+the corresponding rule element combinator. As usual, `(` and `)` can
+be used for grouping purposes.
+
+A *literal set* is enclosed within `[` and `]` markers, and is
+composed from individual literal ASCII strings and other literal sets,
+using the choice, difference, and range operators.  The *choice*
+operator, denoted with an infix `|`, matches one of a given set of
+literal strings.
+....
+  ["A" | "B" | "C"]
+....
+The *difference* operator, denoted with an infix `\`, matches the set
+difference between the left literal set and the right literal set.
+For example, the below literal set matches any ASCII character except
+`(`.
+....
+  [AsciiCharS \ "("]
+....
+The *range* operator, denoted with an infix `..`, matches any string
+covered by the range between the left literal set and the right
+literal set.
+....
+  ["10" .. "99"]
+....
+NOTE: There are restrictions on the kinds of arguments taken by these
+operators to ensure that the resulting literal set can be computed and
+matched efficiently.
+
+The *wildcard* regular expression, denoted either by `#` or `.`,
+matches any single byte.  The matched value returned by the wildcard
+will be a single element byte list containing the matched byte.  (Two
+wildcard symbols are provided in the syntax, since the `.` character
+commonly used for this purpose is sometimes hard to see in an editor.)
+
+A *regular expression non-terminal* can be used as a regular
+expression element composable with other regular expressions using the
+regular expression combinators.

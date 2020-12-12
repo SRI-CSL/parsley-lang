@@ -115,10 +115,12 @@ one of these files will have the same structure.  A file typically
 contains a sequence of declarations, each of which can be one of the
 following:
 
-* inclusions of declarations from other Parsley files through `use` specifiers
+* `use` specifiers for inclusions of declarations from other Parsley files
 * `type` definitions
 * `fun` (function) or `recfun` (recursive function) definitions
-* a set of non-terminal definitions, contained within a `format` block
+* `format` blocks containing a set of non-terminal definitions
+
+The grammar sub-language is used only within the `format` blocks.
 
 File inclusion allows a specification to be split across multiple
 files, with closely related declarations appearing in the same file.
