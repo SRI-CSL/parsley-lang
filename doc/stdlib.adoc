@@ -1,0 +1,284 @@
+= The Parsley Standard Library
+:sectanchors:
+
+The standard library provides simple utilities and data structures for
+the expression sub-language, and primitive non-terminals for the
+grammar sub-language.
+
+NOTE: The standard library is under rapid evolution.
+
+=== Expression sub-language
+
+.Builtin variant types
+|===
+| Type | Constructors
+
+| `option`
+| `option::None()`, `option::Some(.)`
+
+| `bool`
+| `bool::True()`, `bool::False()`
+
+| `endian`
+| `endian::Big()`, `endian::Little()`
+
+|===
+
+The following modules provide useful operations for the builtin types.
+
+.`Int`
+|===
+| Value | Signature | Description
+
+| `of_byte`
+| `byte -> int`
+| integer value of a byte
+
+| `of_string`
+| `string -> option<int>`
+| safe string to integer conversion
+
+| `of_bytes`
+| `[byte] -> option<int>`
+| safe byte vector to integer conversion
+
+| `of_bytes_unsafe`
+| `[byte] -> int`
+| byte vector to integer conversion;
+throws an exception if conversion fails
+
+|===
+
+////
+Double module omitted for now
+////
+
+.`List`
+|===
+| Value | Signature | Description
+
+| `length`
+| `['a] -> int`
+| list length
+
+| `concat`
+| `['a] -> ['a] -> ['a]`
+| list concatenation
+
+| `flatten`
+| `\[[a]] -> [a]`
+| list flattening
+
+| `rev`
+| `['a] -> ['a]`
+| list reversal
+
+| `map`
+| `('a -> 'b) -> ['a] -> ['b]`
+| mapping over lists
+
+| `map2`
+| `('a -> 'b -> 'c) -> ['a] -> ['b] -> ['c]`
+| mapping over two lists;
+throws an exception if list lengths are not equal
+
+| `repl`
+| `a -> int -> ['a]`
+| creates a list containing the specified number of copies of the specified element
+
+|===
+
+.`Set`
+|===
+| Value | Signature | Description
+
+| `empty`
+| `set<'a>`
+| an empty set
+
+| `add`
+| `set<'a> -> 'a -> set<'a>`
+| add an element to a set
+
+| `mem`
+| `set<'a> -> 'a -> bool`
+| check set membership
+
+|===
+
+.`Map`
+|===
+| Value | Signature | Description
+
+| `empty`
+| `map<'k, 'v>`
+| empty map
+
+| `add`
+| `map<'k, 'v> -> 'k -> 'v -> map<'k, 'v>`
+| add a key-value binding
+
+| `mem`
+| `map<'k, 'v> -> 'k -> bool`
+| check if a binding exists for a key
+
+| `find`
+| `map<'k, 'v> -> 'k -> option<'v>`
+| return the binding for a key if present
+
+| `find_unsafe`
+| `map<'k, 'v> -> 'k -> option<'v>`
+| return the binding for a key;
+throws an exception if no binding exists
+
+|===
+
+.`String`
+|===
+| Value | Signature | Description
+
+| `empty`
+| `string`
+| empty string
+
+| `to_int`
+| `string -> option<int>`
+| safe string to integer conversion
+
+| `to_bytes`
+| `string -> [byte]`
+| string to byte list conversion
+
+| `of_bytes`
+| `[byte] -> option<string>`
+| safe byte vector to string conversion
+
+| `of_bytes_unsafe`
+| `[byte] -> string`
+| byte vector to string conversion;
+throws an exception if conversion fails
+
+|===
+
+NOTE: Character encoding issues for string conversion will be
+addressed soon.
+
+.`View`
+|===
+| Value | Signature | Description
+
+| `get_base`
+| `unit -> view`
+| gets the current parsing buffer, with the cursor set at the beginning of the buffer
+
+| `get_current`
+| `unit -> view`
+| gets the current parsing buffer
+
+| `get_current_cursor`
+| `unit -> int`
+| get the cursor offset in the current parsing buffer
+
+| `make_current`
+| `view -> unit`
+| makes the specified parsing buffer the current buffer
+
+| `restrict`
+| `view -> int -> int -> view`
+| `restrict(v, n, len)` returns a parsing buffer of size `len` that starts `n` bytes from the cursor of `v`;
+throws an exception the specified range is out-of-bounds
+
+| `restrict_from`
+| `view -> int -> view`
+| `restrict_from(v, n)` returns a parsing buffer that begins `n` bytes from the cursor location of `v` and continues until the end of `v`;
+throws an exception if `n` is out-of-bounds
+
+| `clone`
+| `view -> view`
+| returns a copy of the view
+
+|===
+
+=== Grammar sub-language
+
+The library provides primitive non-terminals, their inherited
+attributes if any, and the types of their contents.  The byte-valued
+non-terminals with an `S` suffix return byte lists, and hence compose
+with regular expression combinators.  The names of the various
+`\*Int*` integer non-terminals indicate signedness (a 'U' prefix
+implies unsigned), and bit-width (a `NN` suffix indicates the
+bit-width).
+
+.Builtin non-terminals
+|===
+| Non-terminal | Type | Description
+
+| `Byte`
+| `byte`
+| Matches a single byte
+
+| `AsciiChar`
+| `byte`
+| Matches a single ASCII character
+
+| `HexChar`
+| `byte`
+| Matches a single hexadecimal character
+
+| `AlphaNum`
+| `byte`
+| Matches a single alphanumeric character
+
+| `Digit`
+| `byte`
+| Matches a single decimal numeric character
+
+| `AsciiCharS`
+| `[byte]`
+| Matches a single ASCII character
+
+| `HexCharS`
+| `[byte]`
+| Matches a single hexadecimal character
+
+| `AlphaNumS`
+| `[byte]`
+| Matches a single alphanumeric character
+
+| `DigitS`
+| `[byte]`
+| Matches a single decimal numeric character
+
+| `Int8 (endian: endian)`
+| `int`
+| Matches a single byte
+
+| `UInt8 (endian: endian)`
+| `int`
+| Matches a single byte
+
+| `Int16 (endian: endian)`
+| `int`
+| Matches two bytes
+
+| `UInt16 (endian: endian)`
+| `int`
+| Matches two bytes
+
+| `Int32 (endian: endian)`
+| `int`
+| Matches four bytes
+
+| `UInt32 (endian: endian)`
+| `int`
+| Matches four bytes
+
+| `Int64 (endian: endian)`
+| `int`
+| Matches eight bytes
+
+| `UInt64 (endian: endian)`
+| `int`
+| Matches eight bytes
+
+|===
