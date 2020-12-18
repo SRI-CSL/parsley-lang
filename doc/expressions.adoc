@@ -11,7 +11,7 @@ fragments of the Parsley specification.
 
 == Types
 
-The type system has builtin atomic types, some standard polymorphic
+The type system has built-in atomic types, some standard polymorphic
 type constructors, and support for polymorphic user-defined types.
 
 === Atomic types
@@ -23,7 +23,7 @@ atomic values, which belong to a special atomic type called `view`.
 
 === Type constructors
 
-The builtin type constructors are lists, tuples and options.
+The built-in type constructors are lists, tuples and options.
 User-defined types typically use the variant and record type
 constructors.
 
@@ -77,9 +77,9 @@ values in the `my_list` type are `my_list::Null()` and
 data constructors such as `Null` in this example require `()` as an
 argument to generate a value of `my_list`.
 
-The `bool` builtin type is a variant type, with values of
+The `bool` built-in type is a variant type, with values of
 `bool::True()` and `bool::False()`.  The `endian` type is similar,
-with values of `endian::Big()` and endian::Little()`.
+with values of `endian::Big()` and `endian::Little()`.
 
 *Record types* are declared using the following syntax:
 

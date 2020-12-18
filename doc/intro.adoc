@@ -57,7 +57,7 @@ support first-class functions or closures.  All functions need to be
 completely applied, and cannot be curried.  Functions can currently be
 self-recursive, but not mutually recursive.
 
-The module system is currently restricted to language builtins: new
+The module system is currently restricted to language built-ins: new
 modules cannot be specified by the user.
 ====
 
@@ -137,7 +137,7 @@ specification is only processed once all `use` declarations have been
 substituted away, and all subsequent processing is performed on the
 entire specification.
 
-The scoping of `type` and `fun`/`recfun` is lexical: a `type`
+The scoping of `type` and `fun`/`recfun` is _lexical_: a `type`
 definition can only use the types defined by definitions in scope at
 that point.  Similarly, a `fun`/`recfun` function definition can only
 refer to types or call other functions that have been defined in

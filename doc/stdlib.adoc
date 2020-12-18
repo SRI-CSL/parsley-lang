@@ -9,7 +9,7 @@ NOTE: The standard library is under rapid evolution.
 
 === Expression sub-language
 
-.Builtin variant types
+.Built-in variant types
 |===
 | Type | Constructors
 
@@ -24,7 +24,7 @@ NOTE: The standard library is under rapid evolution.
 
 |===
 
-The following modules provide useful operations for the builtin types.
+The following modules provide useful operations for the built-in types.
 
 .`Int`
 |===
@@ -209,7 +209,7 @@ with regular expression combinators.  The names of the various
 implies unsigned), and bit-width (a `NN` suffix indicates the
 bit-width).
 
-.Builtin non-terminals
+.Built-in non-terminals
 |===
 | Non-terminal | Type | Description
 

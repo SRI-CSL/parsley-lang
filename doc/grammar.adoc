@@ -66,6 +66,11 @@ synthesized attributes.  The declaration of inherited attributes
 cannot be abbreviated with a record type, unlike synthesized
 attributes.
 
+A non-terminal being defined can be given a short name. Indeed, naming
+a non-terminal is required to assign computed values to the
+synthesized attributes within the right-hand side of the non-terminal
+definition.
+
 The non-terminal being defined can be given a short name, which can
 used in the right-hand side of the definition for the assignment of
 the computed values of the synthesized attributes.
@@ -298,10 +303,10 @@ A regular expression rule element can use a special syntax within a
 block enclosed by `(#` and `#)` to form a composite expression using
 regular expression combinators.  The primitive expressions are literal
 sets, wildcards, and non-terminals, and can be composed using the
-usual unbounded repeat, bounded repeat, option, choice and sequence
-combinators.  These combinators are denoted by the same symbol used by
-the corresponding rule element combinator. As usual, `(` and `)` can
-be used for grouping purposes.
+usual unbounded repeat (`*`), bounded repeat (`^`), option (`?`),
+choice (`|`) and sequence (` \`) combinators.  These combinators are
+denoted by the same symbol used by the corresponding rule element
+combinator. As usual, `(` and `)` can be used for grouping purposes.
 
 A *literal set* is enclosed within `[` and `]` markers, and is
 composed from individual literal ASCII strings and other literal sets,
