@@ -8,6 +8,15 @@ definition is separated from the subsequent definition by a `;;`
 marker.  The last definition in the sequence should be terminated by
 the terminating `}` of the `format` block.
 
+An attribute system is used to annotate the non-terminals in the
+grammar with information that is semantically relevant in the format.
+The _inherited attributes_ of a non-terminal specify the contextual
+information that can be used when matching data corresponding to that
+non-terminal.  The _synthesized attributes_ of a non-terminal, on the
+other hand, specify information extracted from the matched data when
+matching the non-terminal, and constitute the _value_ of the
+non-terminal.
+
 A non-terminal is defined in terms of a sequence of production
 *rules*.  The rules in this sequence are separated by a `;`, which
 acts as a top-level *ordered choice combinator*.  When trying to match
@@ -127,7 +136,7 @@ are: regular expressions, non-terminals, constraints, and actions.
 *Regular expressions* are supported using special syntax that reduces
 the overhead of the attribute grammar machinery.  This special syntax
 needs to be bounded within the `(#` and `#)` markers.  *Literal
-strings* are a common case of regular expression, and can be directly
+strings* are a common case of regular expression, and can be used directly
 as a rule element by quoting the string within a matching pair of `!`
 markers.
 ....
@@ -143,7 +152,7 @@ rules.  A variable bound to a non-terminal has the type given to the
 non-terminal; for a standard non-terminal, this will be the record
 type corresponding to its synthesized attributes (or unit if it has no
 synthesized attributes).  If the non-terminal has inherited
-attributes, their values need to specified within a pair of `<` and
+attributes, their values need to be specified within a pair of `<` and
 `>`.  The value specifying expressions for an inherited attributed can
 be expressed in terms of all the attributes and bound rule elements in
 scope at that point.
@@ -167,11 +176,11 @@ the choice.
 
 NOTE: It is not very useful to bind a variable to a constraint rule
 element.  Its value will always be true in its scope, since the rule
-elements in its scope will not be executed if evaluates to false.
+elements in its scope will not be executed if it evaluates to false.
 
-*Actions* are blocks, demarcated within `{` and `}` markers, within
+*Actions* are blocks, demarcated by enclosing `{` and `}` markers, within
 which some computation is done.  This computation typically does one
-of more of: assign values to the synthesized attributes of the
+or more of: assign values to the synthesized attributes of the
 non-terminal being defined, update a temporary, or return a
 value to the variable binding the action block.  Action blocks do not
 match any input.  An action consists of a (possibly empty) sequence of
@@ -215,7 +224,7 @@ For convenience, rule elements can be grouped between `(` and `)` when
 composing with combinators.
 
 The *ordered choice* combinator is denoted by an infix `|` between the
-rule elements comprising the choice.  This value matched by this
+rule elements comprising the choice.  The value matched by this
 combinator is the value matched by the first successfully matching
 rule element in the choice; the combinator fails if every element
 fails to match.  If a variable is bound to this combinator, each

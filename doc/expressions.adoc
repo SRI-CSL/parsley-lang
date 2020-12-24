@@ -46,7 +46,7 @@ language, without support for closures and partial function
 applications.
 
 *Type variables* in polymorphic types are denoted with identifiers
-prefixed by a ' (tick).  They are declared as arguments to the type
+prefixed by a `'` (tick).  They are declared as arguments to the type
 constructor within `(` and `)` and separated by `,`.  A polymorphic
 type is instantiated with the type arguments supplied within `<` and
 `>` and separated by `,`.
@@ -99,8 +99,9 @@ constructors, do not require a type prefix.  However, this means that
 they need to be globally unique: two record types cannot use the same
 field name.
 
-Types can also be *mutually recursive*, and are declared within a
-`type` declaration and separated by `and`:
+Types can also be *mutually recursive*.  Mutually recursive types are
+declared in a single `type` declaration and separated by `and` within
+that declaration:
 
 ....
  type dict ('a) =
@@ -117,7 +118,7 @@ The Parsley standard library provides polymorphic data structures such
 as `set` (used as `set<element>`, where `element` is the element
 type), and `map` (used as `map<k, v>`, where `k` and `v` are the types
 of the key and value).  In addition, the library provides a `string`
-type, that is differentiated from a byte list in that its content
+type that differs from the `list<byte>` type in that its content
 conforms to a valid character encoding.
 
 NOTE: Full support for character encodings in strings is not yet
@@ -168,13 +169,13 @@ supported.
 == Expressions
 
 The primitive expressions are *literal values*, which can either be
-integer literals like `21`, strings like "this is a string", or the
+integer literals like `21`, strings like `"this is a string"`, or the
 unit value `()`.  Literal values can also be constructed from data
 constructors of variant and record types, such as `my_list::Null()`
 and `{xcoord:1, ycoord:2}` above.
 
 *Variables* are denoted by identifiers containing alphanumeric
-characters, `_` and `@`, and are required to start with a lowercase
+characters, `_` and `@`.  Variable names must begin with a lowercase
 letter.
 
 Expressions can be combined with unary and binary *operators*.  Unless
@@ -272,14 +273,14 @@ constructors of variant types or the tuple constructor.
 === Views
 
 Parsley provides first-class access to *parsing buffers*, which are
-presented as opaque values of the `view` type, and created and
-manipulated operated on using functions of the `View` module.  Values
-of view type can be stored in and retrieved from data structures, and
-synthesized attributes.  A value of `view` type can be considered to
+presented as opaque values of the type `view`.  These values are
+created and operated on using functions in the `View` module.  Values
+of type `view` can be stored in and retrieved from data structures, and
+synthesized attributes.  A value of type `view` can be considered to
 represent the current state of a parsing buffer, viz. a bytestream of
 a specific bounded size, and a cursor location within those bounds.
 
-Their most important use is in the grammar sub-language, which
+The most important use of parsing buffers is in the grammar sub-language, which
 provides view-mapping combinators that perform parsing actions within
 the bounds of a particular view.  Since view computations are
 performed within the expression sub-language, but used within the
@@ -289,18 +290,18 @@ blocks, where the last expression in the block can return a value to
 the binding variable of the block, as described in the
 <<grammar.adoc#rules-and-rule-elements,grammar documentation>>.
 
-Although the all values of other primitive types in the expression
-sub-language are stateless, values of `view` type are stateful.  When
+Although all the values of other primitive types in the expression
+sub-language are stateless, values of type `view` are stateful.  When
 used in a successfully matching parsing rule, the cursor location is
 updated to point past the bytes consumed by the parsing rule.
 Similarly, if the parsing rule fails after a partial match, the cursor
 location is rewound to its original location at the start of that
 parsing rule, before the next rule in any ordered choice is applied.
 
-Although values of `view` type are opaque, they can be compared for
+Although values of type `view` are opaque, they can be compared for
 equality and inequality using the generic `=` and `!=` operators.
 
-Different values of view type have independent state.  View values
+Different values of type `view` have independent state.  View values
 created or cloned from originating parent views do not affect the
 parent views when the child views are used in a parsing action.
 
@@ -308,6 +309,6 @@ parent views when the child views are used in a parsing action.
 
 The evaluation of expressions can result in failure; this results in
 an exception being thrown within the Parsley execution engine, and an
-error returned to the application using the engine.
+error being returned to the application using the engine.
 
 NOTE: The parsing state after this exception is currently unspecified.
