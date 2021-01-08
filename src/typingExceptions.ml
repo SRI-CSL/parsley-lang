@@ -241,7 +241,7 @@ let error_msg = function
       msg "%s:\n Unbound type variable `%s'.\n" p t
 
   | NonLinearPattern (p, x) ->
-      msg "%s:\n The variable '%s' occurs several times.\n" p x
+      msg "%s:\n The pattern variable '%s' cannot appear more than once.\n" p x
 
   | InvalidPatternArgs (p, c, e, f) ->
       msg "%s:\n %d pattern arguments used for constructor `%s', expecting %d.\n"
