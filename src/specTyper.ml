@@ -21,11 +21,13 @@ let check spec =
   else
     ();
   if !print_typed_ast then
-    AstPrinter.print_typed_spec spec'
+    AstPrinter.print_typed_spec spec';
+  spec'
 
 let type_check spec_file spec =
   try
-    check spec;
+    let spec' = check spec in
+    Pattern_match.check_patterns spec';
     Printf.printf "%s: parsed and typed.\n" spec_file
   with
     | TypingExceptions.Error e ->
