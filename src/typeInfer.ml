@@ -153,14 +153,14 @@ let check_tvars_usage tenv _t qs used_set =
 (** [make_dc_signature adt tvars dc typ] constructs the function type
     signature for a data constructor of [adt] named [dc] given its declared
     argument [typ], which is parameterized over type variables [tvars]. *)
-let make_dc_signature adt tvars _dc opt_arg =
+let make_dc_signature adt tvars _dc typ =
   let tvars = List.map AstUtils.make_tvar_ident tvars in
   let res =
     if List.length tvars = 0
     then AstUtils.make_tvar_ident adt
     else AstUtils.make_type_app_name (Location.value adt) tvars
            (Location.loc adt) in
-  match opt_arg with
+  match typ with
     | None -> res
     | Some sign -> AstUtils.add_arrow_result sign res
 
