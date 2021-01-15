@@ -12,7 +12,7 @@ let get_tracer () =
   else None
 
 let check spec =
-  let c, spec' = TypeInfer.generate_constraint spec in
+  let c, tenv, spec' = TypeInfer.generate_constraint spec in
   let env = ConstraintSolver.solve ?tracer:(get_tracer ()) c in
   if print_types then
     ConstraintSolver.print_env
@@ -22,12 +22,12 @@ let check spec =
     ();
   if !print_typed_ast then
     AstPrinter.print_typed_spec spec';
-  spec'
+  tenv, spec'
 
 let type_check spec_file spec =
   try
-    let spec' = check spec in
-    Pattern_match.check_patterns spec';
+    let tenv, spec' = check spec in
+    Pattern_match.check_patterns tenv spec';
     Printf.printf "%s: parsed and typed.\n" spec_file
   with
     | TypingExceptions.Error e ->

@@ -1,6 +1,7 @@
 open Ast
 
-let check_pats _ =
+let check_pattern _tenv (_p : 'a pattern) =
+  (* TODO *)
   ()
 
 let rec extract_expr_pats expr =
@@ -112,14 +113,14 @@ and descend_stmt acc s =
             List.fold_left descend_stmt (p :: acc) ss
           ) (descend_expr acc e) bs
 
-let check_patterns spec =
+let check_patterns tenv spec =
   List.iter (function
       | Decl_types _ ->
           ()
       | Decl_fun f ->
-          List.iter check_pats (extract_expr_pats f.fun_defn_body)
+          List.iter (check_pattern tenv) (extract_expr_pats f.fun_defn_body)
       | Decl_format f ->
           List.iter (fun fd ->
-              List.iter check_pats (extract_nt_pats fd.format_decl)
+              List.iter (check_pattern tenv) (extract_nt_pats fd.format_decl)
             ) f.format_decls
     ) spec.decls

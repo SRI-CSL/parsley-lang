@@ -30,7 +30,7 @@ type context = TypeConstraint.tconstraint -> TypeConstraint.tconstraint
 (** [generate_constraint p] generates a closed constraint that describes
     the typing of [p] and an annotated version of [p]. *)
 val generate_constraint: unit Ast.program ->
-  TypeConstraint.tconstraint * MultiEquation.crterm Ast.program
+  TypeConstraint.tconstraint * TypingEnvironment.environment * MultiEquation.crterm Ast.program
 
 (** [infer_spec s] generates a constraint context that describes
     spec [s] and an annotated version of [s]. *)

@@ -1640,5 +1640,5 @@ let infer_spec tenv spec =
 
 let generate_constraint spec =
   let tenv, c = init_tenv () in
-  let _, c', spec' = infer_spec tenv spec in
-  c (c' (CDump Location.ghost_loc)), spec'
+  let tenv', c', spec' = infer_spec tenv spec in
+  c (c' (CDump Location.ghost_loc)), tenv', spec'
