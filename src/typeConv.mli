@@ -49,3 +49,7 @@ val intern_let_env : Location.t -> TypingEnvironment.environment -> Ast.ident li
     of the type scheme [forall fqs.ty] and the binding of [x] to it. *)
 val intern_scheme : Location.t -> TypingEnvironment.environment -> string -> Ast.ident list ->
   Ast.type_expr -> (MultiEquation.crterm, MultiEquation.variable) TypeConstraint.scheme
+
+(** [canonicalize_dcon typ constr] returns the canonical name for the
+    data constructor [constr] of type [typ]. *)
+val canonicalize_dcon : string -> string -> string

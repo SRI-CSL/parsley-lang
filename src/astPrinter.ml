@@ -118,7 +118,7 @@ let rec print_pattern auxp p =
         pp_print_string !ppf (if b then "true" else "false")
     | P_variant ((t,c), ps) ->
         pp_print_string !ppf
-          (Printf.sprintf "%s::%s"
+          (TypeConv.canonicalize_dcon
              (Location.value t) (Location.value c));
         if List.length ps > 0 then begin
             pp_print_string !ppf "(";
@@ -158,7 +158,7 @@ and print_expr auxp e =
         pp_print_string !ppf (auxp e.expr_aux)
     | E_constr (t, c, args) ->
         pp_print_string !ppf
-          (Printf.sprintf "%s::%s"
+          (TypeConv.canonicalize_dcon
              (Location.value t) (Location.value c));
         if List.length args > 0 then begin
             pp_print_string !ppf "(";
@@ -218,7 +218,7 @@ and print_expr auxp e =
         print_expr auxp e;
         pp_print_string !ppf " ~~ ";
         pp_print_string !ppf
-          (Printf.sprintf "%s::%s"
+          (TypeConv.canonicalize_dcon
              (Location.value t) (Location.value c));
         pp_print_string !ppf ")"
     | E_case (d, clauses) ->

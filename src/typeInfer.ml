@@ -98,7 +98,7 @@ let infer_pat_fragment tenv (p: unit pattern) (t: crterm) : fragment * crterm pa
       | P_variant ((typ, c), ps) ->
           let typid = Location.value typ in
           let cid, cloc = Location.value c, Location.loc c in
-          let dcid = Printf.sprintf "%s::%s" typid cid in
+          let dcid = TypeConv.canonicalize_dcon typid cid in
           let alphas, ct = fresh_datacon_scheme tenv cloc (DName dcid) in
           let rt = result_type (as_fun tenv) ct
           and ats = arg_types (as_fun tenv) ct in
@@ -189,7 +189,7 @@ let intern_data_constructor internal adt_id qs env_info dcon_info =
       raise (Error (InvalidDataConstructorDefinition dname)) in
   let pos = Location.loc dname in
   let dname = Location.value dname in
-  let binding = Printf.sprintf "%s::%s" adt_name dname in
+  let binding = TypeConv.canonicalize_dcon adt_name dname in
   let v = variable ~structure:ityp Flexible () in
   ((add_data_constructor tenv pos (TName adt_name) (DName binding)
       (TypeConv.arity typ, rqs, ityp)),
@@ -492,7 +492,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
            application except that it must be fully applied. *)
         let typid = Location.value adt in
         let cid, cloc = Location.value dcon, Location.loc dcon in
-        let dcid = Printf.sprintf "%s::%s" typid cid in
+        let dcid = TypeConv.canonicalize_dcon typid cid in
         let arity, _, _ = lookup_datacon tenv cloc (DName dcid) in
         let nargs = List.length args in
         if nargs <> arity then
@@ -580,7 +580,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
            wildcard case pattern.  The return type is constrained to
            be boolean. *)
         let cid, cloc = Location.value c, Location.loc c in
-        let dcid = Printf.sprintf "%s::%s" (Location.value typ) cid in
+        let dcid = TypeConv.canonicalize_dcon (Location.value typ) cid in
         let arity, _, _ = lookup_datacon tenv cloc (DName dcid) in
         let case_exp = make_match_case_expr exp typ c arity e.expr_loc in
         let bool_typ = type_of_primitive (as_fun tenv) (PL_bool true) in
