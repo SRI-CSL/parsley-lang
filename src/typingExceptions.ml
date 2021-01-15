@@ -168,6 +168,12 @@ type typing_error =
      recursive type declarations. *)
   | PotentiallyRecursiveTypeAbbreviation of Ast.ident
 
+  (* [UnmatchedPattern pos p] is raised when a pattern match is not
+     exhaustive and provides an example pattern p which is not covered
+     by the match. *)
+  (*Note: p is given as a string to avoid a dependency cycle *)
+  | UnmatchedPattern of Location.t * string
+
 exception Error of typing_error
 
 let msg m loc =
@@ -314,3 +320,8 @@ let error_msg = function
       msg
         "%s:\n Type abbreviations (e.g. `%s') are not supported in type definition sets.\n"
         (Location.loc id) (Location.value id)
+
+  | UnmatchedPattern (loc, p) ->
+      msg
+        "%s:\n Pattern matching is not exhaustive: an example of unmatched value: %s\n"
+        loc p

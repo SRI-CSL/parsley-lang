@@ -126,6 +126,20 @@ let rec print_pattern auxp p =
             pp_print_string !ppf ")"
           end
 
+let rec sprint_pattern p =
+  match p.pattern with
+    | P_wildcard | P_var _ -> "_"
+    | P_literal PL_unit -> "()"
+    | P_literal (PL_string s) -> "\"" ^ s ^ "\""
+    | P_literal (PL_int i) -> Printf.sprintf "%d" i
+    | P_literal (PL_bool b) -> if b then "bool::True()" else "bool::False()"
+    | P_variant ((t, c), ps) ->
+        let con = TypeConv.canonicalize_dcon
+                    (Location.value t) (Location.value c) in
+        if List.length ps = 0 then con
+        else let args = List.map sprint_pattern ps in
+             Printf.sprintf "%s(%s)" con (String.concat ", " args)
+
 let str_of_unop = function
   | Uminus -> "-"
   | Not -> "!"
