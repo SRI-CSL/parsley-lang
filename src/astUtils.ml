@@ -118,3 +118,68 @@ let expand_type_abbrevs env te =
           {te with type_expr = TE_tapp (c', args')}
 
   in expand te
+
+(* utilities to make ast types comparable by syntactical equality, by
+   normalizing location and aux information *)
+
+let unwrap_id id =
+  Location.mk_loc_val (Location.value id) Location.ghost_loc
+
+let unwrap_constructor (typ, constr) =
+  (Location.value typ, Location.value constr)
+
+let rec unwrap_typ typ =
+  let t = match typ.type_expr with
+      | TE_tvar t ->
+          TE_tvar (unwrap_id t)
+      | TE_tapp (c, ts) ->
+          TE_tapp (unwrap_typ c, List.map unwrap_typ ts) in
+  {type_expr = t; type_expr_loc = Location.ghost_loc}
+
+let rec unwrap_pat pat =
+  let p = match pat.pattern with
+      | P_wildcard | P_var _ ->
+          (* pattern variables are equivalent to wildcards for checking
+             purposes *)
+          P_wildcard
+      | P_literal l ->
+          P_literal l
+      | P_variant (c, ps) ->
+          P_variant (c, List.map unwrap_pat ps) in
+  {pattern = p; pattern_loc = Location.ghost_loc; pattern_aux = ()}
+
+let rec unwrap_exp exp =
+  let e = match exp.expr with
+      | E_var v ->
+          E_var (unwrap_id v)
+      | E_constr ((t, c), es) ->
+          let t, c = unwrap_id t, unwrap_id c in
+          E_constr ((t, c), List.map unwrap_exp es)
+      | E_record fs ->
+          E_record (List.map
+                      (fun (f, e) ->
+                        (unwrap_id f, unwrap_exp e)
+                      ) fs)
+      | E_apply (f, es) ->
+          E_apply (unwrap_exp f, List.map unwrap_exp es)
+      | E_unop (op, e) ->
+          E_unop (op, unwrap_exp e)
+      | E_binop (op, l, r) ->
+          E_binop (op, unwrap_exp l, unwrap_exp r)
+      | E_match (e, (t, c)) ->
+          E_match (unwrap_exp e, (unwrap_id t, unwrap_id c))
+      | E_literal l ->
+          E_literal l
+      | E_field (e, f) ->
+          E_field (unwrap_exp e, unwrap_id f)
+      | E_mod_member (m, v) ->
+          E_mod_member (unwrap_id m, unwrap_id v)
+      | E_let (p, e, b) ->
+          E_let (unwrap_pat p, unwrap_exp e, unwrap_exp b)
+      | E_case (e, bs) ->
+          let bs' =
+            List.map (fun (p, e') -> unwrap_pat p, unwrap_exp e') bs in
+          E_case (unwrap_exp e, bs')
+      | E_cast (e, t) ->
+          E_cast (unwrap_exp e, unwrap_typ t) in
+  {expr = e; expr_loc = Location.ghost_loc; expr_aux = ()}
