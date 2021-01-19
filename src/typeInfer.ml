@@ -570,7 +570,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
               cfun ^ cargs,
               mk_auxexpr (E_apply (fexp', args'))
             )
-    | E_match (exp, (typ, c)) ->
+    | E_match (exp, (typ, dc)) ->
         (* Desugar this as a case expression:
 
            case (exp) {typ::c _ _ _ => true, _ => false}
@@ -579,14 +579,18 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
            arity of the data constructor [typ::c] to generate the correct
            wildcard case pattern.  The return type is constrained to
            be boolean. *)
-        let cid, cloc = Location.value c, Location.loc c in
-        let dcid = TypeConv.canonicalize_dcon (Location.value typ) cid in
-        let arity, _, _ = lookup_datacon tenv cloc (DName dcid) in
-        let case_exp = make_match_case_expr exp typ c arity e.expr_loc in
+        let dcid, dcloc = Location.value dc, Location.loc dc in
+        let dcid = TypeConv.canonicalize_dcon (Location.value typ) dcid in
+        let arity, _, _ = lookup_datacon tenv dcloc (DName dcid) in
+        let case_exp = make_match_case_expr exp typ dc arity e.expr_loc in
         let bool_typ = type_of_primitive (as_fun tenv) (PL_bool true) in
-        let c, exp' = infer_expr tenv case_exp t in
+        let c, case_exp' = infer_expr tenv case_exp t in
+        (* extract the case scrutinee for the sugared output *)
+        let exp' = match case_exp'.expr with
+            | E_case (exp, _) -> exp
+            | _ -> assert false in
         c ^ (t =?= bool_typ) e.expr_loc,
-        exp'  (* annotated ast has desugared form *)
+        mk_auxexpr (E_match (exp', (typ, dc)))
     | E_literal prim_lit ->
         (* TODO: support various integer types *)
         let primtyp = type_of_primitive (as_fun tenv) prim_lit in
