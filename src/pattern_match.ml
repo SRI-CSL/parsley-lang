@@ -353,97 +353,152 @@ let check_pattern tenv col =
                raise (Error (UnmatchedPattern (p.pattern_loc, ex)))
         )
 
+
+(* The ~~ operator constrains the data constructors for expressions,
+   which can cause false exhaustiveness errors for when those
+   constrained expressions are later used as the values of let binding
+   patterns.  This is handled by keeping track of these constraints,
+   and checking at let binding patterns whether their values have such
+   a constraint.  If so, the top-level constructor is matched; if not,
+   the pattern is added to the set to be checked.
+
+   The constraint context is initialized per rule, updated at match
+   constraints, and looked up when processing let expressions and
+   statements.
+*)
+
+(* map from (unwrapped) expressions to their (unwrapped) binding constructors *)
+module ExpConstraint =
+  Map.Make(struct type t = unit expr
+                  let compare = compare
+           end)
+
+let add_constraint ctx e c =
+  let e = AstUtils.unwrap_exp e in
+  let c = AstUtils.unwrap_constructor c in
+  let cs = ExpConstraint.find_opt e ctx in
+  let cs = match cs with
+      | None    -> [c]
+      | Some cs -> c :: cs in
+  ExpConstraint.add e cs ctx
+
+let has_constraint ctx e c =
+  let e = AstUtils.unwrap_exp e in
+  let c = AstUtils.unwrap_constructor c in
+  match ExpConstraint.find_opt e ctx with
+    | None    -> false
+    | Some cs -> List.mem c cs
+
 (** [extract_expr_pats expr] extracts the patterns used in all the
     subexpressions of [expr], using the various [descend_*] helpers *)
-let rec extract_expr_pats expr =
-  descend_expr [] expr
+let rec extract_expr_pats ctx expr =
+  descend_expr (ctx, []) expr
 
-and descend_expr acc e =
+and descend_expr (ctx, acc) e =
     match e.expr with
       | E_var _
       | E_literal _
       | E_mod_member _ ->
-          acc
+          (ctx, acc)
       | E_unop (_, e)
-      | E_match (e, _)
       | E_field (e, _)
       | E_cast (e, _) ->
-          descend_expr acc e
+          descend_expr (ctx, acc) e
+      | E_match (e, c) ->
+          let ctx', acc' = descend_expr (ctx, acc) e in
+          (add_constraint ctx' e c), acc'
       | E_constr (_, es) ->
-          List.fold_left descend_expr acc es
+          List.fold_left descend_expr (ctx, acc) es
       | E_record fs ->
-          List.fold_left (fun acc (_, e) ->
-              descend_expr acc e
-            ) acc fs
+          List.fold_left (fun (ctx, acc) (_, e) ->
+              descend_expr (ctx, acc) e
+            ) (ctx, acc) fs
       | E_apply (f, args) ->
-          List.fold_left descend_expr acc (f :: args)
+          List.fold_left descend_expr (ctx, acc) (f :: args)
       | E_binop (_, l, r) ->
-          descend_expr(descend_expr acc l) r
+          descend_expr (descend_expr (ctx, acc) l) r
       | E_case (e, bs) ->
+          (* case patterns are not affected by match constraints *)
           let pmat, es = List.split bs in
-          List.fold_left (fun acc e ->
-              descend_expr acc e
-            ) (descend_expr (pmat :: acc) e) es
+          List.fold_left (fun (ctx, acc) e ->
+              descend_expr (ctx, acc) e
+            ) (descend_expr (ctx, pmat :: acc) e) es
+      | E_let ({pattern = P_variant (c, _); _}, e, b)
+           when has_constraint ctx e c ->
+          (* skip check for p if e is already constrained by c *)
+          descend_expr (descend_expr (ctx, acc) e) b
       | E_let (p, e, b) ->
-          descend_expr (descend_expr ([p] :: acc) e) b
+          descend_expr (descend_expr (ctx, [p] :: acc) e) b
 
 (** [extract_nt_pats ntd] extracts the patterns used in all the
     expressions (and subexpressions) in the production rules of the
     non-terminal definition [ntd], using the various [descend_*]
     helpers. *)
+
 let rec extract_nt_pats ntd =
+  let ctx = ExpConstraint.empty in
   let acc =
     match ntd.non_term_syn_attrs with
-      | ALT_type _ -> []
+      | ALT_type _ ->
+          []
       | ALT_decls dl ->
           List.fold_left (fun acc (_, _, eo) ->
               match eo with
-                | None -> acc
-                | Some e -> descend_expr acc e
+                | None ->
+                    acc
+                | Some e ->
+                    let _, acc = descend_expr (ctx, acc) e in
+                    acc
             ) [] dl in
   List.fold_left descend_rule acc ntd.non_term_rules
 
 and descend_rule acc r =
+  (* the pattern constraint context is initialized per-rule, and only
+     used in the rhs. *)
+  let ctx = ExpConstraint.empty in
   let acc =
     List.fold_left (fun acc (_, _, e) ->
-        descend_expr acc e
+        snd (descend_expr (ctx, acc) e)
       ) acc r.rule_temps in
-  List.fold_left descend_rule_elem acc r.rule_rhs
+  snd (List.fold_left descend_rule_elem (ctx, acc) r.rule_rhs)
 
-and descend_rule_elem acc re =
+(* propagate the pattern constraint only across constraint rule elements *)
+and descend_rule_elem (ctx, acc) re =
   match re.rule_elem with
     | RE_non_term (_, None)
     | RE_epsilon ->
-        acc
+        ctx, acc
     | RE_regexp re ->
-        descend_regexp acc re
+        ctx, descend_regexp ctx acc re
     | RE_action a ->
-        (match a.action_stmts with
-           | stmts, None ->
-               List.fold_left descend_stmt acc stmts
-           | stmts, Some e ->
-               List.fold_left descend_stmt (descend_expr acc e) stmts
-        )
+        ctx,
+        snd (match a.action_stmts with
+               | stmts, None ->
+                   List.fold_left descend_stmt (ctx, acc) stmts
+               | stmts, Some e ->
+                   List.fold_left descend_stmt (descend_expr (ctx, acc) e) stmts
+            )
     | RE_constraint e ->
-        descend_expr acc e
+        descend_expr (ctx, acc) e
     | RE_non_term (_, Some ias) ->
+        ctx,
         List.fold_left (fun acc (_, e) ->
-            descend_expr acc e
-          ) acc ias
+            snd (descend_expr (ctx, acc) e)
+        ) acc ias
     | RE_named (_, re)
     | RE_star (re, None)
     | RE_opt re ->
-        descend_rule_elem acc re
+        ctx, snd (descend_rule_elem (ctx, acc) re)
     | RE_seq res
     | RE_choice res ->
-        List.fold_left descend_rule_elem acc res
+        ctx, snd (List.fold_left descend_rule_elem (ctx, acc) res)
     | RE_star (re, Some e)
     | RE_at_pos (e, re)
     | RE_at_buf (e, re)
     | RE_map_bufs (e, re) ->
-        descend_rule_elem (descend_expr acc e) re
+        ctx, snd (descend_rule_elem (descend_expr (ctx, acc) e) re)
 
-and descend_regexp acc re =
+and descend_regexp ctx acc re =
   match re.regexp with
     | RX_literals _
     | RX_wildcard
@@ -451,31 +506,40 @@ and descend_regexp acc re =
     | RX_star (_, None) ->
         acc
     | RX_star (_, Some e) ->
-        descend_expr acc e
+        snd (descend_expr (ctx, acc) e)
     | RX_opt re ->
-        descend_regexp acc re
+        descend_regexp ctx acc re
     | RX_choice res
     | RX_seq res ->
-        List.fold_left descend_regexp acc res
+        List.fold_left (descend_regexp ctx) acc res
 
-and descend_stmt acc s =
+and descend_stmt (ctx, acc) s =
   match s.stmt with
     | S_assign (e, e') ->
-        descend_expr (descend_expr acc e) e'
+        descend_expr (descend_expr (ctx, acc) e) e'
+    | S_let ({pattern = P_variant (c, _); _} as p, e, ss) ->
+        (* skip check for p if e is already constrained by c *)
+        let acc' = if has_constraint ctx e c
+                   then acc
+                   else [p] :: acc in
+        List.fold_left descend_stmt (descend_expr (ctx, acc') e) ss
     | S_let (p, e, ss) ->
-        List.fold_left descend_stmt (descend_expr ([p] :: acc) e) ss
+        List.fold_left descend_stmt (descend_expr (ctx, [p] :: acc) e) ss
     | S_case (e, bs) ->
         let pmat, ss = List.split bs in
-        List.fold_left (fun acc s ->
-            List.fold_left descend_stmt acc s
-          ) (descend_expr (pmat :: acc) e) ss
+        List.fold_left (fun (ctx, acc) s ->
+            List.fold_left descend_stmt (ctx, acc)  s
+          ) (descend_expr (ctx, pmat :: acc) e) ss
 
 let check_patterns tenv spec =
+  let ctx = ExpConstraint.empty in
   List.iter (function
       | Decl_types _ ->
           ()
       | Decl_fun f ->
-          List.iter (check_pattern tenv) (extract_expr_pats f.fun_defn_body)
+          List.iter
+            (check_pattern tenv)
+            (snd (extract_expr_pats ctx f.fun_defn_body))
       | Decl_format f ->
           List.iter (fun fd ->
               List.iter (check_pattern tenv) (extract_nt_pats fd.format_decl)
