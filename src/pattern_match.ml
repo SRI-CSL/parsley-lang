@@ -365,11 +365,11 @@ and descend_expr acc e =
       | E_mod_member _ ->
           acc
       | E_unop (_, e)
-      | E_match (e, _, _)
+      | E_match (e, _)
       | E_field (e, _)
       | E_cast (e, _) ->
           descend_expr acc e
-      | E_constr (_, _, es) ->
+      | E_constr (_, es) ->
           List.fold_left descend_expr acc es
       | E_record fs ->
           List.fold_left (fun acc (_, e) ->

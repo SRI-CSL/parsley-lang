@@ -59,12 +59,12 @@ and 'a pattern =
 
 type 'a expr_desc =
   | E_var of ident
-  | E_constr of ident * ident * 'a expr list
+  | E_constr of (ident * ident) * 'a expr list
   | E_record of (ident * 'a expr) list
   | E_apply of 'a expr * 'a expr list
   | E_unop of unop * 'a expr
   | E_binop of binop * 'a expr * 'a expr
-  | E_match of 'a expr * ident * ident
+  | E_match of 'a expr * (ident * ident)
   | E_literal of primitive_literal
   | E_field of 'a expr * ident
   | E_mod_member of modident * ident

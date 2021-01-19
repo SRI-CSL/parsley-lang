@@ -170,7 +170,7 @@ and print_expr auxp e =
     | E_var i ->
         pp_print_string !ppf (Location.value i);
         pp_print_string !ppf (auxp e.expr_aux)
-    | E_constr (t, c, args) ->
+    | E_constr ((t, c), args) ->
         pp_print_string !ppf
           (TypeConv.canonicalize_dcon
              (Location.value t) (Location.value c));
@@ -227,7 +227,7 @@ and print_expr auxp e =
     | E_mod_member (m, i) ->
         pp_print_string !ppf
           (Printf.sprintf "%s.%s" (Location.value m) (Location.value i))
-    | E_match (e, t, c) ->
+    | E_match (e, (t, c)) ->
         pp_print_string !ppf "(";
         print_expr auxp e;
         pp_print_string !ppf " ~~ ";

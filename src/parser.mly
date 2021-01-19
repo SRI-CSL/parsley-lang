@@ -266,19 +266,19 @@ listelems:
   { let loc = Location.mk_loc $startpos(_s) $endpos(_s) in
     let t = Location.mk_loc_val "[]" loc in
     let c = Location.mk_loc_val "::" loc in
-    make_expr (E_constr (t, c, [hd; tl])) $startpos $endpos }
+    make_expr (E_constr ((t, c), [hd; tl])) $startpos $endpos }
 | e=expr _s=RBRACK
   { let loc = Location.mk_loc $startpos $endpos in
     let t  = Location.mk_loc_val "[]" loc in
     let nl = Location.mk_loc_val "[]" loc in
     let co = Location.mk_loc_val "::" loc in
-    let tl = make_expr (E_constr (t, nl, [])) $startpos(_s) $endpos(_s) in
-    make_expr (E_constr (t, co, [e; tl])) $startpos $endpos }
+    let tl = make_expr (E_constr ((t, nl), [])) $startpos(_s) $endpos(_s) in
+    make_expr (E_constr ((t, co), [e; tl])) $startpos $endpos }
 | RBRACK
   { let loc = Location.mk_loc $startpos $endpos in
     let t = Location.mk_loc_val "[]" loc in
     let c = Location.mk_loc_val "[]" loc in
-    make_expr (E_constr (t, c, [])) $startpos $endpos }
+    make_expr (E_constr ((t, c), [])) $startpos $endpos }
 
 expr:
 | i=ident
@@ -300,13 +300,13 @@ expr:
     then make_expr (E_literal PL_unit) $startpos $endpos
     else if List.length l = 1
     then List.nth l 0
-    else make_expr (E_constr (t, c, l)) $startpos $endpos }
+    else make_expr (E_constr ((t, c), l)) $startpos $endpos }
 | e=expr LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_apply(e, l)) $startpos $endpos }
 | e=expr LBRACK i=expr RBRACK
   { make_expr (E_binop(Index, e, i)) $startpos $endpos }
 | c=CONSTR LPAREN l=separated_list(COMMA, expr) RPAREN
-  { make_expr (E_constr(fst c, snd c, l)) $startpos $endpos }
+  { make_expr (E_constr(c, l)) $startpos $endpos }
 | MINUS e=expr %prec UMINUS
   { make_expr (E_unop (Uminus, e)) $startpos $endpos }
 | EXCLAIM e=expr
@@ -318,7 +318,7 @@ expr:
 | l=expr LOR r=expr
   { make_expr (E_binop (Lor, l, r)) $startpos $endpos }
 | e=expr CONSTR_MATCH c=CONSTR
-  { make_expr (E_match (e, fst c, snd c)) $startpos $endpos }
+  { make_expr (E_match (e, c)) $startpos $endpos }
 | l=expr PLUS r=expr
   { make_expr (E_binop (Plus, l, r)) $startpos $endpos }
 | l=expr PLUS_S r=expr

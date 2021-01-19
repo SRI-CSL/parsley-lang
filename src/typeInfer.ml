@@ -487,7 +487,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
         (* The type of a variable must be at least as general as [t]. *)
         (SName (Location.value id) <? t) (Location.loc id),
         mk_auxexpr (E_var id)
-    | E_constr (adt, dcon, args) ->
+    | E_constr ((adt, dcon), args) ->
         (* A data constructor application is similar to the usual
            application except that it must be fully applied. *)
         let typid = Location.value adt in
@@ -508,7 +508,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
                   (t, CTrue e.expr_loc, [])
                   (List.rev exs) in
               c ^ (SName dcid <? typ) e.expr_loc,
-              mk_auxexpr (E_constr (adt, dcon, args'))
+              mk_auxexpr (E_constr ((adt, dcon), args'))
             )
 
     | E_record fields ->
@@ -570,7 +570,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
               cfun ^ cargs,
               mk_auxexpr (E_apply (fexp', args'))
             )
-    | E_match (exp, typ, c) ->
+    | E_match (exp, (typ, c)) ->
         (* Desugar this as a case expression:
 
            case (exp) {typ::c _ _ _ => true, _ => false}
