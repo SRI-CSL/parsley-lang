@@ -1,7 +1,10 @@
-// This specification assumes we are dealing with IPv4 packets
-// that have a 20 byte header.
-// Note the length of the payload is actually 8 less than this
-// as the UDP header is 8 bytes.
+// This Parsley file is based on the UDP specificaiton: https://tools.ietf.org/html/rfc768
+
+// We make no assumption about whether we are using IPv4 or IPv6.
+// However, we also don't perform the requisite sanity checks
+// using length and checksum as they would require knowing what
+// version of IP we are using.
+
 
 type udp_packet = {
   source_port: [byte],
@@ -16,12 +19,9 @@ format {
     source_port = (Byte^2)
     destination_port = (Byte^2)
     length = UInt16<endian=e>
-    checksum = (Byte^2)
-    data_length = { ;;
-             let data_length = length - 8 in 
-             data_length}
-    data = (Byte^data_length)
-    [length > 8 && length < 65515]
+    checksum = (Byte^2) 
+    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
+    [length >= 8] // length field must be at least 8, the UDP header length
     {
       udpp.u.source_port := source_port;
       udpp.u.destination_port := destination_port;
