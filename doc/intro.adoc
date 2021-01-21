@@ -1,7 +1,14 @@
 = Introduction to Parsley
 
-Parsley is a specification language for describing data formats.  It
-is comprised of two sub-languages: an expression sub-language that looks
+The Parsley system is a specification language and a set of tools to
+formally specify data formats and the parsing software that processes
+data in those formats.  We focus below on describing the Parsley
+specification language; the tools in the rest of the system, including
+the parser generator and the prover framework, will be described as
+those tools become more usable.
+
+The Parsley specification language describes data formats.  It does
+this using two sub-languages: an expression sub-language that looks
 like a functional language, and a grammar sub-language that looks like
 an extended Backus-Naur Form notation which incorporates elements of
 an attribute grammar and the combinators from parsing expression
@@ -19,7 +26,7 @@ context-free grammars:
 * A constraint system that can compute over this context to control
   the parsing rules that are applied at a parsing location.
 
-* A typed functional language in which to express the computations
+* A typed functional language that expresses the computations
   involved in computing attribute values and the constraints.
 
 * A module system to compose independent specifications, which allows
@@ -46,9 +53,10 @@ The basic type constructors are lists, tuples, and option types.
 User-specified types include records and variants, and can be mutually
 recursive.
 
-The language is equipped with a module system, which provides access
-to a standard library of data structures such as lists, sets and maps,
-and of operations on and conversions between the atomic types.
+The language is equipped with a module system that provides access to
+a standard library.  The library provides data structures such as
+lists, sets and maps, as well as operations on and conversions between
+the atomic types.
 
 [NOTE]
 ====
@@ -101,7 +109,7 @@ can be used to match basic types.  Individual bytes can be matched
 against the non-terminals `AsciiChar`, `HexChar`, `AlphaNum`, `Digit`
 and `Byte`, each of which have the `byte` type.  The `S`-suffixed
 versions of these non-terminals (such as `AsciiCharS`, `DigitS`, ... )
-represent the match as single-element list containing the matched
+represent the match as a single-element list containing the matched
 byte. This allows them to be used in with combinators that combine
 list-valued non-terminals.
 
@@ -111,7 +119,7 @@ various widths, signedness and endianness.
 == Structure of a Parsley specification file
 
 The specification of a format can be split across multiple files.  Any
-one of these files will have the same structure.  A file typically
+one of these files will have the same structure.  A file
 contains a sequence of declarations, each of which can be one of the
 following:
 
