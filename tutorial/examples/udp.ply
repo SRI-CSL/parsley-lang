@@ -1,0 +1,33 @@
+// This specification assumes we are dealing with IPv4 packets
+// that have a 20 byte header.
+// Note the length of the payload is actually 8 less than this
+// as the UDP header is 8 bytes.
+
+type udp_packet = {
+  source_port: [byte],
+  destination_port: [byte],
+  length: int,
+  checksum: [byte],
+  data: [byte]
+}
+
+format {
+  UDPPacket udpp (e: endian) {u: udp_packet} :=
+    source_port = (Byte^2)
+    destination_port = (Byte^2)
+    length = UInt16<endian=e>
+    checksum = (Byte^2)
+    data_length = { ;;
+             let data_length = length - 8 in 
+             data_length}
+    data = (Byte^data_length)
+    [length > 8 && length < 65515]
+    {
+      udpp.u.source_port := source_port;
+      udpp.u.destination_port := destination_port;
+      udpp.u.length := length;
+      udpp.u.checksum := checksum;
+      udpp.u.data := data
+    }
+}
+

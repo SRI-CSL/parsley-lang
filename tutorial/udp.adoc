@@ -1,0 +1,214 @@
+= User Datagram Protocol
+
+For our first exercise, we examine the User Datagram Protocol (UDP).
+The UDP specification can be found in IETF RFC 768 (https://tools.ietf.org/html/rfc768).
+UDP/IP does not provide some valuable guarantees, such as reliable and in-order messaging. as is provided by TCP/IP.
+However, UDP/IP is simple and it is fast. This makes it a great introductory example use case for Parsley!
+
+== Declarations
+
+A format specification in Parsley is constructed via a sequence of declarations, each declaration belonging to one of the following four groups:
+
+- `use` declarations that specify other Parsley files whose declarations shall be included. These are similar to `include` in C or `import` in Python.
+- `type` definitions that allow users to specify their own types.
+- `fun` and `recfun` declarations that correspond to functions and recursive functions respectively.
+- `format` block declarations that specify non-terminal definitions.
+
+In this first lesson, we introduce `format` and `type` declarations.
+
+== A (Very) Brief Introduction to Parsley Types
+
+The specification states that the UDP header comprises four fields corresponding to the source port, destination port, length, and checksum.
+Each is of two bytes, but in our specification, we treat the length field as an integer.
+Following the UDP header is the payload or data.
+Given this structure, we can declare a new `type` to capture a UDP packet:
+....
+type udp_packet = {
+  source_port: [byte],
+  destination_port: [byte],
+  length: int,
+  checksum: [byte],
+  data: [byte]
+}
+....
+
+This may look confusing. But let's go over it step by step.
+
+=== Atomic Types
+
+Parsley supports a variety of atomic or built-in types:
+
+- `byte`: captures a byte
+- `int`: captures an integer
+- `double`: captures a floating-point
+- `string`: captures a sequence of characters
+- `bool`: captures a Boolean or truth valuable
+- `endian`: captures endian values that express what byte ordering to use when interpreting integer values
+- `unit`: a type to express that a function returns nothing (similar to void in C)
+
+=== User-Defined Types
+
+Parsley also supports user-defined types. We can construct these user-defined types via type declarations of the form:
+
+....
+type _type_name_ = _type_form_
+....
+
+where type_name and type_form correspond to the identifier for the type and the structure or form of the type.
+
+Some examples of user-defined type declarations are:
+
+- `type byte_list = [byte]` is a list of bytes
+- `type int_bool_tuple = (int, bool)` is a tuple with element types `int` and `bool` respectively
+- `type list_of_tuples = [(int, int)]` is a list of two tuples, each of which contain two integers. This may, for example, be used to express points in a two-dimensional plane.
+
+A special kind of user-defined type is the record type.
+The record type comprises a number of component type fields and has the general form of:
+
+....
+type type_name = {
+  field_name_0: field_type_0,
+  field_name_1: field_type_1,
+  ...
+  field_name_n-1: field_type_n-1,
+  field_name_n: field_type_n
+}
+....
+
+Each line within the curly braces specifies a component field via a field name and type.
+Following each field declaration, aside from the last one, a `,` we see a `,` that serves as a delimiter between field declarations.
+
+NOTE: There is more to discuss about types, notably variant types and type variables. We will cover these topics in future lessons.
+
+=== Declaring the UDP Packet Type
+
+Let's return to our UDP packet.
+
+....
+type udp_packet = {
+  source_port: [byte],
+  destination_port: [byte],
+  length: int,
+  checksum: [byte],
+  data: [byte]
+}
+....
+
+The `udp_packet` is a record type that comprises five component subtypes or fields.
+
+The first four fields correspond to the UDP header: `source_port` is a list of bytes, `destination_port` is a list of bytes, `length` is an int, and `checksum` is a list of bytes.
+The last component field is the payload captured in `data`, which is again a list of bytes.
+Now that we have captured the general structure of a UDP packet, we can move on to the specification.
+
+=== Other User-Defined Types
+
+// Present Byte, etc.
+
+== The Format Block
+
+The `format` block is essential to _every_ Parsley specification.
+This is where we define non-terminals and, as the name suggests, specify the format of the specification.
+The `format` block has the general form (some details are missing but we'll get to them):
+
+....
+format {
+  NT1 n1 ... := ...;;
+  NT2 n2 ... := ...;;
+  NTFIN nfin ... := ...
+}
+....
+
+The `format` block is simply a sequence of non-terminal declarations.
+Each declaration, except for the last, must end with `;;`, which serves as a non-terminal declaration delimiter.
+
+=== Non-Terminals, Synthesized Attributes, and Inherited Attributes
+
+Parsley provides a rich subgrammar that has some similarity with BNF but also a number of key differences.
+Here, we will only cover the basics; more topics will be introduced in subsequent lessons.
+A non-terminal is derived using one or more production rules that are separated by `;`, which is the ordered choice operator.
+Each production rule is a sequence of rule elements.
+A sequence of rule elements is matched if the input matches the rule elements.
+
+In this first lesson, we'll cover the standard approach to declaring non-terminals, though we note that Parsley also supports declaring non-terminals via regular expressions.
+A non-terminal in Parsley has a type associated with it, which is always the record type using the standard approach.
+This type is specified by synthesized attributes, which can be thought of as attributes that are derived as we perform the matching.
+Additionally, a type declaration may include inherited attributes, which are attributes that are provided at the beginning of the pattern matching process by the caller.
+
+// need to give a very simple example here...
+
+=== Working Through the UDP Packet Format
+
+
+Now, let's work on developing a Parsley specification for a UDP packet:
+
+....
+format {
+  UDPPacket udpp (e: endian) {u: udp_packet} := ...
+}
+....
+
+We still have to fill in the details obviously, but this is a good start.
+We have a non-terminal entitled UDPPacket that has the short name of udpp.
+It has the inherited attribute `e` of type `endian`.
+And it has the synthesized attribute `u` of type `udp_packet`, which we had earlier defined.
+
+Now, let's work on the rule elements.
+Well, the UDP specification states the header comprises 2 bytes for the source port, 2 bytes for the destination port, 2 bytes (or a 16 bit integer) for the length, and 2 bytes for the checksum.
+Thus, we create four variables to capture these parts of the header.
+And, of course, we have the data whose length is derived from the length field.
+
+format {
+  UDPPacket udpp (e: endian) {u: udp_packet} :=
+    source_port = (Byte^2)
+    destination_port = (Byte^2)
+    length = UInt16<endian=e>
+    checksum = (Byte^2)
+    data_length = { ;;
+             let data_length = length - 8 in
+             data_length}
+    data = (Byte^data_length)
+    ...
+}
+
+The variables `source_port`, `destination_port`, and `checksum` are assigned two byte values.
+This is done by applying the user-defined Byte type in conjunction with the bounded repeat operator.
+A 16 bit unsigned integer of the endianness specified by the inherited attributed `e` is assigned to the length variable.
+We note that the ordering of these assignments matters and is done in accordance with the UDP specification.
+The ordering of these rule elements tell us how any parsers generated from this Parsley specification should go about consuming the input.
+
+Now, we need to calculate how long the UDP data should be.
+....
+
+....
+type udp_packet = {
+  source_port: [byte],
+  destination_port: [byte],
+  length: int,
+  checksum: [byte],
+  data: [byte]
+}
+
+format {
+  UDPPacket udpp (e: endian) {u: udp_packet} :=
+    source_port = (Byte^2)
+    destination_port = (Byte^2)
+    length = UInt16<endian=e>
+    checksum = (Byte^2)
+    data_length = { ;;
+             let data_length = length - 8 in
+             data_length}
+    data = (Byte^data_length)
+    [length > 8 && length < 65515]
+    {
+      udpp.u.source_port := source_port;
+      udpp.u.destination_port := destination_port;
+      udpp.u.length := length;
+      udpp.u.checksum := checksum;
+      udpp.u.data := data
+    }
+}
+....
+
+== Comments
+
+Last, comments in Parsley can be placed at the end of a line and must be preceded by `//`.

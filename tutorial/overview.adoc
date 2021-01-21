@@ -1,0 +1,33 @@
+= Tutorial Overview
+
+The aim of this tutorial is to get the reader up to speed with the Parsley specification and toolchain by going through a series of examples.
+In the current iteration of this tutorial, we focus solely on how to use the Parsley type checker and how to specify data formats via Parsley.
+
+== What is Parsley?
+
+placeholder---two to three pars on what Parsley is at the high level.
+
+== Installation
+
+To install the Parsley type checker:
+
+. Install opam, the OCaml package manager (https://opam.ocaml.org/doc/Install.html).
+. Execute the following command: `opam install menhir dune`
+. Clone the repository containing the Parsley type checker, examples, and other documentation: `git clone git@github.com:SRI-CSL/parsley-lang.git` and then type `cd parsley-lang`.
+. Run `make`. You should now see an executable, `parsleyc.exe`, in `./_build/default/src`. This executable is the Parsley type checker.
+
+== Running the Type Checker
+
+The Parsley type checker takes a single command-line argument, a relative file path, and it checks whether the file specified by that path conforms to the Parsley specification. You can test this by running:
+
+`./_build/default/src/parsleyc.exe ./test/lang/examples.ply`
+
+The type checker will either approve of the file or specify where things went wrong.
+
+== Learning by Example
+
+This tutorial is organized as a series of short chapters.
+Each chapter focuses on creating a Parsley specification for a specific data format.
+Each chapter was designed to be done in a single short sitting (5-30 minutes).
+As mentioned, the examples corresponding to the chapters in this tutorial can be found in `./tutorial/examples/`.
+Additionally, there are some short exercises at the end of each chapter.

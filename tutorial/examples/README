@@ -1,0 +1,9 @@
+The examples listed in this file are used in the Parsley gitbook.
+
+These examples include:
+- pbm.ply: A definition of the ASCII-encoded PBM format discussed in [1] and [2]
+
+
+[1] http://netpbm.sourceforge.net/doc/pbm.html
+
+[2] https://en.wikipedia.org/wiki/Netpbm#File_formats
