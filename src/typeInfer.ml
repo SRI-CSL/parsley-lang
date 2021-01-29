@@ -30,7 +30,45 @@ open TypingEnvironment
 open TypingExceptions
 open Ast
 
-(** {2 Inference} *)
+(** Local variable naming environment.
+
+    This is used to annotate variables with unique binding
+    identifiers (integers).
+ *)
+module VEnv : sig
+
+  type t
+
+  val empty: t
+  val add: t -> unit var -> int var * t
+  val extend: t -> string -> int var -> t
+  val lookup: t -> unit var -> int var option
+
+end = struct
+
+  type t = (string, int var) CoreEnv.t
+
+  let binding = ref (-1)
+
+  let empty = CoreEnv.empty
+
+  let add env v =
+    incr binding;
+    let l = Location.loc v in
+    let n = var_name v in
+    let v = Location.mk_loc_val (n, !binding) l in
+    v, CoreEnv.add env n v
+
+  let extend env n v =
+    CoreEnv.add env n v
+
+  let lookup env v =
+    CoreEnv.lookup_opt env (var_name v)
+
+end
+
+let ident_of_var v =
+  Location.mk_loc_val (var_name v) (Location.loc v)
 
 (** A fragment denotes the typing information acquired in a match branch.
     [gamma] is the typing environment coming from the binding of pattern
@@ -58,37 +96,44 @@ let join_fragment pos f1 f2 =
    vars        = f1.vars @ f2.vars;
    tconstraint = f1.tconstraint ^ f2.tconstraint}
 
-(** [infer_pat_fragment p t] generates a fragment that represents the
-    information gained by a success when matching p. *)
-let infer_pat_fragment tenv (p: unit pattern) (t: crterm) : fragment * crterm pattern =
+(** [infer_pat_fragment tenv venv p t] generates a fragment that represents the
+    information gained by a success when matching p, and an updated variable
+    binding environment from [venv] *)
+let infer_pat_fragment tenv (venv: VEnv.t) (p: (unit, unit) pattern) (t: crterm)
+    : fragment * (crterm, int) pattern * VEnv.t =
   let join pos = List.fold_left (join_fragment pos) empty_fragment in
   let mk_auxpat p' =
     {pattern = p'; pattern_loc = p.pattern_loc; pattern_aux = t} in
-  let rec infpat t p =
+  let rec infpat t p venv =
     let pos = p.pattern_loc in
     match p.pattern with
       (* Wildcard pattern does not generate any fragment. *)
       | P_wildcard ->
-          empty_fragment, mk_auxpat P_wildcard
+          empty_fragment, mk_auxpat P_wildcard, venv
 
       (* We refer to the algebra to know the type of a primitive. *)
       | P_literal l ->
           {empty_fragment with
             tconstraint = (t =?= type_of_primitive (as_fun tenv) l) pos},
-          mk_auxpat (P_literal l)
+          mk_auxpat (P_literal l),
+          venv
 
       (* Matching against a variable generates a fresh flexible
          variable, binds it to the [name] and forces the variable to
-         be equal to [t]. *)
+         be equal to [t].
+         The binding environment is updated, and an annotated binding
+         is generated for the pattern variable.*)
       | P_var name ->
           let pos = Location.loc name in
           let v = variable Flexible () in
+          let v', venv' = VEnv.add venv name in
           {gamma       = StringMap.singleton
-                           (Location.value name)
+                           (var_name name)
                            (CoreAlgebra.TVariable v, pos);
            tconstraint = (CoreAlgebra.TVariable v =?= t) pos;
            vars        = [ v ]},
-          mk_auxpat (P_var name)
+          mk_auxpat (P_var v'),
+          venv'
 
       (* Matching against a data constructor generates the fragment
          that:
@@ -107,15 +152,22 @@ let infer_pat_fragment tenv (p: unit pattern) (t: crterm) : fragment * crterm pa
               InvalidPatternArgs (pos, c, List.length ats, List.length ps) in
             raise (Error (err))
           else
-            let fps = List.map2 infpat ats ps in
-            let fs, ps' = List.split fps in
-            let fragment = join pos fs in
+            let fs, ps', venv' =
+              List.fold_left
+                (fun (fs, ps', venv) (at, p) ->
+                  let f, p', venv' = infpat at p venv in
+                  f :: fs, p' :: ps', venv'
+                )
+                ([], [], venv)
+                (List.combine ats ps) in
+            let fragment = join pos (List.rev fs) in
             {fragment with
               tconstraint = fragment.tconstraint ^ (t =?= rt) pos;
               vars        = alphas @ fragment.vars},
-            mk_auxpat (P_variant ((typ, c), ps'))
+            mk_auxpat (P_variant ((typ, c), List.rev ps')),
+            venv'
   (* TODO: add record patterns *) in
-  infpat t p
+  infpat t p venv
 
 (** checks for consistency between the declarations and
     uses of type variables *)
@@ -424,14 +476,15 @@ let infer_type_abbrev tenv td =
 
 let make_match_case_expr exp typ dcon arity loc =
   let wc = AstUtils.make_pattern_loc P_wildcard loc in
-  let mk_var s =
-    let v = E_var (Location.mk_loc_val s loc) in
+  let bool = Location.mk_loc_val "bool" loc in
+  let mk_bool s =
+    let v = E_constr ((bool, Location.mk_loc_val s loc), []) in
     AstUtils.make_expr_loc v loc in
   let rec mk_pats pats cnt =
     if cnt = 0 then pats else mk_pats (wc::pats) (cnt - 1) in
   let pargs = mk_pats [] arity in
   let pattern = AstUtils.make_pattern_loc (P_variant ((typ, dcon), pargs)) loc in
-  let tr, fl = mk_var "bool::True", mk_var "bool::False" in
+  let tr, fl = mk_bool "True", mk_bool "False" in
   let case_exp = E_case (exp, [pattern, tr; wc, fl]) in
   {expr = case_exp; expr_loc = loc; expr_aux = ()}
 
@@ -476,17 +529,22 @@ let lookup_record_adt tenv fields =
      | None -> ());
   rec_info
 
-(** [infer_expr tenv e t] generates a constraint that guarantees that
+(** [infer_expr tenv venv e t] generates a constraint that guarantees that
     [e] has type [t] in the typing environment [tenv]. *)
-let rec infer_expr tenv (e: unit expr) (t : crterm)
-        : tconstraint * crterm expr =
+let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
+        : tconstraint * (crterm, int) expr =
   let mk_auxexpr e' =
     {expr = e'; expr_loc = e.expr_loc; expr_aux = t} in
   match e.expr with
-    | E_var id ->
+    | E_var v ->
+        let v' = match VEnv.lookup venv v with
+            | None ->
+                let err = UnboundIdentifier (e.expr_loc, var_name v) in
+                raise (Error err)
+            | Some v' -> v' in
         (* The type of a variable must be at least as general as [t]. *)
-        (SName (Location.value id) <? t) (Location.loc id),
-        mk_auxexpr (E_var id)
+        (SName (var_name v) <? t) (Location.loc v),
+        mk_auxexpr (E_var v')
     | E_constr ((adt, dcon), args) ->
         (* A data constructor application is similar to the usual
            application except that it must be fully applied. *)
@@ -503,7 +561,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
               let typ, c, args' =
                 List.fold_left
                   (fun (typ, c, args') (arg, exvar) ->
-                    let c', arg' = infer_expr tenv arg exvar in
+                    let c', arg' = infer_expr tenv venv arg exvar in
                     TypeConv.arrow tenv exvar typ, c ^ c', arg' :: args')
                   (t, CTrue e.expr_loc, [])
                   (List.rev exs) in
@@ -525,7 +583,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
             let typ, c, fields' =
               List.fold_left
                 (fun (typ, c, fields') ((fn, fv), exvar) ->
-                  let c', fv' = infer_expr tenv fv exvar in
+                  let c', fv' = infer_expr tenv venv fv exvar in
                   TypeConv.arrow tenv exvar typ, c ^ c', (fn, fv') :: fields')
                 (t, CTrue e.expr_loc, [])
                 (List.rev exs) in
@@ -541,7 +599,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
         let _ = lookup_field_destructor tenv (Location.loc f) (LName field) in
         let binding = Printf.sprintf "{%s}" field in
         exists_aux (fun exvar ->
-            let c', exp' = infer_expr tenv exp exvar in
+            let c', exp' = infer_expr tenv venv exp exvar in
             let typ = TypeConv.arrow tenv exvar t in
             c' ^ (SName binding <? typ) e.expr_loc,
             mk_auxexpr (E_field (exp', f))
@@ -555,18 +613,18 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
         if List.length args = 0 then
           let unit = typcon_variable tenv (TName "unit") in
           let typ = TypeConv.arrow tenv unit t in
-          infer_expr tenv fexp typ
+          infer_expr tenv venv fexp typ
         else
           exists_list_aux args (
               fun exs ->
               let typ, cargs, args' =
                 List.fold_left
                   (fun (typ, c, args') (arg, exvar) ->
-                    let c', arg' = infer_expr tenv arg exvar in
+                    let c', arg' = infer_expr tenv venv arg exvar in
                     TypeConv.arrow tenv exvar typ, c ^ c', arg' :: args')
                   (t, CTrue e.expr_loc, [])
                   (List.rev exs) in
-              let cfun, fexp' = infer_expr tenv fexp typ in
+              let cfun, fexp' = infer_expr tenv venv fexp typ in
               cfun ^ cargs,
               mk_auxexpr (E_apply (fexp', args'))
             )
@@ -584,7 +642,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
         let arity, _, _ = lookup_datacon tenv dcloc (DName dcid) in
         let case_exp = make_match_case_expr exp typ dc arity e.expr_loc in
         let bool_typ = type_of_primitive (as_fun tenv) (PL_bool true) in
-        let c, case_exp' = infer_expr tenv case_exp t in
+        let c, case_exp' = infer_expr tenv venv case_exp t in
         (* extract the case scrutinee for the sugared output *)
         let exp' = match case_exp'.expr with
             | E_case (exp, _) -> exp
@@ -600,14 +658,14 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
         (* The constraint of a [case] makes equal the type of the
            scrutinee and the type of every branch pattern. The body
            of each branch must be equal to [t]. *)
-        (* TODO: exhaustiveness check of patterns *)
         exists_aux (fun exvar ->
-            let ce, exp' = infer_expr tenv exp exvar in
+            let ce, exp' = infer_expr tenv venv exp exvar in
             let clauses' =
               List.map
                 (fun (p, b) ->
-                  let fragment, p' = infer_pat_fragment tenv p exvar in
-                  let cb, b' = infer_expr tenv b t in
+                  let fragment, p', venv' =
+                    infer_pat_fragment tenv venv p exvar in
+                  let cb, b' = infer_expr tenv venv' b t in
                   CLet ([ Scheme (p.pattern_loc, [], fragment.vars,
                                   fragment.tconstraint,
                                   fragment.gamma) ],
@@ -623,10 +681,10 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
            the type of the pattern and the definiens, and requires
            the type of the let body to be equal to [t]. *)
         exists_aux (fun exvar ->
-            let fragment, p' = infer_pat_fragment tenv p exvar in
-            let cdef, def' = infer_expr tenv def exvar in
+            let fragment, p', venv' = infer_pat_fragment tenv venv p exvar in
+            let cdef, def' = infer_expr tenv venv def exvar in
             (* Require [t] to be a valid type for [body]. *)
-            let cbody, body' = infer_expr tenv body t in
+            let cbody, body' = infer_expr tenv venv' body t in
             cdef
             ^ CLet ([ Scheme (e.expr_loc, [], fragment.vars,
                               (* Require [exvar] to be a valid type
@@ -641,7 +699,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
            generated constraint. *)
         let typ  = AstUtils.expand_type_abbrevs tenv typ in
         let ityp = TypeConv.intern tenv typ in
-        let c, exp' = infer_expr tenv exp ityp in
+        let c, exp' = infer_expr tenv venv exp ityp in
         (t =?= ityp) e.expr_loc ^ c,
         mk_auxexpr (E_cast (exp', typ))
     | E_unop (op, e) ->
@@ -649,7 +707,7 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
         exists_aux (fun exvar ->
             let opid = unop_const_name op in
             let typ = TypeConv.arrow tenv exvar t in
-            let c, e' = infer_expr tenv e exvar in
+            let c, e' = infer_expr tenv venv e exvar in
             c ^ (SName opid <? typ) e.expr_loc,
             mk_auxexpr (E_unop (op, e'))
           )
@@ -659,8 +717,8 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
                 let opid = binop_const_name op in
                 let typ = TypeConv.arrow tenv lexvar
                             (TypeConv.arrow tenv rexvar t) in
-                let cle, le' = infer_expr tenv le lexvar in
-                let cre, re' = infer_expr tenv re rexvar in
+                let cle, le' = infer_expr tenv venv le lexvar in
+                let cre, re' = infer_expr tenv venv re rexvar in
                 cle ^ cre ^ (SName opid <? typ) e.expr_loc,
                 mk_auxexpr (E_binop (op, le', re'))
               )
@@ -676,13 +734,13 @@ let rec infer_expr tenv (e: unit expr) (t : crterm)
         (SName id <? t) loc,
         mk_auxexpr (E_mod_member (m, i))
 
-(* [infer_fun_defn tenv ctxt fd] examines the function definition [fd]
+(* [infer_fun_defn tenv venv ctxt fd] examines the function definition [fd]
    and constraint context [ctxt] in the type environment [tenv] and
    generates an updated constraint context for [ctxt] and a type
    signature for [fd]. *)
-let infer_fun_defn tenv ctxt fd =
+let infer_fun_defn tenv venv ctxt fd =
   let loc = Location.loc fd.fun_defn_ident
-  and fdn = Location.value fd.fun_defn_ident
+  and fdn = var_name fd.fun_defn_ident
   and qs = fd.fun_defn_tvars in
   let qs = List.map (fun q -> TName (Location.value q)) qs in
   let rqs, rtenv = fresh_unnamed_rigid_vars fd.fun_defn_loc tenv qs in
@@ -692,38 +750,52 @@ let infer_fun_defn tenv ctxt fd =
   let fv = variable Flexible () in
   let ftyp = CoreAlgebra.TVariable fv in
 
+  (* for recursive functions, make sure the function name is bound *)
+  let fdn', venv' = VEnv.add venv fd.fun_defn_ident in
+  let venv', ids =
+    if fd.fun_defn_recursive
+    then venv',
+         StringMap.singleton fdn (ident_of_var fd.fun_defn_ident)
+    else venv,
+         StringMap.empty in
+
   (* First construct the function signature and the argument bindings
      for the body.  Handle the arguments as a simple case of lambda
      patterns; this will allow us to extend this later to proper
      pattern matching if needed.*)
   let restyp = AstUtils.expand_type_abbrevs tenv fd.fun_defn_res_type in
   let irestyp = TypeConv.intern tenv' restyp in
-  let _, argbinders, signature =
+  let _, params', venv', argbinders, signature =
     if List.length fd.fun_defn_params = 0 then
       (* functions without args have a signature of unit -> result_type *)
       let unit = typcon_variable tenv (TName "unit") in
       let signature = TypeConv.arrow tenv unit irestyp in
-      StringMap.empty, empty_fragment, signature
+      ids, [], venv', empty_fragment, signature
     else
-      List.fold_left (fun (acu_ids, bindings, signature) (pid, typ) ->
-          let pn, ploc = Location.value pid, Location.loc pid in
+      List.fold_left (fun (acu_ids, params', venv', bindings, signature) (pid, typ) ->
+          let pn, ploc = var_name pid, Location.loc pid in
           let acu_ids =
             match StringMap.find_opt pn acu_ids with
               | Some repid ->
+                  let pid = ident_of_var pid in
                   raise (Error (RepeatedFunctionParameter (pid, repid)))
               | None ->
-                  StringMap.add pn pid acu_ids in
+                  StringMap.add pn (ident_of_var pid) acu_ids in
+          let pid', venv' = VEnv.add venv' pid in
           let typ = AstUtils.expand_type_abbrevs tenv typ in
           let ityp = TypeConv.intern tenv' typ in
           let v = variable Flexible () in
           acu_ids,
+          (pid', typ) :: params',
+          venv',
           {gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
-                      bindings.gamma;
-            tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
-                          ^ bindings.tconstraint;
-            vars = v :: bindings.vars},
-          TypeConv.arrow tenv ityp signature
-        ) (StringMap.empty, empty_fragment, irestyp) (List.rev fd.fun_defn_params) in
+                     bindings.gamma;
+           tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
+                         ^ bindings.tconstraint;
+           vars = v :: bindings.vars},
+          TypeConv.arrow tenv ityp signature)
+        (ids, [], venv', empty_fragment, irestyp)
+        (List.rev fd.fun_defn_params) in
 
   (* for recursive functions, add the function name to the let context. *)
   let gamma = if fd.fun_defn_recursive
@@ -734,7 +806,7 @@ let infer_fun_defn tenv ctxt fd =
                          gamma) in
 
   (* Generate the typing constraint for the body. *)
-  let cbody, body' = infer_expr tenv' fd.fun_defn_body irestyp in
+  let cbody, body' = infer_expr tenv' venv' fd.fun_defn_body irestyp in
 
   (* Construct the constrained binding for the polymorphic function
      definition itself. *)
@@ -749,9 +821,9 @@ let infer_fun_defn tenv ctxt fd =
   (fun c -> ctxt (CLet ([scheme], c))),
   (* The annotated function contains the function signature and the
    * annotated body *)
-  {fun_defn_ident     = fd.fun_defn_ident;
+  {fun_defn_ident     = fdn';
    fun_defn_tvars     = fd.fun_defn_tvars;
-   fun_defn_params    = fd.fun_defn_params;
+   fun_defn_params    = params';
    fun_defn_res_type  = fd.fun_defn_res_type;
    fun_defn_body      = body';
    fun_defn_recursive = fd.fun_defn_recursive;
@@ -844,17 +916,25 @@ let infer_nt_rhs_type tenv ntd =
         raise (Error (NTTypeNotInferrable ntd.non_term_name))
 
 let infer_non_term_attrs tenv nid attrs =
-  List.fold_left (fun ats (pid, te) ->
-      let p  = Location.value pid in
-      let te = AstUtils.expand_type_abbrevs tenv te in
-      let t  = TypeConv.intern tenv te in
-      match StringMap.find_opt p ats with
-        | Some (_, l) ->
-            let repid = Location.mk_loc_val p l in
-            raise (Error (NTRepeatedBinding (nid, pid, repid)))
-        | None ->
-            StringMap.add p (t, Location.loc pid) ats
-    ) StringMap.empty attrs
+  let map, attrs', _ =
+    List.fold_left (fun (ats, attrs', venv') (pid, te) ->
+        let p  = var_name pid in
+        let te = AstUtils.expand_type_abbrevs tenv te in
+        let t  = TypeConv.intern tenv te in
+        match StringMap.find_opt p ats with
+          | Some (_, l) ->
+              let repid = Location.mk_loc_val p l in
+              let pid = ident_of_var pid in
+              raise (Error (NTRepeatedBinding (nid, pid, repid)))
+          | None ->
+              let pid', venv' = VEnv.add venv' pid in
+              StringMap.add p (t, Location.loc pid) ats,
+              (pid', te) :: attrs',
+              venv'
+      )
+      (StringMap.empty, [], VEnv.empty)
+      attrs in
+  map, List.rev attrs'
 
 let infer_non_term_inh_type tenv ntd =
   let nid = ntd.non_term_name in
@@ -862,9 +942,9 @@ let infer_non_term_inh_type tenv ntd =
   infer_non_term_attrs tenv nid attrs
 
 (** [infer_non_term_type tenv ctxt ntd] updates [tenv] with a record
-   type for a non-terminal (NT) [ntd] corresponding to its synthesized
-   attributes, and updates ctxt with the names of the corresponding
-   field destructors. *)
+   type for a non-terminal (NT) [ntd] corresponding to its attributes,
+   and updates ctxt with the names of the corresponding field
+   destructors. *)
 let infer_non_term_type tenv ctxt ntd =
   let ntid  = ntd.non_term_name
   and loc   = ntd.non_term_loc in
@@ -969,7 +1049,7 @@ let rec check_literals tenv ls t =
         let bytes = list (typcon_variable tenv) byte in
         (t =?= bytes) ls.literal_set_loc
 
-let rec infer_regexp tenv re t =
+let rec infer_regexp tenv venv re t =
   let byte    = typcon_variable tenv (TName "byte") in
   let bytes   = list (typcon_variable tenv) byte in
   let default = (t =?= bytes) re.regexp_loc in
@@ -993,18 +1073,18 @@ let rec infer_regexp tenv re t =
        base cases of RX_ are byte lists. *)
     | RX_star (re', None) ->
         let c, re'' =
-          exists_aux (fun t' -> infer_regexp tenv re' t') in
+          exists_aux (fun t' -> infer_regexp tenv venv re' t') in
         c ^ default,
         mk_auxregexp (RX_star (re'', None))
     | RX_star (re', Some e) ->
         let int = typcon_variable tenv (TName "int") in
-        let ce, e' = infer_expr tenv e int in
-        let cre, re'' = exists_aux (fun t' -> infer_regexp tenv re' t') in
+        let ce, e' = infer_expr tenv venv e int in
+        let cre, re'' = exists_aux (fun t' -> infer_regexp tenv venv re' t') in
         ce ^ cre ^ default,
         mk_auxregexp (RX_star (re'', Some e'))
 
     | RX_opt re' ->
-        let c, re'' = infer_regexp tenv re' t in
+        let c, re'' = infer_regexp tenv venv re' t in
         c, mk_auxregexp (RX_opt re'')
 
     (* For the same reasons as for Star above, we only ensure that the
@@ -1013,7 +1093,7 @@ let rec infer_regexp tenv re t =
     | RX_choice rels ->
         exists_list_aux rels (fun exs ->
             let rels' =
-              List.map (fun (re', t') -> infer_regexp tenv re' t') exs in
+              List.map (fun (re', t') -> infer_regexp tenv venv re' t') exs in
             let cs, rels' = List.split rels' in
             conj cs ^ default,
             mk_auxregexp (RX_choice rels')
@@ -1021,28 +1101,28 @@ let rec infer_regexp tenv re t =
     | RX_seq rels ->
         exists_list_aux rels (fun exs ->
             let rels' =
-              List.map (fun (re', t') -> infer_regexp tenv re' t') exs in
+              List.map (fun (re', t') -> infer_regexp tenv venv re' t') exs in
             let cs, rels' = List.split rels' in
             conj cs ^ default,
             mk_auxregexp (RX_seq rels')
           )
 
-let rec infer_stmt tenv s =
+let rec infer_stmt tenv venv s =
   let make_stmt s' = {stmt = s'; stmt_loc = s.stmt_loc} in
   match s.stmt with
     | S_assign (l, r) ->
         (* Ensure that there is a type [t'] that is compatible with
            both sides of the assignment. *)
         exists_aux (fun t' ->
-            let cl, l' = infer_expr tenv l t' in
-            let cr, r' = infer_expr tenv r t' in
+            let cl, l' = infer_expr tenv venv l t' in
+            let cr, r' = infer_expr tenv venv r t' in
             cl ^ cr, make_stmt (S_assign (l', r')))
     | S_let (p, def, ss) ->
         (* Similar to E_let. *)
         exists_aux (fun t' ->
-            let fragment, p' = infer_pat_fragment tenv p t' in
-            let cdef, def' = infer_expr tenv def t' in
-            let css, ss' = List.split (List.map (infer_stmt tenv) ss) in
+            let fragment, p', venv' = infer_pat_fragment tenv venv p t' in
+            let cdef, def' = infer_expr tenv venv def t' in
+            let css, ss' = List.split (List.map (infer_stmt tenv venv') ss) in
             cdef
             ^ CLet ([ Scheme (s.stmt_loc, [], fragment.vars,
                               fragment.tconstraint,
@@ -1051,15 +1131,15 @@ let rec infer_stmt tenv s =
             make_stmt (S_let (p', def', ss')))
     | S_case (e, clauses) ->
         (* Similar to E_case *)
-        (* TODO: pattern exhaustiveness checks. *)
         exists_aux (fun t' ->
-            let ce, e' = infer_expr tenv e t' in
+            let ce, e' = infer_expr tenv venv e t' in
             let clauses' =
               List.map
                 (fun (p, ss) ->
-                  let fragment, p' = infer_pat_fragment tenv p t' in
+                  let fragment, p', venv' =
+                    infer_pat_fragment tenv venv p t' in
                   let css, ss' =
-                    List.split (List.map (infer_stmt tenv) ss) in
+                    List.split (List.map (infer_stmt tenv venv') ss) in
                   CLet ([ Scheme (p.pattern_loc, [], fragment.vars,
                                   fragment.tconstraint,
                                   fragment.gamma) ],
@@ -1070,17 +1150,17 @@ let rec infer_stmt tenv s =
             ce ^ conj ccl,
             make_stmt (S_case (e', clauses')))
 
-let infer_action tenv act t =
+let infer_action tenv venv act t =
   (* [t] can only bind the last expression if any of the sequence,
    * otherwise it should equal [unit]. *)
   let ss, e = act.action_stmts in
-  let css, ss' = List.split (List.map (infer_stmt tenv) ss) in
+  let css, ss' = List.split (List.map (infer_stmt tenv venv) ss) in
   let ce, e' = match e with
       | None ->
           let u = typcon_variable tenv (TName "unit") in
           (t =?= u) act.action_loc, None
       | Some e ->
-          let c, e' = infer_expr tenv e t in
+          let c, e' = infer_expr tenv venv e t in
           c, Some e' in
   conj css ^ ce,
   {action_stmts = (ss', e'); action_loc = act.action_loc}
@@ -1093,7 +1173,8 @@ let infer_action tenv act t =
       ... (re | re') ...
     where re and re' can receive different types.
  *)
-let rec infer_rule_elem tenv ntd ctx re t bound : context * crterm rule_elem =
+let rec infer_rule_elem tenv venv ntd ctx re t bound
+        : context * (crterm, int) rule_elem * VEnv.t =
   let pack_constraint c' =
     (fun c -> ctx (c' ^ c)) in
   let mk_regexp_type () =
@@ -1103,21 +1184,23 @@ let rec infer_rule_elem tenv ntd ctx re t bound : context * crterm rule_elem =
     {rule_elem = re'; rule_elem_loc = re.rule_elem_loc; rule_elem_aux = t} in
   match re.rule_elem with
     | RE_regexp r ->
-        let c, r' = infer_regexp tenv r t in
+        let c, r' = infer_regexp tenv venv r t in
         pack_constraint c,
-        mk_aux_rule_elem (RE_regexp r')
+        mk_aux_rule_elem (RE_regexp r'),
+        venv
     | RE_non_term (nid, None) ->
         (let n = Location.value nid in
          match lookup_non_term tenv (NName n) with
            | None ->
                raise (Error (UnknownNonTerminal nid))
-           | Some (inh, syn) ->
+           | Some ((inh, _), syn) ->
                (* Check if inherited attributes need to be specified. *)
                (match StringMap.choose_opt inh with
                   | None ->
                       let c = (t =?= syn) re.rule_elem_loc in
                       pack_constraint c,
-                      mk_aux_rule_elem (RE_non_term (nid, None))
+                      mk_aux_rule_elem (RE_non_term (nid, None)),
+                      venv
                   | Some (id, _) ->
                       raise (Error (NTInheritedUnspecified (nid, id))))
         )
@@ -1125,7 +1208,7 @@ let rec infer_rule_elem tenv ntd ctx re t bound : context * crterm rule_elem =
         let cntn = Location.value cntid in
         let cnti = match lookup_non_term tenv (NName cntn) with
             | None -> raise (Error (UnknownNonTerminal cntid))
-            | Some (inh_typ, _) -> inh_typ in
+            | Some ((inh_typ, _), _) -> inh_typ in
         let pids, cs, attrs' =
           List.fold_left (fun (pids, cs, attrs') (pid, e) ->
               let pn = Location.value pid in
@@ -1139,7 +1222,7 @@ let rec infer_rule_elem tenv ntd ctx re t bound : context * crterm rule_elem =
                       typ
                   | None ->
                       raise (Error (NTUnknownInheritedAttribute (cntid, pid))) in
-              let c, e' = infer_expr tenv e typ in
+              let c, e' = infer_expr tenv venv e typ in
               pids, c :: cs, (pid, e') :: attrs'
             ) (StringMap.empty, [], []) attrs in
         StringMap.iter (fun pn _ ->
@@ -1147,29 +1230,34 @@ let rec infer_rule_elem tenv ntd ctx re t bound : context * crterm rule_elem =
             then raise (Error (NTInheritedUnspecified (cntid, pn)))
           ) cnti;
         pack_constraint (conj cs),
-        mk_aux_rule_elem (RE_non_term (cntid, Some attrs'))
+        mk_aux_rule_elem (RE_non_term (cntid, Some attrs')),
+        venv
     | RE_constraint e ->
         let b = typcon_variable tenv (TName "bool") in
-        let c, e' = infer_expr tenv e b in
+        let c, e' = infer_expr tenv venv e b in
         let c = (t =?= b) re.rule_elem_loc ^ c in
         pack_constraint c,
-        mk_aux_rule_elem (RE_constraint e')
+        mk_aux_rule_elem (RE_constraint e'),
+        venv
     | RE_action a ->
-        let c, a' = infer_action tenv a t in
+        let c, a' = infer_action tenv venv a t in
         pack_constraint c,
-        mk_aux_rule_elem (RE_action a')
+        mk_aux_rule_elem (RE_action a'),
+        venv
     | RE_named (id, re') ->
         (* [id] is bound in the environment when typing [re'] *)
         let idloc = Location.loc id in
-        let id'   = Location.value id in
+        let id' = var_name id in
+        let v, venv' = VEnv.add venv id in
         (* re' needs to be typed under a binding *)
-        let ctx', re'' = infer_rule_elem tenv ntd (fun c -> c) re' t true in
+        let ctx', re'', _ = infer_rule_elem tenv venv ntd (fun c -> c) re' t true in
         (fun c ->
           ctx (CLet ([Scheme (re.rule_elem_loc, [], [],
                               CTrue re.rule_elem_loc,
                               StringMap.singleton id' (t, idloc))],
                      ctx' c))),
-        mk_aux_rule_elem (RE_named (id, re''))
+        mk_aux_rule_elem (RE_named (v, re'')),
+        venv'
 
     | RE_seq rels ->
         (* A sequence has a tuple type formed from the individual rule
@@ -1177,59 +1265,63 @@ let rec infer_rule_elem tenv ntd ctx re t bound : context * crterm rule_elem =
            are flattened. *)
         let is_regexp = List.for_all (is_regexp_elem tenv) rels in
         let qs, m = variable_list Flexible rels in
-        let ctx', rels' =
-          List.fold_left (fun (ctx', rels') (re, t') ->
-              let ctx', re' =
-                infer_rule_elem tenv ntd ctx' re t' bound in
-              ctx', re' :: rels'
-            ) ((fun c -> c), []) m in
+        let ctx', rels', _ =
+          List.fold_left (fun (ctx', rels', venv') (re, t') ->
+              let ctx', re', venv' =
+                infer_rule_elem tenv venv' ntd ctx' re t' bound in
+              ctx', re' :: rels', venv'
+            ) ((fun c -> c), [], venv) m in
         let typ =
           if is_regexp then mk_regexp_type ()
           else tuple (typcon_variable tenv) (snd (List.split m)) in
         (fun c ->
           ctx (ex ~pos:re.rule_elem_loc qs
                  ((t =?= typ) re.rule_elem_loc ^ ctx' c))),
-        mk_aux_rule_elem (RE_seq rels')
+        mk_aux_rule_elem (RE_seq rels'),
+        venv
 
     | RE_choice rels when List.for_all (is_regexp_elem tenv) rels ->
         (* If the sequence is composed purely of regexps, flatten into
            a single byte list, after ensuring each element is
            well-typed. *)
         let qs, m = variable_list Flexible rels in
-        let ctx', rels' =
-          List.fold_left (fun (ctx', rels') (re, t') ->
-              let ctx', re' =
-                infer_rule_elem tenv ntd ctx' re t' bound in
-              ctx', re' :: rels'
-            ) ((fun c -> c), []) m in
+        let ctx', rels', _ =
+          List.fold_left (fun (ctx', rels', venv') (re, t') ->
+              let ctx', re', venv' =
+                infer_rule_elem tenv venv' ntd ctx' re t' bound in
+              ctx', re' :: rels', venv'
+            ) ((fun c -> c), [], venv) m in
         let typ = mk_regexp_type () in
         (fun c ->
           ctx (ex ~pos:re.rule_elem_loc qs
                  ((t =?= typ) re.rule_elem_loc) ^ ctx' c)),
-        mk_aux_rule_elem (RE_choice rels')
+        mk_aux_rule_elem (RE_choice rels'),
+        venv
     | RE_choice rels ->
         if bound then
           (* Each choice should have the same type [t]. *)
-          let ctx', rels' =
-            List.fold_left (fun (ctx', rels') re ->
-                let ctx', re' =
-                  infer_rule_elem tenv ntd ctx' re t bound in
-                ctx', re' :: rels'
-              ) ((fun c -> c), []) rels in
+          let ctx', rels', _ =
+            List.fold_left (fun (ctx', rels', venv') re ->
+                let ctx', re', venv' =
+                  infer_rule_elem tenv venv' ntd ctx' re t bound in
+                ctx', re' :: rels', venv'
+              ) ((fun c -> c), [], venv) rels in
           (fun c -> ctx (ctx' c)),
-          mk_aux_rule_elem (RE_choice rels')
+          mk_aux_rule_elem (RE_choice rels'),
+          venv
         else
           (* Each choice can receive a different type, and [t] is unconstrained *)
           let qs, m = variable_list Flexible rels in
-          let ctx', rels' =
-            List.fold_left (fun (ctx', rels') (re, t') ->
-                let ctx', re' =
-                  infer_rule_elem tenv ntd ctx' re t' bound in
-                ctx', re' :: rels'
-              ) ((fun c -> c), []) m in
+          let ctx', rels', _ =
+            List.fold_left (fun (ctx', rels', venv') (re, t') ->
+                let ctx', re', venv' =
+                  infer_rule_elem tenv venv' ntd ctx' re t' bound in
+                ctx', re' :: rels', venv'
+              ) ((fun c -> c), [], venv) m in
           (fun c ->
             ctx (ex ~pos:re.rule_elem_loc qs (ctx' c))),
-          mk_aux_rule_elem (RE_choice rels')
+          mk_aux_rule_elem (RE_choice rels'),
+          venv
 
     | RE_star (re', None) ->
         (* [re] has a type [list t'] where [t'] is the type of [re'],
@@ -1237,15 +1329,16 @@ let rec infer_rule_elem tenv ntd ctx re t bound : context * crterm rule_elem =
         let is_regexp = is_regexp_elem tenv re' in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
-        let ctx', re'' =
-          infer_rule_elem tenv ntd (fun c -> c) re' t' bound in
+        let ctx', re'', _ =
+          infer_rule_elem tenv venv ntd (fun c -> c) re' t' bound in
         let typ = if is_regexp
                   then mk_regexp_type ()
                   else list (typcon_variable tenv) t' in
         (fun c ->
           ctx (ex ~pos:re.rule_elem_loc [q]
                  ((t =?= typ) re.rule_elem_loc ^ ctx' c))),
-        mk_aux_rule_elem (RE_star (re'', None))
+        mk_aux_rule_elem (RE_star (re'', None)),
+        venv
     | RE_star (re', Some e) ->
         (* [re] has a type [list t'] where [t'] is the type of [re']
            (unless [re'] is a regexp) and [e] has type int *)
@@ -1253,16 +1346,17 @@ let rec infer_rule_elem tenv ntd ctx re t bound : context * crterm rule_elem =
         let int = typcon_variable tenv (TName "int") in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
-        let ctx', re'' =
-          infer_rule_elem tenv ntd (fun c -> c) re' t' bound in
+        let ctx', re'', _ =
+          infer_rule_elem tenv venv ntd (fun c -> c) re' t' bound in
         let typ = if is_regexp
                   then mk_regexp_type ()
                   else list (typcon_variable tenv) t' in
-        let ce, e' = infer_expr tenv e int in
+        let ce, e' = infer_expr tenv venv e int in
         (fun c ->
           ctx (ex ~pos:re.rule_elem_loc [q]
                  ((t =?= typ) re.rule_elem_loc ^ ce ^ ctx' c))),
-        mk_aux_rule_elem (RE_star (re'', Some e'))
+        mk_aux_rule_elem (RE_star (re'', Some e')),
+        venv
 
     | RE_opt re' ->
         (* [re] has a type [option t'] where [t'] is the type of [re']
@@ -1270,60 +1364,66 @@ let rec infer_rule_elem tenv ntd ctx re t bound : context * crterm rule_elem =
         let is_regexp = is_regexp_elem tenv re' in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
-        let ctx', re'' =
-          infer_rule_elem tenv ntd (fun c -> c) re' t' bound in
+        let ctx', re'', _ =
+          infer_rule_elem tenv venv ntd (fun c -> c) re' t' bound in
         let typ = if is_regexp
                   then mk_regexp_type ()
                   else option (typcon_variable tenv) t' in
         (fun c ->
           ctx (ex ~pos:re.rule_elem_loc [q]
                  ((t =?= typ) re.rule_elem_loc ^ ctx' c))),
-        mk_aux_rule_elem (RE_opt re'')
+        mk_aux_rule_elem (RE_opt re''),
+        venv
 
     | RE_epsilon ->
         let u = typcon_variable tenv (TName "unit") in
         let c = (t =?= u) re.rule_elem_loc in
         pack_constraint c,
-        mk_aux_rule_elem RE_epsilon
+        mk_aux_rule_elem RE_epsilon,
+        venv
 
     | RE_at_pos (e, re') ->
         (* [pos] needs to be an integer and [re'] should have type [t] *)
         let int = typcon_variable tenv (TName "int") in
-        let ce, e' = infer_expr tenv e int in
-        let ctx', re'' =
-          infer_rule_elem tenv ntd (fun c -> c) re' t bound in
+        let ce, e' = infer_expr tenv venv e int in
+        let ctx', re'', _ =
+          infer_rule_elem tenv venv ntd (fun c -> c) re' t bound in
         (fun c -> ctx (ce ^ ctx' c)),
-        mk_aux_rule_elem (RE_at_pos (e', re''))
+        mk_aux_rule_elem (RE_at_pos (e', re'')),
+        venv
     | RE_at_buf (buf, re') ->
         (* [buf] should have type [view] and [re'] should have type [t] *)
         let view = typcon_variable tenv (TName "view") in
-        let cb, buf' = infer_expr tenv buf view in
-        let ctx', re'' =
-          infer_rule_elem tenv ntd (fun c -> c) re' t bound in
+        let cb, buf' = infer_expr tenv venv buf view in
+        let ctx', re'', _ =
+          infer_rule_elem tenv venv ntd (fun c -> c) re' t bound in
         (fun c -> ctx (cb ^ ctx' c)),
-        mk_aux_rule_elem (RE_at_buf (buf', re''))
+        mk_aux_rule_elem (RE_at_buf (buf', re'')),
+        venv
     | RE_map_bufs (bufs, re') ->
         (* [bufs] should have type [list view] and [re] should have
          * type [list t'] where [t'] is the type of [re'] *)
         let view = typcon_variable tenv (TName "view") in
         let views = list (typcon_variable tenv) view in
-        let cb, bufs' = infer_expr tenv bufs views in
+        let cb, bufs' = infer_expr tenv venv bufs views in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
-        let ctx', re'' =
-          infer_rule_elem tenv ntd (fun c -> c) re' t' bound in
+        let ctx', re'', _ =
+          infer_rule_elem tenv venv ntd (fun c -> c) re' t' bound in
         let result = list (typcon_variable tenv) t' in
         (fun c ->
           ctx (ex ~pos:re.rule_elem_loc [q]
                  cb ^ (t =?= result) re.rule_elem_loc ^ ctx' c)),
-        mk_aux_rule_elem (RE_map_bufs (bufs', re''))
+        mk_aux_rule_elem (RE_map_bufs (bufs', re'')),
+        venv
 
-let infer_non_term_rule tenv ntd rule pids =
+let infer_non_term_rule tenv venv ntd rule pids =
   (* add temporaries to local bindings *)
-  let _pids, bindings, temps' =
-    List.fold_left (fun (pids, fragment, temps) (pid, typ, exp) ->
-        let pn, ploc = Location.value pid, Location.loc pid in
+  let _pids, bindings, temps', venv' =
+    List.fold_left (fun (pids, fragment, temps, venv') (pid, typ, exp) ->
+        let pn, ploc = var_name pid, Location.loc pid in
         let pids =
+          let pid = ident_of_var pid in
           match StringMap.find_opt pn pids with
             | Some repid ->
                 raise (Error (NTRepeatedBinding (ntd.non_term_name, pid, repid)))
@@ -1331,8 +1431,9 @@ let infer_non_term_rule tenv ntd rule pids =
                 StringMap.add pn pid pids in
         let ityp = TypeConv.intern tenv typ in
         let v = variable Flexible () in
-        let cexp, exp' = infer_expr tenv exp ityp in
-        let temp = pid, typ, exp' in
+        let cexp, exp' = infer_expr tenv venv' exp ityp in
+        let pid', venv' = VEnv.add venv' pid in
+        let temp = pid', typ, exp' in
         pids,
         {gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
                    fragment.gamma;
@@ -1340,15 +1441,16 @@ let infer_non_term_rule tenv ntd rule pids =
                        ^ cexp
                        ^ fragment.tconstraint;
          vars = v :: fragment.vars},
-        temp :: temps
-      ) (pids, empty_fragment, []) rule.rule_temps in
-  let qs, ctx, rhs' =
-    List.fold_left (fun (qs, ctx, rhs') re ->
+        temp :: temps,
+        venv'
+      ) (pids, empty_fragment, [], venv) rule.rule_temps in
+  let qs, ctx, rhs', _ =
+    List.fold_left (fun (qs, ctx, rhs', venv') re ->
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
-        let ctx', re' = infer_rule_elem tenv ntd ctx re t' false in
-        q :: qs, ctx', re' :: rhs'
-      ) ([], (fun c -> c), []) rule.rule_rhs in
+        let ctx', re', venv' = infer_rule_elem tenv venv' ntd ctx re t' false in
+        q :: qs, ctx', re' :: rhs', venv'
+      ) ([], (fun c -> c), [], venv') rule.rule_rhs in
   CLet ([ Scheme (rule.rule_loc, [],
                   bindings.vars,
                   bindings.tconstraint,
@@ -1356,9 +1458,9 @@ let infer_non_term_rule tenv ntd rule pids =
         (ex ~pos:rule.rule_loc qs (ctx (CTrue rule.rule_loc)))),
   {rule_rhs = List.rev rhs'; rule_temps = temps'; rule_loc = rule.rule_loc}
 
-let infer_non_term tenv ntd =
+let infer_non_term tenv venv ntd =
   let ntid = NName (Location.value ntd.non_term_name) in
-  let inh_attrs = match lookup_non_term tenv ntid with
+  let inh_attr_map, inh_attrs = match lookup_non_term tenv ntid with
       | None ->
           (* the type definition is processed in the previous typing
              pass and should already be present *)
@@ -1380,7 +1482,7 @@ let infer_non_term tenv ntd =
                       cs, (pid, typ, None) :: ds
                   | Some e ->
                       let ityp = TypeConv.intern tenv typ in
-                      let c, e' = infer_expr tenv e ityp in
+                      let c, e' = infer_expr tenv venv e ityp in
                       c :: cs, (pid, typ, Some e') :: ds
               ) ([], []) d in
           c, ALT_decls (List.rev d') in
@@ -1388,20 +1490,23 @@ let infer_non_term tenv ntd =
    * name for the non-terminal itself, along with the bindings
    * for the inherited attributes.
    *)
-  let pids, bindings = match ntd.non_term_varname with
+  let pids, bindings, venv', nt_varname = match ntd.non_term_varname with
       | None ->
-          StringMap.empty, empty_fragment
+          StringMap.empty, empty_fragment, venv, None
       | Some n ->
           let nloc = Location.loc n in
           let ntt  = match lookup_non_term_type tenv ntid with
               | None -> assert false
               | Some t -> t in
           let v = variable Flexible () in
-          StringMap.singleton (Location.value n) n,
-          {gamma = StringMap.singleton (Location.value n)
+          let nt_varname, venv' = VEnv.add venv n in
+          StringMap.singleton (var_name n) (ident_of_var n),
+          {gamma = StringMap.singleton (var_name n)
                      (CoreAlgebra.TVariable v, nloc);
            tconstraint = (CoreAlgebra.TVariable v =?= ntt) nloc;
-           vars = [ v ]} in
+           vars = [ v ]},
+          venv',
+          Some nt_varname in
   let pids, bindings =
     List.fold_left (fun (pids, fragment) (pn, (ityp, ploc)) ->
         let pid = Location.mk_loc_val pn ploc in
@@ -1418,9 +1523,13 @@ let infer_non_term tenv ntd =
          tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
                        ^ fragment.tconstraint;
          vars = v :: fragment.vars}
-      ) (pids, bindings) (StringMap.bindings inh_attrs) in
+      ) (pids, bindings) (StringMap.bindings inh_attr_map) in
+  let venv' =
+    List.fold_left (fun venv' (v', _) ->
+        VEnv.extend venv' (var_name v') v'
+      ) venv' inh_attrs in
   let crules' = List.map
-                 (fun r -> infer_non_term_rule tenv ntd r pids)
+                 (fun r -> infer_non_term_rule tenv venv' ntd r pids)
                  ntd.non_term_rules in
   let cs, rules' = List.split crules' in
   let cprod =
@@ -1431,8 +1540,8 @@ let infer_non_term tenv ntd =
           conj cs) in
   (conj csyn_attrs) ^ cprod,
   {non_term_name      = ntd.non_term_name;
-   non_term_varname   = ntd.non_term_varname;
-   non_term_inh_attrs = ntd.non_term_inh_attrs;
+   non_term_varname   = nt_varname;
+   non_term_inh_attrs = inh_attrs;
    non_term_syn_attrs = non_term_syn_attrs;
    non_term_rules     = rules';
    non_term_loc       = ntd.non_term_loc}
@@ -1509,6 +1618,17 @@ let init_tenv () =
         StringMap.add c (ityp, Location.ghost_loc) let_env
       ) (lrqs, let_env) builtin_consts in
 
+  (* Update with the builtin variables. *)
+  let lrqs, let_env, init_venv =
+    let make_var s =
+      Location.mk_loc_val (s, ()) Location.ghost_loc in
+    Array.fold_left (fun (lrqs, let_env, venv) (DName c, qs, typ) ->
+        let rqs, ityp = intern_const init_tenv qs typ in
+        rqs @ lrqs,
+        StringMap.add c (ityp, Location.ghost_loc) let_env,
+        snd (VEnv.add venv (make_var c))
+      ) (lrqs, let_env, VEnv.empty) builtin_vars in
+
   (* Update with the builtin module values. *)
   let init_tenv, lrqs, let_env =
     let builtin_loc = Location.ghost_loc in
@@ -1527,8 +1647,7 @@ let init_tenv () =
       ) (init_tenv, lrqs, let_env) builtin_modules in
 
   (* Update with the builtin non-terminals.  These are implemented
-     with primitive builtin types and do not have any inherited
-     attributes. *)
+     with primitive builtin types. *)
   let init_tenv =
     Array.fold_left (fun tenv ((NName n) as nt, inh_attrs, typ) ->
         let gloc = Location.ghost_loc in
@@ -1546,6 +1665,7 @@ let init_tenv () =
 
   (* The initial environment is implemented as a constraint context. *)
   init_tenv,
+  init_venv,
   (fun c ->
     CLet ([ Scheme (Location.ghost_loc, vs, [],
                     CLet ([ Scheme
@@ -1570,12 +1690,12 @@ let has_type_abbrevs tds =
         )
     ) None tds
 
-let infer_spec tenv spec =
+let infer_spec tenv venv spec =
   (* First pass: process the expression language, and the
      type-definitions for the non-terminals, and collect their
      annotated versions *)
-  let tenv, ctxt, decls =
-    List.fold_left (fun (tenv, ctxt, decls) decl ->
+  let tenv, ctxt, decls, venv =
+    List.fold_left (fun (tenv, ctxt, decls, venv) decl ->
         match decl with
           | Decl_types (tds, tdsloc) as d ->
               let decls' = d :: decls in
@@ -1597,16 +1717,19 @@ let infer_spec tenv spec =
                        raise (Error err)
                      else
                        let tenv' = infer_type_abbrev tenv td in
-                       tenv', ctxt, decls'
+                       tenv', ctxt, decls', venv
                  | None ->
                      let tenv', ctxt =
                        infer_type_decls tenv ctxt tdsloc tds in
-                     tenv', ctxt, decls'
+                     tenv', ctxt, decls', venv
               )
           | Decl_fun f ->
               (* TODO: solve eagerly? *)
-              let c, f' = infer_fun_defn tenv ctxt f in
-              tenv, c, Decl_fun f' :: decls
+              let c, f' = infer_fun_defn tenv venv ctxt f in
+              (* bind the function names *)
+              let fid = f'.fun_defn_ident in
+              let venv' = VEnv.extend venv (var_name fid) fid in
+              tenv, c, Decl_fun f' :: decls, venv'
           | Decl_format f ->
               let tenv, ctxt =
                 List.fold_left (fun (te, c) fd ->
@@ -1614,8 +1737,8 @@ let infer_spec tenv spec =
                     infer_non_term_type te c ntd
                   ) (tenv, ctxt) f.format_decls in
               (* Annotate the grammar in the next pass *)
-              tenv, ctxt, decls
-      ) (tenv, (fun c -> c), []) spec.decls in
+              tenv, ctxt, decls, venv
+      ) (tenv, (fun c -> c), [], venv) spec.decls in
 
   (* Second pass: process the grammar spec comprising the rules for
      each non-terminal. *)
@@ -1626,7 +1749,7 @@ let infer_spec tenv spec =
               let c, fds' =
                 List.fold_left (fun (c, fds') fd ->
                     let ntd = fd.format_decl in
-                    let c', ntd' = infer_non_term tenv ntd in
+                    let c', ntd' = infer_non_term tenv venv ntd in
                     let fd' = {format_decl     = ntd';
                                format_attr     = fd.format_attr;
                                format_decl_loc = fd.format_decl_loc} in
@@ -1643,6 +1766,6 @@ let infer_spec tenv spec =
   tenv, ctxt, {decls = List.rev decls}
 
 let generate_constraint spec =
-  let tenv, c = init_tenv () in
-  let tenv', c', spec' = infer_spec tenv spec in
+  let tenv, venv, c = init_tenv () in
+  let tenv', c', spec' = infer_spec tenv venv spec in
   c (c' (CDump Location.ghost_loc)), tenv', spec'

@@ -369,7 +369,7 @@ let check_pattern tenv col =
 
 (* map from (unwrapped) expressions to their (unwrapped) binding constructors *)
 module ExpConstraint =
-  Map.Make(struct type t = unit expr
+  Map.Make(struct type t = (unit, unit) expr
                   let compare = compare
            end)
 

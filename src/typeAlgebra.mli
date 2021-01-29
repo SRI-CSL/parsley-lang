@@ -87,13 +87,16 @@ type builtin_module =
 (** The representation of predefined non-terminals, with their
  ** inherited attributes and their types. *)
 type builtin_non_term =
-  Ast.nname * (Ast.ident * Ast.type_expr) list * Ast.type_expr
+  Ast.nname * (unit Ast.var * Ast.type_expr) list * Ast.type_expr
 
 (** [builtin_consts] is an array of the builtin types. *)
 val builtin_types: builtin_type array
 
 (** [builtin_consts] is an array of the builtin data constructors. *)
 val builtin_consts: builtin_dataconstructor array
+
+(** [builtin_vars] is an array of the builtin named values. *)
+val builtin_vars: builtin_dataconstructor array
 
 (** [builtin_modules] is a list of the builtin module values. *)
 val builtin_modules: builtin_module list

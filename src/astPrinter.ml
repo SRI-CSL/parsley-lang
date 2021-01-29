@@ -106,7 +106,7 @@ let rec print_pattern auxp p =
     | P_wildcard ->
         pp_print_string !ppf "_"
     | P_var id ->
-        pp_print_string !ppf (Location.value id);
+        pp_print_string !ppf (var_name id);
         pp_print_string !ppf (auxp p.pattern_aux)
     | P_literal PL_unit ->
         pp_print_string !ppf "()"
@@ -168,7 +168,7 @@ and print_clauses auxp = function
 and print_expr auxp e =
   match e.expr with
     | E_var i ->
-        pp_print_string !ppf (Location.value i);
+        pp_print_string !ppf (var_name i);
         pp_print_string !ppf (auxp e.expr_aux)
     | E_constr ((t, c), args) ->
         pp_print_string !ppf
@@ -259,7 +259,7 @@ and print_expr auxp e =
         pp_print_string !ppf ")"
 
 let print_param_decl (pm, ty) =
-  pp_print_string !ppf (Location.value pm);
+  pp_print_string !ppf (var_name pm);
   pp_print_string !ppf ": ";
   print_type_expr ty
 
@@ -274,7 +274,7 @@ let print_attr_decl auxp (pm, ty, ex) =
          print_expr auxp e)
 
 let print_temp_decl auxp (pm, ty, e) =
-  pp_print_string !ppf (Location.value pm);
+  pp_print_string !ppf (var_name pm);
   pp_print_string !ppf ": ";
   print_type_expr ty;
   pp_print_string !ppf " := ";
@@ -284,7 +284,7 @@ let print_fun_defn auxp fd =
   pp_open_vbox !ppf 0;
   pp_open_box !ppf 0;
   pp_print_string !ppf "fun ";
-  pp_print_string !ppf (Location.value fd.fun_defn_ident);
+  pp_print_string !ppf (var_name fd.fun_defn_ident);
   if List.length fd.fun_defn_tvars > 0 then begin
       pp_print_string !ppf " <";
       print_list ", " (fun e ->
@@ -371,7 +371,7 @@ let rec print_regexp auxp re =
         pp_print_string !ppf ")?"
     | RX_choice res ->
         pp_print_string !ppf "(";
-        print_list "| " (print_regexp auxp) res;
+        print_list " | " (print_regexp auxp) res;
         pp_print_string !ppf ")"
     | RX_seq res ->
         pp_print_string !ppf "(";
@@ -478,7 +478,7 @@ let rec print_rule_elem auxp rl =
     | RE_action a ->
         print_action auxp a
     | RE_named (id, rl) ->
-        pp_print_string !ppf (Location.value id);
+        pp_print_string !ppf (var_name id);
         pp_print_string !ppf (auxp rl.rule_elem_aux);
         pp_print_string !ppf "=";
         print_rule_elem auxp rl
@@ -487,7 +487,7 @@ let rec print_rule_elem auxp rl =
         print_list " " (print_rule_elem auxp) rls;
         pp_print_string !ppf ")"
     | RE_choice rls ->
-        print_list "| " (print_rule_elem auxp) rls
+        print_list " | " (print_rule_elem auxp) rls
     | RE_star (r, bound) ->
         (match bound with
            | Some e ->
@@ -550,7 +550,7 @@ let print_nterm_defn auxp nd =
   (match nd.non_term_varname with
      | Some v ->
          pp_print_string !ppf " ";
-         pp_print_string !ppf (Location.value v)
+         pp_print_string !ppf (var_name v)
      | None -> ());
   if List.length nd.non_term_inh_attrs > 0
   then print_list ", " print_param_decl nd.non_term_inh_attrs;

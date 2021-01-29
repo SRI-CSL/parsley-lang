@@ -174,6 +174,11 @@ type typing_error =
   (*Note: p is given as a string to avoid a dependency cycle *)
   | UnmatchedPattern of Location.t * string
 
+  (* [UnboundIdentifier] is raised when an identifier is undefined in
+     a particular context. *)
+  | UnboundIdentifier of Location.t * string
+
+
 exception Error of typing_error
 
 let msg m loc =
@@ -325,3 +330,6 @@ let error_msg = function
       msg
         "%s:\n Pattern matching is not exhaustive: an example of unmatched value: %s\n"
         loc p
+
+  | UnboundIdentifier (p, t) ->
+      msg "%s:\n Unbound identifier `%s'.\n" p t

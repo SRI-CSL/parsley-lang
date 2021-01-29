@@ -30,16 +30,17 @@ type builtin_type =
   Ast.tname * (Ast.kind * builtin_dataconstructor list)
 
 type builtin_non_term =
-  Ast.nname * (Ast.ident * Ast.type_expr) list * Ast.type_expr
+  Ast.nname * (unit Ast.var * Ast.type_expr) list * Ast.type_expr
 
 type builtin_module =
   {mod_name:   Ast.mname;
    mod_values: builtin_dataconstructor list}
 
-let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
+let builtin_types, builtin_consts, builtin_vars,
+    builtin_modules, builtin_non_terms =
   let ghost_loc = Location.ghost_loc in
-  let make_ident (s: string) =
-    Location.mk_ghost s in
+  let make_var (s: string) =
+    Location.mk_ghost (s, ()) in
   let make_builtin_type (t : Ast.type_expr_desc) =
     {Ast.type_expr = t;
      Ast.type_expr_loc = ghost_loc} in
@@ -154,6 +155,8 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
       (Ast.DName ".[]", [ TName "a" ], arrow_type (list_type (gen_tvar "a"))
                                         (arrow_type (gen_tvar "int")
                                            (gen_tvar "a")));
+    |] in
+  let builtin_vars : builtin_dataconstructor array = [|
       (* utility convertors *)
       (Ast.DName "byte_of_int_unsafe", [], arrow_type (gen_tvar "int")
                                              (gen_tvar "byte"));
@@ -321,16 +324,17 @@ let builtin_types, builtin_consts, builtin_modules, builtin_non_terms =
       NName "AlphaNumS",  [], list_type (gen_tvar "byte");
       NName "DigitS",     [], list_type (gen_tvar "byte");
       (* binary integer types *)
-      NName "Int8",   [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "UInt8",  [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "Int16",  [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "UInt16", [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "Int32",  [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "UInt32", [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "Int64",  [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "UInt64", [make_ident "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "Int8",   [make_var "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "UInt8",  [make_var "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "Int16",  [make_var "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "UInt16", [make_var "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "Int32",  [make_var "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "UInt32", [make_var "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "Int64",  [make_var "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "UInt64", [make_var "endian", gen_tvar "endian"], gen_tvar "int";
     |] in
-  builtin_types, builtin_consts, builtin_modules, builtin_non_terms
+  builtin_types, builtin_consts, builtin_vars,
+  builtin_modules, builtin_non_terms
 
 type symbol = int
 

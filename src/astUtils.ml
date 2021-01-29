@@ -43,12 +43,12 @@ let add_arrow_result (typ : type_expr) (res : type_expr) : type_expr =
 
 (* constructing pattern expressions and expressions *)
 
-let make_pattern_loc (pat : unit pattern_desc) loc =
+let make_pattern_loc (type b) (pat : (unit, b) pattern_desc) loc =
   {pattern = pat;
    pattern_loc = loc;
    pattern_aux = ()}
 
-let make_expr_loc (exp : unit expr_desc) loc =
+let make_expr_loc (type b) (exp : (unit, b) expr_desc) loc =
   {expr = exp;
    expr_loc = loc;
    expr_aux = ()}
@@ -125,6 +125,9 @@ let expand_type_abbrevs env te =
 let unwrap_id id =
   Location.mk_loc_val (Location.value id) Location.ghost_loc
 
+let unwrap_var v =
+  Location.mk_loc_val (var_name v, ()) Location.ghost_loc
+
 let unwrap_constructor (typ, constr) =
   (Location.value typ, Location.value constr)
 
@@ -138,10 +141,10 @@ let rec unwrap_typ typ =
 
 let rec unwrap_pat pat =
   let p = match pat.pattern with
-      | P_wildcard | P_var _ ->
-          (* pattern variables are equivalent to wildcards for checking
-             purposes *)
+      | P_wildcard ->
           P_wildcard
+      | P_var v ->
+          P_var (unwrap_var v)
       | P_literal l ->
           P_literal l
       | P_variant (c, ps) ->
@@ -151,7 +154,7 @@ let rec unwrap_pat pat =
 let rec unwrap_exp exp =
   let e = match exp.expr with
       | E_var v ->
-          E_var (unwrap_id v)
+          E_var (unwrap_var v)
       | E_constr ((t, c), es) ->
           let t, c = unwrap_id t, unwrap_id c in
           E_constr ((t, c), List.map unwrap_exp es)

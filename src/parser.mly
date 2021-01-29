@@ -26,7 +26,7 @@ open AstUtils
 
 %token<string Location.loc * string Location.loc> CONSTR
 
-%start<unit Ast.pre_top_level> toplevel
+%start<(unit, unit) Ast.pre_top_level> toplevel
 
 (* operators are increasing precedence order. *)
 %nonassoc IN
@@ -47,6 +47,16 @@ open AstUtils
 %{
 let parse_error e loc =
   raise (Error (e, loc))
+
+let make_var v =
+  let s = Location.value v in
+  let l = Location.loc v in
+  Location.mk_loc_val (s, ()) l
+
+let make_opt_var o =
+  match o with
+    | None -> None
+    | Some v -> Some (make_var v)
 
 let make_int_literal s =
   let s, loc = (Location.value s), (Location.loc s) in
@@ -231,7 +241,7 @@ variants:
 
 param_decl:
 | i=ident COLON t=type_expr
-  { (i, t) }
+  { (make_var i, t) }
 
 param_decls:
 | l=separated_list(COMMA, param_decl)
@@ -239,7 +249,7 @@ param_decls:
 
 temp_decl:
 | i=ident COLON t=type_expr COLONEQ e=expr
-  { (i, t, e) }
+  { (make_var i, t, e) }
 
 temp_decls:
 | l=separated_list(COMMA, temp_decl)
@@ -281,8 +291,8 @@ listelems:
     make_expr (E_constr ((t, c), [])) $startpos $endpos }
 
 expr:
-| i=ident
-  { make_expr (E_var i) $startpos $endpos }
+| v=ident
+  { make_expr (E_var (make_var v)) $startpos $endpos }
 | u=UID DOT m=ident
   { make_expr (E_mod_member (u, m)) $startpos $endpos }
 | e=expr DOT f=ident
@@ -358,7 +368,7 @@ pattern:
 | UNDERSCORE
   { make_pattern P_wildcard $startpos $endpos }
 | v=ident
-  { make_pattern (P_var v) $startpos $endpos }
+  { make_pattern (P_var (make_var v)) $startpos $endpos }
 | v=CONSTR a=option(pattern_args)
   { let pat = match a with
         | None   -> P_variant (v, [])
@@ -386,7 +396,7 @@ branch:
 
 assign_lhs_expr:
 | v=ident
-  { make_expr (E_var v) $startpos $endpos }
+  { make_expr (E_var (make_var v)) $startpos $endpos }
 | e=assign_lhs_expr DOT f=ident
   { make_expr (E_field (e, f)) $startpos $endpos }
 | e=assign_lhs_expr LBRACK i=expr RBRACK
@@ -481,7 +491,7 @@ rule_elem:
 | r=rule_elem CARET e=expr
   { make_rule_elem (RE_star (r, Some e)) $startpos $endpos }
 | v=ident EQ r=rule_elem
-  { make_rule_elem (RE_named (v, r)) $startpos $endpos }
+  { make_rule_elem (RE_named ((make_var v), r)) $startpos $endpos }
 | LPAREN l=list(rule_elem) RPAREN
   { if   List.length l == 1
     then List.nth l 0
@@ -523,20 +533,20 @@ nt_param_decls:
 nt_defn:
 | n=UID v=option(ident) COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
-  { make_nt_defn n v [] (ALT_decls []) r $startpos $endpos }
+  { make_nt_defn n (make_opt_var v) [] (ALT_decls []) r $startpos $endpos }
 | n=UID v=option(ident)
   LBRACE syn=nt_param_decls RBRACE COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
-  { make_nt_defn n v [] syn r $startpos $endpos }
+  { make_nt_defn n (make_opt_var v) [] syn r $startpos $endpos }
 | n=UID v=option(ident)
   LPAREN inh=param_decls RPAREN COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
-  { make_nt_defn n v inh (ALT_decls []) r $startpos $endpos }
+  { make_nt_defn n (make_opt_var v) inh (ALT_decls []) r $startpos $endpos }
 | n=UID v=option(ident)
   LPAREN inh=param_decls RPAREN
   LBRACE syn=nt_param_decls RBRACE COLONEQ
   r=separated_nonempty_list(SEMICOLON, rule)
-  { make_nt_defn n v inh syn r $startpos $endpos }
+  { make_nt_defn n (make_opt_var v) inh syn r $startpos $endpos }
 
 attr_arg:
 | k=ident EQ v=ident
@@ -589,15 +599,15 @@ pre_decl:
 | l=type_decls
   { PDecl_types (l, Location.mk_loc $startpos $endpos) }
 | FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
-  { PDecl_fun (make_fun_defn f false [] p r e $startpos $endpos) }
+  { PDecl_fun (make_fun_defn (make_var f) false [] p r e $startpos $endpos) }
 | FUN f=ident LT tvs=separated_list(COMMA, TVAR) GT
     LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
-  { PDecl_fun (make_fun_defn f false tvs p r e $startpos $endpos) }
+  { PDecl_fun (make_fun_defn (make_var f) false tvs p r e $startpos $endpos) }
 | RECFUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
-  { PDecl_fun (make_fun_defn f true [] p r e $startpos $endpos) }
+  { PDecl_fun (make_fun_defn (make_var f) true [] p r e $startpos $endpos) }
 | RECFUN f=ident LT tvs=separated_list(COMMA, TVAR) GT
     LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
-  { PDecl_fun (make_fun_defn f true tvs p r e $startpos $endpos) }
+  { PDecl_fun (make_fun_defn (make_var f) true tvs p r e $startpos $endpos) }
 | FORMAT LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
   { PDecl_format (make_format d $startpos $endpos) }
 

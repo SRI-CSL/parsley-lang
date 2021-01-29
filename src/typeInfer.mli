@@ -29,10 +29,20 @@ type context = TypeConstraint.tconstraint -> TypeConstraint.tconstraint
 
 (** [generate_constraint p] generates a closed constraint that describes
     the typing of [p] and an annotated version of [p]. *)
-val generate_constraint: unit Ast.program ->
-  TypeConstraint.tconstraint * TypingEnvironment.environment * MultiEquation.crterm Ast.program
+val generate_constraint:
+  (unit, unit) Ast.program ->
+  TypeConstraint.tconstraint * TypingEnvironment.environment * (MultiEquation.crterm, int) Ast.program
+
+(** Variable binding map *)
+module VEnv : sig
+  type t
+  val empty: t
+  val add: t -> unit Ast.var -> int Ast.var * t
+  val extend: t -> string -> int Ast.var -> t
+  val lookup: t -> unit Ast.var -> int Ast.var option
+end
 
 (** [infer_spec s] generates a constraint context that describes
     spec [s] and an annotated version of [s]. *)
-val infer_spec: TypingEnvironment.environment -> unit Ast.program ->
-  TypingEnvironment.environment * context * MultiEquation.crterm Ast.program
+val infer_spec: TypingEnvironment.environment -> VEnv.t -> (unit, unit) Ast.program ->
+  TypingEnvironment.environment * context * (MultiEquation.crterm, int) Ast.program
