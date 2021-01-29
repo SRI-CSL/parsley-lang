@@ -210,7 +210,8 @@ bodies of `case` discriminators.
 
 As mentioned above, these primitive rule elements can be combined into
 more complex elements through *combinators*.  We've already come
-across the simplest combinator, which is *sequence*.  A sequence of
+across the simplest combinator, which is *sequence*, represented as
+_whitespace_ between rule elements.  A sequence of
 rule elements is matched by matching each rule element in order; if
 any element fails, the sequence fails.  If a variable is bound to a
 sequence, its value is a tuple containing the values of each rule
@@ -238,6 +239,20 @@ NOTE: The `|` is an ordered choice combinator for rule elements, while
 `;` is an ordered choice combinator for rules.  The difference between
 the two is only for specification and syntactic convenience, and they
 function the same in terms of the dynamic matching semantics.
+
+[NOTE]
+====
+The `|` ordered choice binds tighter than the sequence operator.
+Hence
+....
+... := B C | D E
+....
+is parsed as `B (C | D) E`.  Grouping should be used to indicate
+choice between sequences:
+....
+... := (B C) | (D E)
+....
+====
 
 The *unbounded repeat* combinator is denoted by a postfix `*` applied
 to a rule element.  The combinator matches zero or more matches of the

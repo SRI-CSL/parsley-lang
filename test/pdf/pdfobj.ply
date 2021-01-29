@@ -141,8 +141,8 @@ format {
     !"obj"!
     // Parse the basic object.  Note the special rule for parsing
     // Streams, since they can only be indirect objects.
-    ( s=Stream { i.obj := basic_obj::Stream((s.dict, s.stream)) }
-    | o=PDFObj { i.obj := o.o }
+    ( ( s=Stream { i.obj := basic_obj::Stream((s.dict, s.stream)) } )
+    | ( o=PDFObj { i.obj := o.o } )
     )
     !"endobj"!
 
