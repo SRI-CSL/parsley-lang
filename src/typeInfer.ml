@@ -1165,7 +1165,7 @@ let infer_action tenv venv act t =
   conj css ^ ce,
   {action_stmts = (ss', e'); action_loc = act.action_loc}
 
-(** [bound] tracks whether this rule_elem is under a binding.
+(* [bound] tracks whether this rule_elem is under a binding.
     This affects the typing of the '|' choice operator:
       a=( ... (re | re') ... )
     requires [re] and [re'] to receive the same type, which does not
@@ -1173,8 +1173,18 @@ let infer_action tenv venv act t =
       ... (re | re') ...
     where re and re' can receive different types.
  *)
+(* Since RE_named is a binding construct that is processed before the
+   rule elements it scopes over in any sequence it occurs in, we
+   employ constraint abstractions (or contexts) in the same way as
+   they are used for binding type declarations in the spec.  Here
+   however, we close the chain of constraint contexts for a sequence
+   of rule elements with a unit (CTrue) after processing the sequence.
+   For type declarations, the chain is closed with a unit at the end
+   of the spec.
+ *)
 let rec infer_rule_elem tenv venv ntd ctx re t bound
         : context * (crterm, int) rule_elem * VEnv.t =
+  let unit = CTrue re.rule_elem_loc in
   let pack_constraint c' =
     (fun c -> ctx (c' ^ c)) in
   let mk_regexp_type () =
@@ -1255,7 +1265,7 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
           ctx (CLet ([Scheme (re.rule_elem_loc, [], [],
                               CTrue re.rule_elem_loc,
                               StringMap.singleton id' (t, idloc))],
-                     ctx' c))),
+                     c ^ ctx' unit))),
         mk_aux_rule_elem (RE_named (v, re'')),
         venv'
 
@@ -1274,9 +1284,10 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         let typ =
           if is_regexp then mk_regexp_type ()
           else tuple (typcon_variable tenv) (snd (List.split m)) in
-        (fun c ->
-          ctx (ex ~pos:re.rule_elem_loc qs
-                 ((t =?= typ) re.rule_elem_loc ^ ctx' c))),
+        let c =
+          ex ~pos:re.rule_elem_loc qs
+            ((t =?= typ) re.rule_elem_loc ^ ctx' unit) in
+        pack_constraint c,
         mk_aux_rule_elem (RE_seq rels'),
         venv
 
@@ -1292,11 +1303,13 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
               ctx', re' :: rels', venv'
             ) ((fun c -> c), [], venv) m in
         let typ = mk_regexp_type () in
-        (fun c ->
-          ctx (ex ~pos:re.rule_elem_loc qs
-                 ((t =?= typ) re.rule_elem_loc) ^ ctx' c)),
+        let c =
+          ex ~pos:re.rule_elem_loc qs
+            ((t =?= typ) re.rule_elem_loc ^ ctx' unit) in
+        pack_constraint c,
         mk_aux_rule_elem (RE_choice rels'),
         venv
+
     | RE_choice rels ->
         if bound then
           (* Each choice should have the same type [t]. *)
@@ -1306,7 +1319,7 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
                   infer_rule_elem tenv venv' ntd ctx' re t bound in
                 ctx', re' :: rels', venv'
               ) ((fun c -> c), [], venv) rels in
-          (fun c -> ctx (ctx' c)),
+          pack_constraint (ctx' unit),
           mk_aux_rule_elem (RE_choice rels'),
           venv
         else
@@ -1318,8 +1331,9 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
                   infer_rule_elem tenv venv' ntd ctx' re t' bound in
                 ctx', re' :: rels', venv'
               ) ((fun c -> c), [], venv) m in
-          (fun c ->
-            ctx (ex ~pos:re.rule_elem_loc qs (ctx' c))),
+          let c =
+            ex ~pos:re.rule_elem_loc qs (ctx' unit) in
+          pack_constraint c,
           mk_aux_rule_elem (RE_choice rels'),
           venv
 
@@ -1334,9 +1348,10 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         let typ = if is_regexp
                   then mk_regexp_type ()
                   else list (typcon_variable tenv) t' in
-        (fun c ->
-          ctx (ex ~pos:re.rule_elem_loc [q]
-                 ((t =?= typ) re.rule_elem_loc ^ ctx' c))),
+        let c =
+          ex ~pos:re.rule_elem_loc [q]
+            ((t =?= typ) re.rule_elem_loc ^ ctx' unit) in
+        pack_constraint c,
         mk_aux_rule_elem (RE_star (re'', None)),
         venv
     | RE_star (re', Some e) ->
@@ -1352,9 +1367,10 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
                   then mk_regexp_type ()
                   else list (typcon_variable tenv) t' in
         let ce, e' = infer_expr tenv venv e int in
-        (fun c ->
-          ctx (ex ~pos:re.rule_elem_loc [q]
-                 ((t =?= typ) re.rule_elem_loc ^ ce ^ ctx' c))),
+        let c =
+          ex ~pos:re.rule_elem_loc [q]
+            ((t =?= typ) re.rule_elem_loc ^ ce ^ ctx' unit) in
+        pack_constraint c,
         mk_aux_rule_elem (RE_star (re'', Some e')),
         venv
 
@@ -1369,9 +1385,10 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         let typ = if is_regexp
                   then mk_regexp_type ()
                   else option (typcon_variable tenv) t' in
-        (fun c ->
-          ctx (ex ~pos:re.rule_elem_loc [q]
-                 ((t =?= typ) re.rule_elem_loc ^ ctx' c))),
+        let c =
+          ex ~pos:re.rule_elem_loc [q]
+            ((t =?= typ) re.rule_elem_loc ^ ctx' unit) in
+        pack_constraint c,
         mk_aux_rule_elem (RE_opt re''),
         venv
 
@@ -1388,7 +1405,7 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         let ce, e' = infer_expr tenv venv e int in
         let ctx', re'', _ =
           infer_rule_elem tenv venv ntd (fun c -> c) re' t bound in
-        (fun c -> ctx (ce ^ ctx' c)),
+        pack_constraint (ce ^ ctx' unit),
         mk_aux_rule_elem (RE_at_pos (e', re'')),
         venv
     | RE_at_buf (buf, re') ->
@@ -1397,7 +1414,7 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         let cb, buf' = infer_expr tenv venv buf view in
         let ctx', re'', _ =
           infer_rule_elem tenv venv ntd (fun c -> c) re' t bound in
-        (fun c -> ctx (cb ^ ctx' c)),
+        pack_constraint (cb ^ ctx' unit),
         mk_aux_rule_elem (RE_at_buf (buf', re'')),
         venv
     | RE_map_bufs (bufs, re') ->
@@ -1411,9 +1428,10 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         let ctx', re'', _ =
           infer_rule_elem tenv venv ntd (fun c -> c) re' t' bound in
         let result = list (typcon_variable tenv) t' in
-        (fun c ->
-          ctx (ex ~pos:re.rule_elem_loc [q]
-                 cb ^ (t =?= result) re.rule_elem_loc ^ ctx' c)),
+        let c =
+          ex ~pos:re.rule_elem_loc [q]
+            (cb ^ (t =?= result) re.rule_elem_loc ^ ctx' unit) in
+        pack_constraint c,
         mk_aux_rule_elem (RE_map_bufs (bufs', re'')),
         venv
 
