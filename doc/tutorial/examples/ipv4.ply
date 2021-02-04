@@ -1,3 +1,0 @@
-type ipv4_packet = {
-  version
-}
