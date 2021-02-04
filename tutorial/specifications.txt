@@ -1,8 +1,0 @@
-pbm
-pgm
-gif
-udp
-bmp?
-ico: https://en.wikipedia.org/wiki/ICO_(file_format)
-apple icon: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
-

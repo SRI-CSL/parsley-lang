@@ -26,8 +26,20 @@ The type checker will either approve of the file or specify where things went wr
 
 == Learning by Example
 
-This tutorial is organized as a series of short chapters.
-Each chapter focuses on creating a Parsley specification for a specific data format.
-Each chapter was designed to be done in a single short sitting (5-30 minutes).
+This tutorial is organized as a series of short lessons..
+Each lesson focuses on creating a Parsley specification for a specific data format.
+Each lesson was designed to be done in a single short sitting (5-30 minutes).
 As mentioned, the examples corresponding to the chapters in this tutorial can be found in `./tutorial/examples/`.
 Additionally, there are some short exercises at the end of each chapter.
+
+== Tutorial Layout
+
+Lesson 1: <<udp.adoc, UDP>>: The https://tools.ietf.org/html/rfc768[User Datagram Protocol] format is used in conjunction with IP to deliver data over the internet with minimal overhead.
+
+Lesson 2: <<pbm.adoc, PBM>>: The http://netpbm.sourceforge.net/doc/pbm.html[Portable Bitmap] format is a simple bitmap-based image format.
+
+Lesson 3: PGM?
+Lesson 5: ICON?
+Lesson 4: IP
+
+[red]#*Navigation:*# <<udp.adoc, &#8594; The First Lesson>> | <<#need_to_link, &#128196; Documentation>>

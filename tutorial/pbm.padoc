@@ -1,0 +1,281 @@
+= Portable Bitmap Format
+
+In this lesson, we study the http://netpbm.sourceforge.net/doc/pbm.html[Portable Bitmap Format (PBM)].
+In particular, we look at http://netpbm.sourceforge.net/doc/pbm.html#plainpbm[Plain PBM].
+This black-and-white image format is relatively simple.
+An image is expressed by specifying a magic number, an image height and image width, and a raster of Ascii-decimal--represented values associated with the heightxwidth pixels.
+There are, of course, some nuances built into the format as well that we shall discuss.
+
+== Declaring The Plain Portable Bitmap Type
+
+Declaring the type is straightforward.
+We have the magic bytes expressed as a list, two unsigned integers, and the image raster.
+
+This gives us:
+....
+type ppbm_fc = {
+  magic_bytes: [byte],
+  height: int,
+  width: int,
+  img: [byte]
+}
+....
+
+== Specifying the Format
+
+Specifying the format is a bit more complicated.
+We begin by capturing the non-terminals from the http://netpbm.sourceforge.net/doc/pbm.html#plainpbm[netpbm Plain PBM specification] that will be required to capture the full specification.
+We will need to capture various forms of whitsepace, a sequence of integer ASCII values, the magic bytes `P1`.
+Doing so will enable us to identify the tokens we care about and the token separators, as well as comment and junk values we can ignore.
+
+We have:
+
+....
+format {
+  Comment := !"#"! (# [AsciiCharS \ "\n" \ "\r"]*  ["\r" | "\n"] #);;
+  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF (vertical tabulation, form feed)
+  NonNewlineWhitespace := (# [" " | "\t"] #);;
+  DimensionValue := (#[DigitS]+#);;
+  BinaryDigit := (# ["0" | "1"] #);;
+  PixelPlusWhitespace := (# BinaryDigit Whitespace* #);;
+  TokenSeparator := (# (Comment | Whitespace)* Whitespace+ (Comment | Whitespace)* #);;
+  TokenSeparatorRaster := (# Comment* Whitespace #);;
+  MagicBytes := !"P1"!;;
+  Junk := ; (# Whitespace AsciiCharS* #);;
+  ...
+....
+
+There is a lot here.
+Let's unpack it.
+
+=== Regular expressions
+
+Byte-vector--valued non-terminals can be captured via regular expressions.
+In Parsley, regular expressions can be expressed in two ways.
+The standard approach is to capture regular expressions within enclosing `#` characters, which are additionally enclosed within `(` and `)` characters, giving us the form:
+
+....
+RegExp := (# ... #)
+....
+
+=== Matching Literal Strings
+
+However, in some situations, literal strings are easier to work with.
+They can be expressed by enclosing the strings in `!" and `!"` markers.
+
+....
+RegExp := !"literal string to be matched"!
+....
+
+And we can also combine regular expressions.
+
+=== The Helper Non-terminals
+
+We can now discuss the aforementioned non-terminals.
+
+....
+Comment := !"#"! (# [AsciiCharS \ "\n" \ "\r"]*  ["\r" | "\n"] #);;
+....
+
+A comment begins with a `\#` character.
+It continues until the line ends, which is denoted by a `\n` or `\r` value.
+Within our `Comment` regular expression, `!"#"!` sequence matches a `#` value, indicating the beginning of the comment.
+AsciiCharS is a list comprising all ASCII bytes and `\`.
+The expression `[AsciiCharS \ "\n" \ "\r"]` matches a single character belonging to the set of all ASCII charactesr (`AsciiCharS`) except the return newline (`\n`) and return carriage (`\r`) characters.
+However, following the enclosing `[...]` we see a `*` which indicates the unbounded repeat operator.
+Thus, `[AsciiCharS \ "\n" \ "\r"]*` matches any sequence of characters that does not contain `\n` or `\n`.
+The comment is terminated with a `\r` or `\n` character, expressed by `["\r" | "\n"]` where `|` represents the OR operator.
+Finally, we terminate the non-terminal statement with `;;`.
+
+....
+Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF (vertical tabulation, form feed)
+....
+
+
+This is straightforward; we are simply matching a whitespace character to any of ` ` or `\t` or `\n` or `\r`.
+
+
+....
+NonNewlineWhitespace := (# [" " | "\t"] #);;
+....
+
+This, again, is straightforward.
+
+....
+DimensionValue := (#[DigitS]+#);;
+....
+
+DigitS is the list comprising all ASCII digits.
+DimensionValue is simply a sequence of one or more ASCII digits.
+We capture this using `[DigitS]+` where `+` is similar to the unbounded repeat operator, except it does not allow for matches of length zero.
+
+....
+BinaryDigit := (# ["0" | "1"] #);;
+....
+
+A binary digit is simply 0 or 1.
+
+....
+PixelPlusWhitespace := (# BinaryDigit Whitespace* #);;
+....
+
+Here, we define another helper non-terminal that will be used to identify values in the image raster.
+A pixel value corresponds to a binary digit followed by any sequence of whitespace characters.
+We reuse the previous non-terminals to perform this match.
+
+....
+TokenSeparator := (# (Comment | Whitespace)* Whitespace+ (Comment | Whitespace)* #);;
+....
+
+This non-terminal is used to separate the magic bytes, height, and width tokens.
+In accordance with the specification, it requires at least one whitespace and may also include comments.
+
+....
+TokenSeparatorRaster := (# Comment* Whitespace #);;
+....
+
+The token separator preceding the image raster may contain any sequence of comments, but terminates with a single whitespace character.
+
+....
+MagicBytes := !"P1"!;;
+....
+
+We use the literal string to match the magic bytes to `"P1"`.
+
+....
+Junk := ; (# Whitespace AsciiCharS* #);;
+....
+
+The Junk non-terminal represents any junk following the image raster.
+It must begin with a whitespace character.
+Following the whitespace character, any sequence of bytes is acceptable.
+
+=== Putting it All Together
+
+Now that we have declared some helpful non-terminals, we can move on declaring the non-terminal that represents the Plain PBM format.
+
+....
+format {
+  ...
+  PBM_FC fc {ppbm_fc} :=
+    magic_bytes = MagicBytes
+    TokenSeparator
+    height = DimensionValue
+    TokenSeparator
+    width = DimensionValue
+    raster_size = {
+      ;;
+      Int.of_bytes_unsafe(width) * Int.of_bytes_unsafe(height)
+    }
+    TokenSeparatorRaster
+    img = (PixelPlusWhitespace^raster_size)
+    Junk
+    {
+      fc.magic_bytes := magic_bytes;
+      fc.height := Int.of_bytes_unsafe(height);
+      fc.width := Int.of_bytes_unsafe(width);
+      fc.img := List.flatten(img)
+    }
+}
+....
+
+Most of this should be clear.
+We are declaring a non-terminal `PBM_FC` with short name `fc` and a single synthesized attribute that has the `ppbm_fc` record type.
+The non-terminal begins by matching the magic bytes, height, and width, with the token separators in between them.
+
+==== Returning Values Via Action blocks
+
+
+After we match `magic_bytes`, `height`, and `width`, we compute the raster size, `raster_size`:
+
+....
+raster_size = {
+  ;;
+  Int.of_bytes_unsafe(width) * Int.of_bytes_unsafe(height)
+}
+....
+
+This copmutation is done via an action block.
+In the UDP example we demonstrated how action blocks can be used to assign values to synthesized attributes.
+However, action blocks can also return values, as is done here.
+The action block returns the value of the expression in the last statement of the action block.
+Thus, we assign the computed value of `Int.of_bytes_unsafe(width) * Int.of_bytes_unsafe(height)` to `raster_size`.
+
+==== Reading the Image Raster and Assigning Synthesized Attributes
+
+Preceding the image raster, we have the special token separator, `TokenSeparatorRaster`.
+This is followed by the image raster, which is captured in `img`:
+
+....
+img = (PixelPlusWhitespace^raster_size)
+....
+
+Here, we use the bounded repeat operator `^` to match PixelPlusWhitespace exactly `raster_size` times.
+This is optionally followed by junk values, which are captured by the `Junk` non-terminal.
+
+Finally, we assign values to the synthesized attributes in the final action block:
+
+....
+{
+  fc.magic_bytes := magic_bytes;
+  fc.height := Int.of_bytes_unsafe(height);
+  fc.width := Int.of_bytes_unsafe(width);
+  fc.img := List.flatten(img)
+}
+....
+
+Most of this should be clear, but there are two important points to be made.
+
+First, we can refer to the fields of the synthesized attribute directly, without the member notation used in the UDP example.
+For example, `fc.magic_bytes` refers to the `magcic_bytes` field of the `ppbm_fc` synthesized attribute of record type.
+
+Second, we used a function!
+List.flatten(img) is a function from the standard Parsley library that takes a nested list and flattens it into a single list.
+
+*** THIS NEEDS MORE DISCUSSION!!!!
+
+== The Final Parsley File
+
+Thus, we have our final Parsley file:
+
+....
+type ppbm_fc = {
+  magic_bytes: [byte],
+  height: int,
+  width: int,
+  img: [byte]
+}
+
+format {
+  Comment := !"#"! (# [AsciiCharS \ "\n" \ "\r"]*  ["\r" | "\n"] #);;
+  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF (vertical tabulation, form feed)
+  NonNewlineWhitespace := (# [" " | "\t"] #);;
+  DimensionValue := (#[DigitS]+#);;
+  BinaryDigit := (# ["0" | "1"] #);;
+  PixelPlusWhitespace := (# BinaryDigit Whitespace* #);;
+  TokenSeparator := (# (Comment | Whitespace)* Whitespace+ (Comment | Whitespace)* #);;
+  TokenSeparatorRaster := (# Comment* Whitespace #);;
+  MagicBytes := !"P1"!;;
+  Junk := ; (# Whitespace AsciiCharS* #);;
+
+  PBM_FC fc {ppbm_fc} :=
+    magic_bytes = MagicBytes
+    TokenSeparator
+    height = DimensionValue
+    TokenSeparator
+    width = DimensionValue
+    raster_size = {
+      ;;
+      Int.of_bytes_unsafe(width) * Int.of_bytes_unsafe(height)
+    }
+    TokenSeparatorRaster
+    img = (PixelPlusWhitespace^raster_size)
+    Junk
+    {
+      fc.magic_bytes := magic_bytes;
+      fc.height := Int.of_bytes_unsafe(height);
+      fc.width := Int.of_bytes_unsafe(width);
+      fc.img := List.flatten(img)
+    }
+}
+....
