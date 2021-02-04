@@ -1,0 +1,39 @@
+type mag = { b : [byte] }
+type markertype = {anymarker: [byte]}
+format {
+
+  SoiSegment soi {soimarker: [byte]} := marker=!"\xd8"! ;;
+  EoiSegment eoi {eoimarker: [byte]} := marker=!"\xd9"! ;;
+  GenericSegment gs {marker:markertype, lenval: int, data: [byte]} := marker=Marker length=UInt16<endian=endian::Big()> data=(Byte ^ (length - 2))  {gs.marker := marker ; gs.lenval := length} // gs.data := data};;
+  //GenericSegment1 gs {lenval1: int} := marker=Marker length=UInt16<endian=endian::Big()> {gs.lenval1 := length} data=(Byte ^ (length-1)) ;;
+  Marker m {markertype} := a=!"\x01"! ; // Tem
+                                  a=!"\xc1"! ; // Start of Frame 1
+                                  a=!"\xc2"! ; // Start of Frame 2
+                                  a=!"\xc3"! ; // Start of Frame 3
+                                  a=!"\xc4"! ; // Define Huffman Table
+                                  a=!"\xc5"! ; // Start of Frame 5
+                                  a=!"\xc6"! ; // Start of Frame 6
+                                  a=!"\xc7"! ; // Start of Frame 7
+                                  a=!"\xdb"! ; // Define Quantization Table
+                                  a=!"\xdc"! ; // Define number of line
+                                  a=!"\xdd"! ; // Define restart interval
+                                  a=!"\xde"! ; // Define hierarchical progression
+                                  a=!"\xe1"! ; // App1
+                                  a=!"\xe2"! ; // App2
+                                  a=!"\xe3"! ; // App3
+                                  a=!"\xe4"! ; // App4
+                                  a=!"\xe5"! ; // App5
+                                  a=!"\xe6"! ; // App6
+                                  a=!"\xe7"! ; // App7
+                                  a=!"\xe8"! ; // App8
+                                  a=!"\xe9"! ; // App9
+                                  a=!"\xea"! ; // App10
+                                  a=!"\xeb"! ; // App11
+                                  a=!"\xec"! ; // App12
+                                  a=!"\xed"! ; // App13
+                                  a=!"\xee"! ; // App 14
+                                  a=!"\xef"! ; // App 15
+                                  a=!"\xfe"!   // Comment
+                                  {m.anymarker := a}
+  
+}
