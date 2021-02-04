@@ -42,4 +42,5 @@ Lesson 3: PGM?
 Lesson 5: ICON?
 Lesson 4: IP
 
-[red]#*Navigation:*# <<udp.adoc, &#8594; The First Lesson>> | <<#need_to_link, &#128196; Documentation>>
+[red]#*Navigation:*# <<udp.adoc, &#8594; The First Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
+

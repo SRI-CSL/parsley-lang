@@ -269,4 +269,4 @@ You may noticed that we have incorporated some comments in our final Parsley fil
 Comments in Parsley begin with two forward slash characters (`//`).
 Everything that follows the `//` delimiter until the following new line character is part of the comment.
 
-===== Navigation: <<overview.adoc, &#8593; Overview>> | <<pbm.adoc, &#8594; Next Lesson>> | <<#need_to_link, &#128196; Documentation>>
+===== Navigation: <<overview.adoc, &#8593; Overview>> | <<pbm.adoc, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
