@@ -20,6 +20,6 @@ let () =
   let spec_file = List.hd !input_file in
   let spec = SpecParser.parse_spec spec_file in
   if !opt_print_ast then
-    AstPrinter.print_parsed_spec spec;
+    Parsing.AstPrinter.print_parsed_spec spec;
   if !opt_type_check then
     SpecTyper.type_check spec_file spec

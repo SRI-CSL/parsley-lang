@@ -23,33 +23,57 @@
 (** This module provides a constraint solver based on unification
     under a mixed prefix. *)
 
-include ConstraintSolver.SolverException
-
 (** The solver environment. *)
 type environment
 
 (** The constraint to solve. *)
-type tconstraint = (MultiEquation.crterm, MultiEquation.variable) TypeConstraint.type_constraint
+type tconstraint = TypeConstraint.tconstraint
 
 (** A [solving_step] describes a elementary step of the solver. *)
 type solving_step =
   | Init of tconstraint
   | Solve of tconstraint
   | Solved of tconstraint
-  | UnifyTerms of MultiEquation.crterm * MultiEquation.crterm
-  | UnifyVars of MultiEquation.variable * MultiEquation.variable
-  | Generalize of int * MultiEquation.variable list
+  | UnifyTerms of TypeConstraint.crterm * TypeConstraint.crterm
+  | UnifyVars of TypeConstraint.variable * TypeConstraint.variable
+  | Generalize of int
+                  * TypeConstraint.variable list (* rigid variables *)
+                  * TypeConstraint.variable list (* flexible variables *)
 
 (** [solve tracer c] solves [c] by doing in-place modifications resulting
-    in a environment. *)
+    in an environment. *)
 val solve: ?tracer:(solving_step -> unit)
   -> tconstraint -> environment
 
+(** a simple tracer *)
+val tracer: unit -> solving_step -> unit
+
 (** [environment_as_list env] converts [env] into a list. *)
-val environment_as_list : environment -> (string * MultiEquation.variable) list
+val environment_as_list : environment -> (string * TypeConstraint.variable) list
 
-(** [print_env printer env] use the [printer] of variable in order to
-    display [env]. *)
-val print_env :
-  ?use_user_def:'a -> (TypeConstraint.variable -> string) -> environment -> unit
+(** [print_env printer env] use the variable printer [printer] in
+    order to display [env]. *)
+val print_env: (TypeConstraint.variable -> string) -> environment -> unit
 
+type solver_error =
+  (* [TypingError] is raised when an inconsistency is detected during
+     constraint solving. *)
+  | TypingError of Parsing.Location.t
+
+  (* [UnboundIdentifier] is raised when an identifier is undefined in
+     a particular context. *)
+  | UnboundIdentifier of Parsing.Location.t * string
+
+  (* [CannotGeneralize] when the type of an expression cannot be
+     generalized contrary to what is specified by the programmers
+     using type annotations. *)
+  | CannotGeneralizeNonVariable of Parsing.Location.t * TypeConstraint.variable
+  | CannotGeneralizeRank of Parsing.Location.t * TypeConstraint.variable * IntRank.t
+
+  (* [NonDistinctVariables] is raised when two rigid type variables have
+     been unified. *)
+  | NonDistinctVariables of Parsing.Location.t * (TypeConstraint.variable list)
+
+exception Error of solver_error
+
+val error_msg: solver_error -> string

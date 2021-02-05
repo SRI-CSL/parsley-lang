@@ -20,24 +20,33 @@
 (*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
 (*  and Didier Rémy.                                                      *)
 
-(** This module instantiates the {!Solver} module for the Parsley language. *)
+(** This module provides a constraint solver based on unification
+    under a mixed prefix. *)
 
-open Misc
-open TypeAlgebra
-open CoreAlgebra
-open MultiEquation
-include ConstraintSolver
+(** The solver environment. *)
+type environment
 
-let solve_constraint c =
-  solve c
+(** The constraint to solve. *)
+type tconstraint = (MultiEquation.crterm, MultiEquation.variable) TypeConstraint.type_constraint
 
-let rec print_env ?use_user_def print env =
-  let print_entry acu (name, t) =
-    if name.[0] <> '_' then
-      acu
-      ^ "val " ^ name ^ ": " ^ (print t) ^ "\n"
-    else
-      acu
-  in
-    Printf.printf "%s\n"
-      (List.fold_left print_entry "" (environment_as_list env))
+(** A [solving_step] describes a elementary step of the solver. *)
+type solving_step =
+  | Init of tconstraint
+  | Solve of tconstraint
+  | Solved of tconstraint
+  | UnifyTerms of MultiEquation.crterm * MultiEquation.crterm
+  | UnifyVars of MultiEquation.variable * MultiEquation.variable
+  | Generalize of int * MultiEquation.variable list * MultiEquation.variable list
+
+(** [solve tracer c] solves [c] by doing in-place modifications resulting
+    in a environment. *)
+val solve: ?tracer:(solving_step -> unit)
+  -> tconstraint -> environment
+
+(** [environment_as_list env] converts [env] into a list. *)
+val environment_as_list: environment -> (string * MultiEquation.variable) list
+
+(** [print_env printer env] use the [printer] of variable in order to
+    display [env]. *)
+val print_env: (TypeConstraint.variable -> string) -> environment -> unit
+

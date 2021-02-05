@@ -118,7 +118,7 @@ let rec print_pattern auxp p =
         pp_print_string !ppf (if b then "true" else "false")
     | P_variant ((t,c), ps) ->
         pp_print_string !ppf
-          (TypeConv.canonicalize_dcon
+          (AstUtils.canonicalize_dcon
              (Location.value t) (Location.value c));
         if List.length ps > 0 then begin
             pp_print_string !ppf "(";
@@ -134,7 +134,7 @@ let rec sprint_pattern p =
     | P_literal (PL_int i) -> Printf.sprintf "%d" i
     | P_literal (PL_bool b) -> if b then "bool::True()" else "bool::False()"
     | P_variant ((t, c), ps) ->
-        let con = TypeConv.canonicalize_dcon
+        let con = AstUtils.canonicalize_dcon
                     (Location.value t) (Location.value c) in
         if List.length ps = 0 then con
         else let args = List.map sprint_pattern ps in
@@ -172,7 +172,7 @@ and print_expr auxp e =
         pp_print_string !ppf (auxp e.expr_aux)
     | E_constr ((t, c), args) ->
         pp_print_string !ppf
-          (TypeConv.canonicalize_dcon
+          (AstUtils.canonicalize_dcon
              (Location.value t) (Location.value c));
         if List.length args > 0 then begin
             pp_print_string !ppf "(";
@@ -232,7 +232,7 @@ and print_expr auxp e =
         print_expr auxp e;
         pp_print_string !ppf " ~~ ";
         pp_print_string !ppf
-          (TypeConv.canonicalize_dcon
+          (AstUtils.canonicalize_dcon
              (Location.value t) (Location.value c));
         pp_print_string !ppf ")"
     | E_case (d, clauses) ->
@@ -614,8 +614,8 @@ let print_parsed_spec spec =
   let auxp () = "" in
   print_spec auxp spec
 
-let print_typed_spec spec =
+let print_typed_spec type_printer spec =
   let auxp t =
-    let s = TypeConstraintPrinter.print_crterm t in
+    let s = type_printer t in
     Printf.sprintf " (: %s) " s in
   print_spec auxp spec

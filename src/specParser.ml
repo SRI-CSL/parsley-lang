@@ -1,4 +1,5 @@
-open Ast
+open Parsing
+open Parsing.Ast
 open Lexing
 module I = Parser.MenhirInterpreter
 

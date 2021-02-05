@@ -20,17 +20,16 @@
 (*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
 (*  and Didier Rémy.                                                      *)
 
-(** This module manages a data structure for constraints in a multi-equation
-    framework. *)
-
+open Parsing
 open Misc
+open MultiEquation
+open CoreAlgebra
 
 (** [sname] is the type of the names that are used to refer to type
     schemes inside constraints. These names are bound by [CLet]
     constraints and referred to by [CInstance] constraints. *)
 type sname = SName of string
 
-(* TEMPORARY renommer en formula *)
 (** [type_constraint] defines a syntax for the constraints between
     types. *)
 type ('crterm, 'variable) type_constraint =
@@ -54,61 +53,122 @@ and ('crterm, 'variable) scheme =
   | Scheme of Location.t * 'variable list * 'variable list
       * ('crterm, 'variable) type_constraint * ('crterm * Location.t) StringMap.t
 
-(** The variables that appear in constraints are the same as the multi-equation
-    ones. *)
 type variable = MultiEquation.variable
 
-(** The types in constraints are implemented using the internal data structure
-    defined in {!CoreAlgebra}. The same data structure is also used in
-    {!MultiEquation}. *)
-type crterm = variable CoreAlgebra.arterm
+type crterm =
+    variable arterm
 
-(** Here is an abbreviation for the type constraint structure instantiated using
-    our internal variable and term representations. *)
-type tconstraint = (crterm, variable) type_constraint
+type tconstraint =
+    (crterm, variable) type_constraint
 
-(** Here is an abbreviation for the type scheme structure instantiated using
-    out internal variable and term representations. *)
-type tscheme = (crterm, variable) scheme
+type tscheme =
+    (crterm, variable) scheme
 
-(** [cposition c] returns the position related to [c]. *)
-val cposition : ('a, 'b) type_constraint -> Location.t
+let rec cposition = function
+  | CTrue pos ->
+      pos
 
-(** [t1 =?= t2] is an equality constraint *)
-val (=?=): crterm -> crterm -> Location.t -> tconstraint
+  | CDump pos ->
+      pos
+
+  | CLet ([], c) ->
+      cposition c
+
+  | CConjunction [] ->
+      Location.ghost_loc
+
+  | CConjunction l ->
+      Location.extent (cposition (List.hd l)) (cposition (last l))
+
+  | CLet (l, _) ->
+      Location.extent (sposition (List.hd l)) (sposition (last l))
+
+  | CEquation (p, _, _) ->
+      p
+
+  | CInstance (p, _, _) ->
+      p
+
+and sposition = function
+  | Scheme (p, _, _, _, _) ->
+      p
+
+(* TEMPORARY expliquer qu' on emploie la pile native pour les let
+   et conj. frames, plus des pools s'epar'es pour les let frames *)
+
+(** [x <? t] is an instance constraint. *)
+let (<?) x t pos =
+  CInstance (pos, x, t)
+
+(** [t1 =?= t2] is an equality constraint. *)
+let (=?=) t1 t2 pos =
+  CEquation (pos, t1, t2)
+
+(** [c1 ^ c2] is a conjunction constraint. *)
+let (^) c1 c2 =
+  match c1, c2 with
+    | CTrue _, c
+    | c, CTrue _ ->
+      c
+    | c, CConjunction cl ->
+        CConjunction (c :: cl)
+    | _, _ ->
+        CConjunction [c1; c2]
+
+let conj cs =
+  List.fold_left ( ^ ) (CTrue Location.ghost_loc) cs
 
 (** [ex qs c] returns the constraint [exists qs.c]. We encode existential
    constraints in terms of [let] constraints, since the latter are more
    general. *)
-val ex : ?pos:Location.t -> variable list -> tconstraint -> tconstraint
+let ex ?pos qs c =
+  CLet ([ Scheme (Location.loc_or_ghost pos, [], qs, c, StringMap.empty) ],
+        CTrue (Location.loc_or_ghost pos))
 
 (** [fl qs c] returns the constraint [forall qs.c]. We encode universal
    constraints in terms of [let] constraints, since the latter are more
    general. *)
-val fl: ?pos:Location.t -> variable list -> tconstraint -> tconstraint
+let fl ?pos qs c =
+  CLet ([ Scheme (Location.loc_or_ghost pos, qs, [], c, StringMap.empty) ],
+        CTrue (Location.loc_or_ghost pos))
 
-(** [x <? t] is an instance constraint. *)
-val (<?): sname -> crterm -> Location.t -> tconstraint
+(** [exists f] creates a fresh variable [v] and returns the constraint
+    [exists v.(f v)]. *)
+let exists ?pos f =
+  let v = variable Flexible () in
+  let c = f (TVariable v) in
+  ex ~pos:(Location.loc_or_ghost pos) [ v ] c
 
-(** [c1 ^ c2] is a conjunction constraint. *)
-val (^): tconstraint -> tconstraint -> tconstraint
-
-(** [conj cs] builds a conjunction between a list of constraints. *)
-val conj: tconstraint list -> tconstraint
-
-(** [exists f] creates a fresh variable [x] and returns the constraint
-    [exists x.(f x)]. *)
-val exists: ?pos:Location.t -> (crterm -> tconstraint) ->
-            tconstraint
-val exists_aux: ?pos:Location.t -> (crterm -> tconstraint * 'b) ->
-            tconstraint * 'b
+let exists_aux ?pos f =
+  let v = variable Flexible () in
+  let c, aux = f (TVariable v) in
+  (ex ~pos:(Location.loc_or_ghost pos) [ v ] c), aux
 
 (** [exists_list l f] associates a fresh variable with every element
     in the list [l], yielding an association list [m], and returns
     the constraint [exists m.(f m)]. *)
-val exists_list:
-  ?pos:Location.t -> 'a list -> (('a * crterm) list -> tconstraint)
-  -> tconstraint
-val exists_list_aux:
-  ?pos:Location.t -> 'a list -> (('a * crterm) list -> tconstraint * 'b)
-  -> tconstraint * 'b
+let exists_list ?pos l f =
+  let l, m = variable_list Flexible l in
+  ex ?pos:pos l (f m)
+
+let exists_list_aux ?pos l f =
+  let l, m = variable_list Flexible l in
+  let c, aux = f m in
+  ex ?pos:pos l c, aux
+
+(** [forall_list l f] associates a fresh variable with every element
+    in the list [l], yielding an association list [m], and returns
+    the constraint [forall m.(f m)]. *)
+let _forall_list ?pos l f =
+  let l, m =
+    List.fold_right (fun x (vs, xts) ->
+                       let v = variable Rigid ~name:x () in
+                         v :: vs, (x, TVariable v) :: xts
+                    ) l ([], [])
+  in
+  fl ~pos:(Location.loc_or_ghost pos) l (f m)
+
+(** [monoscheme header] turns [header] into a monomorphic type scheme. *)
+let _monoscheme ?pos header =
+  Scheme (Location.loc_or_ghost pos, [], [],
+          CTrue (Location.loc_or_ghost pos), header)

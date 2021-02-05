@@ -23,6 +23,8 @@
 (** This module provides a simple inference engine for the kinds
     of the Parsley type system. *)
 
+open Parsing
+
 (** Internal kind representation. *)
 type t
 

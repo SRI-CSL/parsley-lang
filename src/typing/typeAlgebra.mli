@@ -25,6 +25,8 @@
 (** The type algebra augments the {!CoreAlgebra} to relate it with
     the Parsley source language. *)
 
+open Parsing
+
 (** A type constructor is a type variable with higher-order kind.
     It is introduced as any type variable in the multi-equation set
     during the constraint generation. Then, an environment is given to

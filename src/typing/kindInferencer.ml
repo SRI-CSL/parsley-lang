@@ -22,8 +22,9 @@
 
 (** This module implements a simple kind inferencer. *)
 
-open MultiEquation
+open Parsing
 open Ast
+open MultiEquation
 open TypingExceptions
 open Misc
 

@@ -22,6 +22,8 @@
 
 (** This module declares the errors raised by the type inference engine. *)
 
+open Parsing
+
 type typing_error =
   (* [UnboundTypeIdentifier] is raised when an unbound type identifier
      is found. *)

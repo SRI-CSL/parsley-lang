@@ -1,3 +1,4 @@
+open Parsing
 open Misc
 open Ast
 open TypingEnvironment
@@ -16,7 +17,7 @@ let repeat p n =
 let arity tenv typ constr =
   let arity, _, _ =
     let dcid =
-      TypeConv.canonicalize_dcon
+      AstUtils.canonicalize_dcon
         (Location.value typ) (Location.value constr) in
     lookup_datacon tenv (Location.loc typ) (DName dcid) in
   arity

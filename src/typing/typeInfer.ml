@@ -22,6 +22,7 @@
 
 (** This module implements type inference and checking. *)
 
+open Parsing
 open Misc
 open TypeConstraint
 open TypeAlgebra
@@ -143,7 +144,7 @@ let infer_pat_fragment tenv (venv: VEnv.t) (p: (unit, unit) pattern) (t: crterm)
       | P_variant ((typ, c), ps) ->
           let typid = Location.value typ in
           let cid, cloc = Location.value c, Location.loc c in
-          let dcid = TypeConv.canonicalize_dcon typid cid in
+          let dcid = AstUtils.canonicalize_dcon typid cid in
           let alphas, ct = fresh_datacon_scheme tenv cloc (DName dcid) in
           let rt = result_type (as_fun tenv) ct
           and ats = arg_types (as_fun tenv) ct in
@@ -241,7 +242,7 @@ let intern_data_constructor internal adt_id qs env_info dcon_info =
       raise (Error (InvalidDataConstructorDefinition dname)) in
   let pos = Location.loc dname in
   let dname = Location.value dname in
-  let binding = TypeConv.canonicalize_dcon adt_name dname in
+  let binding = AstUtils.canonicalize_dcon adt_name dname in
   let v = variable ~structure:ityp Flexible () in
   ((add_data_constructor tenv pos (TName adt_name) (DName binding)
       (TypeConv.arity typ, rqs, ityp)),
@@ -406,7 +407,7 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
               | d, None ->
                   d, None
               | d, Some te ->
-                  d, Some (AstUtils.expand_type_abbrevs tenv te)
+                  d, Some (TypedAstUtils.expand_type_abbrevs tenv te)
             ) dcons in
         (* Add the constructor signatures to the environment *)
         let tenv, ids, rqs, let_env =
@@ -422,7 +423,7 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
         (* First expand any type abbreviations in the signatures *)
         let fields =
           List.map (fun (f, te) ->
-              f, AstUtils.expand_type_abbrevs tenv te
+              f, TypedAstUtils.expand_type_abbrevs tenv te
             ) fields in
         (* Add the record and field signatures into the environment *)
         let tenv, dids, drqs, let_env =
@@ -461,7 +462,7 @@ let infer_type_abbrev tenv td =
   match typ.type_rep with
     | TR_defn d ->
         (* First expand any type abbreviations in this abbreviation *)
-        let d' = AstUtils.expand_type_abbrevs tenv d in
+        let d' = TypedAstUtils.expand_type_abbrevs tenv d in
         (* Check validity of the resulting type expression *)
         check_valid_type_defn tenv ident tvars d';
         (* Add it to the environment *)
@@ -550,7 +551,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
            application except that it must be fully applied. *)
         let typid = Location.value adt in
         let cid, cloc = Location.value dcon, Location.loc dcon in
-        let dcid = TypeConv.canonicalize_dcon typid cid in
+        let dcid = AstUtils.canonicalize_dcon typid cid in
         let arity, _, _ = lookup_datacon tenv cloc (DName dcid) in
         let nargs = List.length args in
         if nargs <> arity then
@@ -638,7 +639,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
            wildcard case pattern.  The return type is constrained to
            be boolean. *)
         let dcid, dcloc = Location.value dc, Location.loc dc in
-        let dcid = TypeConv.canonicalize_dcon (Location.value typ) dcid in
+        let dcid = AstUtils.canonicalize_dcon (Location.value typ) dcid in
         let arity, _, _ = lookup_datacon tenv dcloc (DName dcid) in
         let case_exp = make_match_case_expr exp typ dc arity e.expr_loc in
         let bool_typ = type_of_primitive (as_fun tenv) (PL_bool true) in
@@ -697,7 +698,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
     | E_cast (exp, typ) ->
         (* A type constraint inserts a type equality into the
            generated constraint. *)
-        let typ  = AstUtils.expand_type_abbrevs tenv typ in
+        let typ  = TypedAstUtils.expand_type_abbrevs tenv typ in
         let ityp = TypeConv.intern tenv typ in
         let c, exp' = infer_expr tenv venv exp ityp in
         (t =?= ityp) e.expr_loc ^ c,
@@ -763,7 +764,7 @@ let infer_fun_defn tenv venv ctxt fd =
      for the body.  Handle the arguments as a simple case of lambda
      patterns; this will allow us to extend this later to proper
      pattern matching if needed.*)
-  let restyp = AstUtils.expand_type_abbrevs tenv fd.fun_defn_res_type in
+  let restyp = TypedAstUtils.expand_type_abbrevs tenv fd.fun_defn_res_type in
   let irestyp = TypeConv.intern tenv' restyp in
   let _, params', venv', argbinders, signature =
     if List.length fd.fun_defn_params = 0 then
@@ -782,7 +783,7 @@ let infer_fun_defn tenv venv ctxt fd =
               | None ->
                   StringMap.add pn (ident_of_var pid) acu_ids in
           let pid', venv' = VEnv.add venv' pid in
-          let typ = AstUtils.expand_type_abbrevs tenv typ in
+          let typ = TypedAstUtils.expand_type_abbrevs tenv typ in
           let ityp = TypeConv.intern tenv' typ in
           let v = variable Flexible () in
           acu_ids,
@@ -919,7 +920,7 @@ let infer_non_term_attrs tenv nid attrs =
   let map, attrs', _ =
     List.fold_left (fun (ats, attrs', venv') (pid, te) ->
         let p  = var_name pid in
-        let te = AstUtils.expand_type_abbrevs tenv te in
+        let te = TypedAstUtils.expand_type_abbrevs tenv te in
         let t  = TypeConv.intern tenv te in
         match StringMap.find_opt p ats with
           | Some (_, l) ->
@@ -1005,7 +1006,7 @@ let infer_non_term_type tenv ctxt ntd =
                         CTrue loc))
           ) in
         let attrs = List.map (fun (id, te, _) ->
-                        id, AstUtils.expand_type_abbrevs tenv te
+                        id, TypedAstUtils.expand_type_abbrevs tenv te
                       ) attrs in
         let tenv', dids, drqs, let_env =
           List.fold_left

@@ -20,6 +20,7 @@
 (*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
 (*  and Didier Rémy.                                                      *)
 
+open Parsing
 open Misc
 open CoreAlgebra
 
@@ -63,7 +64,7 @@ and structure = variable CoreAlgebra.term
     or rigid variables. *)
 and variable_kind = Rigid | Flexible | Constant
 
-and tname = TName of string
+and tname = Ast.tname
 
 type crterm = variable CoreAlgebra.arterm
 

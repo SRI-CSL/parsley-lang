@@ -1,3 +1,6 @@
+open Parsing
+open Typing
+
 let handle_exception bt msg =
   Printf.fprintf stderr "%s\n" msg;
   Printf.printf "%s\n" bt
@@ -21,7 +24,7 @@ let check spec =
   else
     ();
   if !print_typed_ast then
-    AstPrinter.print_typed_spec spec';
+    AstPrinter.print_typed_spec TypeConstraintPrinter.print_crterm spec';
   tenv, spec'
 
 let type_check spec_file spec =

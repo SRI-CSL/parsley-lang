@@ -20,6 +20,7 @@
 (*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
 (*  and Didier Rémy.                                                      *)
 
+open Parsing
 open MultiEquation
 open CoreAlgebra
 

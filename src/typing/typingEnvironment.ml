@@ -22,6 +22,7 @@
 
 (** This module implements a typing environment useful for type inference. *)
 
+open Parsing
 open Misc
 open TypeAlgebra
 open Ast

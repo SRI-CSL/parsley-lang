@@ -26,6 +26,8 @@
     list of data constructors to a type name.
     The second one records the scheme of the data constructors. *)
 
+open Parsing
+
 (** [record_info] tracks the field names, and the variables associated
     with their destructors and constructors *)
 type record_info =

@@ -44,12 +44,12 @@
     passed to [register], so as to make the unifier's client aware
     of its existence. The variable's rank is already properly
     initialized when [register] is called. *)
-val unify: ?tracer:(TypeConstraint.variable -> TypeConstraint.variable -> unit) -> Location.t
+val unify: ?tracer:(TypeConstraint.variable -> TypeConstraint.variable -> unit) -> Parsing.Location.t
   -> (TypeConstraint.variable -> unit) -> TypeConstraint.variable -> TypeConstraint.variable -> unit
 
 
 type unify_error =
-  CannotUnify of Location.t
+  CannotUnify of Parsing.Location.t
                  * TypeConstraint.crterm (* rigid variable *)
                  * TypeConstraint.crterm
 

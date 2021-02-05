@@ -36,7 +36,7 @@ open CoreAlgebra
 open MultiEquation
 
 type unify_error =
-  CannotUnify of Location.t * crterm * crterm
+  CannotUnify of Parsing.Location.t * crterm * crterm
 
 exception Error of unify_error
 
@@ -201,7 +201,7 @@ let unify ?tracer pos register =
 
 
 let msg m loc =
-  Printf.sprintf m (Location.str_of_loc loc)
+  Printf.sprintf m (Parsing.Location.str_of_loc loc)
 
 open TypeConstraintPrinter
 let error_msg = function

@@ -5,7 +5,7 @@ type literal  = string Location.loc
 type 'b var   = (string * 'b) Location.loc
 
 (* names stripped of location, used in the type checker *)
-type tname = MultiEquation.tname
+type tname = TName of string
 type dname = DName of string (* data constructor names *)
 type lname = LName of string (* record field labels *)
 type nname = NName of string (* non-terminal names *)

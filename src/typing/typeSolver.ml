@@ -20,29 +20,17 @@
 (*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
 (*  and Didier Rémy.                                                      *)
 
-(** This module converts the problem of type inference into the
-    problem of constraint solving by a transformation of the typing
-    relationships in the program into typing constraints. *)
+(** This module instantiates the {!Solver} module for the Parsley language. *)
 
- (** Constraint contexts. *)
-type context = TypeConstraint.tconstraint -> TypeConstraint.tconstraint
+include ConstraintSolver
 
-(** [generate_constraint p] generates a closed constraint that describes
-    the typing of [p] and an annotated version of [p]. *)
-val generate_constraint:
-  (unit, unit) Ast.program ->
-  TypeConstraint.tconstraint * TypingEnvironment.environment * (MultiEquation.crterm, int) Ast.program
-
-(** Variable binding map *)
-module VEnv : sig
-  type t
-  val empty: t
-  val add: t -> unit Ast.var -> int Ast.var * t
-  val extend: t -> string -> int Ast.var -> t
-  val lookup: t -> unit Ast.var -> int Ast.var option
-end
-
-(** [infer_spec s] generates a constraint context that describes
-    spec [s] and an annotated version of [s]. *)
-val infer_spec: TypingEnvironment.environment -> VEnv.t -> (unit, unit) Ast.program ->
-  TypingEnvironment.environment * context * (MultiEquation.crterm, int) Ast.program
+let print_env print env =
+  let print_entry acu (name, t) =
+    if name.[0] <> '_' then
+      acu
+      ^ "val " ^ name ^ ": " ^ (print t) ^ "\n"
+    else
+      acu
+  in
+    Printf.printf "%s\n"
+      (List.fold_left print_entry "" (environment_as_list env))

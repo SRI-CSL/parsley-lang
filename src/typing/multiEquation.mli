@@ -22,6 +22,8 @@
 
 (** This module implements a data structure for multi-equations. *)
 
+open Parsing
+
 (** {3 Multi-equation descriptor} *)
 
 (** The structure of the terms manipulated by a unifier is fixed and
@@ -74,7 +76,7 @@ and structure = variable CoreAlgebra.term
 and variable_kind = Rigid | Flexible | Constant
 
 (** [tname] is the type of type identifiers. *)
-and tname = TName of string
+and tname = Ast.tname
 
 (** The type of term of arbitrary depth. *)
 type crterm = variable CoreAlgebra.arterm

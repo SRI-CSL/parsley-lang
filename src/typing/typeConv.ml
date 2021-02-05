@@ -23,6 +23,7 @@
 (** This module transforms types from the user's syntax to the
     internal representation of the inference engine. *)
 
+open Parsing
 open Misc
 open TypeAlgebra
 open MultiEquation
@@ -92,8 +93,3 @@ let intern_scheme pos tenv name qs typ =
                            StringMap.singleton name
                          ((intern (add_type_variables rtenv tenv) typ),
                           pos))
-
-(** [canonicalize_dcon typ constr] returns the canonical name for the
-    data constructor [constr] of type [typ]. *)
-let canonicalize_dcon typ constr =
-  Printf.sprintf "%s::%s" typ constr
