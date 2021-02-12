@@ -36,15 +36,19 @@ val generate_constraint:
   TypeConstraint.tconstraint * TypingEnvironment.environment * (MultiEquation.crterm, int) Ast.program
 
 (** Variable binding map *)
+
+(* binding identifier *)
+type varid = private int
+
 module VEnv : sig
   type t
   val empty: t
-  val add: t -> unit Ast.var -> int Ast.var * t
-  val extend: t -> string -> int Ast.var -> t
-  val lookup: t -> unit Ast.var -> int Ast.var option
+  val add: t -> unit Ast.var -> varid Ast.var * t
+  val extend: t -> string -> varid Ast.var -> t
+  val lookup: t -> unit Ast.var -> varid Ast.var option
 end
 
 (** [infer_spec s] generates a constraint context that describes
     spec [s] and an annotated version of [s]. *)
 val infer_spec: TypingEnvironment.environment -> VEnv.t -> (unit, unit) Ast.program ->
-  TypingEnvironment.environment * context * (MultiEquation.crterm, int) Ast.program
+  TypingEnvironment.environment * context * (MultiEquation.crterm, varid) Ast.program

@@ -36,18 +36,22 @@ open Ast
     This is used to annotate variables with unique binding
     identifiers (integers).
  *)
+
+(* binding identifier *)
+type varid = int
+
 module VEnv : sig
 
   type t
 
   val empty: t
-  val add: t -> unit var -> int var * t
-  val extend: t -> string -> int var -> t
-  val lookup: t -> unit var -> int var option
+  val add: t -> unit var -> varid var * t
+  val extend: t -> string -> varid var -> t
+  val lookup: t -> unit var -> varid var option
 
 end = struct
 
-  type t = (string, int var) CoreEnv.t
+  type t = (string, varid var) CoreEnv.t
 
   let binding = ref (-1)
 
@@ -101,7 +105,7 @@ let join_fragment pos f1 f2 =
     information gained by a success when matching p, and an updated variable
     binding environment from [venv] *)
 let infer_pat_fragment tenv (venv: VEnv.t) (p: (unit, unit) pattern) (t: crterm)
-    : fragment * (crterm, int) pattern * VEnv.t =
+    : fragment * (crterm, varid) pattern * VEnv.t =
   let join pos = List.fold_left (join_fragment pos) empty_fragment in
   let mk_auxpat p' =
     {pattern = p'; pattern_loc = p.pattern_loc; pattern_aux = t} in
@@ -533,7 +537,7 @@ let lookup_record_adt tenv fields =
 (** [infer_expr tenv venv e t] generates a constraint that guarantees that
     [e] has type [t] in the typing environment [tenv]. *)
 let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
-        : tconstraint * (crterm, int) expr =
+        : tconstraint * (crterm, varid) expr =
   let mk_auxexpr e' =
     {expr = e'; expr_loc = e.expr_loc; expr_aux = t} in
   match e.expr with
@@ -1184,7 +1188,7 @@ let infer_action tenv venv act t =
    of the spec.
  *)
 let rec infer_rule_elem tenv venv ntd ctx re t bound
-        : context * (crterm, int) rule_elem * VEnv.t =
+        : context * (crterm, varid) rule_elem * VEnv.t =
   let unit = CTrue re.rule_elem_loc in
   let pack_constraint c' =
     (fun c -> ctx (c' ^ c)) in
