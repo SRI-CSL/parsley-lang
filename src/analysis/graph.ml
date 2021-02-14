@@ -44,7 +44,7 @@ module MkBody =
         : (Label.label * (c, c, v) Block.block) list =
       LabelMap.bindings b
 
-    let add_block (type v) (b: (c, c, v) Block.block) body =
+    let add_block (type v) body (b: (c, c, v) Block.block) =
       let l = Block.entry_label b in
       if LabelMap.mem l body
       then let err = Label_collision l in
@@ -90,7 +90,7 @@ module MkGraph =
       GMany (NothingO, Body.empty, JustO b)
     let unitCC (type v) (b: (c, c, v) Block.block)
         : (c, c, v) graph =
-      GMany (NothingO, Body.add_block b Body.empty, NothingO)
+      GMany (NothingO, Body.add_block Body.empty b, NothingO)
     let of_block (type e x v) (b: (e, x, v) Block.block)
         : (e, x, v) graph =
       match b with
@@ -131,7 +131,7 @@ module MkGraph =
             unitOC (Block.BlockOC (b, n))
         | GMany (e, bd, JustO (Block.BlockCO (h, b'))) ->
             let bl = Block.BlockCC (h, b', n) in
-            GMany (e, Body.add_block bl bd, NothingO)
+            GMany (e, Body.add_block bd bl, NothingO)
         (* not sure why the below branch is needed; it seems wrong *)
         | GMany (_, _, _) ->
             assert false
@@ -163,7 +163,7 @@ module MkGraph =
             unitCO (Block.BlockCO (n, b))
         | GMany (JustO (Block.BlockOC (b', t)), b, x) ->
             let bl = Block.BlockCC (n, b', t) in
-            GMany (NothingO, Body.add_block bl b, x)
+            GMany (NothingO, Body.add_block b bl, x)
         (* not sure why the below branch is needed; it seems wrong *)
         | GMany (_, _, _) ->
             assert false
@@ -187,7 +187,7 @@ module MkGraph =
         | GMany (e, bd, JustO x), GUnit b2 ->
             GMany (e, bd, JustO (Block.append x b2))
         | GMany (e, bd1, JustO x1), GMany (JustO e2, bd2, x) ->
-            let bd = Body.add_block (Block.append x1 e2) bd1 in
+            let bd = Body.add_block bd1 (Block.append x1 e2) in
             let bd = Body.union bd bd2 in
             GMany (e, bd, x)
         | GMany (e, bd1, NothingO), GMany (NothingO, bd2, x) ->
