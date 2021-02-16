@@ -1,12 +1,92 @@
 type mag = { b : [byte] }
-type markertype = {anymarker: [byte]}
 format {
 
-  SoiSegment soi {soimarker: [byte]} := marker=!"\xd8"! ;;
-  EoiSegment eoi {eoimarker: [byte]} := marker=!"\xd9"! ;;
-  GenericSegment gs {marker:markertype, lenval: int, data: [byte]} := marker=Marker length=UInt16<endian=endian::Big()> data=(Byte ^ (length - 2))  {gs.marker := marker ; gs.lenval := length} // gs.data := data};;
-  //GenericSegment1 gs {lenval1: int} := marker=Marker length=UInt16<endian=endian::Big()> {gs.lenval1 := length} data=(Byte ^ (length-1)) ;;
-  Marker m {markertype} := a=!"\x01"! ; // Tem
+  // This is the root of this grammar
+  // A JPEG file has multiple segments
+  Jpeg jp {st: byte} := segs=Segment+ ;;
+
+  // Although we use an ordered choice, the order does not really matter. 
+  // We have a generic segment to capture multiple segment types that are structurally similar.
+  Segment s {segment_id: int} :=  GenericSegment ; SoiSegment; EoiSegment ;; 
+
+  // Start of Image Segment
+  SoiSegment soi {soimarker: [byte]} := start=!"\xff"! marker=!"\xd8"! ;;
+
+  // End of Image Segment
+  EoiSegment eoi {eoimarker: [byte]} := start=!"\xff"! marker=!"\xd9"! ;;
+
+  // We define a separate Marker type to ensure that
+  // TODO: Match the length of data to the length field 
+  GenericSegment gs {marker: [byte], lenval: int, data: [byte]} := start=!"\xff"! marker=Marker length=UInt16<endian=endian::Big()>
+                                  {gs.marker := marker.anymarker ; gs.lenval := length}
+                                  ( (data=Sof0Segment [marker.anymarker = "\xc0"])
+				  | (data=App0Segment [marker.anymarker = "\xe0"])
+				  | (data=SosSegment [marker.anymarker = "\xda"])
+				  )
+                                  ;;
+
+  // TODO: Add another type to capture generic data
+  //SegmentData data {data: [byte]} :=  
+                                  //Sof0Segment ; SosSegment ; App0Segment ;;
+
+  // App0 type. 
+  // This is used to define a JPEG thumbnail
+  App0Segment app0 {density_units: int, density_x: int, density_y: int, thumbnail_x: int, thumbnail_y: int} := 
+                                  magic=(Byte ^ 5)
+                                  versionmajor=Byte
+                                  versionminor=Byte
+                                  densityunits=UInt8<endian=endian::Big()> [densityunits = 1 || densityunits=0 || densityunits=2]
+                                  densityx=UInt16<endian=endian::Big()>
+                                  densityy=UInt16<endian=endian::Big()>
+                                  thumbnailx=UInt8<endian=endian::Big()>
+                                  thumbnaily=UInt8<endian=endian::Big()>
+                                  thumbnaildata=(Byte ^ (thumbnailx * thumbnaily * 3))
+                                  ;;
+  // TODO APP1 
+
+  // Start of Frame bytes
+  Sof0Segment sof {bitspersample: int, imageheight: int, imagewidth: int, numcomponents: int} := 
+                                  bitspersample=UInt8<endian=endian::Big()>
+                                  imageheight=UInt16<endian=endian::Big()>
+                                  imagewidth=UInt16<endian=endian::Big()>
+                                  numcomponents=UInt8<endian=endian::Big()>
+                                  components=(SofComponent ^ numcomponents)
+                                  {
+                                    sof.bitspersample := bitspersample;
+                                    sof.imageheight := imageheight;
+                                    sof.imagewidth := imagewidth;
+                                    sof.numcomponents := numcomponents
+                                  }
+                                  ;;
+  SofComponent com {sampling_x: int, sampling_y: int} := 
+                                  id=UInt8<endian=endian::Big()> [id=1 || id=2 || id=3 || id=4 || id=5]
+                                  samplingfactors=UInt8<endian=endian::Big()>
+                                  quantizationtableid=UInt8<endian=endian::Big()>
+                                  ;;
+  // Start of Stream
+  SosSegment sos {num_components: int, start_spectral_selection: int, end_spectral: int, appr_bit_approx: int} :=
+                                  num_components=UInt8<endian=endian::Big()>
+                                  components = (SosComponent ^ num_components)
+                                  startspectralselection=UInt8<endian=endian::Big()>
+                                  endspectral=UInt8<endian=endian::Big()>
+                                  apprbitapprox=UInt8<endian=endian::Big()>
+                                  {
+                                    sos.num_components := num_components ;
+                                    sos.start_spectral_selection := startspectralselection ;
+                                    sos.end_spectral := endspectral;
+                                    sos.appr_bit_approx := apprbitapprox
+                                  }
+                                  ;;
+                                  
+
+  SosComponent soscom {id: int} :=
+                                  id=UInt8<endian=endian::Big()> [id=1 || id=2 || id=3 || id=4 || id=5]
+                                  huffmantable=UInt8<endian=endian::Big()>
+                                  ;;
+                                
+  // A Marker enum
+  // These are all the different marker types supported by JPEG
+  Marker m {anymarker: [byte]} := a=!"\x01"! ; // Tem
                                   a=!"\xc1"! ; // Start of Frame 1
                                   a=!"\xc2"! ; // Start of Frame 2
                                   a=!"\xc3"! ; // Start of Frame 3
@@ -34,6 +114,5 @@ format {
                                   a=!"\xee"! ; // App 14
                                   a=!"\xef"! ; // App 15
                                   a=!"\xfe"!   // Comment
-                                  {m.anymarker := a}
-  
+                                  {m.anymarker := a} 
 }
