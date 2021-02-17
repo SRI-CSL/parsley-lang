@@ -41,10 +41,15 @@ type typ = Typing.MultiEquation.crterm
  * name.
  *)
 
-module Bindings = Set.Make(struct
-                      type t = varid * string option
-                      let compare = compare
-                    end)
+module Bindings = struct
+  module B = Set.Make(struct
+                 type t = varid * string option
+                 let compare = compare
+               end)
+  include B
+
+  let singleton d = add d empty
+end
 
 let vars_of_pattern (p: (typ, varid) pattern) : Bindings.t =
   let rec add set p =
@@ -58,7 +63,7 @@ let vars_of_pattern (p: (typ, varid) pattern) : Bindings.t =
   add Bindings.empty p
 
 (* if a [bound] variable set is provided, this computes the free
- * variables of the expression
+ * variables (i.e. that are not in [bound]) of the expression.
  *)
 let free_vars_of_expr (e: (typ, varid) expr) (bound: Bindings.t option)
     : Bindings.t =
@@ -96,7 +101,7 @@ let free_vars_of_expr (e: (typ, varid) expr) (bound: Bindings.t option)
       | E_field (e, _) | E_unop (_, e) | E_match (e, _) | E_cast (e, _) ->
           add acc e in
   let bound = match bound with
-      | None    -> Bindings.empty
+      | None   -> Bindings.empty
       | Some b -> b in
   fst (add (Bindings.empty, bound) e)
 
@@ -158,26 +163,40 @@ module G = Graph.MkGraph(Node)
 module B = G.Block
 module D = G.Body
 
-type v = unit
+(* Each node stores the bindings used and defined by it *)
+type v =
+  {node_use: Bindings.t;
+   node_def: Bindings.t}
 
 type opened = (Block.c, Block.o, v) B.block
 type closed = (Block.c, Block.c, v) B.block
 
-let add_expr (b: opened) (e: (typ, varid) expr) =
-  let en = {enode = EN_expr e; enode_aux = ()} in
-  B.snoc b (N_enode en)
+let add_expr (env: Bindings.t) (b: opened) (e: (typ, varid) expr) =
+  let u = free_vars_of_expr e (Some env) in
+  let v = {node_use = u; node_def = Bindings.empty} in
+  let n = {enode = EN_expr e; enode_aux = v} in
+  B.snoc b (N_enode n)
 
-let add_pattern (b: opened) (p: (typ, varid) pattern) =
-  let en = {enode = EN_defn p; enode_aux = ()} in
-  B.snoc b (N_enode en)
+let add_pattern (_: Bindings.t) (b: opened) (p: (typ, varid) pattern) =
+  (* pattern matching binds and initializes its variables *)
+  let d = vars_of_pattern p in
+  let v = {node_use = Bindings.empty; node_def = d} in
+  let n = {enode = EN_defn p; enode_aux = v} in
+  B.snoc b (N_enode n)
 
-let add_binding_assign (b: opened) l v =
-  let en = {enode = EN_binding_assign (l, v); enode_aux = ()} in
-  B.snoc b (N_enode en)
+let add_binding_assign (env: Bindings.t) (b: opened) l e =
+  let u = free_vars_of_expr e (Some env) in
+  let d = Bindings.singleton l in
+  let v = {node_use = u; node_def = d} in
+  let n = {enode = EN_binding_assign (l, e); enode_aux = v} in
+  B.snoc b (N_enode n)
 
-let add_assign (b: opened) l v =
-  let en = {enode = EN_assign (l, v); enode_aux = ()} in
-  B.snoc b (N_enode en)
+let add_assign (env: Bindings.t) (b: opened) l e =
+  (* the lhs is a general expr, so use an empty def *)
+  let u = free_vars_of_expr e (Some env) in
+  let v = {node_use = u; node_def = Bindings.empty} in
+  let n = {enode = EN_assign (l, e); enode_aux = v} in
+  B.snoc b (N_enode n)
 
 let new_labeled_block (l: Label.label) : opened =
   let h = Node.N_label l in
@@ -191,52 +210,55 @@ let end_block (b: opened) (l: Label.label list) : closed =
   let t = Node.N_jumps l in
   B.join_tail b t
 
+(* cfg context for expression language: bound constants, accumulated
+ * closed blocks, and current open block *)
+type ectx = Bindings.t * closed list * opened
+
 (* Statements are added to the end of an opened block, giving the same
  * or different opened block for the next addition.  Any blocks closed
  * during this addition are added to the closed list.
  *)
-type ectx = closed list * opened (* cfg context for expression language *)
-
 let rec add_stmt (ctx: ectx) (s: (typ, varid) stmt) : ectx =
-  let closed, b = ctx in
+  let bound, closed, b = ctx in
   match s.stmt with
     | S_assign ({expr = E_var v; _}, e) ->
-        let id = snd (Location.value v), None in
-        let b = add_binding_assign b id e in
-        closed, b
+        let l = snd (Location.value v), None in
+        let b = add_binding_assign bound b l e in
+        bound, closed, b
     | S_assign ({expr = E_field ({expr = E_var v; _}, f); _}, e) ->
-        let id = snd (Location.value v), Some (Location.value f) in
-        let b = add_binding_assign b id e in
-        closed, b
+        let l = snd (Location.value v), Some (Location.value f) in
+        let b = add_binding_assign bound b l e in
+        bound, closed, b
     | S_assign (l, e) ->
-        let b = add_assign b l e in
-        closed, b
+        let b = add_assign bound b l e in
+        bound, closed, b
     | S_let (p, e, stmts) ->
-        let b = add_expr b e in
-        let b = add_pattern b p in
-        List.fold_left add_stmt (closed, b) stmts
+        let b = add_expr bound b e in
+        let b = add_pattern bound b p in
+        List.fold_left add_stmt (bound, closed, b) stmts
     | S_case (e, cls) ->
-        let b = add_expr b e in
+        let b = add_expr bound b e in
         (* [b] will be closed below with the labels for the new blocks
          * for the clauses.  Each of those blocks will need to jump
-         * to a new block.
+         * to a new continuation block.
          *)
-        let jl, jb = new_block () in
+        let cl, cb = new_block () in
         let (lbls, closed) =
           List.fold_left (fun (lbls, closed) (p, ss) ->
               let l, b = new_block () in
-              let b = add_pattern b p in
-              let closed, b =
-                List.fold_left add_stmt (closed, b) ss in
-              let c = end_block b [jl] in
+              let b = add_pattern bound b p in
+              let _, closed, b =
+                List.fold_left add_stmt (bound, closed, b) ss in
+              let c = end_block b [cl] in
               (l :: lbls), c :: closed
             ) ([], closed) cls in
         let c = end_block b lbls in
-        c :: closed, jb
+        bound, c :: closed, cb
 
 let add_gnode (b: opened) gn =
-  let gn = {gnode = gn; gnode_aux = () } in
-  B.snoc b (N_gnode gn)
+  let v = {node_use = Bindings.empty; node_def = Bindings.empty} in
+  let g = {gnode = gn; gnode_aux = v} in
+  B.snoc b (N_gnode g)
 
 (* Regular expressions use similar combinators as the production rules
  * for attributed non-terminals; they are separated out in the AST for
@@ -277,17 +299,23 @@ let rec lift_regexp rx =
  *)
 type scont = Next of Label.label (* success continuation *)
 type fcont = Fail of Label.label (* failure continuation *)
-type rctx  = closed list * scont * fcont (* cfg context for a rule *)
+
+(* cfg context for a rule *)
+type rctx  = Bindings.t * closed list * scont * fcont
 
 let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
         : rctx =
-  let closed, ((Next next) as sc), ((Fail fail) as fc) = ctx in
+  let env, closed, ((Next next) as sc), ((Fail fail) as fc) = ctx in
   let b = new_labeled_block next in
   let finish b =
     let next = Label.fresh_label () in
     let c = end_block b [next; fail] in
-    c :: closed, Next next, fc in
+    env, c :: closed, Next next, fc in
   match r.rule_elem with
+    | RE_regexp {regexp = RX_literals _; _}
+    | RE_regexp {regexp = RX_wildcard; _} ->
+        let b = add_gnode b GN_regexp in
+        finish b
     | RE_regexp rx ->
         let r' = lift_regexp rx in
         add_rule_elem ctx r'
@@ -296,32 +324,32 @@ let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
             | None -> b
             | Some ias ->
                 List.fold_left (fun b (_, e) ->
-                    add_expr b e
+                    add_expr env b e
                   ) b ias in
         let b = add_gnode b (GN_type id) in
         finish b
     | RE_constraint e ->
-        let b = add_expr b e in
+        let b = add_expr env b e in
         finish b
     | RE_action {action_stmts = ss, oe; _}->
-        let ectx = closed, b in
-        let closed, b = List.fold_left add_stmt ectx ss in
+        let ectx = env, closed, b in
+        let env, closed, b = List.fold_left add_stmt ectx ss in
         let b = match oe with
             | None -> b
-            | Some e -> add_expr b e in
+            | Some e -> add_expr env b e in
         (* create a new label for the success continuation *)
         let next' = Label.fresh_label () in
         let c = end_block b [next'] in
-        c :: closed, Next next', fc
+        env, c :: closed, Next next', fc
     | RE_named (n, r') ->
         (* [n] will only be defined in the success continuation of
          * [r'].
          *)
-        let closed', Next next', fc' = add_rule_elem ctx r' in
+        let env, closed', Next next', fc' = add_rule_elem ctx r' in
         assert (fc == fc');
         let b = new_labeled_block next' in
         let p = pattern_of_var n r.rule_elem_loc r.rule_elem_aux in
-        let b = add_pattern b p in
+        let b = add_pattern env b p in
         (* We just fall through to the next block.
          * TODO: optimize this out, either by looking up the [next]
          * block in a context of opened blocks at the top of
@@ -330,7 +358,7 @@ let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
          *)
         let next = Label.fresh_label () in
         let c = end_block b [next] in
-        c :: closed', Next next, fc
+        env, c :: closed', Next next, fc
     | RE_seq rs ->
         List.fold_left (fun ctx r -> add_rule_elem ctx r) ctx rs
     | RE_choice rs ->
@@ -343,10 +371,10 @@ let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
         let next' = Label.fresh_label () in
         (* first fail continuation *)
         let fail' = Label.fresh_label () in
-        let closed, Next f', _ =
+        let env, closed, Next f', _ =
           List.fold_left
             (fun ctx r ->
-              let closed, Next n', Fail f' = add_rule_elem ctx r in
+              let env, closed, Next n', Fail f' = add_rule_elem ctx r in
               (* join [n'] to the common success continuation [next'].
                * TODO: optimize this fall-through, similar to the
                * RE_named case.
@@ -356,29 +384,29 @@ let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
               (* create a failure continuation for the next choice *)
               let fail' = Label.fresh_label () in
               (* the next choice uses the failure continuation for [r] *)
-              c :: closed, Next f', Fail fail'
+              env, c :: closed, Next f', Fail fail'
             )
             (* the first choice will be placed in [next] and will
              * fail to the newly generated [fail']
              *)
-            (closed, sc, Fail fail') rs in
+            (env, closed, sc, Fail fail') rs in
         (* the last failure continuation should jump to the original *)
         let f = new_labeled_block f' in
         let c = end_block f [fail] in
         (* continue at the common success continuation and the
          * original failure continuation
          *)
-        c :: closed, Next next', fc
+        env, c :: closed, Next next', fc
     | RE_star (r', Some e) ->
         (* The bound [e] is evaluated before [r'] is matched; [r']
          * also loops back to the beginning of its block and so will
          * need its own block.  So [e] goes into its own closed
          * non-failing block that continues with the block for [r'].
          *)
-        let b = add_expr b e in
+        let b = add_expr env b e in
         let next = Label.fresh_label () in
         let c = end_block b [next] in
-        let ctx = c :: closed, Next next, fc in
+        let ctx = env, c :: closed, Next next, fc in
         let r = {r with rule_elem = RE_star (r', None)} in
         (* recurse to the unbounded case *)
         add_rule_elem ctx r
@@ -398,8 +426,8 @@ let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
          * continuation of the final context.
          *)
         let fail' = Label.fresh_label () in
-        let ctx'  = closed, sc, Fail fail' in
-        let closed, Next next', fc' = add_rule_elem ctx' r' in
+        let ctx'  = env, closed, sc, Fail fail' in
+        let env, closed, Next next', fc' = add_rule_elem ctx' r' in
         assert (fc' = fc);
         let next''  = Label.fresh_label () in
         let success = new_labeled_block next' in
@@ -409,20 +437,20 @@ let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
         let closed  = failure :: success :: closed in
         (* the new success continuation is [next''], and new failure
          * continuation is the original one provided *)
-        closed, Next next'', fc
+        env, closed, Next next'', fc
     | RE_opt r' ->
         (* The regexp [r] cannot fail, so [r'] is given a custom fail'
          * continuation, which jumps to its success continuation.
          *)
         let fail' = Label.fresh_label () in
-        let ctx'  = closed, sc, Fail fail' in
-        let closed, Next next', fc' = add_rule_elem ctx' r' in
+        let ctx'  = env, closed, sc, Fail fail' in
+        let env, closed, Next next', fc' = add_rule_elem ctx' r' in
         assert (fc' = Fail fail');
         let fail = new_labeled_block fail' in
         let fail = end_block fail [next'] in
         (* the new success continuation is [next'], and new fail
          * continuation is the original one provided *)
-        fail :: closed, Next next', fc
+        env, fail :: closed, Next next', fc
     | RE_epsilon ->
         (* this is a nop *)
         ctx
@@ -431,10 +459,10 @@ let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
          * its own closed non-failing block that continues with the
          * block for [r'].
          *)
-        let b = add_expr b e in
+        let b = add_expr env b e in
         let next = Label.fresh_label () in
         let c = end_block b [next] in
-        let ctx = c :: closed, Next next, fc in
+        let ctx = env, c :: closed, Next next, fc in
         add_rule_elem ctx r'
     | RE_map_bufs (e, r') ->
         (* [e] is evaluated once, but [r'] is loops back to itself
@@ -442,12 +470,12 @@ let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
          * similar to that for a bounded repeat, except that this
          * fails if any instance of [r'] fails.
          *)
-        let b = add_expr b e in
+        let b = add_expr env b e in
         let next = Label.fresh_label () in
         let c = end_block b [next] in
         let closed = c :: closed in
-        let ctx = closed, Next next, fc in
-        let closed, Next next', fc' = add_rule_elem ctx r' in
+        let ctx = env, closed, Next next, fc in
+        let env, closed, Next next', fc' = add_rule_elem ctx r' in
         assert (fc == fc');
         (* add a loop in [next'] back to [r']'s [next] block, and
          * succeed to a new [next''].
@@ -455,11 +483,12 @@ let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
         let next'' = Label.fresh_label () in
         let b = new_labeled_block next' in
         let c = end_block b [next; next''] in
-        c :: closed, Next next'', fc
+        env, c :: closed, Next next'', fc
 
 (* A CFG for a production rule. *)
 let rule_to_cfg
       (tenv: TE.environment)
+      (env: Bindings.t)
       (ntd: (typ, varid) non_term_defn)
       (r: (typ, varid) rule) =
   (* lookup type info for the non-terminal *)
@@ -480,7 +509,7 @@ let rule_to_cfg
       | Some v ->
           (* this will have the type of the non-terminal *)
           let p = pattern_of_var v (Location.loc v) nts in
-          add_pattern b p in
+          add_pattern env b p in
   (* add inherited attributes *)
   let b = List.fold_left (fun b (ia, _) ->
               let ian, _ = Location.value ia in
@@ -493,13 +522,13 @@ let rule_to_cfg
                   | None -> assert false
                   | Some (t, _) -> t in
               let p = pattern_of_var ia iloc iat in
-              add_pattern b p
+              add_pattern env b p
             ) b ntd.non_term_inh_attrs in
   (* add rule temporaries *)
   let b = List.fold_left (fun b (tv, _, te) ->
               let loc = Location.loc tv in
               let p = pattern_of_var tv loc te.expr_aux in
-              add_pattern b p
+              add_pattern env b p
             ) b r.rule_temps in
   (* allocate a label for the block to start the rule itself *)
   let next = Label.fresh_label () in
@@ -508,9 +537,9 @@ let rule_to_cfg
   (* allocate a failure label for the whole rule *)
   let fail = Label.fresh_label () in
   (* the initial context *)
-  let ctx = [c], Next next, Fail fail in
+  let ctx = env, [c], Next next, Fail fail in
   (* add the rule elements *)
-  let closed, _, _ =
+  let _, closed, _, _ =
     List.fold_left add_rule_elem ctx r.rule_rhs in
   (* construct the graph body *)
   let body = List.fold_left D.add_block D.empty closed in
