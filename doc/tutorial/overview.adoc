@@ -5,7 +5,9 @@ In the current iteration of this tutorial, we focus solely on how to use the Par
 
 == What is Parsley?
 
-placeholder---two to three pars on what Parsley is at the high level.
+Parsley is a a data format definition language.
+This language allows for the creation of precise specifications for file formats.
+An overview of the first iteration of the language, its goals, and its initial design choices can be found on the http://spw20.langsec.org/papers/parsley-langsec2020.pdf[LangSec website].
 
 == Installation
 
@@ -34,13 +36,12 @@ Additionally, there are some short exercises at the end of each chapter.
 
 == Tutorial Layout
 
-Lesson 1: <<udp.adoc, UDP>>: The https://tools.ietf.org/html/rfc768[User Datagram Protocol] format is used in conjunction with IP to deliver data over the internet with minimal overhead.
+Lesson 1: <<udp.adoc#, UDP>>: The https://tools.ietf.org/html/rfc768[User Datagram Protocol] format is used in conjunction with IP to deliver data over the internet with minimal overhead.
 
-Lesson 2: <<pbm.adoc, PBM>>: The http://netpbm.sourceforge.net/doc/pbm.html[Portable Bitmap] format is a simple bitmap-based image format.
+Lesson 2: <<pbm.adoc#, PBM>>: The http://netpbm.sourceforge.net/doc/pbm.html[Portable Bitmap] format is a simple bitmap-based image format.
 
-Lesson 3: PGM?
-Lesson 5: ICON?
-Lesson 4: IP
+Lesson 3: <<ipv4.adoc#, IPV4>>: The https://tools.ietf.org/html/rfc791[Internet Protocol] is a key protocol in the https://en.wikipedia.org/wiki/Internet_protocol_suite[IP suite] that is used for the transmission of packets over the internet.
+
+Lesson 4: DNS - to do.
 
 ===== Navigation: <<udp.adoc#, &#8594; The First Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
-

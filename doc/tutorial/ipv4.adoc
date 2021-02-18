@@ -1,7 +1,181 @@
 = The Internet Protocol
 
-In this lesson, we study the https://tools.ietf.org/html/rfc791[Internet Protcol].
-This lesson builds on our previous lesson on <<udp.adoc, UDP>>.
+In this lesson, we study the https://tools.ietf.org/html/rfc791[Internet Protpcol].
+This lesson builds on our previous lesson on <<udp.adoc#, UDP>>.
+
+== The IPv4 Header
+
+We first need to figure out the structure of the IPv4 header.
+This is provided in the https://tools.ietf.org/html/rfc791[specification].
+This should be straightforward.
+The only item that warrants a note is that as there is currently no way to capture a bit directly within parsley, we use an `int` value to do so instead.
+
+....
+type ip_packet = {
+  version: int,
+  ihl: int,
+  type_of_service: int,
+  total_length: int,
+  identification: [byte],
+  flags: int,
+  fragment_offset: int,
+  time_to_live: int,
+  protocol: int,
+  header_checksum: int,
+  source_address: [byte],
+  destination_address: [byte],
+  options_and_padding: [byte]
+}
+....
+
+== Writing the Format Blocks
+
+In similar fashion as before, we use the format block to specify how to parse an IPv4 packet.
+
+....
+format {
+  IPPacket ipp (e: endian) {ip_packet} :=
+    (| version: int := 0, ihl: int := 0, flags: int := 0, fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    version_and_ihl = UInt8<endian=e>
+    {
+      version := version_and_ihl / 16;
+      ihl := (version_and_ihl * 16) / 16
+    }
+    [version = 4]
+    type_of_service = UInt8<endian=e>
+    ihl = UInt8<endian=e>
+    [ihl >= 5]  // the header length should be at least 5 as per the spec
+    total_length = UInt16<endian=e>
+    identification = (Byte^2)
+    flags_and_fragment_offset = UInt16<endian=e>
+    {
+      flags := flags_and_fragment_offset / 1024;
+      fragment_offset := (flags_and_fragment_offset * 8) / 8
+    }
+    time_to_live = UInt8<endian=e>
+    protocol = UInt8<endian=e>
+    header_checksum = UInt16<endian=e>
+    source_address = (Byte^4)
+    destination_address = (Byte^4)
+    options_and_padding_len = {
+      expr1 := 4 * ihl;
+      expr2 := expr1 - 5
+      ;;
+      expr2
+
+    options_and_padding = (Byte^options_and_padding_len)
+    {
+      ipp.version := version;
+      ipp.ihl := ihl;
+      ipp.type_of_service := type_of_service;
+      ipp.total_length := total_length;
+      ipp.identification := identification;
+      ipp.flags := flags;
+      ipp.fragment_offset := fragment_offset;
+      ipp.time_to_live := time_to_live;
+      ipp.protocol := protocol;
+      ipp.header_checksum := header_checksum;
+      ipp.source_address := source_address;
+      ipp.destination_address := destination_address
+    }
+    [protocol = 17 && flags = 2] UDPPacket<e=e> | // udp w/o fragmentation
+    [protocol = 6] () // placeholder for other next level protocols, e.g., 6 is tcp...
+
+}
+....
+
+While much of this should be clear, there are some new language features to point out.
+
+=== Temporaries
+
+At the beginning of the right-hand side of a rule declaration, temporaries may be specified, which are in scope for the remainder of the rule.
+These temporaries are declared between `(|` and `|)` markers.
+
+Our format block begins as follows:
+....
+format {
+  IPPacket ipp (e: endian) {ip_packet} :=
+    (| version: int := 0, ihl: int := 0, flags: int := 0, fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    ...
+....
+
+In our example, we declare six temporaries that have type `int`, all initialized to 0.
+
+We assign values to temporaries within action blocks.
+
+
+=== Our Final File
+
+Thus, we have the final file:
+
+....
+use udp
+
+type ip_packet = {
+  version: int,
+  ihl: int,
+  type_of_service: int,
+  total_length: int,
+  identification: [byte],
+  flags: int,
+  fragment_offset: int,
+  time_to_live: int,
+  protocol: int,
+  header_checksum: int,
+  source_address: [byte],
+  destination_address: [byte],
+  options_and_padding: [byte]
+}
+
+format {
+  IPPacket ipp (e: endian) {ip_packet} :=
+    (| version: int := 0, ihl: int := 0, flags: int := 0, fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    version_and_ihl = UInt8<endian=e>
+    {
+      version := version_and_ihl / 16;
+      ihl := (version_and_ihl * 16) / 16
+    }
+    [version = 4]
+    type_of_service = UInt8<endian=e>
+    ihl = UInt8<endian=e>
+    [ihl >= 5]  // the header length should be at least 5 as per the spec
+    total_length = UInt16<endian=e>
+    identification = (Byte^2)
+    flags_and_fragment_offset = UInt16<endian=e>
+    {
+      flags := flags_and_fragment_offset / 1024;
+      fragment_offset := (flags_and_fragment_offset * 8) / 8
+    }
+    time_to_live = UInt8<endian=e>
+    protocol = UInt8<endian=e>
+    header_checksum = UInt16<endian=e>
+    source_address = (Byte^4)
+    destination_address = (Byte^4)
+    options_and_padding_len = {
+      expr1 := 4 * ihl;
+      expr2 := expr1 - 5
+      ;;
+      expr2
+    }
+    options_and_padding = (Byte^options_and_padding_len)
+    {
+      ipp.version := version;
+      ipp.ihl := ihl;
+      ipp.type_of_service := type_of_service;
+      ipp.total_length := total_length;
+      ipp.identification := identification;
+      ipp.flags := flags;
+      ipp.fragment_offset := fragment_offset;
+      ipp.time_to_live := time_to_live;
+      ipp.protocol := protocol;
+      ipp.header_checksum := header_checksum;
+      ipp.source_address := source_address;
+      ipp.destination_address := destination_address
+    }
+    [protocol = 17 && flags = 2] UDPPacket<e=e> | // udp w/o fragmentation
+    [protocol = 6] () // placeholder for other next level protocols, e.g., 6 is tcp...
+
+}
+....
 
 ===== Navigation: <<overview.adoc#, &#8593; Overview>> | <<pbm.adoc#, &#8592; Previous Lesson>> | <<#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
-
