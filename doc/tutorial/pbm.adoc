@@ -82,7 +82,7 @@ It continues until the line ends, which is denoted by a `\n` or `\r` value.
 Within our `Comment` regular expression, `!"#"!` sequence matches a `#` value, indicating the beginning of the comment.
 AsciiCharS is a list comprising all ASCII bytes and `\`.
 The expression `[AsciiCharS \ "\n" \ "\r"]` matches a single character belonging to the set of all ASCII charactesr (`AsciiCharS`) except the return newline (`\n`) and return carriage (`\r`) characters.
-However, following the enclosing `[...]` we see a `*` which indicates the unbounded repeat operator.
+However, following this expression we see a `*` which is the unbounded repeat operator.
 Thus, `[AsciiCharS \ "\n" \ "\r"]*` matches any sequence of characters that does not contain `\n` or `\n`.
 The comment is terminated with a `\r` or `\n` character, expressed by `["\r" | "\n"]` where `|` represents the OR operator.
 Finally, we terminate the non-terminal statement with `;;`.
@@ -229,10 +229,8 @@ Most of this should be clear, but there are two important points to be made.
 First, we can refer to the fields of the synthesized attribute directly, without the member notation used in the UDP example.
 For example, `fc.magic_bytes` refers to the `magcic_bytes` field of the `ppbm_fc` synthesized attribute of record type.
 
-Second, we used a function!
+Second, we used a function.
 List.flatten(img) is a function from the standard Parsley library that takes a nested list and flattens it into a single list.
-
-*** THIS NEEDS MORE DISCUSSION!!!!
 
 == The Final Parsley File
 
@@ -280,5 +278,4 @@ format {
 }
 ....
 
-===== Navigation: <<overview.adoc#, &#8593; Overview>> | <<udp.adoc#, &#8592; Previous Lesson>> | <<ipv4.adoc#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
-
+[red]#Navigation:# <<overview.adoc#, &#8593; Tutorial Overview>> | <<udp.adoc#, &#8592; Previous Lesson>> | <<ipv4.adoc#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>

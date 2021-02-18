@@ -6,8 +6,8 @@ In the current iteration of this tutorial, we focus solely on how to use the Par
 == What is Parsley?
 
 Parsley is a a data format definition language.
-This language allows for the creation of precise specifications for file formats.
-An overview of the first iteration of the language, its goals, and its initial design choices can be found on the http://spw20.langsec.org/papers/parsley-langsec2020.pdf[LangSec website].
+That is, Parsley allows for the creation of precise specifications for file formats.
+An overview of the first iteration of the language, its goals, and its initial design choices can be found in the http://spw20.langsec.org/papers/parsley-langsec2020.pdf[initial Parsley research report].
 
 == Installation
 
@@ -20,7 +20,8 @@ To install the Parsley type checker:
 
 == Running the Type Checker
 
-The Parsley type checker takes a single command-line argument, a relative file path, and it checks whether the file specified by that path conforms to the Parsley specification. You can test this by running:
+The Parsley type checker takes a single command-line argument, a relative file path, and it checks whether the file specified by that path conforms to the Parsley specification.
+You can test this by running:
 
 `./_build/default/src/parsleyc.exe ./test/lang/examples.ply`
 
@@ -28,11 +29,10 @@ The type checker will either approve of the file or specify where things went wr
 
 == Learning by Example
 
-This tutorial is organized as a series of short lessons..
+This tutorial is organized as a series of short lessons.
 Each lesson focuses on creating a Parsley specification for a specific data format.
 Each lesson was designed to be done in a single short sitting (5-30 minutes).
 As mentioned, the examples corresponding to the chapters in this tutorial can be found in `./tutorial/examples/`.
-Additionally, there are some short exercises at the end of each chapter.
 
 == Tutorial Layout
 
@@ -42,6 +42,6 @@ Lesson 2: <<pbm.adoc#, PBM>>: The http://netpbm.sourceforge.net/doc/pbm.html[Por
 
 Lesson 3: <<ipv4.adoc#, IPV4>>: The https://tools.ietf.org/html/rfc791[Internet Protocol] is a key protocol in the https://en.wikipedia.org/wiki/Internet_protocol_suite[IP suite] that is used for the transmission of packets over the internet.
 
-Lesson 4: DNS - to do.
+Lesson 4: DNS: ...
 
-===== Navigation: <<udp.adoc#, &#8594; The First Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
+[red]#Navigation:# <<udp.adoc#, &#8594; The First Lesson>> | <<../readme.adoc#, &#128196; Documentation>>

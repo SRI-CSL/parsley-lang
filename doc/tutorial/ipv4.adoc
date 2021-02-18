@@ -1,14 +1,14 @@
 = The Internet Protocol
 
 In this lesson, we study the https://tools.ietf.org/html/rfc791[Internet Protocol].
-This lesson builds on our previous lesson on <<udp.adoc#, UDP>>.
 
 == The IPv4 Header
 
 We first need to figure out the structure of the IPv4 header.
 This is provided in the https://tools.ietf.org/html/rfc791[specification].
-This should be straightforward.
-The only item that warrants a note is that as there is currently no way to capture a bit directly within parsley, we use an `int` value to do so instead.
+This is mostly straightforward.
+The one exception is that the current implementation in Parsley has no bit types.
+So, we express bits using the `int` type in this iteration of the tutorial.
 
 ....
 type ip_packet = {
@@ -88,8 +88,8 @@ While much of this should be clear, there are some new language features to poin
 
 === Temporaries
 
-At the beginning of the right-hand side of a rule declaration, temporaries may be specified, which are in scope for the remainder of the rule.
-These temporaries are declared between `(|` and `|)` markers.
+At the beginning of the right-hand side of a rule declaration, temporaries may be specified.
+These temporaries are declared between `(|` and `|)` markers and remain in scope for the remainder of the rule.
 
 Our format block begins as follows:
 ....
@@ -98,7 +98,6 @@ format {
     (| version: int := 0, ihl: int := 0, flags: int := 0, fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
     ...
 ....
-
 In our example, we declare six temporaries that have type `int`, all initialized to 0.
 
 We assign values to temporaries within action blocks.
@@ -178,4 +177,4 @@ format {
 }
 ....
 
-===== Navigation: <<overview.adoc#, &#8593; Overview>> | <<pbm.adoc#, &#8592; Previous Lesson>> | <<ipv4.adoc#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
+[red]#Navigation:# <<overview.adoc#, &#8593; Tutorial Overview>> | <<pbm.adoc#, &#8592; Previous Lesson>> | <<ipv4.adoc#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
