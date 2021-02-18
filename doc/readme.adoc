@@ -11,4 +11,4 @@ The current documentation for Parsley is available below.
 
 * The <<stdlib.adoc#,contents>> of the current Parsley standard library.
 
-* A Parsley <<tutorial/overview.adoc#, overview>>.
+* A Parsley <<tutorial/overview.adoc#, tutorial>>.

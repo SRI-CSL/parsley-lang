@@ -1,6 +1,6 @@
 = The Internet Protocol
 
-In this lesson, we study the https://tools.ietf.org/html/rfc791[Internet Protpcol].
+In this lesson, we study the https://tools.ietf.org/html/rfc791[Internet Protocol].
 This lesson builds on our previous lesson on <<udp.adoc#, UDP>>.
 
 == The IPv4 Header
@@ -178,4 +178,4 @@ format {
 }
 ....
 
-===== Navigation: <<overview.adoc#, &#8593; Overview>> | <<pbm.adoc#, &#8592; Previous Lesson>> | <<#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
+===== Navigation: <<overview.adoc#, &#8593; Overview>> | <<pbm.adoc#, &#8592; Previous Lesson>> | <<ipv4.adoc#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
