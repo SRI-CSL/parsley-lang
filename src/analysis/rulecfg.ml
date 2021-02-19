@@ -210,15 +210,16 @@ let end_block (b: opened) (l: Label.label list) : closed =
   let t = Node.N_jumps l in
   B.join_tail b t
 
-(* cfg context for expression language: bound constants, accumulated
- * closed blocks, and current open block *)
-type ectx = Bindings.t * closed list * opened
-
-(* Statements are added to the end of an opened block, giving the same
- * or different opened block for the next addition.  Any blocks closed
- * during this addition are added to the closed list.
+(* The context for generating the CFG is:
+ * . an environment containing some constant bound variables
+ *   (e.g. from the standard library), which are excluded from the use
+ *   sets for efficiency.
+ * . the accumulated set of closed blocks generated so far
+ * . the current open block into which the next node should be added
  *)
-let rec add_stmt (ctx: ectx) (s: (typ, varid) stmt) : ectx =
+type ctx = Bindings.t * closed list * opened
+
+let rec add_stmt (ctx: ctx) (s: (typ, varid) stmt) : ctx =
   let bound, closed, b = ctx in
   match s.stmt with
     | S_assign ({expr = E_var v; _}, e) ->
@@ -288,34 +289,25 @@ let rec lift_regexp rx =
     | RX_seq rxs ->
         wrap (RE_seq (List.map lift_regexp rxs))
 
-(* Rule elements always generate closed blocks headed by the given
- * label, and parsing failures shift control to the label of the
- * current choice block.  The label for the block for the success
- * continuation is returned, along with the updated list of closed
- * blocks.
- *
- * TODO: is it an invariant that the output failure continuation is
- * always the same as the input one?
+(* The control flow semantics during parsing require that all
+ * assignment side-effects performed after a choice point along an
+ * execution path for a production rule are undone or rewound when a
+ * parse failure rewinds execution back to that choice point.  From
+ * the point of view of the initialization analysis, this is
+ * equivalent to a control-flow that does not have any failure paths.
+ * In other words, we need to ensure that all *purely* successful
+ * paths for a production rule end with all uninitialized attributes
+ * being initialized.
  *)
-type scont = Next of Label.label (* success continuation *)
-type fcont = Fail of Label.label (* failure continuation *)
 
-(* cfg context for a rule *)
-type rctx  = Bindings.t * closed list * scont * fcont
-
-let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
-        : rctx =
-  let env, closed, ((Next next) as sc), ((Fail fail) as fc) = ctx in
-  let b = new_labeled_block next in
-  let finish b =
-    let next = Label.fresh_label () in
-    let c = end_block b [next; fail] in
-    env, c :: closed, Next next, fc in
+let rec add_rule_elem (ctx: ctx) (r: (typ, varid) rule_elem) : ctx =
+  let env, closed, b = ctx in
+  let pack b =
+    env, closed, b in
   match r.rule_elem with
     | RE_regexp {regexp = RX_literals _; _}
     | RE_regexp {regexp = RX_wildcard; _} ->
-        let b = add_gnode b GN_regexp in
-        finish b
+        pack (add_gnode b GN_regexp)
     | RE_regexp rx ->
         let r' = lift_regexp rx in
         add_rule_elem ctx r'
@@ -326,171 +318,86 @@ let rec add_rule_elem (ctx: rctx) (r: (typ, varid) rule_elem)
                 List.fold_left (fun b (_, e) ->
                     add_expr env b e
                   ) b ias in
-        let b = add_gnode b (GN_type id) in
-        finish b
+        pack (add_gnode b (GN_type id))
     | RE_constraint e ->
-        let b = add_expr env b e in
-        finish b
+        pack (add_expr env b e)
     | RE_action {action_stmts = ss, oe; _}->
-        let ectx = env, closed, b in
-        let env, closed, b = List.fold_left add_stmt ectx ss in
+        let env, closed, b = List.fold_left add_stmt ctx ss in
         let b = match oe with
             | None -> b
             | Some e -> add_expr env b e in
-        (* create a new label for the success continuation *)
-        let next' = Label.fresh_label () in
-        let c = end_block b [next'] in
-        env, c :: closed, Next next', fc
+        env, closed, b
     | RE_named (n, r') ->
-        (* [n] will only be defined in the success continuation of
-         * [r'].
-         *)
-        let env, closed', Next next', fc' = add_rule_elem ctx r' in
-        assert (fc == fc');
-        let b = new_labeled_block next' in
+        (* [n] will only be defined after [r'] executes *)
+        let env, closed, b = add_rule_elem ctx r' in
         let p = pattern_of_var n r.rule_elem_loc r.rule_elem_aux in
         let b = add_pattern env b p in
-        (* We just fall through to the next block.
-         * TODO: optimize this out, either by looking up the [next]
-         * block in a context of opened blocks at the top of
-         * [add_rule_elem], or by a subsequent post-processing
-         * pass.
-         *)
-        let next = Label.fresh_label () in
-        let c = end_block b [next] in
-        env, c :: closed', Next next, fc
+        env, closed, b
     | RE_seq rs ->
         List.fold_left (fun ctx r -> add_rule_elem ctx r) ctx rs
     | RE_choice rs ->
-        (* All the [rs] will share a common success continuation, but
-         * the failure continuation will be where the next choice
-         * element will be placed.  However, the whole choice needs to
-         * fail to the input failure continuation.
-         *)
-        (* common success continuation *)
-        let next' = Label.fresh_label () in
-        (* first fail continuation *)
-        let fail' = Label.fresh_label () in
-        let env, closed, Next f', _ =
-          List.fold_left
-            (fun ctx r ->
-              let env, closed, Next n', Fail f' = add_rule_elem ctx r in
-              (* join [n'] to the common success continuation [next'].
-               * TODO: optimize this fall-through, similar to the
-               * RE_named case.
-               *)
-              let succ = new_labeled_block n' in
-              let c = end_block succ [next'] in
-              (* create a failure continuation for the next choice *)
-              let fail' = Label.fresh_label () in
-              (* the next choice uses the failure continuation for [r] *)
-              env, c :: closed, Next f', Fail fail'
-            )
-            (* the first choice will be placed in [next] and will
-             * fail to the newly generated [fail']
-             *)
-            (env, closed, sc, Fail fail') rs in
-        (* the last failure continuation should jump to the original *)
-        let f = new_labeled_block f' in
-        let c = end_block f [fail] in
-        (* continue at the common success continuation and the
-         * original failure continuation
-         *)
-        env, c :: closed, Next next', fc
-    | RE_star (r', Some e) ->
-        (* The bound [e] is evaluated before [r'] is matched; [r']
-         * also loops back to the beginning of its block and so will
-         * need its own block.  So [e] goes into its own closed
-         * non-failing block that continues with the block for [r'].
-         *)
+        (* This introduces a branch point, so we need to terminate
+         * this block with jumps to each of the blocks that start the
+         * choices [rs].  All the choices need a common continuation,
+         * so allocate a block for it. *)
+        let cl, cb = new_block () in
+        let ls, closed, env =
+          List.fold_left (fun (ls, closed, env) r ->
+              (* Allocate a new block to start this choice. *)
+              let l, b = new_block () in
+              let ctx = env, closed, b in
+              let env, closed, b = add_rule_elem ctx r in
+              (* jump to the common continuation *)
+              let c = end_block b [cl] in
+              l :: ls, c :: closed, env
+            ) ([], closed, env) rs in
+        (* terminate the current block with a jump to the choices *)
+        let c = end_block b ls in
+        (* resume from the common continuation *)
+        env, c :: closed, cb
+    | RE_star (r', Some e)
+    | RE_map_bufs (e, r') ->
+        (* The count [e] is evaluated before [r'] is matched. *)
         let b = add_expr env b e in
-        let next = Label.fresh_label () in
-        let c = end_block b [next] in
-        let ctx = env, c :: closed, Next next, fc in
-        let r = {r with rule_elem = RE_star (r', None)} in
-        (* recurse to the unbounded case *)
-        add_rule_elem ctx r
-    | RE_star (r', None) ->
-        (* The rule elem [r] cannot fail, as it either loops on
-         * success of [r'] or fails through to the success
-         * continuation.  This is handled as follows:
-         * if adding [r'] to [next] generates success continuation
-         * label [next'], then in [next'] we put the loop to [next] as
-         * well as a continuation to a new block [next'']
-         * (corresponding to the failure case of [r']), and we return
-         * next'' as the success continuation. [r'] is given a new
-         * [fail'] continuation, which just jumps to [next''].
-         *   next:r' -> next': jump [next, next'']  (success)
-         *           -> fail': jump [next'']        (failure)
-         * The original [fail] continuation is retained as the failure
-         * continuation of the final context.
+        let ctx = env, closed, b in
+        (* FIXME: if we can prove that the count [e] is always > 0
+         * (e.g. if it is a constant), then we have the straight line
+         * execution below.  Otherwise, we need to allow that the
+         * count could be zero and create a branch point;
+         * i.e. continue as though we were processing [r']*.
          *)
-        let fail' = Label.fresh_label () in
-        let ctx'  = env, closed, sc, Fail fail' in
-        let env, closed, Next next', fc' = add_rule_elem ctx' r' in
-        assert (fc' = fc);
-        let next''  = Label.fresh_label () in
-        let success = new_labeled_block next' in
-        let success = end_block success [next; next''] in
-        let failure = new_labeled_block fail' in
-        let failure = end_block failure [next''] in
-        let closed  = failure :: success :: closed in
-        (* the new success continuation is [next''], and new failure
-         * continuation is the original one provided *)
-        env, closed, Next next'', fc
+        add_rule_elem ctx r'
+    | RE_star (r', None)
     | RE_opt r' ->
-        (* The regexp [r] cannot fail, so [r'] is given a custom fail'
-         * continuation, which jumps to its success continuation.
-         *)
-        let fail' = Label.fresh_label () in
-        let ctx'  = env, closed, sc, Fail fail' in
-        let env, closed, Next next', fc' = add_rule_elem ctx' r' in
-        assert (fc' = Fail fail');
-        let fail = new_labeled_block fail' in
-        let fail = end_block fail [next'] in
-        (* the new success continuation is [next'], and new fail
-         * continuation is the original one provided *)
-        env, fail :: closed, Next next', fc
+        (* These both create a branch point, since r' may not execute,
+         * and we could continue with the subsequent rule element.
+         * Allocate a block for that continuation, and for [r']. *)
+        let cl, cb = new_block () in
+        let bl, bb = new_block () in
+        (* End the current block with these two as possible
+         * continuations *)
+        let c = end_block b [bl; cl] in
+        let ctx = env, c :: closed, bb in
+        let env, closed, bb = add_rule_elem ctx r' in
+        (* insert a jump to the continuation *)
+        let c = end_block bb [cl] in
+        env, c :: closed, cb
     | RE_epsilon ->
         (* this is a nop *)
         ctx
     | RE_at_pos (e, r') | RE_at_buf (e, r') ->
-        (* [e] is evaluated before [r'] is matched, so [e] goes into
-         * its own closed non-failing block that continues with the
-         * block for [r'].
-         *)
+        (* [e] is evaluated before [r'] is matched *)
         let b = add_expr env b e in
-        let next = Label.fresh_label () in
-        let c = end_block b [next] in
-        let ctx = env, c :: closed, Next next, fc in
+        let ctx = env, closed, b in
         add_rule_elem ctx r'
-    | RE_map_bufs (e, r') ->
-        (* [e] is evaluated once, but [r'] is loops back to itself
-         * (once for each element of [e]).  So the structure is
-         * similar to that for a bounded repeat, except that this
-         * fails if any instance of [r'] fails.
-         *)
-        let b = add_expr env b e in
-        let next = Label.fresh_label () in
-        let c = end_block b [next] in
-        let closed = c :: closed in
-        let ctx = env, closed, Next next, fc in
-        let env, closed, Next next', fc' = add_rule_elem ctx r' in
-        assert (fc == fc');
-        (* add a loop in [next'] back to [r']'s [next] block, and
-         * succeed to a new [next''].
-         *)
-        let next'' = Label.fresh_label () in
-        let b = new_labeled_block next' in
-        let c = end_block b [next; next''] in
-        env, c :: closed, Next next'', fc
 
-(* A CFG for a production rule. *)
+(* A CFG for a production rule, and its final exit label *)
 let rule_to_cfg
       (tenv: TE.environment)
       (env: Bindings.t)
       (ntd: (typ, varid) non_term_defn)
-      (r: (typ, varid) rule) =
+      (r: (typ, varid) rule)
+    : Label.label * (Block.c, Block.c, v) G.graph * Label.label =
   (* lookup type info for the non-terminal *)
   let ntnm = Location.value ntd.non_term_name in
   let nti, nts = match TE.lookup_non_term tenv (NName ntnm) with
@@ -530,18 +437,17 @@ let rule_to_cfg
               let p = pattern_of_var tv loc te.expr_aux in
               add_pattern env b p
             ) b r.rule_temps in
-  (* allocate a label for the block to start the rule itself *)
-  let next = Label.fresh_label () in
-  (* join the entry/setup block to the rule block *)
-  let c = end_block b [next] in
-  (* allocate a failure label for the whole rule *)
-  let fail = Label.fresh_label () in
   (* the initial context *)
-  let ctx = env, [c], Next next, Fail fail in
+  let ctx = env, [], b in
   (* add the rule elements *)
-  let _, closed, _, _ =
+  let _, closed, b =
     List.fold_left add_rule_elem ctx r.rule_rhs in
+  (* terminate the last block with a jump to an exit label. *)
+  let exit = Label.fresh_label () in
+  let c = end_block b [exit] in
   (* construct the graph body *)
-  let body = List.fold_left D.add_block D.empty closed in
+  let body = List.fold_left D.add_block D.empty (c :: closed) in
   (* and the graph itself *)
-  G.from_body body
+  let g = G.from_body body in
+  (* return the graph, and the entry/exit labels *)
+  entry_lbl, g, exit
