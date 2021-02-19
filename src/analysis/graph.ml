@@ -22,6 +22,92 @@ type error =
   | Label_collision of label
 exception GraphError of error
 
+module type BODY =
+  sig
+    module Block : BLOCK
+
+    type ('v) body = (c, c, 'v) Block.block Label.LabelMap.t
+
+    val empty: 't Label.LabelMap.t
+    val union: 'v body -> 'v body -> 'v body
+    val to_list: 'v body -> (Label.label * (c, c, 'v) Block.block) list
+    val add_block: 'v body -> (c, c, 'v) Block.block -> 'v body
+  end
+
+module type GRAPH =
+  sig
+    module Block : BLOCK
+    module Body  : BODY
+           with type ('e, 'x, 'v) Block.node = ('e, 'x, 'v) Block.node
+            and type ('e, 'x, 'v) Block.block = ('e, 'x, 'v) Block.block
+
+    type ('e, 'x, 'v) graph =
+      | GNil:                            (o, o, 'v) graph
+      | GUnit: (o, o, 'v) Block.block -> (o, o, 'v) graph
+      | GMany:
+            ('e, (o, c, 'v) Block.block) maybeO
+          * 'v Body.body
+          * ('x, (c, o, 'v) Block.block) maybeO
+            -> ('e, 'x, 'v) graph
+
+    (* constructing graphs *)
+
+    (* from a body *)
+    val from_body: 'v Body.body -> (c, c, 'v) graph
+
+    (* from a block *)
+    val unitOO: (o, o, 'v) Block.block -> (o, o, 'v) graph
+    val unitOC: (o, c, 'v) Block.block -> (o, c, 'v) graph
+    val unitCO: (c, o, 'v) Block.block -> (c, o, 'v) graph
+    val unitCC: (c, c, 'v) Block.block -> (c, c, 'v) graph
+
+    val of_block: ('e, 'x, 'v) Block.block -> ('e, 'x, 'v) graph
+
+    (* extending graphs with nodes *)
+
+    val catGraphNodeOO: ('e, o, 'v) graph -> (o, o, 'v) Block.node -> ('e, o, 'v) graph
+    val catGraphNodeOC: ('e, o, 'v) graph -> (o, c, 'v) Block.node -> ('e, c, 'v)  graph
+
+    val catNodeOOGraph: (o, o, 'v) Block.node -> (o, 'x, 'v) graph -> (o, 'x, 'v) graph
+    val catNodeCOGraph: (c, o, 'v) Block.node -> (o, 'x, 'v) graph -> (c, 'x, 'v) graph
+
+    (* splicing graphs *)
+
+    val splice: ('e, 'a, 'v) graph -> ('a, 'x, 'v) graph -> ('e, 'x, 'v) graph
+
+    (* mapping *)
+
+    val map_blocks: ( ((c, c, 'v) Block.block -> (c, c, 'w) Block.block)
+                    * ((c, o, 'v) Block.block -> (c, o, 'w) Block.block)
+                    * ((o, c, 'v) Block.block -> (o, c, 'w) Block.block)
+                    * ((o, o, 'v) Block.block -> (o, o, 'w) Block.block) )
+                    -> ('e, 'x, 'v) graph
+                    -> ('e, 'x, 'w) graph
+
+    val map_nodes:  ( ((c, o, 'v) Block.node -> (c, o, 'w) Block.node)
+                    * ((o, o, 'v) Block.node -> (o, o, 'w) Block.node)
+                    * ((o, c, 'v) Block.node -> (o, c, 'w) Block.node) )
+                    -> ('e, 'x, 'v) graph
+                    -> ('e, 'x, 'w) graph
+
+    (* folding *)
+
+    (* forward folding is used for blocks *)
+    val fold_nodes: ( ((c, o, 'v) Block.node -> 'a -> 'a)
+                    * ((o, o, 'v) Block.node -> 'a -> 'a)
+                    * ((o, c, 'v) Block.node -> 'a -> 'a) )
+                    -> ('e, 'x, 'v) graph -> 'a -> 'a
+
+    (* traversal *)
+
+    type error =
+      | Unbound_label of Label.label (* label does not map to a block *)
+    exception GraphError of error
+
+    val rev_postorder: 'v Body.body -> Label.label -> (c, c, 'v) Block.block list
+
+  end
+
 module MkBody =
   functor (N: NODE) ->
   struct
@@ -107,7 +193,7 @@ module MkGraph =
 
     let catGraphNodeOO (type e v)
           (g: (e, o, v) graph)
-          (n: (o, o, v) N.node)
+          (n: (o, o, v) Block.node)
         : (e, o, v) graph =
       match g with
         | GNil ->
@@ -122,7 +208,7 @@ module MkGraph =
 
     let catGraphNodeOC (type e v)
           (g: (e, o, v) graph)
-          (n: (o, c, v) N.node)
+          (n: (o, c, v) Block.node)
         : (e, c, v) graph =
       match g with
         | GNil ->
@@ -137,7 +223,7 @@ module MkGraph =
             assert false
 
     let catNodeOOGraph (type x v)
-          (n: (o, o, v) N.node)
+          (n: (o, o, v) Block.node)
           (g: (o, x, v) graph)
         : (o, x, v) graph =
       match g with
@@ -153,7 +239,7 @@ module MkGraph =
             assert false
 
     let catNodeCOGraph (type x v)
-          (n: (c, o, v) N.node)
+          (n: (c, o, v) Block.node)
           (g: (o, x, v) graph)
         : (c, x, v) graph =
       match g with
@@ -224,9 +310,9 @@ module MkGraph =
             GMany (JustO (moc h), map_body bd, JustO (mco t))
 
     let map_nodes: type e x v v'.
-                        ( ((c, o, v) N.node -> (c, o, v') N.node)
-                        * ((o, o, v) N.node -> (o, o, v') N.node)
-                        * ((o, c, v) N.node -> (o, c, v') N.node) )
+                        ( ((c, o, v) Block.node -> (c, o, v') Block.node)
+                        * ((o, o, v) Block.node -> (o, o, v') Block.node)
+                        * ((o, c, v) Block.node -> (o, c, v') Block.node) )
                         -> (e, x, v) graph
                         -> (e, x, v') graph =
       fun maps g ->
@@ -257,9 +343,9 @@ module MkGraph =
 
     (* forward folding is used for blocks *)
     let fold_nodes: type a e x v.
-                         ( ((c, o, v) N.node -> a -> a)
-                         * ((o, o, v) N.node -> a -> a)
-                         * ((o, c, v) N.node -> a -> a) )
+                         ( ((c, o, v) Block.node -> a -> a)
+                         * ((o, o, v) Block.node -> a -> a)
+                         * ((o, c, v) Block.node -> a -> a) )
                          -> (e, x, v) graph -> a -> a =
       fun maps g a ->
       let fold_body bd a =
