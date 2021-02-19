@@ -76,18 +76,6 @@ module type GRAPH =
 
     val of_block: ('e, 'x, 'v) Block.block -> ('e, 'x, 'v) graph
 
-    (* extending graphs with nodes *)
-
-    val catGraphNodeOO: ('e, o, 'v) graph -> (o, o, 'v) Block.node -> ('e, o, 'v) graph
-    val catGraphNodeOC: ('e, o, 'v) graph -> (o, c, 'v) Block.node -> ('e, c, 'v) graph
-
-    val catNodeOOGraph: (o, o, 'v) Block.node -> (o, 'x, 'v) graph -> (o, 'x, 'v) graph
-    val catNodeCOGraph: (c, o, 'v) Block.node -> (o, 'x, 'v) graph -> (c, 'x, 'v) graph
-
-    (* splicing graphs *)
-
-    val splice: ('e, 'a, 'v) graph -> ('a, 'x, 'v) graph -> ('e, 'x, 'v) graph
-
     (* mapping *)
 
     val map_blocks: ( ((c, c, 'v) Block.block -> (c, c, 'w) Block.block)
@@ -102,14 +90,6 @@ module type GRAPH =
                     * ((o, c, 'v) Block.node -> (o, c, 'w) Block.node) )
                     -> ('e, 'x, 'v) graph
                     -> ('e, 'x, 'w) graph
-
-    (* folding *)
-
-    (* forward folding is used for blocks *)
-    val fold_nodes: ( ((c, o, 'v) Block.node -> 'a -> 'a)
-                    * ((o, o, 'v) Block.node -> 'a -> 'a)
-                    * ((o, c, 'v) Block.node -> 'a -> 'a) )
-                    -> ('e, 'x, 'v) graph -> 'a -> 'a
 
     (* traversal *)
 

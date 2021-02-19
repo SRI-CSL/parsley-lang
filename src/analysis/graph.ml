@@ -63,18 +63,6 @@ module type GRAPH =
 
     val of_block: ('e, 'x, 'v) Block.block -> ('e, 'x, 'v) graph
 
-    (* extending graphs with nodes *)
-
-    val catGraphNodeOO: ('e, o, 'v) graph -> (o, o, 'v) Block.node -> ('e, o, 'v) graph
-    val catGraphNodeOC: ('e, o, 'v) graph -> (o, c, 'v) Block.node -> ('e, c, 'v)  graph
-
-    val catNodeOOGraph: (o, o, 'v) Block.node -> (o, 'x, 'v) graph -> (o, 'x, 'v) graph
-    val catNodeCOGraph: (c, o, 'v) Block.node -> (o, 'x, 'v) graph -> (c, 'x, 'v) graph
-
-    (* splicing graphs *)
-
-    val splice: ('e, 'a, 'v) graph -> ('a, 'x, 'v) graph -> ('e, 'x, 'v) graph
-
     (* mapping *)
 
     val map_blocks: ( ((c, c, 'v) Block.block -> (c, c, 'w) Block.block)
@@ -89,14 +77,6 @@ module type GRAPH =
                     * ((o, c, 'v) Block.node -> (o, c, 'w) Block.node) )
                     -> ('e, 'x, 'v) graph
                     -> ('e, 'x, 'w) graph
-
-    (* folding *)
-
-    (* forward folding is used for blocks *)
-    val fold_nodes: ( ((c, o, 'v) Block.node -> 'a -> 'a)
-                    * ((o, o, 'v) Block.node -> 'a -> 'a)
-                    * ((o, c, 'v) Block.node -> 'a -> 'a) )
-                    -> ('e, 'x, 'v) graph -> 'a -> 'a
 
     (* traversal *)
 
@@ -189,101 +169,6 @@ module MkGraph =
         | Block.BSnoc _   -> unitOO b
         | Block.BCons _   -> unitOO b
 
-    (* extending graphs with nodes *)
-
-    let catGraphNodeOO (type e v)
-          (g: (e, o, v) graph)
-          (n: (o, o, v) Block.node)
-        : (e, o, v) graph =
-      match g with
-        | GNil ->
-            unitOO (Block.BMiddle n)
-        | GUnit b ->
-            unitOO (Block.BSnoc (b, n))
-        | GMany (e, b, JustO (Block.BlockCO (h, b'))) ->
-            GMany (e, b, JustO (Block.BlockCO (h, Block.BSnoc (b', n))))
-        (* not sure why the below branch is needed; it seems wrong *)
-        | GMany (_, _, _) ->
-            assert false
-
-    let catGraphNodeOC (type e v)
-          (g: (e, o, v) graph)
-          (n: (o, c, v) Block.node)
-        : (e, c, v) graph =
-      match g with
-        | GNil ->
-            unitOC (Block.BlockOC (Block.BNil, n))
-        | GUnit b ->
-            unitOC (Block.BlockOC (b, n))
-        | GMany (e, bd, JustO (Block.BlockCO (h, b'))) ->
-            let bl = Block.BlockCC (h, b', n) in
-            GMany (e, Body.add_block bd bl, NothingO)
-        (* not sure why the below branch is needed; it seems wrong *)
-        | GMany (_, _, _) ->
-            assert false
-
-    let catNodeOOGraph (type x v)
-          (n: (o, o, v) Block.node)
-          (g: (o, x, v) graph)
-        : (o, x, v) graph =
-      match g with
-        | GNil ->
-            unitOO (Block.BMiddle n)
-        | GUnit b ->
-            unitOO (Block.BCons (n, b))
-        | GMany (JustO (Block.BlockOC (b', t)), b, x) ->
-            let bl = Block.BCons (n, b') in
-            GMany (JustO (Block.BlockOC (bl, t)), b, x)
-        (* not sure why the below branch is needed; it seems wrong *)
-        | GMany (_, _, _) ->
-            assert false
-
-    let catNodeCOGraph (type x v)
-          (n: (c, o, v) Block.node)
-          (g: (o, x, v) graph)
-        : (c, x, v) graph =
-      match g with
-        | GNil ->
-            unitCO (Block.BlockCO (n, Block.BNil))
-        | GUnit b ->
-            unitCO (Block.BlockCO (n, b))
-        | GMany (JustO (Block.BlockOC (b', t)), b, x) ->
-            let bl = Block.BlockCC (n, b', t) in
-            GMany (NothingO, Body.add_block b bl, x)
-        (* not sure why the below branch is needed; it seems wrong *)
-        | GMany (_, _, _) ->
-            assert false
-
-
-    (* splicing graphs *)
-
-    let splice (type e a x v)
-          (g1: (e, a, v) graph)
-          (g2: (a, x, v) graph)
-        : (e, x, v) graph =
-      match g1, g2 with
-        | GNil, _ ->
-            g2
-        | _, GNil ->
-            g1
-        | GUnit b1, GUnit b2 ->
-            GUnit (Block.append b1 b2)
-        | GUnit b1, GMany (JustO e, bd, x) ->
-            GMany (JustO (Block.append b1 e), bd, x)
-        | GMany (e, bd, JustO x), GUnit b2 ->
-            GMany (e, bd, JustO (Block.append x b2))
-        | GMany (e, bd1, JustO x1), GMany (JustO e2, bd2, x) ->
-            let bd = Body.add_block bd1 (Block.append x1 e2) in
-            let bd = Body.union bd bd2 in
-            GMany (e, bd, x)
-        | GMany (e, bd1, NothingO), GMany (NothingO, bd2, x) ->
-            GMany (e, Body.union bd1 bd2, x)
-        (* not sure why the below branches are needed; it seems wrong *)
-        | GUnit _, GMany _
-        | GMany _, GUnit _
-        | GMany _, GMany _ ->
-            assert false
-
     (* mapping *)
 
     let map_blocks: type e x v v'.
@@ -338,33 +223,6 @@ module MkGraph =
             GMany (JustO (Block.map maps h),
                    map_body bd,
                    JustO (Block.map maps t))
-
-    (* folding *)
-
-    (* forward folding is used for blocks *)
-    let fold_nodes: type a e x v.
-                         ( ((c, o, v) Block.node -> a -> a)
-                         * ((o, o, v) Block.node -> a -> a)
-                         * ((o, c, v) Block.node -> a -> a) )
-                         -> (e, x, v) graph -> a -> a =
-      fun maps g a ->
-      let fold_body bd a =
-        let foldr _ b a =
-          Block.ffold maps b a in
-        LabelMap.fold foldr bd a in
-      match g with
-        | GNil ->
-            a
-        | GUnit b ->
-            a |> Block.ffold maps b
-        | GMany (NothingO, bd, NothingO) ->
-            a |> fold_body bd
-        | GMany (NothingO, bd, JustO t) ->
-            a |> fold_body bd |> Block.ffold maps t
-        | GMany (JustO h, bd, NothingO) ->
-            a |> Block.ffold maps h |> fold_body bd
-        | GMany (JustO h, bd, JustO t) ->
-            a |> Block.ffold maps h |> fold_body bd |> Block.ffold maps t
 
     (* traversal *)
 
