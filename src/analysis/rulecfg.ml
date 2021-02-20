@@ -22,6 +22,7 @@ module TE = Typing.TypingEnvironment
 
 open Parsing.Ast
 open Typing.TypeInfer
+open Flow
 
 type typ = Typing.MultiEquation.crterm
 
@@ -159,7 +160,7 @@ end
 
 (* the blocks of the CFG *)
 
-module G = Graph.MkGraph(Node)
+module G = Graph.MkGraph (Node)
 module B = G.Block
 module D = G.Body
 

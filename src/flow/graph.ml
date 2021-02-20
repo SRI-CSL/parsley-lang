@@ -91,7 +91,7 @@ module type GRAPH =
 module MkBody =
   functor (N: NODE) ->
   struct
-    module Block = MkBlock(N)
+    module Block = MkBlock (N)
 
     (* A body is a collection of closed/closed blocks indexed by their
      * entry labels.
@@ -121,8 +121,8 @@ module MkBody =
 module MkGraph =
   functor (N: NODE) ->
   struct
-    module Block = MkBlock(N)
-    module Body  = MkBody(N)
+    module Block = MkBlock (N)
+    module Body  = MkBody (N)
 
     (* A control flow graph.  It can have four shapes: O/O, O/C, C/O,
      * C/C.  A graph open at the entry has a single, distinguished,

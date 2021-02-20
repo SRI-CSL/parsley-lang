@@ -1,4 +1,4 @@
 (library
-  (name dataflow)
-  (libraries parsing typing)
+  (name analysis)
+  (libraries parsing typing flow)
 )
