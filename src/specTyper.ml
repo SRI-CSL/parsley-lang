@@ -32,7 +32,9 @@ let get_tracer () =
   else None
 
 let check spec =
-  let c, tenv, spec' = TypeInfer.generate_constraint spec in
+  let tenv, venv, c = TypeInfer.init_env () in
+  let c, tenv, spec' =
+    TypeInfer.generate_constraint (tenv, venv, c) spec in
   let env = ConstraintSolver.solve ?tracer:(get_tracer ()) c in
   if print_types then
     ConstraintSolver.print_env

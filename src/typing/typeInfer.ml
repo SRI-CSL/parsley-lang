@@ -1571,7 +1571,7 @@ let infer_non_term tenv venv ntd =
 
 (** Initialize the typing environment with the builtin types and
     constants. *)
-let init_tenv () =
+let init_env () =
   let mk_variable = (fun ?name () -> variable Rigid ?name:name ()) in
   let init_builtin_types types =
     List.rev (
@@ -1788,7 +1788,6 @@ let infer_spec tenv venv spec =
   let ctxt = (fun c -> ctxt (c' ^ c)) in
   tenv, ctxt, {decls = List.rev decls}
 
-let generate_constraint spec =
-  let tenv, venv, c = init_tenv () in
+let generate_constraint (tenv, venv, c) spec =
   let tenv', c', spec' = infer_spec tenv venv spec in
   c (c' (CDump Location.ghost_loc)), tenv', spec'
