@@ -40,6 +40,7 @@ module VEnv : sig
   val add: t -> unit Ast.var -> varid Ast.var * t
   val extend: t -> string -> varid Ast.var -> t
   val lookup: t -> unit Ast.var -> varid Ast.var option
+  val fold_left: ('a -> varid Ast.var -> 'a) -> 'a -> t -> 'a
 end
 
 (** [init_tenv ()] returns the constraint context and typing and value
@@ -57,4 +58,4 @@ val infer_spec: TypingEnvironment.environment -> VEnv.t -> (unit, unit) Ast.prog
 val generate_constraint:
   TypingEnvironment.environment * VEnv.t * context ->
   (unit, unit) Ast.program ->
-  TypeConstraint.tconstraint * TypingEnvironment.environment * (MultiEquation.crterm, int) Ast.program
+  TypeConstraint.tconstraint * TypingEnvironment.environment * (MultiEquation.crterm, varid) Ast.program

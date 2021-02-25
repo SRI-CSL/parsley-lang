@@ -48,6 +48,7 @@ module VEnv : sig
   val add: t -> unit var -> varid var * t
   val extend: t -> string -> varid var -> t
   val lookup: t -> unit var -> varid var option
+  val fold_left: ('a -> varid var -> 'a) -> 'a -> t -> 'a
 
 end = struct
 
@@ -69,6 +70,9 @@ end = struct
 
   let lookup env v =
     CoreEnv.lookup_opt env (var_name v)
+
+  let fold_left f a t =
+    CoreEnv.fold_left (fun a (_, v) -> f a v) a t
 
 end
 
