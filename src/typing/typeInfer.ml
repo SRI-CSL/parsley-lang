@@ -1298,7 +1298,7 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
           ex ~pos:re.rule_elem_loc qs
             ((t =?= typ) re.rule_elem_loc ^ ctx' unit) in
         pack_constraint c,
-        mk_aux_rule_elem (RE_seq rels'),
+        mk_aux_rule_elem (RE_seq (List.rev rels')),
         venv
 
     | RE_choice rels when List.for_all (is_regexp_elem tenv) rels ->
@@ -1317,7 +1317,7 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
           ex ~pos:re.rule_elem_loc qs
             ((t =?= typ) re.rule_elem_loc ^ ctx' unit) in
         pack_constraint c,
-        mk_aux_rule_elem (RE_choice rels'),
+        mk_aux_rule_elem (RE_choice (List.rev rels')),
         venv
 
     | RE_choice rels ->
@@ -1330,7 +1330,7 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
                 ctx', re' :: rels', venv'
               ) ((fun c -> c), [], venv) rels in
           pack_constraint (ctx' unit),
-          mk_aux_rule_elem (RE_choice rels'),
+          mk_aux_rule_elem (RE_choice (List.rev rels')),
           venv
         else
           (* Each choice can receive a different type, and [t] is unconstrained *)
@@ -1344,7 +1344,7 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
           let c =
             ex ~pos:re.rule_elem_loc qs (ctx' unit) in
           pack_constraint c,
-          mk_aux_rule_elem (RE_choice rels'),
+          mk_aux_rule_elem (RE_choice (List.rev rels')),
           venv
 
     | RE_star (re', None) ->
@@ -1484,7 +1484,7 @@ let infer_non_term_rule tenv venv ntd rule pids =
                   bindings.tconstraint,
                   bindings.gamma) ],
         (ex ~pos:rule.rule_loc qs (ctx (CTrue rule.rule_loc)))),
-  {rule_rhs = List.rev rhs'; rule_temps = temps'; rule_loc = rule.rule_loc}
+  {rule_rhs = List.rev rhs'; rule_temps = List.rev temps'; rule_loc = rule.rule_loc}
 
 let infer_non_term tenv venv ntd =
   let ntid = NName (Location.value ntd.non_term_name) in
