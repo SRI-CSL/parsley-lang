@@ -20,7 +20,13 @@ open Label
 
 type error =
   | Label_collision of label
+
 exception GraphError of error
+
+let error_msg = function
+  | Label_collision l ->
+      Printf.sprintf "Cannot combine graphs with common label %s.\n"
+        (Label.to_string l)
 
 module type BODY =
   sig

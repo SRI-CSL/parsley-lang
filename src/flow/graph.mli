@@ -18,7 +18,10 @@ open Block
 
 type error =
   | Label_collision of Label.label
+
 exception GraphError of error
+
+val error_msg: error -> string
 
 module type BODY =
   sig
