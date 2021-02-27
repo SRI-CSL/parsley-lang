@@ -97,10 +97,6 @@ module type GRAPH =
      * computed by a depth-first search from a given entry point.
      *)
 
-    type error =
-      | Unbound_label of Label.label (* label does not map to a block *)
-    exception GraphError of error
-
     val rev_postorder: 'v Body.body -> Label.label -> (c, c, 'v) Block.block list
 
   end

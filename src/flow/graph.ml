@@ -80,10 +80,6 @@ module type GRAPH =
 
     (* traversal *)
 
-    type error =
-      | Unbound_label of Label.label (* label does not map to a block *)
-    exception GraphError of error
-
     val rev_postorder: 'v Body.body -> Label.label -> (c, c, 'v) Block.block list
 
   end
@@ -242,16 +238,12 @@ module MkGraph =
       | ConsTodo of 'n * 'n dfs_stack (* process if not visited already *)
       | ConsMark of 'n * 'n dfs_stack (* successors are done, ready for result *)
 
-    type error =
-      | Unbound_label of Label.label (* label does not map to a block *)
-    exception GraphError of error
-
     let rev_postorder (type v) (graph: v Body.body) (entry: Label.label)
         : (c, c, v) Block.block list =
       let lookup_for_work work l =
+        (* external labels not in the graph do not create work *)
         match LabelMap.find_opt l graph with
-          | None   -> let err = Unbound_label l in
-                      raise (GraphError err)
+          | None   -> work
           | Some b -> ConsTodo (b, work) in
       let rec collect work in_progress accum =
         match work with
