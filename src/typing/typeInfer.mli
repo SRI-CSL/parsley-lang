@@ -33,6 +33,7 @@ type context = TypeConstraint.tconstraint -> TypeConstraint.tconstraint
 
 (* binding identifier *)
 type varid = private int
+val varid_to_string: varid -> string
 
 module VEnv : sig
   type t

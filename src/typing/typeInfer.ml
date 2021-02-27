@@ -39,6 +39,7 @@ open Ast
 
 (* binding identifier *)
 type varid = int
+let varid_to_string = string_of_int
 
 module VEnv : sig
 
