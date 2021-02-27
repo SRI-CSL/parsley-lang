@@ -16,7 +16,6 @@
 (**************************************************************************)
 
 let opt_print_ast = ref false
-let opt_type_check = ref true
 let input_file = ref []
 
 let usage = Printf.sprintf
@@ -38,5 +37,5 @@ let () =
   let spec = SpecParser.parse_spec spec_file in
   if !opt_print_ast then
     Parsing.AstPrinter.print_parsed_spec spec;
-  if !opt_type_check then
-    SpecTyper.type_check spec_file spec
+  let init_envs, tenv, tspec = SpecTyper.type_check spec_file spec in
+  SpecTyper.assignment_check init_envs tenv tspec

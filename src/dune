@@ -1,5 +1,5 @@
 (executable
  (name parsleyc)
- (libraries parsing typing)
+ (libraries parsing typing analysis)
  (link_deps parsing/parseErrorMessages.check)
 )
