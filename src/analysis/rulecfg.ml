@@ -402,8 +402,8 @@ let rule_to_cfg
   (* lookup type info for the non-terminal *)
   let ntnm = Location.value ntd.non_term_name in
   let nti, nts = match TE.lookup_non_term tenv (NName ntnm) with
-      | Some t -> t
-      | None   -> assert false in
+      | Some (nti, nts, _) -> nti, nts
+      | None               -> assert false in
   (* The cfg needs an entry label and block, which will contain the
    * setup for the rule, viz. the binding for the non-terminal itself
    * (if present), and the attributes bindings and temporaries.

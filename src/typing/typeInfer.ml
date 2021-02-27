@@ -966,8 +966,9 @@ let infer_non_term_type tenv ctxt ntd =
            given a flexible variable which is equated to [[t]]. *)
         let tn = Location.value t in
         let tloc = Location.loc t in
-        if not (is_record_type tenv (TName tn)) then
-          raise (Error (NTAttributesNotRecordType (ntid, t)));
+        let recinfo = match get_record_info tenv (TName tn) with
+            | Some info -> Some info
+            | None -> raise (Error (NTAttributesNotRecordType (ntid, t))) in
         let tvar  = lookup_type_variable ~pos:tloc tenv (TName tn) in
         (* This NT cannot be used as a type constructor since it is
            aliased to the defined type, and it is represented by a
@@ -977,7 +978,7 @@ let infer_non_term_type tenv ctxt ntd =
            to not require Constant variables. *)
         let ivar  = variable ~name:(TName ntnm) Flexible () in
         let cnstr = (CoreAlgebra.TVariable ivar =?= tvar) tloc in
-        let ntt   = (inh_typ, NTT_type (CoreAlgebra.TVariable ivar)) in
+        let ntt   = (inh_typ, NTT_type (CoreAlgebra.TVariable ivar, recinfo)) in
         let tenv' = add_non_terminal tenv ntpos (NName ntnm) ntt in
         let ctxt' = (fun c ->
             ctxt (CLet ([Scheme (loc, [], [ivar], cnstr ^ c, StringMap.empty)],
@@ -990,7 +991,7 @@ let infer_non_term_type tenv ctxt ntd =
         let tvar  = infer_nt_rhs_type tenv ntd in
         let ivar  = variable ~name:(TName ntnm) Flexible () in
         let cnstr = (CoreAlgebra.TVariable ivar =?= tvar) ntd.non_term_loc in
-        let ntt   = (inh_typ, NTT_type (CoreAlgebra.TVariable ivar)) in
+        let ntt   = (inh_typ, NTT_type (CoreAlgebra.TVariable ivar, None)) in
         let tenv' = add_non_terminal tenv ntpos (NName ntnm) ntt in
         let ctxt' = (fun c ->
             ctxt (CLet ([Scheme (loc, [], [ivar], cnstr ^ c, StringMap.empty)],
@@ -1212,7 +1213,7 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
          match lookup_non_term tenv (NName n) with
            | None ->
                raise (Error (UnknownNonTerminal nid))
-           | Some ((inh, _), syn) ->
+           | Some ((inh, _), syn, _) ->
                (* Check if inherited attributes need to be specified. *)
                (match StringMap.choose_opt inh with
                   | None ->
@@ -1227,7 +1228,7 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         let cntn = Location.value cntid in
         let cnti = match lookup_non_term tenv (NName cntn) with
             | None -> raise (Error (UnknownNonTerminal cntid))
-            | Some ((inh_typ, _), _) -> inh_typ in
+            | Some ((inh_typ, _), _, _) -> inh_typ in
         let pids, cs, attrs' =
           List.fold_left (fun (pids, cs, attrs') (pid, e) ->
               let pn = Location.value pid in
@@ -1492,7 +1493,7 @@ let infer_non_term tenv venv ntd =
           (* the type definition is processed in the previous typing
              pass and should already be present *)
           assert false
-      | Some (i, _) -> i in
+      | Some (i, _, _) -> i in
 
   (* If there are any initializers for the synthesized attributes,
    * collect their typing constraints.
@@ -1680,7 +1681,8 @@ let init_env () =
         let gloc = Location.ghost_loc in
         let nid = Location.mk_ghost n in
         let typ = TypeConv.intern tenv typ in
-        let syn_typ = NTT_type typ in
+        (* builtin non-terminals are non-record types *)
+        let syn_typ = NTT_type (typ, None) in
         let inh_typ = infer_non_term_attrs tenv nid inh_attrs in
         let ntt = (inh_typ, syn_typ) in
         add_non_terminal tenv gloc nt ntt

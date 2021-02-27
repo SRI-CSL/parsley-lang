@@ -92,7 +92,7 @@ type non_term_inh_type =
 
 type non_term_syn_type =
   (* aliased to another type, either declared or inferred *)
-  | NTT_type of crterm
+  | NTT_type of crterm * record_info option
   (* a monomorphic record of its synthesized attributes *)
   | NTT_record of variable * record_info option ref
 type non_term_type = non_term_inh_type * non_term_syn_type
@@ -185,7 +185,7 @@ let add_mod_item env loc ((MName mid) as m) ((DName vid) as v) t =
   {env with modules = StringMap.add mid (minfo, mloc) env.modules}
 
 let crterm_of_non_term_type = function
-  | NTT_type t -> t
+  | NTT_type (t, _) -> t
   | NTT_record (v, _) -> CoreAlgebra.TVariable v
 
 let add_non_terminal env loc nt x =
@@ -199,7 +199,7 @@ let lookup_non_term env nt =
   match CoreEnv.lookup_opt env.non_terms nt with
     | None -> None
     | Some ((inh, syn), _) ->
-        Some (inh, crterm_of_non_term_type syn)
+        Some (inh, crterm_of_non_term_type syn, syn)
 
 let lookup_non_term_type env nt =
   match CoreEnv.lookup_opt env.non_terms nt with
@@ -309,6 +309,11 @@ let is_record_type env t =
   match lookup_adt env t with
     | Some {adt = Record _; _} -> true
     | _ -> false
+
+let get_record_info env t =
+  match lookup_adt env t with
+    | Some {adt = Record info; _} -> Some info
+    | _                           -> None
 
 (** [lookup_datacon env k] looks for typing information related to
     the fully qualified data constructor [k] in [env]. *)

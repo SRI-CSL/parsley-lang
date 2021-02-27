@@ -69,7 +69,7 @@ type non_term_inh_type =
   * (int Ast.var * Ast.type_expr) list
 type non_term_syn_type =
   (* aliased to another type, either declared or inferred *)
-  | NTT_type of MultiEquation.crterm
+  | NTT_type of MultiEquation.crterm * record_info option
   (* a monomorphic record of its synthesized attributes *)
   | NTT_record of MultiEquation.variable * record_info option ref
 type non_term_type = non_term_inh_type * non_term_syn_type
@@ -139,6 +139,8 @@ val is_regular_field_scheme: environment -> Ast.tname -> MultiEquation.variable 
 val is_defined_type : environment -> Ast.tname -> bool
 val is_variant_type : environment -> Ast.tname -> bool
 val is_record_type  : environment -> Ast.tname -> bool
+(* a more informative version of [is_record_type] *)
+val get_record_info : environment -> Ast.tname -> record_info option
 
 (** [lookup_adt env t] gives access to the typing information for the
     type with name [t]. *)
@@ -185,7 +187,8 @@ val lookup_mod_item:
 (** [lookup_non_term env nt] looks up the type information for a
     non-terminal [nt] in [env], if any. *)
 val lookup_non_term:
-  environment -> Ast.nname -> (non_term_inh_type * MultiEquation.crterm) option
+  environment -> Ast.nname
+  -> (non_term_inh_type * MultiEquation.crterm * non_term_syn_type) option
 
 (** [lookup_non_term_type env nt] looks up the type for a
     non-terminal [nt] in [env], if any. *)
