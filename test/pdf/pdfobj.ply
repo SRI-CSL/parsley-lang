@@ -54,7 +54,7 @@ format {
 
   // Whitespace is not needed to demarcate the objects.
   #[whitespace(Whitespace:allow_empty=true)]
-  Array a {a: [basic_obj]} :=
+  Array a {a: [basic_obj] := []} :=
     !"["!
     ( o=PDFObj
       { a.a := o.o :: a.a }
@@ -67,7 +67,7 @@ format {
   Dict d {d: dict} :=
     // Temporary variable introduced while parsing this production.
     (| s: set<string> := Set.empty |)
-
+    { d.d := Map.empty }
     !"<<"!
     ( n=Name
       [ !Set.mem(s, n.nm) ]

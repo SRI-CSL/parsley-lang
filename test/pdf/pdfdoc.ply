@@ -52,7 +52,7 @@ format {
 
   // Straight-line parser that does not use xref table.
   #[whitespace(Whitespace:allow_empty=true)]
-  Body b (ctxt: parse_ctxt) { body: [indirect_obj] } :=
+  Body b (ctxt: parse_ctxt) {body: [indirect_obj] := []} :=
     ( i=Indirect<ctxt = ctxt>
       { b.body := i :: b.body }
     )*
@@ -87,11 +87,14 @@ format {
 
   XrefSubSect ss { xref_ssect } :=
   (| i: int := 0 |)                     // temporary used as counter
+  { ss.xss_ents := [] }
 
   start=(# DigitS+ #) !" "!
+  [ Int.of_bytes(start) ~~ option::Some ]
   { i := Int.of_bytes_unsafe(start) }   // initialize the object counter
 
   count=(# DigitS+ #)
+  [ Int.of_bytes(count) ~~ option::Some ]
 
   ( !" \r"! | !" \n"! | !"\r\n"! )      // unclear in the spec
 
@@ -100,11 +103,15 @@ format {
      i := i + 1 }                       // increment counter for next object
   ) ^ (Int.of_bytes_unsafe(count))
 
-  { ss.xss_ents := List.rev(ss.xss_ents) }
+  { ss.xss_ents  := List.rev(ss.xss_ents);
+    ss.xss_start := Int.of_bytes_unsafe(start);
+    ss.xss_count := Int.of_bytes_unsafe(count) }
   ;;
 
   #[whitespace(Whitespace:allow_empty=true)]
   XrefSect xs { xref_sect } :=
+  { xs.xs_sects := [] }
+
   !"xref"!  PDF_EOL
   (ss=XrefSubSect { xs.xs_sects := ss :: xs.xs_sects }) *
   { xs.xs_sects := List.rev(xs.xs_sects) }
