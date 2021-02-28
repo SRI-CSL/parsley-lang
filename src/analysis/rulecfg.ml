@@ -80,15 +80,18 @@ let error_msg = function
  * name.
  *)
 
+let compare_binding (v, f, _ig) (v', f', _ig') =
+  compare (v, f) (v', f')
+
+let equal_binding (v, f, _ig) (v', f', _ig') =
+  v = v' && f = f'
+
 module Bindings = struct
   module B = Set.Make(struct
                  type t = binding
-                 let compare (v, f, _ig) (v', f', _ig')
-                   = compare (v, f) (v', f')
+                 let compare = compare_binding
                end)
   include B
-
-  let singleton d = add d empty
 
   let print b =
     let es = List.map binding_to_string (elements b) in
@@ -253,38 +256,69 @@ module G = Graph.MkGraph (Node)
 module B = G.Block
 module D = G.Body
 
-(* Reaching definitions are bindings labelled with their assigning block *)
+(* Reaching definitions are bindings labelled with their assigning
+ * block.  A binding without a label has been declared but not
+ * defined. *)
 module ReachingDefns = struct
   module RD = Set.Make(struct
-                  type t = binding * Label.label
+                  type t = binding * Label.label option
                   let compare ((v, f, _), l) ((v', f', _), l') =
                     compare (v, f, l) (v', f', l')
                 end)
   include RD
 
-  let singleton rd = add rd empty
+  (* utility for debugging *)
+  let entry_to_string (b, ol) =
+      let sl = match ol with
+          | None   -> "?"
+          | Some l -> Label.to_string l in
+      Printf.sprintf "%s@%s" (binding_to_string b) sl
 
-  (* A binding is defined if there is a definition for it.  Note that if a
-   * binding definition for a non-terminal exists, its attributes are
-   * also defined. *)
-  let defined ((v, f, _) as _b: binding) (rd: t) : bool =
-    exists (fun ((v', f', _) as _b', _) ->
-        let res =
-          match f', f with
-            | None, _         -> v = v' (* existing defn is more general *)
-            | Some f', Some f -> v = v' && f = f'
-            | Some _, None    -> false in (* existing defn is more specific *)
-        (*
-        Printf.eprintf "   [defined: checking for %s: %s? %s]\n"
-          (binding_to_string b) (binding_to_string b')
-          (if res then "T" else "F");
-         *)
-        res
+  (* checks whether a binding has been declared (or defined) *)
+  let binding_declared ((v, f, _) as _b) rd =
+    exists (fun (((v', f', _) as _b', _) as _ent) ->
+        match f, f' with
+          (* exact match *)
+          | Some f, Some f' -> v = v' && f = f'
+          | None,   None    -> v = v'
+          (* a more general binding is declared *)
+          | Some _, None    -> v = v'
+          | _               -> false
       ) rd
 
   (* Add new definitions *)
   let define (bs: Bindings.t) (l: Label.label) (rd: t) : t =
-    List.fold_left (fun rd b -> add (b, l) rd) rd (Bindings.elements bs)
+    List.fold_left (fun rd b ->
+        (* remove any existing undefined binding *)
+        let rd = filter
+                   (function
+                    | (b', None) when equal_binding b b' -> false
+                    | _                                  -> true
+                   )
+                   rd in
+        add (b, Some l) rd
+      ) rd (Bindings.elements bs)
+
+  (* A binding is possibly undefined if a possibly more general
+   * declared but undefined binding is present *)
+  let possibly_undefined ((v, f, _) as b: binding) (rd: t) : bool =
+    (* the binding should have been declared *)
+    assert (binding_declared b rd);
+    exists (fun (((v', f', _), ol) as _ent) ->
+        let res =
+          match f', f, ol with
+            (* existing undefined binding is possibly more general *)
+            | None, _, None -> v = v'
+            (* existing undefined binding is as specific *)
+            | Some f', Some f, None -> v = v' && f = f'
+            | _, _, _ -> false in
+        (*
+        Printf.eprintf "   [possibly_undefined: checking %s against %s: %s]\n"
+          (binding_to_string b) (entry_to_string _ent)
+          (if res then "T" else "F");
+         *)
+        res
+      ) rd
 end
 
 (* The lattice for the reaching definitions analysis *)
@@ -299,9 +333,12 @@ module IVLattice = struct
     ReachingDefns.union a b
 
   let print rd =
-    let print (b, l) =
+    let print (b, ol) =
       Printf.sprintf "%s@%s"
-        (binding_to_string b) (Label.to_string l) in
+        (binding_to_string b)
+        (match ol with
+           | Some l -> Label.to_string l
+           | None   -> "?") in
     let es = List.map print (ReachingDefns.elements rd) in
     String.concat ", " es
 end
@@ -705,15 +742,11 @@ let rule_to_cfg
       | ALT_type _ -> b
       | ALT_decls ds when List.length ds = 0 -> b
       | ALT_decls ds ->
-          (* Initialized attributes are best modeled as assignments in
-           * which the lhs is a field indexed variable.  If the
-           * non-terminal is not named, this is not possible; and any
-           * non-initialized attributes cannot be assigned.  For
-           * simplicity, just require that a non-terminal with
-           * ALT_decls must use a local name. *)
           let v =
             (match ntd.non_term_varname with
                | None ->
+                   (* Could assert here, since this should have been
+                    * checked before we got here. *)
                    let err =
                      Unnamed_attributed_nonterminal ntd.non_term_name in
                    raise (Error err)
@@ -795,7 +828,7 @@ let tr_oo
   let check_use (inits: ReachingDefns.t) (uses: Bindings.t) loc =
     (* All [u] in [uses] should be in the initialized set [inits] *)
     Bindings.iter (fun b ->
-        if   not (ReachingDefns.defined b inits)
+        if   (ReachingDefns.possibly_undefined b inits)
         then raise (Error (Use_of_uninit_var (b, loc)))
       ) uses in
   (* add defs to outgoing set of initvars after checking uses *)
@@ -858,10 +891,45 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
         "  built cfg for rule %d with entry %s and exit %s\n"
         !rn (Label.to_string entry) (Label.to_string exit);*)
       incr rn;
-      (* set up the initial factbase: at the entry label, we have no
-       * initialized variables (since we've pruned all entries from
-       * the prelude when constructing the CFG) *)
-      let init_fbase = FB.mk_factbase [entry, ReachingDefns.empty] in
+      (* set up the initial factbase: at the entry label, we only
+       * have uninitialized synthesized attributes, and no initialized
+       * variables (since we've pruned all entries from the prelude
+       * when constructing the CFG) *)
+      let syn_attrs =
+        let ntnm = Location.value ntd.non_term_name in
+        let recinfo = get_synth_recinfo tenv ntnm in
+        match recinfo, ntd.non_term_varname with
+          | None, _
+          | Some (TE.{fields = []; _}), _ ->  (* no synthesized attributes *)
+              None
+          | Some _, None ->
+              (* Initialized attributes are best modeled as
+               * assignments in which the lhs is a field indexed
+               * variable.  If the non-terminal is not named, this is
+               * not possible; and any non-initialized attributes
+               * cannot be assigned.  For simplicity, just require
+               * that a non-terminal with synthesized attributes must
+               * use a local name. *)
+              let err =
+                Unnamed_attributed_nonterminal ntd.non_term_name in
+              raise (Error err)
+          | Some (TE.{fields = fs; _}), Some v ->
+              Some (v, fs) in
+      let init_fbase =
+        let reaching_defs =
+          match syn_attrs with
+            | None ->
+                ReachingDefns.empty
+            | Some (v, fs) ->
+                (* create undefined bindings for each attribute *)
+                List.fold_left (fun rd attr ->
+                    let lc = Location.loc v in
+                    let vn = fst (Location.value v) in
+                    let v  = snd (Location.value v) in
+                    let b  = v, Some (Location.value attr), (vn, lc) in
+                    ReachingDefns.add (b, None) rd
+                  ) ReachingDefns.empty fs in
+        FB.mk_factbase [entry, reaching_defs] in
 (*      Printf.eprintf "init_fbase:\n";
       print_fbase init_fbase;*)
       let init_fbase = VA.Facts_closed init_fbase in
@@ -869,21 +937,10 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
       let exit_fbase, _opt_factmap =
         VA.fwd_analysis init_fbase (JustC [entry]) cfg fwd_transfer in
       (* collect info on assignments of synthesized attributes *)
-      let ntnm = Location.value ntd.non_term_name in
-      let recinfo = get_synth_recinfo tenv ntnm in
-      match recinfo, ntd.non_term_varname with
-        | None, _ -> (* no synthesized attributes *)
+      match syn_attrs with
+        | None ->
             ()
-        | Some _, None ->
-            (* Forbid this case as is done above when constructing the
-             * CFG.  We could still run into this case here since the
-             * CFG only handles ALT_decls, whereas here we need to
-             * handle both ALT_decls and ALT_type.  Alternatively, we
-             * could catch ALT_type there, and assert here. *)
-            let err =
-              Unnamed_attributed_nonterminal ntd.non_term_name in
-            raise (Error err)
-        | Some (TE.{fields = fs; _}), Some v ->
+        | Some (v, fs) ->
             let loc = Location.loc v in
             let vn  = fst (Location.value v) in
             let v   = snd (Location.value v) in
@@ -901,7 +958,7 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
                 let f = Location.value f in
                 let attr = v, Some f, (vn, loc) in
 (*                Printf.eprintf " init-check for %s:\n" (binding_to_string attr);*)
-                if   not (ReachingDefns.defined attr exit_fact)
+                if   (ReachingDefns.possibly_undefined attr exit_fact)
                 then let err =
                        Unassigned_attribute (ntd.non_term_name, f, r.rule_loc) in
                      raise (Error err)

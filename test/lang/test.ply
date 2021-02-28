@@ -34,6 +34,9 @@ fun cons <'a> (e: 'a, l: my_list<'a>) -> my_list<'a> = {
 }
 
 format {
+  NTVec nv { v: [byte] } :=
+    (b=Byte { nv.v := [b] })^(1)
+
   DepVec dv { val: [byte] } :=
     c=Byte
     dummy={ ;; c }
