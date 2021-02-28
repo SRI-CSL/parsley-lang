@@ -40,6 +40,7 @@ type init_var_error =
   | Use_of_uninit_var of binding * Location.t
   | Unnamed_attributed_nonterminal of ident
   | Unassigned_attribute of ident * string * Location.t
+  | Possible_division_by_zero of Location.t
 
 exception Error of init_var_error
 
@@ -60,6 +61,8 @@ let error_msg = function
   | Unassigned_attribute (nt, f, loc) ->
       msg "%s:\n attribute %s of %s may be uninitialized at the end of this rule.\n"
         loc f (Location.value nt)
+  | Possible_division_by_zero loc ->
+      msg "%s:\n possible division by zero.\n" loc
 
 (* TODO: move this into an astutils module *)
 
@@ -463,6 +466,88 @@ let get_synth_recinfo (tenv: TE.environment) (nt: string) =
            | NTT_record (_, r) -> !r)
     | None -> None
 
+
+(* A helper to check if a bound for the repeat combinator is
+ * non-zero. It uses a primitive constant-folder that does not access
+ * the environment; a better approach would be to have an actual
+ * const-folding pass before this analysis.
+ *
+ * NOTE: The below const-folder strips type annotations for
+ * simplicity, and so the result cannot be used to replace the source
+ * argument. *)
+
+let rec const_fold (e: (typ, varid) expr) : (typ, varid) expr =
+  match e.expr with
+    | E_var _ | E_literal _ | E_mod_member _ | E_apply _ | E_constr _ ->
+        e
+    | E_match _ | E_record _ | E_field _ | E_let _ | E_case _ ->
+        (* although these could be reduced in theory, it is unlikely
+         * to be useful in this context *)
+        e
+    | E_cast (e, _) ->
+        (* this loses information, but that's ok as long as we don't
+         * replace the source with the result *)
+        const_fold e
+    | E_unop (op, e') ->
+        let e' = const_fold e' in
+        (match op, e'.expr with
+          | Uminus, E_literal (PL_int i) ->
+              {e with expr = E_literal (PL_int (~- i))}
+          | Not, E_literal (PL_bool b) ->
+              {e with expr = E_literal (PL_bool (not b))}
+          | _ ->
+              {e with expr = E_unop (op, e')})
+    | E_binop (op, l, r) ->
+        let l', r' = const_fold l, const_fold r in
+        (match op, l'.expr, r'.expr with
+           | Lt,   E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (l < r))}
+           | Gt,   E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (l > r))}
+           | Lteq, E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (l <= r))}
+           | Gteq, E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (l >= r))}
+           | Plus, E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_int (l + r))}
+           | Minus, E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_int (l - r))}
+           | Mult, E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_int (l * r))}
+           | Div,  E_literal (PL_int _), E_literal (PL_int r)
+                when r = 0 ->
+               raise (Error (Possible_division_by_zero e.expr_loc))
+           | Div,  E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_int (l / r))}
+           | Land, E_literal (PL_bool l), E_literal (PL_bool r) ->
+               {e with expr = E_literal (PL_bool (l && r))}
+           | Lor,  E_literal (PL_bool l), E_literal (PL_bool r) ->
+               {e with expr = E_literal (PL_bool (l || r))}
+           (* Eq and Neq are polymorphic *)
+           | Eq,   E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (l = r))}
+           | Eq,   E_literal (PL_string l), E_literal (PL_string r) ->
+               {e with expr = E_literal (PL_bool (l = r))}
+           | Eq,   E_literal PL_unit, E_literal PL_unit ->
+               {e with expr = E_literal (PL_bool true)}
+           | Eq,   E_literal (PL_bool l), E_literal (PL_bool r) ->
+               {e with expr = E_literal (PL_bool (l = r))}
+           | Neq,  E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (not (l = r)))}
+           | Neq,  E_literal (PL_string l), E_literal (PL_string r) ->
+               {e with expr = E_literal (PL_bool (not (l = r)))}
+           | Neq,  E_literal PL_unit, E_literal PL_unit ->
+               {e with expr = E_literal (PL_bool false)}
+           | Neq,  E_literal (PL_bool l), E_literal (PL_bool r) ->
+               {e with expr = E_literal (PL_bool (not (l = r)))}
+           | _ ->
+               {e with expr = E_binop (op, l', r')})
+
+let is_non_zero (e: (typ, varid) expr) : bool =
+  match (const_fold e).expr with
+    | E_literal (PL_int i) -> i != 0
+    | _                    -> true
+
 (* The control flow semantics during parsing require that all
  * assignment side-effects performed after a choice point along an
  * execution path for a production rule are undone or rewound when a
@@ -533,18 +618,32 @@ let rec add_rule_elem
         let c = end_block b ls in
         (* resume from the common continuation *)
         env, c :: closed, cb
+    | RE_star (r', Some e) when is_non_zero e ->
+        (* The count [e] is evaluated before [r'] is matched. For
+         * non-zero bounds, we have straight line execution.
+         *)
+        let b   = add_expr env b e in
+        let ctx = env, closed, b in
+        add_rule_elem tenv ctx r'
     | RE_star (r', Some e)
     | RE_map_bufs (e, r') ->
-        (* The count [e] is evaluated before [r'] is matched. *)
+        (* If we can't statically determine that [e] is always
+         * non-zero for RE_star or non-empty for RE_map_bufs, we
+         * conservatively assume that they could be zero or empty,
+         * and create a branch point for the case that [r'] may not
+         * execute. *)
         let b = add_expr env b e in
-        let ctx = env, closed, b in
-        (* FIXME: if we can prove that the count [e] is always > 0
-         * (e.g. if it is a constant), then we have the straight line
-         * execution below.  Otherwise, we need to allow that the
-         * count could be zero and create a branch point;
-         * i.e. continue as though we were processing [r']*.
-         *)
-        add_rule_elem tenv ctx r'
+        (* The below logic is similar to the RE_star (r', None) case. *)
+        let cl, cb = new_block () in
+        let bl, bb = new_block () in
+        (* End the current block with these two as possible
+         * continuations *)
+        let c = end_block b [bl; cl] in
+        let ctx = env, c :: closed, bb in
+        let env, closed, bb = add_rule_elem tenv ctx r' in
+        (* insert a jump to the continuation *)
+        let c = end_block bb [cl] in
+        env, c :: closed, cb
     | RE_star (r', None)
     | RE_opt r' ->
         (* These both create a branch point, since r' may not execute,
