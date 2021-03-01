@@ -54,8 +54,8 @@ open AstUtils
 %left  BACKSLASH
 %right AT
 %right COLONCOLON
-%left  STAR DIV QUESTION
 %left  PLUS MINUS PLUS_S
+%left  STAR DIV QUESTION
 %left  CARET
 %nonassoc UMINUS
 %left  LPAREN LBRACK
