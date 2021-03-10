@@ -2,13 +2,6 @@
 
 use udp
 
-//fun parse_packet(e: endian, protocol: int) -> unit = {
- // (case protocol of 
-  //| 17 -> UDPPacket(e, protocol)
-  //)
-  //()
-//}
-
 type ip_packet = {
   version: int,
   ihl: int,
@@ -26,27 +19,26 @@ type ip_packet = {
 }
 
 format {
-  IPPacket ipp (e: endian) {ip_packet} :=
+  IPPacket ipp {ip_packet} :=
     (| version: int := 0, ihl: int := 0, flags: int := 0, fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
-    version_and_ihl = UInt8<endian=e>
+    version_and_ihl = UInt8<endian=endian::Big()>
     {
       version := version_and_ihl / 16;
       ihl := (version_and_ihl * 16) / 16
     }
     [version = 4]
-    type_of_service = UInt8<endian=e>
-    ihl = UInt8<endian=e>
     [ihl >= 5]  // the header length should be at least 5 as per the spec
-    total_length = UInt16<endian=e>
+    type_of_service = UInt8<endian=endian::Big()>
+    total_length = UInt16<endian=endian::Big()>
     identification = (Byte^2)
-    flags_and_fragment_offset = UInt16<endian=e>
+    flags_and_fragment_offset = UInt16<endian=endian::Big()>
     {
       flags := flags_and_fragment_offset / 1024;
       fragment_offset := (flags_and_fragment_offset * 8) / 8
     }
-    time_to_live = UInt8<endian=e>
-    protocol = UInt8<endian=e>
-    header_checksum = UInt16<endian=e>
+    time_to_live = UInt8<endian=endian::Big()>
+    protocol = UInt8<endian=endian::Big()>
+    header_checksum = UInt16<endian=endian::Big()>
     source_address = (Byte^4)
     destination_address = (Byte^4)
     options_and_padding_len = {      
@@ -68,10 +60,10 @@ format {
       ipp.protocol := protocol; 
       ipp.header_checksum := header_checksum;
       ipp.source_address := source_address;
-      ipp.destination_address := destination_address
+      ipp.destination_address := destination_address;
+      ipp.options_and_padding := options_and_padding
     }
-    [protocol = 17 && flags = 2] UDPPacket<e=e> | // udp w/o fragmentation 
-    [protocol = 6] () // placeholder for other next level protocols, e.g., 6 is tcp...
-
+    [protocol = 17 && flags = 2] UDPPacket | // udp w/o fragmentation 
+    [protocol != 17 || flags != 2] () // placeholder for udp w/o fragmentation or other next level protocols, e.g., protocol 6 is tcp
 }
 

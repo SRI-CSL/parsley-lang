@@ -1,3 +1,11 @@
+// This function returns the valid raster values on the line and the line length
+
+// recfun raster_line_vals (raster_line: [byte]) -> int = {
+//  (case raster_line of
+//  | List.Null() -> 0 
+//  | Cons of a * b -> raster_line_vals(b)
+// }
+
 type ppbm_fc = {
   magic_bytes: [byte],
   height: int,
@@ -7,33 +15,97 @@ type ppbm_fc = {
 
 format {
   Comment := !"#"! (# [AsciiCharS \ "\n" \ "\r"]*  ["\r" | "\n"] #);;
-  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF (vertical tabulation, form feed)
+  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF (vertical tabulation, form feed)  Whitespace
   NonNewlineWhitespace := (# [" " | "\t"] #);;
   DimensionValue := (#[DigitS]+#);;
   BinaryDigit := (# ["0" | "1"] #);;
   PixelPlusWhitespace := (# BinaryDigit Whitespace* #);;
-  TokenSeparator := (# (Comment | Whitespace)* Whitespace+ (Comment | Whitespace)* #);;
+  TokenSeparator := (# (Comment | Whitespace)* (Whitespace)+ (Comment | Whitespace)* #);;
   TokenSeparatorRaster := (# Comment* Whitespace #);;
   MagicBytes := !"P1"!;;
   Junk := ; (# Whitespace AsciiCharS* #);;
 
+  LineCheck := 
+    clone_view = {;; View.clone(View.get_current())}
+    line = @[clone_view, (# [AsciiCharS \ "\n" \ "\r"]* ["\r" | "\n"] #) ]
+    [List.length(line) <= 70];;
+
+//  RasterReadLine rrl (img_bits_rem: int, line_len_rem: int) {img_raster: [byte]} :=
+//    (| img_bits_rem_rec: int := 0,  line_len_rem_rec: int := 0 |)
+//      ([img_bits_rem > 0 && line_len_rem > 0]
+//      img_val = BinaryDigit
+//      {
+//        img_bits_rem_rec := img_bits_rem - 1;
+//        line_len_rem_rec := line_len_rem - 1
+//      }
+//      rrl_res = RasterReadLine<img_bits_rem = img_bits_rem_rec, line_len_rem = line_len_rem_rec>
+//      {
+//        rrl.img_raster := img_val[0]::rrl_res.img_raster
+//      })
+//    | ([img_bits_rem >= 0 && line_len_rem > 0]
+//      !" "!
+//      {
+//        img_bits_rem_rec := img_bits_rem;
+//        line_len_rem_rec := line_len_rem - 1
+//      }
+//      rrl_res = RasterReadLine<img_bits_rem = img_bits_rem_rec, line_len_rem = line_len_rem_rec>
+//      {
+//        rrl.img_raster := rrl_res.img_raster
+//      })
+//    | ([img_bits_rem = 0 && line_len_rem > 0]
+//      !"\n"!
+//      {
+//        rrl.img_raster := []
+//      });; 
+
+  ReadRasterLine rrl (width: int) {img_raster_line: [byte]} :=
+      ([width > 0]
+       img_val = BinaryDigit
+       rrl_res = ReadRasterLine<width = width - 1> 
+       {
+         rrl.img_raster_line := img_val[0]::rrl_res.img_raster_line
+       }) 
+    | ([width <= 0] // this guard isn't necessary
+       (# [" " | "\t"] #)
+       rrl_res = ReadRasterLine<width = width>
+       {
+         rrl.img_raster_line := rrl_res.img_raster_line
+       })
+    | ([width = 0]
+       !"\n"!  
+       {
+         rrl.img_raster_line := []
+       });;
+
+  ReadRaster rr (width: int, height: int) {img_raster: [byte]} := 
+    LineCheck
+    img_raster_line = ReadRasterLine<width = width>
+    img_raster_rest = ReadRaster<width = width, height = height - 1>
+    {
+      rr.img_raster := img_raster_line::img_raster_rest
+    };;
+     
   PBM_FC fc {ppbm_fc} :=
+    (| raster_width: int := 0, raster_height: int := 0 |) 
     magic_bytes = MagicBytes
     TokenSeparator
     height = DimensionValue 
+    [Int.of_bytes(height) ~~ option::Some]
     TokenSeparator
     width = DimensionValue
-    raster_size = {
-      ;;
-      Int.of_bytes_unsafe(width) * Int.of_bytes_unsafe(height)
+    [Int.of_bytes(width) ~~ option::Some]
+    {
+      raster_width := Int.of_bytes_unsafe(width);
+      raster_height := Int.of_bytes_unsafe(height)
     }
     TokenSeparatorRaster
-    img = (PixelPlusWhitespace^raster_size)
+    //img = (PixelPlusWhitespace^raster_size)
+    img = ReadRaster<width = Int.of_bytes_unsafe(width), height = Int.of_bytes_unsafe(height)>
     junk = Junk
     {
       fc.magic_bytes := magic_bytes;
-      fc.height := Int.of_bytes_unsafe(height);
-      fc.width := Int.of_bytes_unsafe(width);
-      fc.img := List.flatten(img)
+      fc.height := raster_height;
+      fc.width := raster_width;
+      fc.img := img
     }
 }

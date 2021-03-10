@@ -42,6 +42,6 @@ Lesson 2: <<pbm.adoc#, PBM>>: The http://netpbm.sourceforge.net/doc/pbm.html[Por
 
 Lesson 3: <<ipv4.adoc#, IPV4>>: The https://tools.ietf.org/html/rfc791[Internet Protocol] is a key protocol in the https://en.wikipedia.org/wiki/Internet_protocol_suite[IP suite] that is used for the transmission of packets over the internet.
 
-Lesson 4: DNS: ...
+// Lesson 4: DNS: ...
 
 [red]#Navigation:# <<udp.adoc#, &#8594; The First Lesson>> | <<../readme.adoc#, &#128196; Documentation>>

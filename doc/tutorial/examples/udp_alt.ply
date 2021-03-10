@@ -5,16 +5,8 @@
 // using length and checksum as they would require knowing what
 // version of IP we are using.
 
-type udp_packet = {
-  source_port: int,
-  destination_port: int,
-  length: int,
-  checksum: [byte],
-  data: [byte]
-}
-
 format {
-  UDPPacket udpp {u: udp_packet} :=
+  UDPPacket udpp {source_port: int, destination_port: int, length: int, checksum: [byte], data: [byte]} :=
     source_port = UInt16<endian=endian::Big()>
     destination_port = UInt16<endian=endian::Big()>
     length = UInt16<endian=endian::Big()>
@@ -22,11 +14,11 @@ format {
     data = (Byte^(length - 8)) // subtract 8 for the UDP header length
     [length >= 8] // length field must be at least 8, the UDP header length
     {
-      udpp.u.source_port := source_port;
-      udpp.u.destination_port := destination_port;
-      udpp.u.length := length;
-      udpp.u.checksum := checksum;
-      udpp.u.data := data
+      udpp.source_port := source_port;
+      udpp.destination_port := destination_port;
+      udpp.length := length;
+      udpp.checksum := checksum;
+      udpp.data := data
     }
 }
 
