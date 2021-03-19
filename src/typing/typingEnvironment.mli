@@ -32,7 +32,7 @@ open Parsing
     with their destructors and constructors *)
 type record_info =
   {adt: Ast.ident;
-   fields: Ast.ident list;
+   fields: (Ast.ident * Ast.type_expr) list;
    record_constructor: Ast.tname * MultiEquation.variable;
    field_destructors: (Ast.lname * MultiEquation.variable) list}
 

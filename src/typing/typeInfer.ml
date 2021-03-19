@@ -443,7 +443,6 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
         let tenv, cid, crqs, let_env =
           intern_record_constructor ident tvars
             (tenv, let_env) fields in
-        let fields, _ = List.split fields in
         (* Fill in the adt_info *)
         adt_ref := Some {adt = Record {adt = ident;
                                        fields;
@@ -519,7 +518,7 @@ let lookup_record_adt tenv fields =
   let adt_ident = let TName id = adtid in
                   Location.mk_loc_val id rec_loc in
   (* Make sure the used fields match the declared fields. *)
-  let decset = List.fold_left (fun acc field ->
+  let decset = List.fold_left (fun acc (field, _) ->
                    let l = Location.value field in
                    (* there should be no duplicates *)
                    assert (not (StringSet.mem l acc));
@@ -1026,11 +1025,10 @@ let infer_non_term_type tenv ctxt ntd =
         let tenv', cid, crqs, let_env =
           intern_record_constructor ntid []
             (tenv', let_env) attrs in
-        let fields, _ = List.split attrs in
-        let rec_info = {adt = ntid;
-                        fields;
+        let rec_info = {adt    = ntid;
+                        fields = attrs;
                         record_constructor = cid;
-                        field_destructors = dids} in
+                        field_destructors  = dids} in
         rcd := Some rec_info;
         adt := Some {adt = Record rec_info; loc};
         let ctxt' = (fun c ->

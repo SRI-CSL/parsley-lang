@@ -36,7 +36,7 @@ open MultiEquation
 
 type record_info =
   {adt: ident;
-   fields: ident list;
+   fields: (ident * type_expr) list;
    record_constructor: tname * variable; (* named "<adt>" *)
    field_destructors: (lname * variable) list}
 

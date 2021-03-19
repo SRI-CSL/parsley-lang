@@ -828,7 +828,7 @@ let tr_oo
   let check_use (inits: ReachingDefns.t) (uses: Bindings.t) loc =
     (* All [u] in [uses] should be in the initialized set [inits] *)
     Bindings.iter (fun b ->
-        if   (ReachingDefns.possibly_undefined b inits)
+        if   ReachingDefns.possibly_undefined b inits
         then raise (Error (Use_of_uninit_var (b, loc)))
       ) uses in
   (* add defs to outgoing set of initvars after checking uses *)
@@ -922,7 +922,7 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
                 ReachingDefns.empty
             | Some (v, fs) ->
                 (* create undefined bindings for each attribute *)
-                List.fold_left (fun rd attr ->
+                List.fold_left (fun rd (attr, _) ->
                     let lc = Location.loc v in
                     let vn = fst (Location.value v) in
                     let v  = snd (Location.value v) in
@@ -954,11 +954,11 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
                 | None -> assert false
                 | Some f -> f in
             (* ensure all synthesized attributes are initialized at exit *)
-            List.iter (fun f ->
+            List.iter (fun (f, _) ->
                 let f = Location.value f in
                 let attr = v, Some f, (vn, loc) in
 (*                Printf.eprintf " init-check for %s:\n" (binding_to_string attr);*)
-                if   (ReachingDefns.possibly_undefined attr exit_fact)
+                if   ReachingDefns.possibly_undefined attr exit_fact
                 then let err =
                        Unassigned_attribute (ntd.non_term_name, f, r.rule_loc) in
                      raise (Error err)
