@@ -402,7 +402,8 @@ format {
 
 There is not too much new to discuss here.
 
-We begin by matching the magic bytes, the token separator, the width, another token separator, and the height.
+We declare a non-terminal `PBM_FC` with short name `fc` and a single synthesized attribute that has the `ppbm_fc` record type.
+We then match the magic bytes, the token separator, the width, another token separator, and the height.
 But we must also ensure that the `width` and `height` identifiers can properly be converted into integer values later down the parser creation pipeline.
 As we are agnostic to these details in the `.ply` format, this is indirectly achieved via imposing constraints that can be resolved later.
 These constraints are ``[Int.of_bytes(width) ~~ option::Some]`` and ``[Int.of_bytes(height) ~~ option::Some]``.
@@ -504,113 +505,5 @@ format {
     }
 }
 ....
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-=== Putting it All Together
-
-Now that we have declared some helpful non-terminals, we can move on declaring the non-terminal that represents the Plain PBM format.
-
-....
-format {
-  ...
-  PBM_FC fc {ppbm_fc} :=
-    magic_bytes = MagicBytes
-    TokenSeparator
-    height = DimensionValue
-    TokenSeparator
-    width = DimensionValue
-    raster_size = {
-      ;;
-      Int.of_bytes_unsafe(width) * Int.of_bytes_unsafe(height)
-    }
-    TokenSeparatorRaster
-    img = (PixelPlusWhitespace^raster_size)
-    Junk
-    {
-      fc.magic_bytes := magic_bytes;
-      fc.height := Int.of_bytes_unsafe(height);
-      fc.width := Int.of_bytes_unsafe(width);
-      fc.img := List.flatten(img)
-    }
-}
-....
-
-Most of this should be clear.
-We are declaring a non-terminal `PBM_FC` with short name `fc` and a single synthesized attribute that has the `ppbm_fc` record type.
-The non-terminal begins by matching the magic bytes, height, and width, with the token separators in between them.
-
-==== Returning Values Via Action blocks
-
-
-After we match `magic_bytes`, `height`, and `width`, we compute the raster size, `raster_size`:
-
-....
-raster_size = {
-  ;;
-  Int.of_bytes_unsafe(width) * Int.of_bytes_unsafe(height)
-}
-....
-
-This copmutation is done via an action block.
-In the UDP example we demonstrated how action blocks can be used to assign values to synthesized attributes.
-However, action blocks can also return values, as is done here.
-The action block returns the value of the expression in the last statement of the action block.
-Thus, we assign the computed value of `Int.of_bytes_unsafe(width) * Int.of_bytes_unsafe(height)` to `raster_size`.
-
-==== Reading the Image Raster and Assigning Synthesized Attributes
-
-Preceding the image raster, we have the special token separator, `TokenSeparatorRaster`.
-This is followed by the image raster, which is captured in `img`:
-
-....
-img = (PixelPlusWhitespace^raster_size)
-....
-
-Here, we use the bounded repeat operator `^` to match PixelPlusWhitespace exactly `raster_size` times.
-This is optionally followed by junk values, which are captured by the `Junk` non-terminal.
-
-Finally, we assign values to the synthesized attributes in the final action block:
-
-....
-{
-  fc.magic_bytes := magic_bytes;
-  fc.height := Int.of_bytes_unsafe(height);
-  fc.width := Int.of_bytes_unsafe(width);
-  fc.img := List.flatten(img)
-}
-....
-
-Most of this should be clear, but there are two important points to be made.
-
-First, we can refer to the fields of the synthesized attribute directly, without the member notation used in the UDP example.
-For example, `fc.magic_bytes` refers to the `magcic_bytes` field of the `ppbm_fc` synthesized attribute of record type.
-
-Second, we used a function.
-List.flatten(img) is a function from the standard Parsley library that takes a nested list and flattens it into a single list.
-
-== The Final Parsley File
-
-Thus, we have our final Parsley file:
 
 [red]#Navigation:# <<overview.adoc#, &#8593; Tutorial Overview>> | <<ipv4.adoc#, &#8592; Previous Lesson>> | <<pbm.adoc#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
