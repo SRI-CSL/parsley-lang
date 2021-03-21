@@ -1,19 +1,19 @@
 = The Internet Protocol
 
-In the previous lessson, we looked at the https://tools.ietf.org/html/rfc768[User Datagram Protocol].
-In this lesson, we continue looking at the IP suite by examining the https://tools.ietf.org/html/rfc791[Internet Protocol].
-We develop a Parsley specification for a subset of IPv4.
+In the previous lessson, we developed a Parsley specification for the https://tools.ietf.org/html/rfc768[User Datagram Protocol].
+In this lesson, we continue looking at the IP suite; we develop a Parsley specification for the https://tools.ietf.org/html/rfc791[Internet Protocol] (version 4).
 
 == The Use Declaration
 
 First, we note that, as is the case with many protocols, we cannot parse IPv4 in isolation.
-IPv4 packets may contain a UDP packet, a TCP packet, other packets, and even fragments of packets.
+IPv4 packets may contain a UDP packet, a TCP packet, other packets, or even fragments of packets.
 Moreover, correctly parsing IPv4 and UDP packets requires the parsers to be linked, e.g., because the checksums rely on both.
 
 NOTE: For the time being we will not ensure the correctness of checksums. Once we have incorporated bits into Parsley, we will.
 
 Bridging this parser-parser barrier is done via the `use` declaration.
-The `use` declaration is followed by a filename of a file within the same directory and enables one to include all declarations within the specified file.
+The `use` declaration is followed by a filename of a file within the same directory.
+It enables one to include all declarations within the specified file.
 
 ....
 use udp
@@ -144,8 +144,8 @@ format {
 
 The identifier `version_and_ihl` is set to match an eight-byte unsigned integer.
 We then do some manipulation to extract the `version` and `ihl` flags from this integer by using an action block.
-In fact, this form should look very familiar to the previous lesson where we assigned values to synthesized attributes.
-The only difference here is that we are assigning values to temporaries instead of synthesized attributes.
+In fact, this form should look very familiar from the previous lesson where we assigned values to synthesized attributes.
+The only difference here is that we are assigning values to temporaries instead of assigned values to synthesized attributes.
 Next, we have two constraints that ensure we are dealing with version 4 of IP and we ensure that the IHL value is at least 5, in accordance with the IPv4 specification.
 
 While much of the remainder of the file is straightforward, we'll review two more action blocks and two more constraints.
@@ -199,7 +199,8 @@ format {
 
 This is where the `use` declaration comes into play.
 We are now using the UDPPacket non-terminal from `udp.ply`.
-In a future iteration of this tutorial, we will demonstrate how these two parsers interact in validating the checksums.
+In a future iteration of this tutorial, once bits have been implemented, we will demonstrate how these two parsers interact in validating the checksums.
+This will also require passing along information to the UDPPacket non-terminal via inherited attributes.
 
 === Our Final File
 

@@ -9,20 +9,20 @@
 For our first exercise, we examine the https://en.wikipedia.org/wiki/User_Datagram_Protocol[User Datagram Protocol (UDP)].
 The UDP specification can be found in https://tools.ietf.org/html/rfc768[IETF RFC 768].
 UDP is a transport layer protocol used alongside IP.
-UDP does not provide some valuable guarantees, such as reliable and in-order messaging. as is provided by TCP.
-However, it is simple and has minimal overhead.
-This makes it a great introductory example use case for Parsley!
+In contrast to TCP, another transport layer protocol, UDP does not provide some valuable guarantees, such as reliability and in-order messaging.
+However, UDP is lightweight and simple, making it a great introductory example use case for this Parsley tutorial.
 
 == Declarations
 
-A format specification in Parsley is constructed via a sequence of <<intro.adoc#structure-of-a-parsley-specification-file, declarations>>, each declaration belonging to one of the following four groups:
+A format specification in Parsley is constructed via a sequence of <<../intro.adoc#structure-of-a-parsley-specification-file, declarations>>.
+Currently, there are four classes of declarations:
 
 - `use` declarations that specify other Parsley files whose declarations shall be included. These are similar to `include` in C or `import` in Python.
 - `type` definitions that allow users to specify their own types.
 - `fun` and `recfun` declarations that correspond to functions and recursive functions respectively.
 - `format` block declarations that specify non-terminal definitions.
 
-In this first lesson, we introduce `format` and `type` declarations.
+In this first lesson, we introduce the `format` and `type` declarations.
 
 == A (Very) Brief Introduction to Parsley Types
 
@@ -41,7 +41,7 @@ type udp_packet = {
 }
 ....
 
-We provide a quick primer on types here but a more comprehensive traetment can be found in the <<expressions.adoc#types, documentation>>.
+We provide a quick primer on types here but a more comprehensive treatment can be found in the <<../expressions.adoc#types, documentation>>.
 
 === Atomic Types
 
@@ -84,9 +84,9 @@ type type_name = {
 ....
 
 Each line within the curly brackets specifies a component field via a field name and type.
-Following each field declaration, aside from the last one, we see a `,` that serves as a delimiter between field declarations.
+Each field declaration, aside from the last one, is terminated by a `,` delimiter.
 
-NOTE: There is much more to discuss about types, notably variant types and type variables. The Parsley <<expressions.adoc#types, documentation on types>> discusses these topics further.
+NOTE: There is much more to discuss about types, notably variant types and type variables. The Parsley <<../expressions.adoc#types, documentation on types>> discusses these topics further.
 
 === Declaring the UDP Packet Type
 
@@ -112,7 +112,7 @@ Now that we have captured the general structure of a UDP packet, we can move on 
 
 The `format` block is essential to _every_ Parsley specification.
 This is where we define non-terminals and, as the name suggests, specify the format of the specification.
-The `format` block has the general form (some details are missing but we'll get to them):
+The `format` block has the general form:
 
 ....
 format {
@@ -127,9 +127,9 @@ Each declaration, except for the last, must end with `;;`, which serves as a non
 
 === Non-Terminals, Synthesized Attributes, and Inherited Attributes
 
-Parsley provides a rich subgrammar that has some similarity with BNF but also a number of key differences.
+Parsley provides a rich subgrammar that has some similarity with https://en.wikipedia.org/wiki/Backus–Naur_form[BNF] but also a number of key differences.
 Here, we will only cover the basics; more topics will be introduced in subsequent lessons.
-A non-terminal is derived using one or more production rules that are separated by `;`, which is the ordered choice operator.
+A <<../grammar.adoc#defining-non-terminals, non-terminal>> is derived using one or more production rules that are separated by `;`, the ordered choice operator.
 Each production rule is a sequence of rule elements.
 A sequence of rule elements is matched if the input matches the rule elements.
 
@@ -152,19 +152,16 @@ format {
 
 We still have to fill in the details obviously, but this is a good start.
 We have a non-terminal entitled UDPPacket that has the short name of udpp.
-And it has the synthesized attribute `u` of type `udp_packet`, which we had defined earlier; synthesized attributes like these are specified within curly braces.
+And it has the synthesized attribute `u` of type `udp_packet`, which we had defined earlier; synthesized attributes like these are specified within curly brackets.
 
-NOTE: While the original specification does not explicitly require using the Big Endian byte ordering,
+NOTE: While the original specification does not explicitly require using the big-endian byte order,
 the https://tools.ietf.org/html/rfc1700[Assigned Numbers RFC] specifies that Internet Protocols should be expressed in network byte order, i.e., big-endian byte order.
-Hence, we follow this approach.
-
-TIP: However, If we had instead wished to pass in an endian value as an inherited attribute to UDPPacket, we could have declared it as: +
-UDPPacket udpp (e: endian) {u: udp_packet} := ...
+Hence, we follow this approach. However, If we had instead wished to pass in an endian value as an inherited attribute to UDPPacket, we would have written: `UDPPacket udpp (e: endian) {u: udp_packet} := ...`.
 
 Now, let's work on the rule elements.
-Well, the UDP specification states the header comprises 2 bytes for the source port, 2 bytes for the destination port, 2 bytes (or a 16 bit integer) for the length, and 2 bytes for the checksum.
-Thus, we have four identifiers (source_port, destination_port, length, checksum) to capture these parts of the header.
-And, of course, we have the data whose length is derived from the value matched by the length identifier.
+The UDP specification states the header comprises 2 bytes for the source port, 2 bytes for the destination port, 2 bytes (or a 16 bit integer) for the length, and 2 bytes for the checksum.
+Thus, we have four identifiers (`source_port`, `destination_port`, `length`, `checksum`) to capture these parts of the header.
+And, of course, we have `data` whose length is derived from the value matched by the `length` identifier.
 
 ....
 format {
@@ -173,39 +170,43 @@ format {
     destination_port = UInt16<endian=endian::Big()>
     length = UInt16<endian=endian::Big()>
     checksum = (Byte^2)
-    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
     [length >= 8] // length field must be at least 8, the UDP header length
+    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
 }
 ....
 
 `UInt16 (endian: endian)` and `Byte` are built-in non-terminals that match a 16-bit unsigned integer and a a byte respectively.
 The identifiers `source_port`, `destination_port`, and `length` are assigned 16-bit unsigned integer values of the endianness `endian::Big()`.
-The identifier `checksum` is assigned a two byte value by applying the `Byte` type in conjunction with the bounded repeat operator (`^`).
-A 16 bit unsigned integer of the endianness `endian::Big()` is assigned to the length identifier.
-Last, we read the data.
-We determine the amount of data bytes to read by subtracting 8 from the value captured by the `length` identifier.
-Then, we read in those bytes by, once again, applying the bounded repeat operator to the `Byte` non-terminal.
+The identifier `checksum` is assigned a two byte value by applying the `Byte` type in conjunction with the bounded repeat operator (`^`) with an operand of 2, indicating that two bytes should be matched.
+A 16-bit unsigned integer of the endianness `endian::Big()` is assigned to the length identifier.
 
-NOTE: The order of the constituent rule elements matters.
-It is done in accordance with the UDP specification.
-The order of the rule elements tell us how any parsers generated from this Parsley specification should go about consuming the input.
+NOTE: The <<../stdlib.adoc#, Parsley Library Standard Documentation>> provides an in-depth discussion of built-in variant types, built-in non-terminals, and module operations.
 
-NOTE: The <<../stdlib.adoc#, Parsley Library Standard Documentation>> provides an in-depth discussion of built-in types and module operations.
+Last, we must read in the data, but this requires ensuring the length value is reasonable.
+We do this by imposing a constraint.
 
-=== Finishing Up
+==== Constraints
 
-All that is left is to perform a simple check on the `length` field and assign values to the synthesized variables.
-We will do this using constraints and action blocks.
+A constraint is simply a parsing check.
+More precisely, a constraint captures a Boolean-valued expression that determines whether or not to continue with the current production rule.
+If the expression evaluates to a false Boolean value, then the constraint is not met and the production rule does not apply.
+If, however, the constraint evaluates to a true Boolean value, then the constraint is met and we move on to the next rule element in the production rule.
+
+In our UDP example, the constraint `[length >= 8]` does a check to ensure the `length` variable is assigned a value of at least `8`.
+If it were assigned a value less than `8`, then we can immediately determine that the packet is malformed since the header itself is 8 bytes.
+
+Finally, we determine the amount of data bytes to read by subtracting 8 (the header length) from the value captured by the `length` identifier.
+Then, we read in those bytes by, once again, applying the bounded repeat operator to the `Byte` non-terminal with an operand of `length - 8`.
+
+==== Action Blocks
+
+All that is left is to assign values to the synthesized variables.
+We do this via action blocks:
 
 ....
 format {
   UDPPacket udpp {u: udp_packet} :=
-    source_port = UInt16<endian=endian::Big()>
-    destination_port = UInt16<endian=endian::Big()>
-    length = UInt16<endian=endian::Big()>
-    checksum = (Byte^2)
-    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
-    [length >= 8] // length field must be at least 8, the UDP header length
+    ...
     {
       udpp.u.source_port := source_port;
       udpp.u.destination_port := destination_port;
@@ -216,22 +217,11 @@ format {
 }
 ....
 
-==== Constraints
 
-A constraint is simply a parsing check.
-That is, a constraint captures a Boolean-valued expression that determines whether or not to continue with the current production rule.
-If the expression evaluates to a false Boolean value, then the constraint is not met and the production rule does not apply.
-If, however, the constraint evaluates to a true Boolean value, then the constraint is met and we move on to the next rule element in the production rule.
-
-In our UDP example, the constraint `[length >= 8]` does a check to ensure the `length` variable is assigned a value of at least 8.
-If it were smaller than 8, we can tell, right off the bat, that the packet is malformed as the header itself is 8 bytes.
-
-==== Action Blocks
-
-The assignment of values to the synthesized attributes is performed with the action block, which is delimited by `{` and `}`.
+The assignment of values to the synthesized attributes is performed by the action block, which is delimited by `{` and `}`.
 The `:=`  symbol in action blocks denote assignment.
 Each assignment statement in an action block aside from the last must end with the `;` delimiter.
-There are other uses for action blocks as well, which we will cover them in future lessons.
+There are other uses for action blocks as well, and we will cover them in future lessons.
 
 In our UDP example, `udpp` is the short name for the non-terminal we are working on.
 `udpp.u` refers to the `udp_packet` record attached to the `udpp` non-terminal.
@@ -242,13 +232,6 @@ In a straightforward fashion, we are simply assigning the fields in the `udpp.u`
 Thus, we have our final Parsley file (`udp.ply`):
 
 ....
-// This Parsley file is based on the UDP specification: https://tools.ietf.org/html/rfc768
-
-// We make no assumption about whether we are using IPv4 or IPv6.
-// However, we also don't perform some of the requisite checks
-// using length and checksum as they would require knowing what
-// version of IP we are using.
-
 type udp_packet = {
   source_port: int,
   destination_port: int,
@@ -263,8 +246,8 @@ format {
     destination_port = UInt16<endian=endian::Big()>
     length = UInt16<endian=endian::Big()>
     checksum = (Byte^2)
-    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
     [length >= 8] // length field must be at least 8, the UDP header length
+    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
     {
       udpp.u.source_port := source_port;
       udpp.u.destination_port := destination_port;
@@ -281,29 +264,22 @@ You may noticed that we have incorporated some comments in our final Parsley fil
 Comments in Parsley begin with two forward slash characters (`//`).
 Everything that follows the `//` delimiter until the following new line character is part of the comment.
 
-==== Did We *Need* a udp_packet type?
+==== Do We Need a `udp_packet` Type?
 
 We had earlier declared a `udp_packet` type, which is used as a synthesized attribute in the UDPPacket non-terminal declaration.
-The primary benefit of this approach is that when dealing with larger projects, it is clean; it makes it easier to write and understand Parsley code, which often translates to better security.
-In a subsequent lesson, in fact, we will use the `udp_packet` type when implementing a subset of IPv4.
-However, if you were curious as to what the file would look without a `udp_packet` type, we've provided an implementation in `udp_alt.ply` and also pasted its contents below:
+Of course, we didn not _have to_ define such a type.
+Indeed, we could have instead supplied synthesized attributes corresponding to the type's member fields.
+We have provided such an implementation in `udp_alt.ply` and also pasted the contents of such a file below.
 
 ....
-// This Parsley file is based on the UDP specification: https://tools.ietf.org/html/rfc768
-
-// We make no assumption about whether we are using IPv4 or IPv6.
-// However, we also don't perform some of the requisite checks
-// using length and checksum as they would require knowing what
-// version of IP we are using.
-
 format {
   UDPPacket udpp {source_port: int, destination_port: int, length: int, checksum: [byte], data: [byte]} :=
     source_port = UInt16<endian=endian::Big()>
     destination_port = UInt16<endian=endian::Big()>
     length = UInt16<endian=endian::Big()>
     checksum = (Byte^2)
-    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
     [length >= 8] // length field must be at least 8, the UDP header length
+    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
     {
       udpp.source_port := source_port;
       udpp.destination_port := destination_port;
@@ -313,5 +289,10 @@ format {
     }
 }
 ....
+
+That said, there are numerous benefits to declaring and using a record type, e.g., modularization, code brevity, ease of interpretability, and consequently improved security.
+These benefits are especially pronounced in larger projects that make heavy use of the user-defined type.
+In the next lesson, we will demonstrate how to use the `udp_packet` type when implementing a subset of IPv4.
+
 
 [red]#Navigation:# <<overview.adoc#, &#8593; Tutorial Overview>> | <<ipv4.adoc#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>

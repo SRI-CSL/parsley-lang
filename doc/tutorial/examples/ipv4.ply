@@ -1,4 +1,5 @@
-// This Parsley file is based on the IP Version 4 specification: https://tools.ietf.org/html/rfc791
+// This Parsley file is a partial implementation of the
+// IP Version 4 specification: https://tools.ietf.org/html/rfc791
 
 use udp
 
@@ -64,6 +65,6 @@ format {
       ipp.options_and_padding := options_and_padding
     }
     [protocol = 17 && flags = 2] UDPPacket | // udp w/o fragmentation 
-    [protocol != 17 || flags != 2] () // placeholder for udp w/o fragmentation or other next level protocols, e.g., protocol 6 is tcp
+    [protocol != 17 || (protocol = 17 && flags != 2)] () // placeholder for udp w/o fragmentation or other next level protocols, e.g., protocol 6 is tcp
 }
 

@@ -1,9 +1,13 @@
-// This Parsley file is based on the UDP specification: https://tools.ietf.org/html/rfc768
+// This Parsley file is based on the
+// UDP specification: https://tools.ietf.org/html/rfc768 .
 
 // We make no assumption about whether we are using IPv4 or IPv6.
-// However, we also don't perform some of the requisite checks
+// However, we also do not perform some of the requisite checks
 // using length and checksum as they would require knowing what
 // version of IP we are using.
+
+// We assume network byte order (big-endian) in accordance with the
+// Assigned Numbers RFC: https://tools.ietf.org/html/rfc1700 .
 
 format {
   UDPPacket udpp {source_port: int, destination_port: int, length: int, checksum: [byte], data: [byte]} :=
@@ -11,8 +15,8 @@ format {
     destination_port = UInt16<endian=endian::Big()>
     length = UInt16<endian=endian::Big()>
     checksum = (Byte^2) 
-    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
     [length >= 8] // length field must be at least 8, the UDP header length
+    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
     {
       udpp.source_port := source_port;
       udpp.destination_port := destination_port;
