@@ -360,7 +360,7 @@ If we have more than zero pixels left, we apply the non-terminal `LineCheck`.
 We then use `ReadRasterLine` to read a line into `rrl`.
 As `rrl.pixels_left_new` stores the number of pixels left to read after that line is read, we call  the non-terminal `ReadRaster`, passing in `rrl.pixels_left_new` as the value bound to the inherited attribute  `pixels_left` for that call.
 The matched value is stored in `rr_rest`.
-We then concatenate the two lists `rrl.pixels_read` and `rr_rest.img_raster` using the concat function of the <<../stdlib.adoc, List module>>.
+We then concatenate the two lists `rrl.pixels_read` and `rr_rest.img_raster` using the concat function of the <<../stdlib.adoc#, List module>>.
 
 If we have zero pixels left, we just update the synthesized attribute `img_raster` to be the empty list.
 This should correspond to the situation where we have fully read in the image raster.
@@ -407,7 +407,7 @@ We then match the magic bytes, the token separator, the width, another token sep
 But we must also ensure that the `width` and `height` identifiers can properly be converted into integer values later down the parser creation pipeline.
 As we are agnostic to these details in the `.ply` format, this is indirectly achieved via imposing constraints that can be resolved later.
 These constraints are ``[Int.of_bytes(width) ~~ option::Some]`` and ``[Int.of_bytes(height) ~~ option::Some]``.
-They simply check to make sure that the `of_bytes` function from the `Int` module of the <<../stdlib.adoc, standard library>> resolves to some actual values, not `None`.
+They simply check to make sure that the `of_bytes` function from the `Int` module of the <<../stdlib.adoc#, standard library>> resolves to some actual values, not `None`.
 
 Next, we compute the temporaries `raster_width`, `raster_height`, and `raster_size` in action blocks.
 After matching the `RasterSeparator` non-terminal, we read in the raster using the temporary `raster_size`.
