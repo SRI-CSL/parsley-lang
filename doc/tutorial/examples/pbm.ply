@@ -48,17 +48,17 @@ format {
       rrl.pixels_left_new := pixels_left
     };;
 
-  ReadRaster rr (pixels_left: int) {img_raster: [byte]} := 
+  ReadRaster rr (pixels_left: int) {raster_image: [byte]} := 
     [pixels_left > 0]
     LineCheck
     rrl = ReadRasterLine<pixels_left = pixels_left>
     rr_rest = ReadRaster<pixels_left = rrl.pixels_left_new>
     {
-     rr.img_raster := List.concat(rrl.pixels_read, rr_rest.img_raster)
+     rr.raster_image := List.concat(rrl.pixels_read, rr_rest.raster_image)
     }
   ; [pixels_left = 0]
     { 
-      rr.img_raster := [] 
+      rr.raster_image := [] 
     };;
      
   PBM_FC fc {ppbm_fc} :=

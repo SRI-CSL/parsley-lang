@@ -38,10 +38,8 @@ As mentioned, the examples corresponding to the lessons in this tutorial can be 
 
 Lesson 1: <<udp.adoc#, UDP>>: The https://tools.ietf.org/html/rfc768[User Datagram Protocol] format is used in conjunction with IP to deliver data over the internet with minimal overhead.
 
-Lesson 2: <<pbm.adoc#, PBM>>: The http://netpbm.sourceforge.net/doc/pbm.html[Portable Bitmap] format is a simple bitmap-based image format.
+Lesson 2: <<ipv4.adoc#, IPV4>>: The https://tools.ietf.org/html/rfc791[Internet Protocol] is a key protocol in the https://en.wikipedia.org/wiki/Internet_protocol_suite[IP suite] that is used for the transmission of packets over the internet.
 
-Lesson 3: <<ipv4.adoc#, IPV4>>: The https://tools.ietf.org/html/rfc791[Internet Protocol] is a key protocol in the https://en.wikipedia.org/wiki/Internet_protocol_suite[IP suite] that is used for the transmission of packets over the internet.
-
-// Lesson 4: DNS: ...
+Lesson 3: <<pbm.adoc#, PBM>>: The http://netpbm.sourceforge.net/doc/pbm.html[Portable Bitmap] format is a simple bitmap-based image format.
 
 [red]#Navigation:# <<udp.adoc#, &#8594; The First Lesson>> | <<../readme.adoc#, &#128196; Documentation>>

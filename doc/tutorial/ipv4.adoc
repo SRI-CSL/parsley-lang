@@ -1,7 +1,8 @@
 = The Internet Protocol
 
 In the previous lessson, we developed a Parsley specification for the https://tools.ietf.org/html/rfc768[User Datagram Protocol].
-In this lesson, we continue looking at the IP suite; we develop a Parsley specification for the https://tools.ietf.org/html/rfc791[Internet Protocol] (version 4).
+In this lesson, we continue looking at the IP suite.
+In particular, we develop a Parsley specification for the https://tools.ietf.org/html/rfc791[Internet Protocol] (version 4).
 
 == The Use Declaration
 
@@ -118,7 +119,7 @@ format {
 ....
 
 The left-hand side of the rule declaration should be clear enough; we are creating a non-terminal named `IPPacket` with short name `ipp` that has the attribute `ip_packet`.
-But what's happening next?
+But is going on afterward?
 
 Well, at the beginning of the right-hand side of a rule declaration, temporaries may be specified.
 These temporaries are declared between `(|` and `|)` markers and remain in scope for the remainder of the rule.
@@ -143,9 +144,9 @@ format {
 ....
 
 The identifier `version_and_ihl` is set to match an eight-byte unsigned integer.
-We then do some manipulation to extract the `version` and `ihl` flags from this integer by using an action block.
-In fact, this form should look very familiar from the previous lesson where we assigned values to synthesized attributes.
-The only difference here is that we are assigning values to temporaries instead of assigned values to synthesized attributes.
+We then use action blocks to extract `version` and `ihl` flags from this integer.
+In fact, this form should look quite familiar from the previous lesson where we assigned values to synthesized attributes.
+The only difference here is that we are assigning values to temporaries instead of assigning values to synthesized attributes.
 Next, we have two constraints that ensure we are dealing with version 4 of IP and we ensure that the IHL value is at least 5, in accordance with the IPv4 specification.
 
 While much of the remainder of the file is straightforward, we'll review two more action blocks and two more constraints.
@@ -165,7 +166,7 @@ format {
 ....
 
 In the action block below, we compute a length value by doing basic arithmetic on temporaries.
-The result of the action block, as specified by `expr2` in the last line and `;;` in the penultimate line of the action block, is assigned to the identifier `options_and_padding_len`.
+The result of the action block, as specified by `expr2` in the last line, following `;;` in the penultimate line of the action block, is assigned to the identifier `options_and_padding_len`.
 This identifier is then used to match the options and padding values in the line following the action block.
 
 ....
