@@ -67,7 +67,7 @@ format {
        ["endstream"] #)
     { rs.bytes := b } ;;
 
-  HexString hs {hs: [byte]} :=
+  HexString hs {hs: [byte] := []} :=
     !"<"!
     ( h1=HexChar h2=HexChar
       { hs.hs := byte_of_int_unsafe((Int.of_byte(h1)*16 + Int.of_byte(h2))) :: hs.hs }
@@ -82,7 +82,7 @@ format {
 
   // The below syntax essentially implements a simple CFG for strings with
   // balanced parentheses, using recursion.
-  LitString ls { ls: [byte] } :=
+  LitString ls {ls: [byte] := []} :=
       !"("!
         prefix=(# [AsciiCharS \ "("]* #)
         n=LitString

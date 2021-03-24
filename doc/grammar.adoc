@@ -95,7 +95,7 @@ the definition:
  NTI n (i1: bool, i2: int) {is1: int, is2: bool} := ... {n.is1 := i2; n.is2 := i1} ...
 ....
 
-=== Rules and Rule elements
+=== Rules and Rule Elements
 
 We now turn our focus to the right-hand side of the `:=` of a
 non-terminal definition, which consists of a sequence of production
@@ -281,7 +281,7 @@ element is `t`, the type of the value matched by the combinator is
 combinator itself is a regular expression, and its value is an empty
 list on failure.
 
-===== View mapping combinators
+===== View-mapping Combinators
 
 The matching performed by a rule element can be restricted to a `view`
 using the view-mapping combinators.  By default, all parsing is
@@ -366,3 +366,64 @@ commonly used for this purpose is sometimes hard to see in an editor.)
 A *regular expression non-terminal* can be used as a regular
 expression element composable with other regular expressions using the
 regular expression combinators.
+
+=== Assigning Synthesized Attributes in Rules
+
+As mentioned above, the definition of a non-terminal is given by a
+sequence of _rules_ composed by the `;` ordered-choice operator, where
+each rule is composed of _rule elements_.  The key characteristic of a
+rule is that it is a _self-contained_ specification of one alternative
+way of parsing that non-terminal.  The self-contained property means
+that the values of all of the non-terminal's synthesized attributes
+have been computed and assigned by the end of the rule.  Synthesized
+attributes are _not_ implicitly initialized to default values; they
+need to be explicitly initialized if necessary.
+
+Synthesized attributes are assigned values in action blocks, which can
+be composed with other rule elements using combinators.  It is useful
+to keep in mind how the properties of some combinators interact with
+action blocks containing such attribute assignments.  In particular,
+some combinators like the unbounded repeat `+*+` could succeed without
+executing the rule elements in its immediate scope (i.e. no other
+combinator under the `+*+` has scope over the elements).  For example,
+the specification below has two errors:
+....
+  ByteVec bv {v: [byte]} :=
+    (b=Byte { bv.v := b :: bv.v })*
+....
+The first error is that if the sequence under the `*` is executed the
+first time, `b` is prefixed to the uninitialized attribute `bv.v`.  The
+second error is that it is possible that the production rule succeeds
+without matching any byte (e.g. when it is at the end of input).  In
+that case, the `v` attribute would remain unassigned at the end of the
+rule.  A specification that assigned a default value to `v` would fix
+both these errors.  This assignment can be done either in the
+attribute declaration itself, or with an initial action block.
+....
+  ByteVec bv {v: [byte] := []} :=
+    (b=Byte { bv.v := b :: bv.v })*
+
+  ByteVec bv {v: [byte]} :=
+    { bv.v := [] }
+    (b=Byte { bv.v := b :: bv.v })*
+....
+The `?` option combinator also has the property that it could succeed
+without matching any input, resulting in any attribute assigments in
+action blocks under its scope not being executed after a successful
+match.  A similar consideration applies to the `|` ordered choice
+operator, if attribute assignments are done in some of the choices but
+not others.
+
+Unlike the unbounded repeat `*`, the bounded repeat combinator `^`
+should execute the rule elements in its immediate scope if the bound
+is greater than `0`.  Parsley is able to take this into account when
+the bound is a constant non-zero expression.  However, when the bound
+is computed from other entities in the context, Parsley takes a
+conservative view and assumes that the bound could be zero, i.e. that
+any action elements in its immediate scope may not execute.
+
+In the case of the map-views combinator `@#[views, RE]`, any action
+elements in `RE` do not execute if `views` is an empty list.  Parsley
+currently cannot statically determine if the list is always non-empty,
+and so also takes a conservative view: it assumes that `views` could
+be empty, and that any action blocks in `RE` may not execute.

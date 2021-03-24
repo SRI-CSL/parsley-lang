@@ -15,27 +15,37 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let opt_print_ast = ref false
-let input_file = ref []
+(*  Adapted from:                                                         *)
+(*  Mini, a type inference engine based on constraint solving.            *)
+(*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
+(*  and Didier Rémy.                                                      *)
 
-let usage = Printf.sprintf
-              "Usage: %s <options> <file.ply> " (Sys.argv.(0))
-let options =
-  Arg.align ([
-        ( "-p",
-          Arg.Set opt_print_ast,
-          " print the parsed AST" )
-      ])
+(** This module provides a simple inference engine for the kinds
+    of the Parsley type system. *)
 
-let () =
-  Printexc.record_backtrace false;
-  Arg.parse options (fun s -> input_file := s :: !input_file) usage;
-  if List.length !input_file > 1 || List.length !input_file = 0
-  then (Printf.eprintf "Please specify a single input file.\n";
-        exit 1);
-  let spec_file = List.hd !input_file in
-  let spec = SpecParser.parse_spec spec_file in
-  if !opt_print_ast then
-    Parsing.AstPrinter.print_parsed_spec spec;
-  let init_envs, tenv, tspec = SpecTyper.type_check spec_file spec in
-  SpecTyper.assignment_check init_envs tenv tspec
+open Parsing
+
+(** Internal kind representation. *)
+type t
+
+(** The kind inference engine uses an environment implemented by
+    two functions (get, add). *)
+type env = (Ast.tname -> Location.t -> t) * (Ast.tname -> t -> unit)
+
+(** [fresh_kind] returns a fresh kind for a type. *)
+val fresh_kind: unit -> t
+
+(** [infer env typ] infers a kind for [typ]. *)
+val infer: env -> Ast.type_expr -> t
+
+(** [intern_kind env kind] internalizes a kind in the user-syntax. *)
+val intern_kind: env -> Ast.kind -> t
+
+(** [check env typ kind ] verifies that [typ] can be given the kind
+    [kind]. *)
+val check: env -> Ast.type_expr -> t -> unit
+
+(** [star] is the kind of ml values. *)
+val star : t
+
+val print : t -> string

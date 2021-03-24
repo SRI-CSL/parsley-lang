@@ -15,27 +15,20 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let opt_print_ast = ref false
-let input_file = ref []
+type label = private int
 
-let usage = Printf.sprintf
-              "Usage: %s <options> <file.ply> " (Sys.argv.(0))
-let options =
-  Arg.align ([
-        ( "-p",
-          Arg.Set opt_print_ast,
-          " print the parsed AST" )
-      ])
+val fresh_label: unit -> label
+val to_string: label -> string
 
-let () =
-  Printexc.record_backtrace false;
-  Arg.parse options (fun s -> input_file := s :: !input_file) usage;
-  if List.length !input_file > 1 || List.length !input_file = 0
-  then (Printf.eprintf "Please specify a single input file.\n";
-        exit 1);
-  let spec_file = List.hd !input_file in
-  let spec = SpecParser.parse_spec spec_file in
-  if !opt_print_ast then
-    Parsing.AstPrinter.print_parsed_spec spec;
-  let init_envs, tenv, tspec = SpecTyper.type_check spec_file spec in
-  SpecTyper.assignment_check init_envs tenv tspec
+module LabelSet : sig
+  include module type of Set.Make (struct
+                             type t = label
+                             let compare = compare
+                           end)
+end
+module LabelMap : sig
+  include module type of Map.Make (struct
+                             type t = label
+                             let compare = compare
+                           end)
+end

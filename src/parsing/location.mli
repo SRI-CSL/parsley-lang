@@ -15,27 +15,23 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let opt_print_ast = ref false
-let input_file = ref []
+type t
 
-let usage = Printf.sprintf
-              "Usage: %s <options> <file.ply> " (Sys.argv.(0))
-let options =
-  Arg.align ([
-        ( "-p",
-          Arg.Set opt_print_ast,
-          " print the parsed AST" )
-      ])
+val init: Lexing.lexbuf -> string -> unit
+val curr: Lexing.lexbuf -> t
+val str_of_curr_pos: Lexing.lexbuf -> string
 
-let () =
-  Printexc.record_backtrace false;
-  Arg.parse options (fun s -> input_file := s :: !input_file) usage;
-  if List.length !input_file > 1 || List.length !input_file = 0
-  then (Printf.eprintf "Please specify a single input file.\n";
-        exit 1);
-  let spec_file = List.hd !input_file in
-  let spec = SpecParser.parse_spec spec_file in
-  if !opt_print_ast then
-    Parsing.AstPrinter.print_parsed_spec spec;
-  let init_envs, tenv, tspec = SpecTyper.type_check spec_file spec in
-  SpecTyper.assignment_check init_envs tenv tspec
+val ghost_loc : t
+val mk_loc: Lexing.position -> Lexing.position -> t
+val extent: t -> t -> t
+val loc_or_ghost: t option -> t
+
+type 'a loc
+
+val mk_loc_val:  'a -> t -> 'a loc
+val mk_ghost:    'a -> 'a loc
+val value:       'a loc -> 'a
+val loc:         'a loc -> t
+
+val str_of_loc:      t -> string (* full location, including file name *)
+val str_of_file_loc: t -> string (* location without file name *)

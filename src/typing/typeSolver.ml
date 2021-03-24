@@ -15,27 +15,22 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let opt_print_ast = ref false
-let input_file = ref []
+(*  Adapted from:                                                         *)
+(*  Mini, a type inference engine based on constraint solving.            *)
+(*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
+(*  and Didier Rémy.                                                      *)
 
-let usage = Printf.sprintf
-              "Usage: %s <options> <file.ply> " (Sys.argv.(0))
-let options =
-  Arg.align ([
-        ( "-p",
-          Arg.Set opt_print_ast,
-          " print the parsed AST" )
-      ])
+(** This module instantiates the {!Solver} module for the Parsley language. *)
 
-let () =
-  Printexc.record_backtrace false;
-  Arg.parse options (fun s -> input_file := s :: !input_file) usage;
-  if List.length !input_file > 1 || List.length !input_file = 0
-  then (Printf.eprintf "Please specify a single input file.\n";
-        exit 1);
-  let spec_file = List.hd !input_file in
-  let spec = SpecParser.parse_spec spec_file in
-  if !opt_print_ast then
-    Parsing.AstPrinter.print_parsed_spec spec;
-  let init_envs, tenv, tspec = SpecTyper.type_check spec_file spec in
-  SpecTyper.assignment_check init_envs tenv tspec
+include ConstraintSolver
+
+let print_env print env =
+  let print_entry acu (name, t) =
+    if name.[0] <> '_' then
+      acu
+      ^ "val " ^ name ^ ": " ^ (print t) ^ "\n"
+    else
+      acu
+  in
+    Printf.printf "%s\n"
+      (List.fold_left print_entry "" (environment_as_list env))
