@@ -1,0 +1,79 @@
+type submessage = {messagetype: int, data: [byte]}
+format {
+  
+  DDS d {magic: [byte], imajor: int, iminor: int, submessages: [submessage]} := magic=!"RTPS"! version=ProtocolVersion vendor=VendorId prefix=(Byte ^ 12) submessages=(SubMessage)* 
+  {d.magic := magic; d.imajor := version.major ; d.iminor := version.minor; d.submessages := submessages}
+  ;;
+
+  SubMessage sub {submessage} := a=HeartBeat {sub.messagetype := 1; sub.data:= []} ; 
+                                       a=InfoDest {sub.messagetype := 2; sub.data:= []}; 
+                                       a=AckNack {sub.messagetype := 3; sub.data:= []} ; 
+                                       a=Data {sub.messagetype := 4; sub.data:= a.serializeddata} ; 
+                                       a=Gap {sub.messagetype := 5; sub.data:= []} ; 
+                                       a=DataFrag {sub.messagetype := 6; sub.data:= a.fragserializeddata} ; 
+                                       a=InfoTS {sub.messagetype := 7; sub.data:= []} ;
+                                       a=InfoSrc {sub.messagetype := 8; sub.data:= []} ;
+                                       a=HeartBeatFrag {sub.messagetype := 9; sub.data:= []} ;
+                                       a=AckNackFrag {sub.messagetype := 10; sub.data:= []}
+                                        ;;
+
+  ProtocolVersion v {major: int, minor: int} := major=UInt8<endian=endian::Big()> minor=UInt8<endian=endian::Big()>  
+  {v.major := major ; v.minor := minor}
+  ;;
+
+  VendorId v {vendorid: [byte]} := b=(Byte ^ 2) 
+  {v.vendorid := b}
+  ;;
+
+  HeartBeat b {count: int} := magic=!"\x07"! flags=Byte octetsToNextHeader=UInt16<endian=endian::Little()> readerEntityId=UInt32<endian=endian::Little()> writerEntityId=UInt32<endian=endian::Little()> firstAvailableSeqNumber=UInt64<endian=endian::Little()> lastSeqNumber=UInt64<endian=endian::Little()> count=UInt32<endian=endian::Little()>
+  
+  {b.count := count} ;;
+
+  InfoDest d {infodestguidprefix: [byte]} := magic=!"\x0e"! flags=Byte octetsToNextHeader=UInt16<endian=endian::Little()> guidprefix=(Byte ^ 12) 
+  {d.infodestguidprefix := guidprefix} ;;
+
+  AckNack d {acknackcount: int} := magic=!"\x06"! flags=Byte octetsToNextHeader=UInt16<endian=endian::Little()> readerEntityID=UInt32<endian=endian::Little()> writerEntityID=UInt32<endian=endian::Little()> num=SNBits rep=(Byte^num.size) count=UInt32<endian=endian::Little()> 
+
+  {d.acknackcount := count}
+  ;;
+
+  SNBits sn {size: int} := numbits=UInt32<endian=endian::Little()> {sn.size := (numbits+31)/32}
+  ;;
+
+  Data d {serializeddata: [byte]} := magic=!"\x15"! flags = Byte octetsToNextHeader=UInt16<endian=endian::Little()> extraflags=(Byte^2) readerEntityID=UInt16<endian=endian::Little()>  writerEntityID=UInt32<endian=endian::Little()>  writerSeqNumber=UInt64<endian=endian::Little()> serializedData=(Byte)*
+  {d.serializeddata := serializedData}
+  ;;
+
+  Gap d {bitmapBase: int, numBits: int} := magic=!"\x08"! flags=Byte octetsToNextHeader=UInt16<endian=endian::Little()> readerEntityID=UInt16<endian=endian::Little()>  writerEntityID=UInt32<endian=endian::Little()> gapStart=UInt64<endian=endian::Little()> bitmapBase=UInt64<endian=endian::Little()> numBits=UInt32<endian=endian::Little()>
+
+  {d.bitmapBase := bitmapBase; d.numBits := numBits}
+  ;;
+
+  DataFrag d {fragserializeddata: [byte], samplesize: int} := magic=!"\x0x16"! flags=Byte octetsToNextHeader=UInt16<endian=endian::Little()> extraflags=(Byte^2) readerEntityID=UInt16<endian=endian::Little()>  writerEntityID=UInt32<endian=endian::Little()>  writerSeqNumber=UInt64<endian=endian::Little()> 
+    fragmentStartingNum=UInt32<endian=endian::Little()>
+    fragmentsInSubmessage=UInt16<endian=endian::Little()>
+    fragmentSize=UInt16<endian=endian::Little()>
+    sampleSize=UInt32<endian=endian::Little()>
+    serializedData=(Byte)*
+    
+    {d.fragserializeddata := serializedData; d.samplesize := sampleSize}
+  ;;
+
+  HeartBeatFrag b {frag_count: int} := magic=!"\x07"! flags=Byte octetsToNextHeader=UInt16<endian=endian::Little()> readerEntityId=UInt32<endian=endian::Little()> writerEntityId=UInt32<endian=endian::Little()> firstAvailableSeqNumber=UInt64<endian=endian::Little()> lastSeqNumber=UInt64<endian=endian::Little()> lastFragmentNumber=UInt32<endian=endian::Little()> count=UInt32<endian=endian::Little()>
+
+  {b.frag_count := count}
+  ;;
+
+  InfoSrc d {infosrcguidprefix: [byte]} := magic=!"\x0e"! flags=Byte octetsToNextHeader=UInt16<endian=endian::Little()> guidprefix=(Byte ^ 12) 
+  {d.infosrcguidprefix := guidprefix} ;;
+
+  AckNackFrag d {acknackfragcount: int} := magic=!"\x06"! flags=Byte octetsToNextHeader=UInt16<endian=endian::Little()> readerEntityID=UInt32<endian=endian::Little()> writerEntityID=UInt32<endian=endian::Little()> num=SNBits rep=(Byte^num.size) count=UInt32<endian=endian::Little()> 
+
+  {d.acknackfragcount := count}
+  ;;
+  
+
+  InfoTS d {timestamp: int} := magic=!"\x09"! flags=Byte  
+      ((octetsToNextHeader=UInt16<endian=endian::Little()> timestamp=UInt64<endian=endian::Little()> [(Int.of_byte(flags)) = 0 && octetsToNextHeader = 8] {d.timestamp := Int.of_byte(timestamp)}) | (octetsToNextHeader=UInt16<endian=endian::Little()> [(Int.of_byte(flags)) = 1 && octetsToNextHeader = 0] {d.timestamp := 0}))
+  
+}
