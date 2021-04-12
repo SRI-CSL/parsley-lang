@@ -879,6 +879,8 @@ let build_init_bindings (init_venv: VEnv.t) (tspec: (typ, varid) program) =
             Bindings.add (mk_elem f.fun_defn_ident) init
     ) init tspec.decls
 
+(* check whether an attribute or record field is initialized *)
+
 (* check the rules for a non-terminal *)
 let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
   (*  Printf.eprintf "checking %s:\n" (Location.value ntd.non_term_name);*)
@@ -954,14 +956,31 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
                 | None -> assert false
                 | Some f -> f in
             (* ensure all synthesized attributes are initialized at exit *)
-            List.iter (fun (f, _) ->
+            List.iter (fun (f, t) ->
                 let f = Location.value f in
                 let attr = v, Some f, (vn, loc) in
 (*                Printf.eprintf " init-check for %s:\n" (binding_to_string attr);*)
                 if   ReachingDefns.possibly_undefined attr exit_fact
-                then let err =
-                       Unassigned_attribute (ntd.non_term_name, f, r.rule_loc) in
-                     raise (Error err)
+                then
+                  (* If the attribute has a record type, then it can
+                   * be considered initialized if all its fields are
+                   * initialized. *)
+                  let is_inited =
+                    match t.type_expr with
+                      | TE_tapp ({type_expr = TE_tvar r; _}, _) ->
+                          let rn = Location.value r in
+                          (match TE.get_record_info tenv (TName rn) with
+                             | None ->
+                                 false
+                             | _    ->
+                                 true
+                          )
+                      | _ ->
+                          false in
+                  if not is_inited then
+                    let err =
+                      Unassigned_attribute (ntd.non_term_name, f, r.rule_loc) in
+                    raise (Error err)
               ) fs
     ) ntd.non_term_rules
 
