@@ -325,8 +325,8 @@ let builtin_types, builtin_consts, builtin_vars,
       NName "AlphaNumS",  [], list_type (gen_tvar "byte");
       NName "DigitS",     [], list_type (gen_tvar "byte");
       (* binary integer types *)
-      NName "Int8",   [make_var "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "UInt8",  [make_var "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "Int8",   [], gen_tvar "int";
+      NName "UInt8",  [], gen_tvar "int";
       NName "Int16",  [make_var "endian", gen_tvar "endian"], gen_tvar "int";
       NName "UInt16", [make_var "endian", gen_tvar "endian"], gen_tvar "int";
       NName "Int32",  [make_var "endian", gen_tvar "endian"], gen_tvar "int";

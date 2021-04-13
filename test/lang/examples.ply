@@ -12,8 +12,8 @@ format {
   // Match a range of bytes.
   R := (# ["0" .. "9"] #);;
 
-  // Binary integers using builtins
-  I8BE  := Int8<endian=endian::Big()>;;
+  // Binary integers using builtins.  Bytes don't need endianness.
+  I8    := Int8;;
   U64LE := UInt64<endian=endian::Little()>;;
 
   // Match a set of bytes: need to enumerate the set.
