@@ -32,7 +32,7 @@ We have:
 ....
 format {
   MagicBytes := !"P1"!;;
-  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF (vertical tabulation, form feed)
+  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF
   EndLineWhitespace := (# ["\r" | "\n"] #);;
   NonEndLineWhitespace := (# [Whitespace \ EndLineWhitespace] #);;
   DimensionValue := (#[DigitS]+#);;
@@ -92,7 +92,7 @@ We use the literal string approach to define a non-terminal that matches the mag
 Let's look at the non-terminals associated with whitespace:
 
 ....
-Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF (vertical tabulation, form feed)
+Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF
 EndLineWhitespace := (# ["\r" | "\n"] #);;
 NonEndLineWhitespace := (# [Whitespace \ EndLineWhitespace] #);;
 ....
@@ -147,7 +147,8 @@ format {
   ...
   LineCheck :=
     clone_view = {;; View.clone(View.get_current())}
-    line = @[clone_view, (# [AsciiCharS \ EndLineWhitespace]* EndLineWhitespace #) ]
+    line = @[clone_view, (# [AsciiCharS \ EndLineWhitespace]*
+                          EndLineWhitespace #) ]
     [List.length(line) <= 70];;
   ...
 }
@@ -175,10 +176,12 @@ Next, we define non-terminals to capture character strings that separate tokens 
 ....
 format {
   ...
-  TokenSeparatorLine := (# LineCheck NonEndLineWhitespace* (Comment | EndLineWhitespace) #);;
-  PartialTokenSeparatorLine := (# LineCheck NonEndLineWhitespace* #);;
+  TokenSeparatorLine := (# LineCheck NonEndLineWhitespace*
+                           (Comment | EndLineWhitespace) #);;
+  PartialTokenSeparatorLine := (# LineCheck NonEndLineWhitespace #);;
 
-  TokenSeparator := (# TokenSeparatorLine* (LineCheck Whitespace) TokenSeparatorLine* PartialTokenSeparatorLine #);;
+  TokenSeparator := (# TokenSeparatorLine* (LineCheck Whitespace)
+                     TokenSeparatorLine* PartialTokenSeparatorLine* #);;
   RasterSeparator := (# (LineCheck Comment)* LineCheck Whitespace #);;
   ...
 }
@@ -201,13 +204,13 @@ Let's first start with the left-hand-side of their declarations.
 
 ....
 format {
-  ...
-  ReadRasterLine rrl (pixels_left: int) {pixels_read: [byte], pixels_left_new: int} :=
-    ...;;
+  ReadRasterLine rrl (pixels_left: int) {pixels_read: [byte],
+                                         pixels_left_new: int} :=
+    ...
 
   ReadRaster rr (pixels_left: int) {raster_image: [byte]} :=
-    ...;;
-  ...
+    ...
+}
 ....
 
 We declare two non-terminals: `ReadRasterLine` with the short name `rrl` and `ReadRaster` with the short name `rr`.
@@ -233,7 +236,8 @@ Now, let's look at ReadRasterLine:
 ....
 format {
   ...
-  ReadRasterLine rrl (pixels_left: int) {pixels_read: [byte], pixels_left_new: int} :=
+  ReadRasterLine rrl (pixels_left: int) {pixels_read: [byte],
+                                         pixels_left_new: int} :=
     [pixels_left > 0]
     img_val = BinaryDigit
     rrl_res = ReadRasterLine<pixels_left = pixels_left - 1>
@@ -241,18 +245,31 @@ format {
       rrl.pixels_read := img_val[0]::rrl_res.pixels_read;
       rrl.pixels_left_new := rrl_res.pixels_left_new
     }
-  ; [pixels_left >= 0] // this guard isn't necessary, but I think it improves clarity
+  ; [pixels_left >= 0] // this guard is not strictly necessary
     NonEndLineWhitespace
     rrl_res = ReadRasterLine<pixels_left = pixels_left>
     {
       rrl.pixels_read := rrl_res.pixels_read;
       rrl.pixels_left_new := rrl_res.pixels_left_new
     }
-  ; [pixels_left >= 0] // this guard also isn't necessary, but it improves clarity
+  ; [pixels_left >= 0] // this guard is not strictly necessary
     EndLineWhitespace
     {
       rrl.pixels_read := [];
       rrl.pixels_left_new := pixels_left
+    };;
+
+  ReadRaster rr (pixels_left: int) {raster_image: [byte]} :=
+    [pixels_left > 0]
+    LineCheck
+    rrl = ReadRasterLine<pixels_left = pixels_left>
+    rr_rest = ReadRaster<pixels_left = rrl.pixels_left_new>
+    {
+     rr.raster_image := List.concat(rrl.pixels_read, rr_rest.raster_image)
+    }
+  ; [pixels_left = 0]
+    {
+      rr.raster_image := []
     };;
   ...
 }
@@ -365,7 +382,8 @@ This is achieved by the `PBM_FC` non-terminal:
 format {
   ...
   PBM_FC fc {ppbm_fc} :=
-    (| raster_width: int := 0, raster_height: int := 0, raster_size: int := 0 |)
+    (| raster_width: int := 0, raster_height: int := 0,
+       raster_size: int := 0 |)
     magic_bytes = MagicBytes
     TokenSeparator
     width = DimensionValue
@@ -416,7 +434,7 @@ type ppbm_fc = {
 
 format {
   MagicBytes := !"P1"!;;
-  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF (vertical tabulation, form feed)
+  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF
   EndLineWhitespace := (# ["\r" | "\n"] #);;
   NonEndLineWhitespace := (# [Whitespace \ EndLineWhitespace] #);;
   DimensionValue := (#[DigitS]+#);;
@@ -426,16 +444,20 @@ format {
 
   LineCheck :=
     clone_view = {;; View.clone(View.get_current())}
-    line = @[clone_view, (# [AsciiCharS \ EndLineWhitespace]* EndLineWhitespace #) ]
+    line = @[clone_view, (# [AsciiCharS \ EndLineWhitespace]*
+                          EndLineWhitespace #) ]
     [List.length(line) <= 70];;
 
-  TokenSeparatorLine := (# LineCheck NonEndLineWhitespace* (Comment | EndLineWhitespace) #);;
+  TokenSeparatorLine := (# LineCheck NonEndLineWhitespace*
+                           (Comment | EndLineWhitespace) #);;
   PartialTokenSeparatorLine := (# LineCheck NonEndLineWhitespace #);;
 
-  TokenSeparator := (# TokenSeparatorLine* (LineCheck Whitespace) TokenSeparatorLine* PartialTokenSeparatorLine* #);;
+  TokenSeparator := (# TokenSeparatorLine* (LineCheck Whitespace)
+                     TokenSeparatorLine* PartialTokenSeparatorLine* #);;
   RasterSeparator := (# (LineCheck Comment)* LineCheck Whitespace #);;
 
-  ReadRasterLine rrl (pixels_left: int) {pixels_read: [byte], pixels_left_new: int} :=
+  ReadRasterLine rrl (pixels_left: int) {pixels_read: [byte],
+                                         pixels_left_new: int} :=
     [pixels_left > 0]
     img_val = BinaryDigit
     rrl_res = ReadRasterLine<pixels_left = pixels_left - 1>
@@ -443,14 +465,14 @@ format {
       rrl.pixels_read := img_val[0]::rrl_res.pixels_read;
       rrl.pixels_left_new := rrl_res.pixels_left_new
     }
-  ; [pixels_left >= 0] // this guard isn't necessary, but I think it improves clarity
+  ; [pixels_left >= 0] // this guard is not strictly necessary
     NonEndLineWhitespace
     rrl_res = ReadRasterLine<pixels_left = pixels_left>
     {
       rrl.pixels_read := rrl_res.pixels_read;
       rrl.pixels_left_new := rrl_res.pixels_left_new
     }
-  ; [pixels_left >= 0] // this guard also isn't necessary, but it improves clarity
+  ; [pixels_left >= 0] // this guard is not strictly necessary
     EndLineWhitespace
     {
       rrl.pixels_read := [];
@@ -471,7 +493,8 @@ format {
     };;
 
   PBM_FC fc {ppbm_fc} :=
-    (| raster_width: int := 0, raster_height: int := 0, raster_size: int := 0 |)
+    (| raster_width: int := 0, raster_height: int := 0,
+       raster_size: int := 0 |)
     magic_bytes = MagicBytes
     TokenSeparator
     width = DimensionValue

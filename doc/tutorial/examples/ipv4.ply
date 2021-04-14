@@ -21,7 +21,8 @@ type ip_packet = {
 
 format {
   IPPacket ipp {ip_packet} :=
-    (| version: int := 0, ihl: int := 0, flags: int := 0, fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    (| version: int := 0, ihl: int := 0, flags: int := 0, 
+       fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
     version_and_ihl = UInt8<endian=endian::Big()>
     {
       version := version_and_ihl / 16;
@@ -64,7 +65,12 @@ format {
       ipp.destination_address := destination_address;
       ipp.options_and_padding := options_and_padding
     }
-    [protocol = 17 && flags = 2] UDPPacket | // udp w/o fragmentation 
-    [protocol != 17 || (protocol = 17 && flags != 2)] () // placeholder for udp w/o fragmentation or other next level protocols, e.g., protocol 6 is tcp
+    
+    // udp w/o fragmentation
+    [protocol = 17 && flags = 2] UDPPacket | // udp w/o fragmentation
+
+    // placeholder for udp w/o fragmentation or other next level protocols,
+    // e.g., protocol 6 is tcp
+    [protocol != 17 || (protocol = 17 && flags != 2)] ()
 }
 

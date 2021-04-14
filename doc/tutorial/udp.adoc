@@ -118,7 +118,7 @@ The `format` block has the general form:
 format {
   NT1 n1 ... := ...;;
   NT2 n2 ... := ...;;
-  NTFIN nfin ... := ...
+  ...
 }
 ....
 
@@ -273,7 +273,8 @@ We have provided such an implementation in `udp_alt.ply` and also pasted the con
 
 ....
 format {
-  UDPPacket udpp {source_port: int, destination_port: int, length: int, checksum: [byte], data: [byte]} :=
+  UDPPacket udpp {source_port: int, destination_port: int, length: int,
+                  checksum: [byte], data: [byte]} :=
     source_port = UInt16<endian=endian::Big()>
     destination_port = UInt16<endian=endian::Big()>
     length = UInt16<endian=endian::Big()>

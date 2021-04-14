@@ -58,7 +58,8 @@ As we have done before, we use the format block to specify how to parse an IPv4 
 ....
 format {
   IPPacket ipp {ip_packet} :=
-    (| version: int := 0, ihl: int := 0, flags: int := 0, fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    (| version: int := 0, ihl: int := 0, flags: int := 0,
+       fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
     version_and_ihl = UInt8<endian=endian::Big()>
     {
       version := version_and_ihl / 16;
@@ -101,8 +102,13 @@ format {
       ipp.destination_address := destination_address;
       ipp.options_and_padding := options_and_padding
     }
+
+    // udp w/o fragmentation
     [protocol = 17 && flags = 2] UDPPacket | // udp w/o fragmentation
-    [protocol != 17 || flags != 2] () // placeholder for udp w/o fragmentation or other next level protocols, e.g., protocol 6 is tcp
+
+    // placeholder for udp w/o fragmentation or other next level protocols,
+    // e.g., protocol 6 is tcp
+    [protocol != 17 || (protocol = 17 && flags != 2)] ()
 }
 ....
 
@@ -115,7 +121,10 @@ First, let's look at the beginning of the format declaration:
 ....
 format {
   IPPacket ipp {ip_packet} :=
-    (| version: int := 0, ihl: int := 0, flags: int := 0, fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    (| version: int := 0, ihl: int := 0, flags: int := 0,
+       fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    ...
+}
 ....
 
 The left-hand side of the rule declaration should be clear enough; we are creating a non-terminal named `IPPacket` with short name `ipp` that has the attribute `ip_packet`.
@@ -131,7 +140,8 @@ Let's look at the next few lines.
 ....
 format {
   IPPacket ipp {ip_packet} :=
-    (| version: int := 0, ihl: int := 0, flags: int := 0, fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    (| version: int := 0, ihl: int := 0, flags: int := 0,
+       fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
     version_and_ihl = UInt8<endian=endian::Big()>
     {
       version := version_and_ihl / 16;
@@ -184,6 +194,8 @@ format {
 }
 ....
 
+NOTE: Instead of using an action block to computer `options_and_padding_len`, we could have alternatively computed the expression corresponding to the options and paddling length directly within the `options_and_padding` assignment itself. We used the approach above for pedagogical purposes.
+
 === The Use Declaration at Play
 
 Later on in the format declaration, we see:
@@ -192,8 +204,12 @@ Later on in the format declaration, we see:
 format {
   IPPacket ipp {ip_packet} :=
     ...
+    // udp w/o fragmentation
     [protocol = 17 && flags = 2] UDPPacket | // udp w/o fragmentation
-    [protocol != 17 || flags != 2] () // placeholder for udp w/o fragmentation or other next level protocols, e.g., protocol 6 is tcp
+
+    // placeholder for udp w/o fragmentation or other next level protocols,
+    // e.g., protocol 6 is tcp
+    [protocol != 17 || (protocol = 17 && flags != 2)] ()
     ...
 }
 ....
@@ -208,8 +224,6 @@ This will also require passing along information to the UDPPacket non-terminal v
 Thus, we have the final file:
 
 ....
-// This Parsley file is based on the IP Version 4 specification: https://tools.ietf.org/html/rfc791
-
 use udp
 
 type ip_packet = {
@@ -230,7 +244,8 @@ type ip_packet = {
 
 format {
   IPPacket ipp {ip_packet} :=
-    (| version: int := 0, ihl: int := 0, flags: int := 0, fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    (| version: int := 0, ihl: int := 0, flags: int := 0,
+       fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
     version_and_ihl = UInt8<endian=endian::Big()>
     {
       version := version_and_ihl / 16;
@@ -273,8 +288,13 @@ format {
       ipp.destination_address := destination_address;
       ipp.options_and_padding := options_and_padding
     }
+
+    // udp w/o fragmentation
     [protocol = 17 && flags = 2] UDPPacket | // udp w/o fragmentation
-    [protocol != 17 || flags != 2] () // placeholder for udp w/o fragmentation or other next level protocols, e.g., protocol 6 is tcp
+
+    // placeholder for udp w/o fragmentation or other next level protocols,
+    // e.g., protocol 6 is tcp
+    [protocol != 17 || (protocol = 17 && flags != 2)] ()
 }
 ....
 
