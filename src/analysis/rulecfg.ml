@@ -142,6 +142,8 @@ let free_vars_of_expr (e: (typ, varid) expr) (bound: Bindings.t option)
           add (set', bound') e
       | E_binop (_, l, r) ->
           add (add acc l) r
+      | E_bitrange (e, _, _) ->
+          add acc e
       | E_literal _ | E_mod_member _ ->
           acc
       | E_field ({expr = E_var v; _}, f) ->
@@ -579,6 +581,8 @@ let rec const_fold (e: (typ, varid) expr) : (typ, varid) expr =
                {e with expr = E_literal (PL_bool (not (l = r)))}
            | _ ->
                {e with expr = E_binop (op, l', r')})
+    | E_bitrange (e, n, m) ->
+        {e with expr = E_bitrange (const_fold e, n, m)}
 
 let is_non_zero (e: (typ, varid) expr) : bool =
   match (const_fold e).expr with

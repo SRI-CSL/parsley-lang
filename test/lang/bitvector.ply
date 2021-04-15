@@ -1,0 +1,5 @@
+type bv = bitvector<1>
+
+fun test_bitvector(b: bitvector<3>) -> bitvector<3> = {
+  b[[2:0]]
+}

@@ -26,7 +26,7 @@ open AstUtils
 %token ATTR
 %token EPSILON
 
-%token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK
+%token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LLBRACK RRBRACK
 %token LPARBAR RPARBAR SYN_BEGIN SYN_END
 %token AT_POS AT_BUF AT_MAP HASH
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI DOT QUESTION ARROW
@@ -39,7 +39,7 @@ open AstUtils
 %token<Ast.ident>   UID
 %token<Ast.tvar>    TVAR
 
-%token<string Location.loc> INT_LITERAL
+%token<string Location.loc> INT_LITERAL BV_LITERAL
 
 %token<string Location.loc * string Location.loc> CONSTR
 
@@ -58,7 +58,7 @@ open AstUtils
 %left  STAR DIV QUESTION
 %left  CARET
 %nonassoc UMINUS
-%left  LPAREN LBRACK
+%left  LPAREN LBRACK LLBRACK
 %left  DOT
 
 %{
@@ -79,6 +79,21 @@ let make_int_literal s =
   let s, loc = (Location.value s), (Location.loc s) in
   try  int_of_string s
   with _ -> parse_error (Invalid_integer s) loc
+
+let make_bitvector_literal s =
+  let len = String.length s in
+  let s = String.sub s 2 (len - 2) in
+  let l =
+    Seq.fold_left (fun l c ->
+        let b =
+          match c with
+            | '0' -> false
+            | '1' -> true
+            | _   -> assert false in
+        b :: l)
+      []
+      (String.to_seq s) in
+  List.rev l
 
 let make_type_expr t b e =
   {type_expr = t;
@@ -229,6 +244,18 @@ def:
 | d=ident
   { d }
 
+int_exp:
+| i=INT_LITERAL
+  { int_of_string (Location.value i) }
+| l=int_exp PLUS r=int_exp
+  { l + r }
+| l=int_exp MINUS r=int_exp
+  { l - r }
+| l=int_exp STAR r=int_exp
+  { l * r }
+| LPAREN i=int_exp RPAREN
+  { i }
+
 type_expr:
 | tv=TVAR
   { make_tvar_ident tv }
@@ -242,6 +269,21 @@ type_expr:
     else make_tuple_type l }
 | LBRACK t=type_expr RBRACK
   { make_list_type t $startpos $endpos }
+| d=def LT i=int_exp GT
+  { let tc = Location.value d in
+    let li = Location.mk_loc $startpos(i) $endpos(i) in
+    if tc <> "bitvector"
+    then let err = Invalid_bitvector_constructor tc in
+         parse_error err (Location.loc d)
+    else if i < 0
+    then let err = Negative_bitvector_width i in
+         parse_error err li
+    else let n = string_of_int i in
+         let n = Location.mk_loc_val n li in
+         let n = make_tvar_ident n in
+         let t = make_tvar_ident d in
+         register_bitwidth i;
+         make_type_expr (TE_tapp (t, [n])) $startpos $endpos }
 | d=def LT l=separated_list(COMMA, type_expr) GT
   { let c = make_tvar_ident d in
     make_type_expr (TE_tapp (c, l)) $startpos $endpos }
@@ -319,6 +361,9 @@ expr:
 | l=INT_LITERAL
   { let i = make_int_literal l in
     make_expr (E_literal (PL_int i)) $startpos $endpos }
+| b=BV_LITERAL
+  { let b = make_bitvector_literal (Location.value b) in
+    make_expr (E_literal (PL_bitvector b)) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, expr) RPAREN
   { let loc = Location.mk_loc $startpos $endpos in
     let t = Location.mk_loc_val "*" loc in
@@ -332,6 +377,8 @@ expr:
   { make_expr (E_apply(e, l)) $startpos $endpos }
 | e=expr LBRACK i=expr RBRACK
   { make_expr (E_binop(Index, e, i)) $startpos $endpos }
+| e=expr LLBRACK n=int_exp COLON m=int_exp RRBRACK
+  { make_expr (E_bitrange(e, n, m)) $startpos $endpos }
 | c=CONSTR LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_constr(c, l)) $startpos $endpos }
 | MINUS e=expr %prec UMINUS

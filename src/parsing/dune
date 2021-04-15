@@ -73,3 +73,19 @@
                       )
                  )
  )
+
+;; The following rule should be used after any modification to the
+;; grammar in [parser.mly]; it runs via a [make merge].
+
+;; This rule merges new error states with placeholder error messages
+;; with the ones already defined.
+
+(rule
+ (with-stdout-to parseErrorMessages.messages.merged
+		 (run menhir
+		      --merge-errors %{dep:parseErrorMessages.auto.messages}
+		      --merge-errors %{dep:parseErrorMessages.messages.updated}
+		      %{dep:parser.mly}
+		      )
+		 )
+ )

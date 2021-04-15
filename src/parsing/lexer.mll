@@ -73,7 +73,7 @@ let upper = ['A'-'Z']
 let alpha = ['A'-'Z' 'a'-'z']
 let digit = ['0'-'9']
 let alnum = ['A'-'Z' 'a'-'z' '0'-'9']
-
+let bit   = ['0' '1']
 let ident = ['A'-'Z' 'a'-'z' '0'-'9' '_' '@']
 let int_literal = '-'? ['0'-'9']+
 
@@ -104,6 +104,8 @@ rule token = parse
 | "@"  { AT }
 | "(|" { LPARBAR }
 | "|)" { RPARBAR }
+| "[[" { LLBRACK }
+| "]]" { RRBRACK }
 | "|"  { BAR }
 | "{"  { LBRACE }
 | "}"  { RBRACE }
@@ -157,6 +159,10 @@ rule token = parse
 | "'" alpha ident*
     { let tv = Lexing.lexeme lexbuf in
       TVAR (Location.mk_loc_val tv (Location.curr lexbuf)) }
+
+| "0b" bit+
+    { let s = Lexing.lexeme lexbuf in
+      BV_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
 
 | int_literal
     { let s = Lexing.lexeme lexbuf in

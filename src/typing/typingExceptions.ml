@@ -180,6 +180,13 @@ type typing_error =
      a particular context. *)
   | UnboundIdentifier of Location.t * string
 
+  (* [Invalid_bitrange_low_bound i] is raised when the lower bound of
+     a bitrange is invalid (i.e. it is negative) *)
+  | Invalid_bitrange_low_bound of Location.t * int
+
+  (* [Invalid_empty_bitrange n m ] is raised when the selected range of
+     bit is empty *)
+  | Invalid_empty_bitrange of Location.t * int * int
 
 exception Error of typing_error
 
@@ -335,3 +342,8 @@ let error_msg = function
 
   | UnboundIdentifier (p, t) ->
       msg "%s:\n Unbound identifier `%s'.\n" p t
+
+  | Invalid_bitrange_low_bound (loc, b) ->
+      msg "%s:\n %d is an invalid low bound for bitvector range" loc b
+  | Invalid_empty_bitrange (loc, n, m) ->
+      msg "%s:\n %d-%d is an invalid (empty) range" loc n m

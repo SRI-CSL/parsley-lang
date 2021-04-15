@@ -50,8 +50,14 @@ val list : 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
 (** [tuple env ts] returns [t0 * ... * tn]. *)
 val tuple : 'a environment -> 'a CoreAlgebra.arterm list -> 'a CoreAlgebra.arterm
 
-(** [arrow env t1 t2] return the type [t1 -> t2]. *)
+(** [arrow env t1 t2] returns the type [t1 -> t2]. *)
 val arrow : 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
+
+(** [concrete_bitvector env n] returns the bitvector type for an integer width [n] *)
+val concrete_bitvector: 'a environment -> int -> 'a CoreAlgebra.arterm
+
+(** [abstract_bitvector env t] returns the bitvector type [bitvector t] *)
+val abstract_bitvector: 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
 
 (** [arrow env ts] returns the type [t0 -> ... -> tn]. *)
 val n_arrows: 'a environment -> 'a CoreAlgebra.arterm list -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
@@ -93,6 +99,8 @@ type builtin_non_term =
 
 (** [builtin_consts] is an array of the builtin types. *)
 val builtin_types: builtin_type array
+
+val mk_builtin_bitwidth: int -> builtin_type
 
 (** [builtin_consts] is an array of the builtin data constructors. *)
 val builtin_consts: builtin_dataconstructor array

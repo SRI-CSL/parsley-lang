@@ -36,13 +36,16 @@ let get_tracer () =
 
 let check spec =
   let init_tenv, init_venv, c = TypeInfer.init_env () in
-  let c, tenv, spec' =
+  let c, wc, tenv, spec' =
     TypeInfer.generate_constraint (init_tenv, init_venv, c) spec in
   let env = ConstraintSolver.solve ?tracer:(get_tracer ()) c in
-  if print_types then
-    ConstraintSolver.print_env
-      (TypeEnvPrinter.print_variable true)
-      env
+  ConstraintSolver.check_width_constraints wc;
+  if print_types then begin
+      ConstraintSolver.print_env
+        (TypeEnvPrinter.print_variable true)
+        env;
+      TypeConstraintPrinter.print_width_constraint wc
+    end
   else
     ();
   if !print_typed_ast then

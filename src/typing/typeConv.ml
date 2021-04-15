@@ -46,6 +46,12 @@ let variables_of_typ =
 let arrow tenv =
   arrow (typcon_variable tenv)
 
+let bitvector_n tenv =
+  concrete_bitvector (typcon_variable tenv)
+
+let bitvector_t tenv =
+  abstract_bitvector  (typcon_variable tenv)
+
 let type_of_args t =
   let rec chop acu typ =
     match typ.type_expr with

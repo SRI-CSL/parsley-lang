@@ -25,12 +25,15 @@ type formula =
   (MultiEquation.crterm, MultiEquation.variable) TypeConstraint.type_constraint
 
 (** Pretty printer for [formula]. *)
-val printf_constraint :
-  PrettyPrinter.mode -> formula -> unit
+val printf_constraint: PrettyPrinter.mode -> formula -> unit
+
+(** Pretty printer for [width_constraint]. *)
+val print_width_predicate:  TypeConstraint.width_predicate -> string
+val print_width_constraint: TypeConstraint.width_constraint -> unit
 
 (* helper printers *)
-val print_crterm : MultiEquation.crterm -> string
-val print_variable : MultiEquation.variable -> string
+val print_crterm: MultiEquation.crterm -> string
+val print_variable: MultiEquation.variable -> string
 
 (* printer mode activator *)
-val active_mode : PrettyPrinter.mode -> unit
+val active_mode: PrettyPrinter.mode -> unit

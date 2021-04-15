@@ -26,12 +26,22 @@
 open Parsing
 
 (** [variables_of_typ ty] returns the type variables of [ty]. *)
-val variables_of_typ : Ast.type_expr -> Location.t Misc.StringMap.t
+val variables_of_typ: Ast.type_expr -> Location.t Misc.StringMap.t
 
 (** [arrow env x1 x2] builds the internal representation of the
     type [x1 -> x2]. *)
 val arrow :
   TypingEnvironment.environment -> MultiEquation.crterm -> MultiEquation.crterm -> MultiEquation.crterm
+
+(** [bitvector_n env n] builds the internal representation of the
+    type [bitvector n] for a concrete integer width [n]. *)
+val bitvector_n:
+  TypingEnvironment.environment -> int -> MultiEquation.crterm
+
+(** [bitvector_t env n] builds the internal representation of the
+    type [bitvector t] for a type [t]. *)
+val bitvector_t:
+  TypingEnvironment.environment -> MultiEquation.crterm -> MultiEquation.crterm
 
 (** [arity (t1 -> ... -> tn)] returns [n]. *)
 val arity : Ast.type_expr -> int
