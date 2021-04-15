@@ -30,6 +30,7 @@ type mname = MName of string (* module name *)
 
 type kind =
   | KStar
+  | KNat
   | KArrow of kind * kind
 
 type type_expr_desc =
@@ -63,6 +64,8 @@ type primitive_literal =
   | PL_string of string
   | PL_unit
   | PL_bool of bool
+  | PL_bit of bool
+  | PL_bitvector of bool list
 
 type ('a, 'b) pattern_desc =
   | P_wildcard
@@ -82,6 +85,7 @@ type ('a, 'b) expr_desc =
   | E_apply of ('a, 'b) expr * ('a, 'b) expr list
   | E_unop of unop * ('a, 'b) expr
   | E_binop of binop * ('a, 'b) expr * ('a, 'b) expr
+  | E_bitrange of ('a, 'b) expr * int * int
   | E_match of ('a, 'b) expr * (ident * ident)
   | E_literal of primitive_literal
   | E_field of ('a, 'b) expr * ident
@@ -231,3 +235,8 @@ type ('a, 'b) program =
 
 let var_name v =
   fst (Location.value v)
+
+(* max concrete bit-width in spec *)
+let max_width : int ref = ref 0
+let register_bitwidth i =
+  max_width := max !max_width i

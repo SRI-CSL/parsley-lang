@@ -126,6 +126,8 @@ let rec unwrap_exp exp =
           E_unop (op, unwrap_exp e)
       | E_binop (op, l, r) ->
           E_binop (op, unwrap_exp l, unwrap_exp r)
+      | E_bitrange (e, n, m) ->
+          E_bitrange (unwrap_exp e, n, m)
       | E_match (e, (t, c)) ->
           E_match (unwrap_exp e, (unwrap_id t, unwrap_id c))
       | E_literal l ->

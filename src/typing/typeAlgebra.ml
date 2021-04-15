@@ -108,6 +108,10 @@ let builtin_types, builtin_consts, builtin_vars,
       TName "endian", (Ast.KStar,
                        [ (Ast.DName "Big", [], gen_tvar "endian");
                          (Ast.DName "Little", [], gen_tvar "endian") ]);
+      TName "bit",    (Ast.KStar,
+                       [ (Ast.DName "One",  [], gen_tvar "bit");
+                         (Ast.DName "Zero", [], gen_tvar "bit") ]);
+      TName "bitvector", (Ast.KArrow (Ast.KNat, Ast.KStar), []);
       (* module types *)
       TName "view",   (Ast.KStar, []);
       TName "set",    ((Ast.KArrow (Ast.KStar, Ast.KStar)), []);
@@ -337,6 +341,11 @@ let builtin_types, builtin_consts, builtin_vars,
   builtin_types, builtin_consts, builtin_vars,
   builtin_modules, builtin_non_terms
 
+let mk_builtin_bitwidth i =
+  assert(i >= 0);
+  let n = string_of_int i in
+  Ast.TName n, (Ast.KNat, [])
+
 type symbol = int
 
 let as_symbol name =
@@ -393,6 +402,15 @@ let tuple tenv ps =
   let v = symbol tenv (TName n) in
   List.fold_left (fun acu x -> TTerm (App (acu, x))) v ps
 
+let concrete_bitvector tenv n =
+  let t = symbol tenv (TName "bitvector") in
+  let n = symbol tenv (TName (string_of_int n)) in
+  TTerm (App (t, n))
+
+let abstract_bitvector tenv t =
+  let b = symbol tenv (TName "bitvector") in
+  TTerm (App (b, t))
+
 let is_regexp_type tenv t =
   let c = symbol tenv (TName "[]") in
   match t with
@@ -406,6 +424,8 @@ let type_of_primitive tenv = function
   | Ast.PL_string _ -> list tenv (symbol tenv (TName "byte"))
   | Ast.PL_unit -> symbol tenv (TName "unit")
   | Ast.PL_bool _ -> symbol tenv (TName "bool")
+  | Ast.PL_bit _ -> symbol tenv (TName "bit")
+  | Ast.PL_bitvector bv -> concrete_bitvector tenv (List.length bv)
 
 let result_type tenv t =
   let a = symbol tenv (TName "->") in

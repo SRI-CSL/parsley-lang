@@ -1,0 +1,101 @@
+Bitvectors
+==========
+
+Bitvectors require a new type constructor that takes natural numbers
+as arguments to indicate their width/length.  Integrating these
+numbers into the type system requires a new kind, KNat, so that the
+kind signature of 'bitvector' is:
+
+  bitvector :: KNat -> KStar
+
+Ideally, the constraint variables used within the HMX implementation
+would be annotated with type kind information.  This kind annotation
+would be taken into account:
+
+. during unification to ensure that a tvar of kind KStar cannot be
+  unified with one of kind KNat.
+
+. for univeral and existential quantification of constraint variables
+
+. during instantiation of quantified variables to generate the
+  appropriately kinded variables
+
+However, adding and using this annotation is quite an invasive change
+to the HMX engine.  Instead, we will attempt the following strategy.
+
+. We will add (KStar | KNat) kind information to constraint variables
+  generated from leaf TVariables.  This will be done by treating the
+  bitvector type constructor as a special case; i.e. the default will
+  be the KStar kind.
+
+. The concrete syntax will require constant-foldable natural numbers
+  as width arguments to bitvector.  For standard library bitvector
+  functions that need to be polymorphic over bitvector widths, we will
+  instantiate these widths with appropriately kinded variables, again
+  using a special case.
+
+. During the first pass of type-checking, we will register all known
+  concrete widths as Constant constraint variables with KNat type
+  kind, just as is done for basic and defined types.
+
+. During constraint solving, we will check type kinding when unifying
+  constraint variables.  Q: does this really matter? see below.
+
+Q: Can we propagate the type kind when copying/instantiating
+   variables?  No: 'exists*' and similar constructs generate variables
+   in a generic way, with no kind information at hand.  We could add
+   special cases to the callers of 'exists*' to call appropriate
+   versions of 'exists*', but this is fragile.
+
+The approach we have taken will not allow constructs like
+zeros(sizeof(bv) * 2), since this type-level arithmetic cannot be done
+during purely syntactic constraint solving.  This disallows common
+operations such as bitvector concatenation!
+
+We cannot allow sizeof(bv) either, since that provides direct access
+to the N of bitvector<N>, and hence we cannot prevent:
+
+  let bv = 0b0000 in         // bv: bitvector<4>
+  let n  = sizeof(bv) in     // n:  4
+  let l = [ n ] in           // l: list<4>
+
+We could support simpler constructs such as zeros(N), ones(N).
+
+    N should be a constant
+    -------------------------------
+    zeros(N)/ones(N):  bitvector<N>
+
+We could allow zeros_of(v), ones_of(v).
+
+    v: bitvector<N>
+    ------------------------------------
+    zeros_of(v)/ones_of(v): bitvector<N>
+
+Bitvector ranges
+================
+
+We need to support range selection such as v{N:M}, at least for
+constant N, M.  Checking for this will have to be done in a
+postprocessing pass, once the type of v is solved.  So, we typecheck
+this as follows:
+
+  v: bitvector<n>
+  N, M: constant numbers
+  N > M
+  ----------------------
+  v{N:M}: bitvector<N-M>
+  RC + (n > N)
+
+  where RC is a collection of range constraints that we need to solve
+  after type-checking.
+
+Bitfields
+=========
+
+bitfield r = {
+  bits:   3-1,
+  flag:   0,
+}
+
+flag: r -> bitvector<1>
+bits: r -> bitvector<3>

@@ -172,3 +172,31 @@ let _forall_list ?pos l f =
 let _monoscheme ?pos header =
   Scheme (Location.loc_or_ghost pos, [], [],
           CTrue (Location.loc_or_ghost pos), header)
+
+(* constraints on bitvector widths *)
+
+type width_predicate =
+  | WP_less of int
+  | WP_more of int
+  | WP_equal of int
+  | WP_less_eq of int
+  | WP_more_eq of int
+
+type width_constraint =
+  | WC_true
+  | WC_pred of Location.t * variable * width_predicate
+  | WC_conjunction of width_constraint list
+
+(** [c1 @^ c2] is a conjunction constraint. *)
+let (@^) c1 c2 =
+  match c1, c2 with
+    | WC_true, c
+    | c, WC_true ->
+      c
+    | c, WC_conjunction cl ->
+        WC_conjunction (c :: cl)
+    | _, _ ->
+        WC_conjunction [c1; c2]
+
+let wconj cs =
+  List.fold_left ( @^ ) WC_true cs

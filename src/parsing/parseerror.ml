@@ -19,13 +19,19 @@ type parse_error =
   | Invalid_integer of string
   | Undeclared_format_param of string
   | Untyped_format_param of string
+  | Invalid_bitvector_constructor of string
+  | Negative_bitvector_width of int
 
 exception Error of parse_error * Location.t
 
 let error_string = function
   | Invalid_integer s ->
-        Printf.sprintf "invalid integer: '%s'" s
+      Printf.sprintf "invalid integer: '%s'" s
   | Undeclared_format_param s ->
-        Printf.sprintf "undeclared format param '%s'" s
+      Printf.sprintf "undeclared format param '%s'" s
   | Untyped_format_param s ->
-        Printf.sprintf "no type declared for format param '%s'" s
+      Printf.sprintf "no type declared for format param '%s'" s
+  | Invalid_bitvector_constructor s ->
+      Printf.sprintf "constructor '%s' cannot use bitvector syntax" s
+  | Negative_bitvector_width w ->
+      Printf.sprintf "illegal negative width %d for bitvector" w

@@ -179,3 +179,21 @@ let printf_constraint mode c =
     close_box ();
     print_newline ();
   )
+
+let print_width_predicate = function
+  | WP_less    i -> Printf.sprintf "< %d"  i
+  | WP_more    i -> Printf.sprintf "> %d"  i
+  | WP_equal   i -> Printf.sprintf "= %d"  i
+  | WP_less_eq i -> Printf.sprintf "<= %d" i
+  | WP_more_eq i -> Printf.sprintf ">= %d" i
+
+let print_width_constraint wc =
+  let rec print = function
+    | WC_true ->
+        "true"
+    | WC_pred (_, v, p) ->
+        Printf.sprintf "(%s) %s" (print_variable v) (print_width_predicate p)
+    | WC_conjunction cl ->
+        let sl = List.map print cl in
+        String.concat " && " sl in
+  Printf.printf "Width constraints: %s\n" (print wc)

@@ -51,7 +51,10 @@ val init_env: unit -> TypingEnvironment.environment * VEnv.t * context
 (** [infer_spec s] generates a constraint context that describes
     spec [s] and an annotated version of [s]. *)
 val infer_spec: TypingEnvironment.environment -> VEnv.t -> (unit, unit) Ast.program ->
-  TypingEnvironment.environment * context * (MultiEquation.crterm, varid) Ast.program
+                TypingEnvironment.environment
+                * context
+                * TypeConstraint.width_constraint
+                * (MultiEquation.crterm, varid) Ast.program
 
 (** [generate_constraint p] generates a closed constraint that describes
     the typing of [p] and an annotated version of [p], given an
@@ -59,4 +62,7 @@ val infer_spec: TypingEnvironment.environment -> VEnv.t -> (unit, unit) Ast.prog
 val generate_constraint:
   TypingEnvironment.environment * VEnv.t * context ->
   (unit, unit) Ast.program ->
-  TypeConstraint.tconstraint * TypingEnvironment.environment * (MultiEquation.crterm, varid) Ast.program
+  TypeConstraint.tconstraint
+  * TypeConstraint.width_constraint
+  * TypingEnvironment.environment
+  * (MultiEquation.crterm, varid) Ast.program

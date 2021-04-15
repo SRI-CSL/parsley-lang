@@ -142,11 +142,43 @@ let unused_constructors tenv typ cs =
       StringSet.remove (Location.value c) acc
     ) dcons cs
 
-(** [check_completeness tenv typ cs] checks whether the list [cs] of
-    constructors of type [typ] contains all the constructors of the
-    type. *)
-let check_completeness tenv typ cs =
+(** [check_variant_completeness tenv typ cs] checks whether the list
+    [cs] of constructors of type [typ] contains all the constructors
+    of the type. *)
+let check_variant_completeness tenv typ cs =
   StringSet.is_empty (unused_constructors tenv typ cs)
+
+(* helpers for bitvector patterns *)
+
+let bv_to_int bv =
+  List.fold_left (fun i b ->
+      let i = Int64.shift_left i 1 in
+      Int64.add i (if b then Int64.one else Int64.zero)
+    ) Int64.zero bv
+
+let int_to_bv int width =
+  let bit_to_bool i =
+    Int64.logand i Int64.one == Int64.one in
+  let rec iter acc cnt =
+    if cnt = width
+    then acc
+    else let int = Int64.shift_right int cnt in
+         let bit = bit_to_bool int in
+         iter (bit :: acc) (cnt + 1) in
+  iter [] 0
+
+module BVSet = Set.Make(Int64)
+
+let check_bitvector_completeness set width =
+  assert (width <= 64);
+  let max = Int64.shift_left Int64.one width in
+  let rec check i =
+    if Int64.equal i max
+    then true
+    else if BVSet.mem i set
+    then check (Int64.succ i)
+    else false in
+  check Int64.zero
 
 (** [is_complete_sig tenv roots] checks whether the root constructors
     [roots] form a complete signature for their type. *)
@@ -185,6 +217,25 @@ let is_complete_sig tenv roots =
                          b != b' || acc
                      | _ -> assert false
                  ) false rest
+           | P_literal (PL_bit b) ->
+               List.fold_left (fun acc p ->
+                   match p.pattern with
+                     | P_literal (PL_bit b') ->
+                         b != b' || acc
+                     | _ -> assert false
+                 ) false rest
+           | P_literal (PL_bitvector bv) ->
+               let bvs =
+                 List.fold_left (fun acc p ->
+                     match p.pattern with
+                       | P_literal (PL_bitvector bv') ->
+                           assert (List.length bv' == List.length bv);
+                           BVSet.add (bv_to_int bv') acc
+                       | _ -> assert false
+                   )
+                   (BVSet.add (bv_to_int bv) BVSet.empty)
+                   rest in
+               check_bitvector_completeness bvs (List.length bv)
            | P_variant ((t, c), _) ->
                let cs =
                  List.fold_left (fun acc p ->
@@ -195,7 +246,7 @@ let is_complete_sig tenv roots =
                        | _ ->
                            assert false
                    ) [c] rest in
-               check_completeness tenv t cs
+               check_variant_completeness tenv t cs
         )
 
 (* extract the first column of a pattern matrix *)
@@ -250,6 +301,16 @@ let pick_missed_string sl =
     else s in
   loop ""
 
+let pick_missed_bitvector bvl width =
+  let bvs = BVSet.of_list (List.map bv_to_int bvl) in
+  let max = Int64.shift_left Int64.one width in
+  let rec loop i =
+    assert (i != max);
+    if BVSet.mem i bvs
+    then loop (Int64.succ i)
+    else int_to_bv i width in
+  loop Int64.zero
+
 (* picks a constructor missing from the signature *)
 let pick_missed_constructor tenv signature =
   let p = List.hd signature in
@@ -281,6 +342,21 @@ let pick_missed_constructor tenv signature =
                    | _ -> assert false
                   ) signature);
         {p with pattern = P_literal (PL_bool (not b))}
+    | P_literal (PL_bit b) ->
+        ignore (List.map
+                  (function
+                   | {pattern = P_literal (PL_bit b'); _} -> assert (b = b')
+                   | _ -> assert false
+                  ) signature);
+        {p with pattern = P_literal (PL_bit (not b))}
+    | P_literal (PL_bitvector bv) ->
+        let l =
+          List.map (function
+              | {pattern = P_literal (PL_bitvector bv); _} -> bv
+              | _ -> assert false
+            ) signature in
+        let v = pick_missed_bitvector l (List.length bv) in
+        {p with pattern = P_literal (PL_bitvector v)}
     | P_variant ((typ, _), ps) ->
         let cs =
           List.map (fun p ->
@@ -435,6 +511,8 @@ and descend_expr (ctx, acc) e =
           List.fold_left descend_expr (ctx, acc) (f :: args)
       | E_binop (_, l, r) ->
           descend_expr (descend_expr (ctx, acc) l) r
+      | E_bitrange (e, _, _) ->
+          descend_expr (ctx, acc) e
       | E_case (e, bs) ->
           (* case patterns are not affected by match constraints *)
           let pmat, es = List.split bs in

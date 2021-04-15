@@ -35,8 +35,13 @@ let rec print_list sep printer = function
 let rec print_kind = function
   | KStar ->
       pp_print_string !ppf "*"
+  | KNat ->
+      pp_print_string !ppf "Nat"
   | KArrow (KStar, k2) ->
       pp_print_string !ppf "* -> ";
+      print_kind k2
+  | KArrow (KNat, k2) ->
+      pp_print_string !ppf "Nat -> ";
       print_kind k2
   | KArrow (k1, k2) ->
       pp_print_string !ppf "(";
@@ -133,6 +138,13 @@ let rec print_pattern auxp p =
         pp_print_string !ppf (string_of_int l)
     | P_literal (PL_bool b) ->
         pp_print_string !ppf (if b then "true" else "false")
+    | P_literal (PL_bit b) ->
+        pp_print_string !ppf (if b then "bit::One" else "bit::Zero")
+    | P_literal (PL_bitvector bv) ->
+        pp_print_string !ppf "0b";
+        List.iter (fun b ->
+            pp_print_string !ppf (if b then "1" else "0")
+          ) bv
     | P_variant ((t,c), ps) ->
         pp_print_string !ppf
           (AstUtils.canonicalize_dcon
@@ -150,6 +162,10 @@ let rec sprint_pattern p =
     | P_literal (PL_string s) -> "\"" ^ s ^ "\""
     | P_literal (PL_int i) -> Printf.sprintf "%d" i
     | P_literal (PL_bool b) -> if b then "bool::True()" else "bool::False()"
+    | P_literal (PL_bit b) -> if b then "bit::One()" else "bit::Zero()"
+    | P_literal (PL_bitvector bv) ->
+        "0b" ^
+          (String.concat "" (List.map (fun b -> if b then "1" else "0") bv))
     | P_variant ((t, c), ps) ->
         let con = AstUtils.canonicalize_dcon
                     (Location.value t) (Location.value c) in
@@ -226,6 +242,13 @@ and print_expr auxp e =
         pp_print_string !ppf (Printf.sprintf " %s " (str_of_binop b));
         print_expr auxp r;
         pp_print_string !ppf ")"
+    | E_bitrange (e, n, m) ->
+        print_expr auxp e;
+        pp_print_string !ppf "[[";
+        pp_print_string !ppf (string_of_int n);
+        pp_print_string !ppf ":";
+        pp_print_string !ppf (string_of_int m);
+        pp_print_string !ppf "]]"
     | E_literal PL_unit ->
         pp_print_string !ppf "()"
     | E_literal (PL_string l) ->
@@ -233,7 +256,14 @@ and print_expr auxp e =
     | E_literal (PL_int i) ->
         pp_print_string !ppf (string_of_int i)
     | E_literal (PL_bool b) ->
-        pp_print_string !ppf (if b then "true" else "false")
+        pp_print_string !ppf (if b then "bool::True" else "bool::False")
+    | E_literal (PL_bit b) ->
+        pp_print_string !ppf (if b then "bit::One" else "bool::Zero")
+    | E_literal (PL_bitvector bv) ->
+        pp_print_string !ppf "0b";
+        List.iter (fun b ->
+            pp_print_string !ppf (if b then "1" else "0")
+          ) bv
     | E_field (e, f) ->
         let complex = (match e.expr with E_var _ -> false | _ -> true) in
         if complex then pp_print_string !ppf "(";

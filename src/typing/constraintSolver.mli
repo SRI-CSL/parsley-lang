@@ -42,14 +42,13 @@ type solving_step =
 
 (** [solve tracer c] solves [c] by doing in-place modifications resulting
     in an environment. *)
-val solve: ?tracer:(solving_step -> unit)
-  -> tconstraint -> environment
+val solve: ?tracer:(solving_step -> unit) -> tconstraint -> environment
 
 (** a simple tracer *)
 val tracer: unit -> solving_step -> unit
 
 (** [environment_as_list env] converts [env] into a list. *)
-val environment_as_list : environment -> (string * TypeConstraint.variable) list
+val environment_as_list: environment -> (string * TypeConstraint.variable) list
 
 (** [print_env printer env] use the variable printer [printer] in
     order to display [env]. *)
@@ -74,6 +73,16 @@ type solver_error =
      been unified. *)
   | NonDistinctVariables of Parsing.Location.t * (TypeConstraint.variable list)
 
+  (* [Not_a_bitvector] is raised when a type does not resolve to a bitvecor *)
+  | Not_a_bitvector of Parsing.Location.t
+  (* [Cannot_resolve_width] is raised when a width does not resolve to an integer *)
+  | Not_a_bitwidth of Parsing.Location.t * string option
+  (* [Invalid_bitwidth i pred] is raised when the bitwidth [i] does not
+     satisfy the inferred predicate [pred] *)
+  | Invalid_bitwidth of Parsing.Location.t * int * TypeConstraint.width_predicate
+
 exception Error of solver_error
 
 val error_msg: solver_error -> string
+
+val check_width_constraints: TypeConstraint.width_constraint -> unit
