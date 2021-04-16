@@ -1,6 +1,6 @@
 = The Internet Protocol
 
-In the previous lessson, we developed a Parsley specification for the https://tools.ietf.org/html/rfc768[User Datagram Protocol].
+In the previous lesson, we developed a Parsley specification for the https://tools.ietf.org/html/rfc768[User Datagram Protocol].
 In this lesson, we continue looking at the IP suite.
 In particular, we develop a Parsley specification for the https://tools.ietf.org/html/rfc791[Internet Protocol] (version 4).
 
@@ -128,7 +128,7 @@ format {
 ....
 
 The left-hand side of the rule declaration should be clear enough; we are creating a non-terminal named `IPPacket` with short name `ipp` that has the attribute `ip_packet`.
-But is going on afterward?
+But what is going on afterward?
 
 Well, at the beginning of the right-hand side of a rule declaration, temporaries may be specified.
 These temporaries are declared between `(|` and `|)` markers and remain in scope for the remainder of the rule.
@@ -215,9 +215,9 @@ format {
 ....
 
 This is where the `use` declaration comes into play.
-We are now using the UDPPacket non-terminal from `udp.ply`.
+We are now using the `UDPPacket` non-terminal from `udp.ply`.
 In a future iteration of this tutorial, once bits have been implemented, we will demonstrate how these two parsers interact in validating the checksums.
-This will also require passing along information to the UDPPacket non-terminal via inherited attributes.
+This will also require passing along information to the `UDPPacket` non-terminal via inherited attributes.
 
 === Our Final File
 

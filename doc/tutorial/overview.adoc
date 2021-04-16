@@ -5,7 +5,7 @@ In the current iteration of this tutorial, we focus solely on how to use the Par
 
 == What is Parsley?
 
-Parsley is a a data format definition language.
+Parsley is a data format definition language.
 That is, Parsley allows for the creation of precise specifications for file formats.
 An overview of the first iteration of the language, its goals, and its initial design choices can be found in the http://spw20.langsec.org/papers/parsley-langsec2020.pdf[initial Parsley research report].
 

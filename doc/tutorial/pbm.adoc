@@ -298,11 +298,11 @@ rrl_res = ReadRasterLine<pixels_left = pixels_left - 1>
 
 The first rule begins with a rule element comprising the constraint `[pixels_left > 0]`, which ensures that there are indeed pixels that are left to read.
 In the second rule element, we use the non-terminal `BinaryDigit` to read in a non-terminal that matches `0` or `1`.
-Next, in the third rule element, we apply the non-terminal ReadRasterLine again, but, since we just read in one pixel value, we decrement `pixels_left` accordingly.
+Next, in the third rule element, we apply the non-terminal `ReadRasterLine` again, but, since we just read in one pixel value, we decrement `pixels_left` accordingly.
 And the identifier `rrl_res` is used to capture the matched value.
 
 Finally, we have an action block used to assign values to the synthesized attributes.
-First, we use the cons operator (`::`) to prepend the single value stored in the list img_val, i.e., the one matched by `BinaryDigit`, with the pixels we stored in the subsequent call to `ReadRasterLine` stored in `rrl_res`.
+First, we use the cons operator (`::`) to prepend the single value stored in the list `img_val`, i.e., the one matched by `BinaryDigit`, with the pixels we stored in the subsequent call to `ReadRasterLine` stored in `rrl_res`.
 Next, we update the number of pixels left to read.
 
 ==== The Second Rule
@@ -367,7 +367,7 @@ If we have more than zero pixels left, we apply the non-terminal `LineCheck`.
 We then use `ReadRasterLine` to read a line into `rrl`.
 As `rrl.pixels_left_new` stores the number of pixels left to read after that line is read, we call  the non-terminal `ReadRaster`, passing in `rrl.pixels_left_new` as the value bound to the inherited attribute  `pixels_left` for that call.
 The matched value is stored in `rr_rest`.
-We then concatenate the two lists `rrl.pixels_read` and `rr_rest.raster_image` using the concat function of the <<../stdlib.adoc#, List module>>.
+We then concatenate the two lists `rrl.pixels_read` and `rr_rest.raster_image` using the `concat` function of the <<../stdlib.adoc#, List module>>.
 
 If we have zero pixels left, we just update the synthesized attribute `raster_image` to be the empty list.
 This should correspond to the situation where we have fully read in the raster image.
@@ -519,4 +519,4 @@ format {
 }
 ....
 
-[red]#Navigation:# <<overview.adoc#, &#8593; Tutorial Overview>> | <<ipv4.adoc#, &#8592; Previous Lesson>> | <<pbm.adoc#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
+[red]#Navigation:# <<overview.adoc#, &#8593; Tutorial Overview>> | <<ipv4.adoc#, &#8592; Previous Lesson>> | <<../readme.adoc#, &#128196; Documentation>>

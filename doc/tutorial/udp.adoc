@@ -69,7 +69,7 @@ Some examples of user-defined type declarations are:
 
 - `type byte_list = [byte]` is a list of bytes
 - `type int_bool_tuple = (int, bool)` is a tuple with element types `int` and `bool` respectively
-- `type list_of_tuples = [(int, int)]` is a list of two tuples, each of which contain two integers. This may, for example, be used to express points in a two-dimensional plane.
+- `type list_of_tuples = [(int, int)]` is a list of two-tuples, each of which contain two integers. This may, for example, be used to express points in a two-dimensional plane.
 
 A special kind of user-defined type is the record type.
 The record type comprises a number of component type fields and has the general form of:
@@ -122,8 +122,8 @@ format {
 }
 ....
 
-The `format` block is simply a sequence of non-terminal declarations.
-Each declaration, except for the last, must end with `;;`, which serves as a non-terminal declaration delimiter.
+The `format` block is simply a sequence of non-terminal definitions.
+Each definition, except for the last, must end with `;;`, which serves as a non-terminal definition delimiter.
 
 === Non-Terminals, Synthesized Attributes, and Inherited Attributes
 
@@ -131,14 +131,15 @@ Parsley provides a rich subgrammar that has some similarity with https://en.wiki
 Here, we will only cover the basics; more topics will be introduced in subsequent lessons.
 A <<../grammar.adoc#defining-non-terminals, non-terminal>> is derived using one or more production rules that are separated by `;`, the ordered choice operator.
 Each production rule is a sequence of rule elements.
-A sequence of rule elements is matched if the input matches the rule elements.
+A sequence of rule elements is matched if the input matches each of the rule elements in order.
 
-In this first lesson, we cover the standard approach to declaring non-terminals.
+In this first lesson, we cover the standard approach to defining non-terminals.
 A non-terminal in Parsley has a type associated with it, which is always the record type using the standard approach.
 This type is specified by synthesized attributes, which can be thought of as attributes that are derived as we perform the matching.
-Additionally, a type declaration may include inherited attributes, which are attributes that are provided at the beginning of the pattern matching process by the caller.
+Additionally, a type declaration may include inherited attributes, which are attributes that are provided when the non-terminal is used in a rule element or invoked by a call from external application code.
 
-NOTE: Parsley also supports an alternative approach for declaring byte-vector--valued non-terminals, one which uses regular expressions. We shall cover this in a future lesson!
+
+NOTE: Parsley also supports an alternative approach for defining byte-vector--valued non-terminals, one which uses regular expressions. We shall cover this in a future lesson!
 
 === Working Through the UDP Packet Format
 
@@ -151,7 +152,7 @@ format {
 ....
 
 We still have to fill in the details obviously, but this is a good start.
-We have a non-terminal entitled UDPPacket that has the short name of udpp.
+We have a non-terminal entitled `UDPPacket` that has the short name of `udpp`.
 And it has the synthesized attribute `u` of type `udp_packet`, which we had defined earlier; synthesized attributes like these are specified within curly brackets.
 
 NOTE: While the original specification does not explicitly require using the big-endian byte order,
@@ -175,7 +176,7 @@ format {
 }
 ....
 
-`UInt16 (endian: endian)` and `Byte` are built-in non-terminals that match a 16-bit unsigned integer and a a byte respectively.
+`UInt16 (endian: endian)` and `Byte` are built-in non-terminals that match a 16-bit unsigned integer and a byte respectively.
 The identifiers `source_port`, `destination_port`, and `length` are assigned 16-bit unsigned integer values of the endianness `endian::Big()`.
 The identifier `checksum` is assigned a two byte value by applying the `Byte` type in conjunction with the bounded repeat operator (`^`) with an operand of 2, indicating that two bytes should be matched.
 A 16-bit unsigned integer of the endianness `endian::Big()` is assigned to the length identifier.
@@ -267,7 +268,7 @@ Everything that follows the `//` delimiter until the following new line characte
 ==== Do We Need a `udp_packet` Type?
 
 We had earlier declared a `udp_packet` type, which is used as a synthesized attribute in the UDPPacket non-terminal declaration.
-Of course, we didn not _have to_ define such a type.
+Of course, we did not _have to_ define such a type.
 Indeed, we could have instead supplied synthesized attributes corresponding to the type's member fields.
 We have provided such an implementation in `udp_alt.ply` and also pasted the contents of such a file below.
 
@@ -291,7 +292,7 @@ format {
 }
 ....
 
-That said, there are numerous benefits to declaring and using a record type, e.g., modularization, code brevity, ease of interpretability, and consequently improved security.
+That said, there are numerous benefits to declaring and using a record type, e.g., modularization, code brevity, readability, and consequently improved security.
 These benefits are especially pronounced in larger projects that make heavy use of the user-defined type.
 In the next lesson, we will demonstrate how to use the `udp_packet` type when implementing a subset of IPv4.
 
