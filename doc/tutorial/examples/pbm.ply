@@ -1,0 +1,95 @@
+// This Parsley file corresponds to the
+// Plain PBM specification: http://netpbm.sourceforge.net/doc/pbm.html#plainpbm
+
+type ppbm_fc = {
+  magic_bytes: [byte],
+  height: int,
+  width: int,
+  img: [byte]
+}
+
+format {
+  MagicBytes := !"P1"!;;
+  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF
+  EndLineWhitespace := (# ["\r" | "\n"] #);;
+  NonEndLineWhitespace := (# [Whitespace \ EndLineWhitespace] #);;
+  DimensionValue := (#[DigitS]+#);;
+  BinaryDigit := (# ["0" | "1"] #);;
+  Comment := !"#"! (# [AsciiCharS \ EndLineWhitespace]*  EndLineWhitespace #);;
+  Junk := ; (# Whitespace AsciiCharS* #);;
+
+  LineCheck :=
+    clone_view = {;; View.clone(View.get_current())}
+    line = @[clone_view, (# [AsciiCharS \ EndLineWhitespace]*
+                          EndLineWhitespace #) ]
+    [List.length(line) <= 70];;
+
+  TokenSeparatorLine := (# LineCheck NonEndLineWhitespace*
+                           (Comment | EndLineWhitespace) #);;
+  PartialTokenSeparatorLine := (# LineCheck NonEndLineWhitespace #);;
+  
+  TokenSeparator := (# TokenSeparatorLine* (LineCheck Whitespace) 
+                     TokenSeparatorLine* PartialTokenSeparatorLine* #);;
+  RasterSeparator := (# (LineCheck Comment)* LineCheck Whitespace #);;
+
+  ReadRasterLine rrl (pixels_left: int) {pixels_read: [byte],
+                                         pixels_left_new: int} :=
+    [pixels_left > 0]
+    img_val = BinaryDigit
+    rrl_res = ReadRasterLine<pixels_left = pixels_left - 1> 
+    {
+      rrl.pixels_read := img_val[0]::rrl_res.pixels_read;
+      rrl.pixels_left_new := rrl_res.pixels_left_new
+    } 
+  ; [pixels_left >= 0] // this guard is not strictly necessary 
+    NonEndLineWhitespace
+    rrl_res = ReadRasterLine<pixels_left = pixels_left>
+    {
+      rrl.pixels_read := rrl_res.pixels_read;
+      rrl.pixels_left_new := rrl_res.pixels_left_new
+    }
+  ; [pixels_left >= 0] // this guard is not strictly necessary
+    EndLineWhitespace
+    {
+      rrl.pixels_read := [];
+      rrl.pixels_left_new := pixels_left
+    };;
+
+  ReadRaster rr (pixels_left: int) {raster_image: [byte]} := 
+    [pixels_left > 0]
+    LineCheck
+    rrl = ReadRasterLine<pixels_left = pixels_left>
+    rr_rest = ReadRaster<pixels_left = rrl.pixels_left_new>
+    {
+     rr.raster_image := List.concat(rrl.pixels_read, rr_rest.raster_image)
+    }
+  ; [pixels_left = 0]
+    { 
+      rr.raster_image := [] 
+    };;
+     
+  PBM_FC fc {ppbm_fc} :=
+    (| raster_width: int := 0, raster_height: int := 0,
+       raster_size: int := 0 |) 
+    magic_bytes = MagicBytes
+    TokenSeparator
+    width = DimensionValue 
+    [Int.of_bytes(width) ~~ option::Some]
+    TokenSeparator
+    height = DimensionValue
+    [Int.of_bytes(height) ~~ option::Some]
+    {
+      raster_width := Int.of_bytes_unsafe(width);
+      raster_height := Int.of_bytes_unsafe(height);
+      raster_size := raster_width * raster_height
+    }
+    RasterSeparator
+    img = ReadRaster<pixels_left = raster_size>
+    Junk
+    {
+      fc.magic_bytes := magic_bytes;
+      fc.height := raster_height;
+      fc.width := raster_width;
+      fc.img := img
+    }
+}

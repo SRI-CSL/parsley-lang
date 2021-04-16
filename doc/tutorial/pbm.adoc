@@ -1,0 +1,522 @@
+= Portable Bitmap Format
+
+In this lesson, we study the http://netpbm.sourceforge.net/doc/pbm.html[Portable Bitmap Format (PBM)].
+In particular, we look at http://netpbm.sourceforge.net/doc/pbm.html#plainpbm[Plain PBM].
+This black-and-white image format is relatively simple.
+An image is expressed by specifying a magic number, an image height and image width, and a raster of ASCII-decimal--represented values associated with the height &#215; width pixels.
+There are, of course, some nuances built into the format that we'll get to.
+
+== The Plain Portable Bitmap Type
+
+Declaring the type is straightforward.
+We have the magic bytes expressed as a list, two unsigned integers, and the raster image.
+
+This gives us:
+....
+type ppbm_fc = {
+  magic_bytes: [byte],
+  height: int,
+  width: int,
+  img: [byte]
+}
+....
+
+== The Helper Non-Terminals
+
+Specifying the format is a bit more complicated.
+Consulting the http://netpbm.sourceforge.net/doc/pbm.html#plainpbm[netpbm Plain PBM specification], we begin by creating non-terminals to capture the simpler non-terminals, such as those corresponding to whitespace, integers, and the magic bytes `P1`.
+Doing so will enable us to identify the tokens we care about and the token separators, as well as comment and junk values that we can ignore.
+
+We have:
+
+....
+format {
+  MagicBytes := !"P1"!;;
+  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF
+  EndLineWhitespace := (# ["\r" | "\n"] #);;
+  NonEndLineWhitespace := (# [Whitespace \ EndLineWhitespace] #);;
+  DimensionValue := (#[DigitS]+#);;
+  BinaryDigit := (# ["0" | "1"] #);;
+  Comment := !"#"! (# [AsciiCharS \ EndLineWhitespace]*  EndLineWhitespace #);;
+  Junk := ; (# Whitespace AsciiCharS* #);;
+  ...
+}
+....
+
+There is a lot here.
+Let's unpack it.
+
+=== Regular expressions
+
+Byte-vector--valued non-terminals can be captured via <<../grammar.adoc#regular-expressions, regular expressions>>.
+In Parsley, regular expressions can be expressed in two ways.
+The standard approach is to capture regular expressions within enclosing `#` characters, which are additionally enclosed within `(` and `)` characters, giving us the form:
+
+....
+RegExp := (# ... #)
+....
+
+==== Matching Literal Strings
+
+However, in some situations, literal strings are easier to work with.
+They can be expressed by enclosing the strings in `!"` and `!"` markers.
+
+....
+RegExp := !"literal string to be matched"!
+....
+
+==== Regular Expression Combinators and Wildcards
+
+We can also combine regular expressions via regular expression combinators, including:
+
+- `|`: The infix choice operator matches one of its operands.
+- `\`: The infix difference operator matches the set difference between the left operand and the right operand.
+- `*`: The postfix unbounded repeat operator matches any or zero number of repetitions of the operand.
+- `+`: The postfix positive unbounded operator matches at least one repetition of the operand.
+- `^`: The postfix bounded repeat operator matches a repetition of the left operand a number of times that equals that of the right operand.
+- `?`: The postfix option operator matches zero or one repetitions of the operand.
+- `..`: The infix range operator matches strings that lie between the left and right operands.
+
+Additionally, there are wildcard regular expressions expressed via `.` or `#`.
+
+=== Defining the Simpler Non-Terminals
+
+Now, let's turn back to the aforementioned non-terminals.
+
+....
+MagicBytes := !"P1"!;;
+....
+
+We use the literal string approach to define a non-terminal that matches the magic bytes for Plain PBM.
+
+Let's look at the non-terminals associated with whitespace:
+
+....
+Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF
+EndLineWhitespace := (# ["\r" | "\n"] #);;
+NonEndLineWhitespace := (# [Whitespace \ EndLineWhitespace] #);;
+....
+
+Using the choice operator (`|`), we see the `Whitespace` non-terminal matches to either the single whitespace character, a tab, a carriage return, or a newline.
+The specification also states that vertical tabulation and form feed characters are acceptable as whitespace; however, this requires additional to-be-added Parsley support.
+The `EndLineWhitespace` non-terminal will serve useful both for specifying the end of a comment and for counting the number of characters per line, which must never surpass 70.
+To declare `EndLineWhitespace`, we again use the choice operator with the two end of line characters, the new line character, and the carriage return.
+Finally, the `NonEndLineWhitespace` is simply the difference between the `Whitespace` and `EndLineWhitespace` non-terminals.
+
+....
+DimensionValue := (#[DigitS]+#);;
+....
+
+DigitS is the list comprising all ASCII digits and will be used to capture the height and width of the image.
+DimensionValue is simply a sequence of one or more ASCII digits.
+We capture this using `[DigitS]+` where `+` is similar to the unbounded repeat operator, except it does not allow for matches of length zero.
+
+....
+BinaryDigit := (# ["0" | "1"] #);;
+....
+
+A binary digit is simply 0 or 1.
+
+....
+Comment := !"#"! (# [AsciiCharS \ EndLineWhitespace]*  EndLineWhitespace #);;
+....
+
+A comment in Plain PBM begins with a `\#` character, and it continues until the line ends, which is denoted by a newline character or carriage return character.
+Within our `Comment` regular expression, `!"#"!` matches a `#` value, indicating the beginning of the comment.
+AsciiCharS is a list comprising all ASCII bytes.
+The expression `[AsciiCharS \ EndLineWhitespace]` matches a single character belonging to the set of all ASCII characters (`AsciiCharS`) minus the set comprising the newline (`\n`) and return carriage (`\r`) characters, which are captured in `EndLineWhitespace`.
+Thus, `[AsciiCharS \ EndLineWhitespace]*` matches any sequence of characters that does not match `EndLineWhitespace`.
+The comment is terminated with the `EndLineWhitespace` non-terminal.
+
+....
+Junk := ; (# Whitespace AsciiCharS* #);;
+....
+
+The Junk non-terminal represents any junk following the raster image.
+It must begin with a whitespace character.
+Following the whitespace character, any sequence of bytes is acceptable.
+As post-raster junk is optional in the specification, we define the non-terminal `Junk` to match the empty rule; hence, we see the right-hand side of `Junk` begin with `;`.
+
+==== Restricting Line Length Using Views
+
+Next, we define a non-terminal that will help us to satisfy the requirement that no line exceeds 70 characters.
+This is the `LineCheck` non-terminal and it is implemented using <<../grammar.adoc#view-mapping-combinators, views>>.
+
+....
+format {
+  ...
+  LineCheck :=
+    clone_view = {;; View.clone(View.get_current())}
+    line = @[clone_view, (# [AsciiCharS \ EndLineWhitespace]*
+                          EndLineWhitespace #) ]
+    [List.length(line) <= 70];;
+  ...
+}
+....
+
+In Parsley, parsing is done in reference to a <<../expressions.adoc#views, view>>, which serves as a parsing buffer.
+That is, a view signifies the location at which we are attempting to match the input.
+The ability to change the view allows us greater flexibility in parsing.
+For example, it helps us to parse over the same object multiple times.
+Indeed, this is what we need to do.
+Our general approach to parsing will be to first ensure that the line we are trying to parse is at most 70 characters long.
+If it is, we can parse it; else, we shouldn't expend any more effort into parsing the file.
+
+The first line of the right-hand side of the `LineCheck` non-terminal declaration uses two functions from the <<../stdlib.adoc#, View module>>.
+We get the current view, make a clone of it, and assign the result to the `clone_view` identifier.
+We then extract a line by using the _at-view_ <<../grammar.adoc#view-mapping-combinators, view-mapping combinator>>, which takes a view and tries to match it to a regular expression.
+The regular expression simply includes a sequence of characters that do not match `EndLineWhitespace` followed by a character that matches `EndLineWhitespace`.
+Last, we need a constraint to ensure the extracted line is at most 70 characters.
+We use the length function from the <<../stdlib.adoc#, List module>> to get the length of the `line` and then check that the result does not exceed 70.
+
+==== Token Separators
+
+Next, we define non-terminals to capture character strings that separate tokens in the specification.
+
+....
+format {
+  ...
+  TokenSeparatorLine := (# LineCheck NonEndLineWhitespace*
+                           (Comment | EndLineWhitespace) #);;
+  PartialTokenSeparatorLine := (# LineCheck NonEndLineWhitespace #);;
+
+  TokenSeparator := (# TokenSeparatorLine* (LineCheck Whitespace)
+                     TokenSeparatorLine* PartialTokenSeparatorLine* #);;
+  RasterSeparator := (# (LineCheck Comment)* LineCheck Whitespace #);;
+  ...
+}
+....
+
+The `TokenSeparatorLine` non-terminal and `PartialTokenSeparatorLine` are used to define `TokenSeparator`, which is used to separate tokens before the raster image.
+For the `TokenSeparatorLine` non-terminal, which corresponds to one full line (of potentially many) separating two tokens, we first perform a line check and then match an optional sequence of `NonEndlineWhitespace` non-terminals, followed by either `Comment` or `EndLineWhitespace` non-terminal.
+The `PartialTokenSeparatorLine`, on the other hand, corresponds to a partial line and involves matching a potentially empty sequence of `NonEndLineWhitespace` non-terminals.
+
+This `TokenSeparator` non-terminal is used to separate the magic bytes, height, and width tokens.
+In accordance with the specification, it requires at least one whitespace and may also include comments.
+
+The `RasterSeparator` non-terminal separates the raster image from tokens preceding it.
+It may contain any sequence of comments, but terminates with a single whitespace character.
+
+== Reading the Raster Image
+
+We now turn to defining two non-terminals that will help us in reading the raster image.
+Let's first start with the left-hand-side of their declarations.
+
+....
+format {
+  ReadRasterLine rrl (pixels_left: int) {pixels_read: [byte],
+                                         pixels_left_new: int} :=
+    ...
+
+  ReadRaster rr (pixels_left: int) {raster_image: [byte]} :=
+    ...
+}
+....
+
+We declare two non-terminals: `ReadRasterLine` with the short name `rrl` and `ReadRaster` with the short name `rr`.
+As the name suggests, `ReadRaster` is responsible for reading a raster image and `ReadRasterLine` will help in that endeavor by reading a single line of the raster image.
+
+`ReadRasterLine` has three attributes:
+
+- the inherited attribute `pixels_left`, which specifies the number of pixels left to read _before_ parsing the line.
+- the synthesized attribute `pixels_read`, which captures the image bitmap _after_ parsing the line.
+- the synthesized attribute `pixels_left_new`, which captures the number of pixels left to read _after_ parsing the line.
+
+`ReadRaster` has two attributes:
+
+- the inherited attribute `pixels_left` that specifies the number of pixels left to read _before_ parsing the line.
+- the synthesized attribute `raster_image`, which captures the remainder of the raster image from the view location at the start of the non-terminal's matching process.
+
+Recall that the inherited attributes are enclosed in parentheses whereas the synthesized attributes are enclosed in curly brackets.
+
+=== ReadRasterLine: Reading a Line of the Raster Image
+
+Now, let's look at ReadRasterLine:
+
+....
+format {
+  ...
+  ReadRasterLine rrl (pixels_left: int) {pixels_read: [byte],
+                                         pixels_left_new: int} :=
+    [pixels_left > 0]
+    img_val = BinaryDigit
+    rrl_res = ReadRasterLine<pixels_left = pixels_left - 1>
+    {
+      rrl.pixels_read := img_val[0]::rrl_res.pixels_read;
+      rrl.pixels_left_new := rrl_res.pixels_left_new
+    }
+  ; [pixels_left >= 0] // this guard is not strictly necessary
+    NonEndLineWhitespace
+    rrl_res = ReadRasterLine<pixels_left = pixels_left>
+    {
+      rrl.pixels_read := rrl_res.pixels_read;
+      rrl.pixels_left_new := rrl_res.pixels_left_new
+    }
+  ; [pixels_left >= 0] // this guard is not strictly necessary
+    EndLineWhitespace
+    {
+      rrl.pixels_read := [];
+      rrl.pixels_left_new := pixels_left
+    };;
+
+  ReadRaster rr (pixels_left: int) {raster_image: [byte]} :=
+    [pixels_left > 0]
+    LineCheck
+    rrl = ReadRasterLine<pixels_left = pixels_left>
+    rr_rest = ReadRaster<pixels_left = rrl.pixels_left_new>
+    {
+     rr.raster_image := List.concat(rrl.pixels_read, rr_rest.raster_image)
+    }
+  ; [pixels_left = 0]
+    {
+      rr.raster_image := []
+    };;
+  ...
+}
+....
+
+At the high level, we are separating the parsing process into 3 sub-processes based on the next character.
+This is done via the infix ordered choice (`|`) combinator for rules.
+
+NOTE: A more thorough treatment of rule and rule element combinators can be found in the <<../grammar.adoc#combinators, documentation for the grammar sublanguage>>.
+
+Let's look at each of the three rules in turn.
+
+==== The First Rule
+
+We begin with the first rule:
+
+....
+[pixels_left > 0]
+img_val = BinaryDigit
+rrl_res = ReadRasterLine<pixels_left = pixels_left - 1>
+{
+  rrl.pixels_read := img_val[0]::rrl_res.pixels_read;
+  rrl.pixels_left_new := rrl_res.pixels_left_new
+}
+....
+
+The first rule begins with a rule element comprising the constraint `[pixels_left > 0]`, which ensures that there are indeed pixels that are left to read.
+In the second rule element, we use the non-terminal `BinaryDigit` to read in a non-terminal that matches `0` or `1`.
+Next, in the third rule element, we apply the non-terminal `ReadRasterLine` again, but, since we just read in one pixel value, we decrement `pixels_left` accordingly.
+And the identifier `rrl_res` is used to capture the matched value.
+
+Finally, we have an action block used to assign values to the synthesized attributes.
+First, we use the cons operator (`::`) to prepend the single value stored in the list `img_val`, i.e., the one matched by `BinaryDigit`, with the pixels we stored in the subsequent call to `ReadRasterLine` stored in `rrl_res`.
+Next, we update the number of pixels left to read.
+
+==== The Second Rule
+
+The second rule is as follows:
+
+....
+[pixels_left >= 0]
+NonEndLineWhitespace
+rrl_res = ReadRasterLine<pixels_left = pixels_left>
+{
+  rrl.pixels_read := rrl_res.pixels_read;
+  rrl.pixels_left_new := rrl_res.pixels_left_new
+}
+....
+
+We again have a constraint that ensures we have 0 pixels left to read.
+Since we match `NonEndLineWhitespace` in the second rule element, we can just update the values of `rrl` to match those of `rrl_res`.
+
+==== The Third Rule
+
+Last, we have the third element:
+....
+[pixels_left >= 0]
+EndLineWhitespace
+{
+  rrl.pixels_read := [];
+  rrl.pixels_left_new := pixels_left
+};;
+....
+
+We again ensure that we have at least 0 pixels left to read as a sanity check.
+As we have reached the end of the line, we needn't call `ReadRasterLine` again.
+Instead, we just update the synthesized attributes by assigning to `rrl.pixels_read` the empty list value and assigning to `rrl.pixels_left_new` the number of pixels left to read.
+
+=== ReadRaster: Piecing Together the Lines
+
+Now that we have written `ReadRasterLine`, let's look at `ReadRaster`:
+....
+format {
+  ...
+  ReadRaster rr (pixels_left: int) {raster_image: [byte]} :=
+    [pixels_left > 0]
+    LineCheck
+    rrl = ReadRasterLine<pixels_left = pixels_left>
+    rr_rest = ReadRaster<pixels_left = rrl.pixels_left_new>
+    {
+     rr.raster_image := List.concat(rrl.pixels_read, rr_rest.raster_image)
+    }
+  ; [pixels_left = 0]
+    {
+      rr.raster_image := []
+    };;
+  ...
+}
+....
+
+There is not much new here that requires discussion.
+We again use the infix ordered choice operator to consider the cases where we have zero and more than 0 pixels left.
+
+If we have more than zero pixels left, we apply the non-terminal `LineCheck`.
+We then use `ReadRasterLine` to read a line into `rrl`.
+As `rrl.pixels_left_new` stores the number of pixels left to read after that line is read, we call  the non-terminal `ReadRaster`, passing in `rrl.pixels_left_new` as the value bound to the inherited attribute  `pixels_left` for that call.
+The matched value is stored in `rr_rest`.
+We then concatenate the two lists `rrl.pixels_read` and `rr_rest.raster_image` using the `concat` function of the <<../stdlib.adoc#, List module>>.
+
+If we have zero pixels left, we just update the synthesized attribute `raster_image` to be the empty list.
+This should correspond to the situation where we have fully read in the raster image.
+
+=== Putting it All Together
+
+We are almost done.
+We just need to carefully use the aforementioned non-terminals to create our Parsley specification.
+This is achieved by the `PBM_FC` non-terminal:
+
+....
+format {
+  ...
+  PBM_FC fc {ppbm_fc} :=
+    (| raster_width: int := 0, raster_height: int := 0,
+       raster_size: int := 0 |)
+    magic_bytes = MagicBytes
+    TokenSeparator
+    width = DimensionValue
+    [Int.of_bytes(width) ~~ option::Some]
+    TokenSeparator
+    height = DimensionValue
+    [Int.of_bytes(height) ~~ option::Some]
+    {
+      raster_width := Int.of_bytes_unsafe(width);
+      raster_height := Int.of_bytes_unsafe(height);
+      raster_size := raster_width * raster_height
+    }
+    RasterSeparator
+    img = ReadRaster<pixels_left = raster_size>
+    Junk
+    {
+      fc.magic_bytes := magic_bytes;
+      fc.height := raster_height;
+      fc.width := raster_width;
+      fc.img := img
+    }
+}
+....
+
+There is not too much new to discuss here.
+
+We declare a non-terminal `PBM_FC` with short name `fc` and a single synthesized attribute that has the `ppbm_fc` record type.
+We then match the magic bytes, the token separator, the width, another token separator, and the height.
+But we must also ensure that the `width` and `height` identifiers can properly be converted into integer values later down the parser creation pipeline.
+As we are agnostic to these details in the `.ply` format, this is indirectly achieved via imposing constraints that can be resolved later.
+These constraints are ``[Int.of_bytes(width) ~~ option::Some]`` and ``[Int.of_bytes(height) ~~ option::Some]``.
+They simply check to make sure that the `of_bytes` function from the `Int` module of the <<../stdlib.adoc#, standard library>> resolves to some actual values, not `None`.
+
+Next, we compute the temporaries `raster_width`, `raster_height`, and `raster_size` in action blocks.
+After matching the `RasterSeparator` non-terminal, we read in the raster using the temporary `raster_size`.
+We then match the non-terminal `Junk` in accordance with the specification.
+Finally, we assign values to the synthesized attributes associated with the `PBM_FC` non-terminal, in the usual fashion.
+
+Thus, we have the final Parsley file:
+
+....
+type ppbm_fc = {
+  magic_bytes: [byte],
+  height: int,
+  width: int,
+  img: [byte]
+}
+
+format {
+  MagicBytes := !"P1"!;;
+  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF
+  EndLineWhitespace := (# ["\r" | "\n"] #);;
+  NonEndLineWhitespace := (# [Whitespace \ EndLineWhitespace] #);;
+  DimensionValue := (#[DigitS]+#);;
+  BinaryDigit := (# ["0" | "1"] #);;
+  Comment := !"#"! (# [AsciiCharS \ EndLineWhitespace]*  EndLineWhitespace #);;
+  Junk := ; (# Whitespace AsciiCharS* #);;
+
+  LineCheck :=
+    clone_view = {;; View.clone(View.get_current())}
+    line = @[clone_view, (# [AsciiCharS \ EndLineWhitespace]*
+                          EndLineWhitespace #) ]
+    [List.length(line) <= 70];;
+
+  TokenSeparatorLine := (# LineCheck NonEndLineWhitespace*
+                           (Comment | EndLineWhitespace) #);;
+  PartialTokenSeparatorLine := (# LineCheck NonEndLineWhitespace #);;
+
+  TokenSeparator := (# TokenSeparatorLine* (LineCheck Whitespace)
+                     TokenSeparatorLine* PartialTokenSeparatorLine* #);;
+  RasterSeparator := (# (LineCheck Comment)* LineCheck Whitespace #);;
+
+  ReadRasterLine rrl (pixels_left: int) {pixels_read: [byte],
+                                         pixels_left_new: int} :=
+    [pixels_left > 0]
+    img_val = BinaryDigit
+    rrl_res = ReadRasterLine<pixels_left = pixels_left - 1>
+    {
+      rrl.pixels_read := img_val[0]::rrl_res.pixels_read;
+      rrl.pixels_left_new := rrl_res.pixels_left_new
+    }
+  ; [pixels_left >= 0] // this guard is not strictly necessary
+    NonEndLineWhitespace
+    rrl_res = ReadRasterLine<pixels_left = pixels_left>
+    {
+      rrl.pixels_read := rrl_res.pixels_read;
+      rrl.pixels_left_new := rrl_res.pixels_left_new
+    }
+  ; [pixels_left >= 0] // this guard is not strictly necessary
+    EndLineWhitespace
+    {
+      rrl.pixels_read := [];
+      rrl.pixels_left_new := pixels_left
+    };;
+
+  ReadRaster rr (pixels_left: int) {raster_image: [byte]} :=
+    [pixels_left > 0]
+    LineCheck
+    rrl = ReadRasterLine<pixels_left = pixels_left>
+    rr_rest = ReadRaster<pixels_left = rrl.pixels_left_new>
+    {
+     rr.raster_image := List.concat(rrl.pixels_read, rr_rest.raster_image)
+    }
+  ; [pixels_left = 0]
+    {
+      rr.raster_image := []
+    };;
+
+  PBM_FC fc {ppbm_fc} :=
+    (| raster_width: int := 0, raster_height: int := 0,
+       raster_size: int := 0 |)
+    magic_bytes = MagicBytes
+    TokenSeparator
+    width = DimensionValue
+    [Int.of_bytes(width) ~~ option::Some]
+    TokenSeparator
+    height = DimensionValue
+    [Int.of_bytes(height) ~~ option::Some]
+    {
+      raster_width := Int.of_bytes_unsafe(width);
+      raster_height := Int.of_bytes_unsafe(height);
+      raster_size := raster_width * raster_height
+    }
+    RasterSeparator
+    img = ReadRaster<pixels_left = raster_size>
+    Junk
+    {
+      fc.magic_bytes := magic_bytes;
+      fc.height := raster_height;
+      fc.width := raster_width;
+      fc.img := img
+    }
+}
+....
+
+[red]#Navigation:# <<overview.adoc#, &#8593; Tutorial Overview>> | <<ipv4.adoc#, &#8592; Previous Lesson>> | <<../readme.adoc#, &#128196; Documentation>>

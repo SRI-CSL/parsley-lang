@@ -1,0 +1,45 @@
+= Tutorial Overview
+
+The aim of this tutorial is to get the reader up to speed with the Parsley specification and toolchain by going through a series of examples.
+In the current iteration of this tutorial, we focus solely on how to use the Parsley type checker and how to specify data formats via Parsley.
+
+== What is Parsley?
+
+Parsley is a data format definition language.
+That is, Parsley allows for the creation of precise specifications for file formats.
+An overview of the first iteration of the language, its goals, and its initial design choices can be found in the http://spw20.langsec.org/papers/parsley-langsec2020.pdf[initial Parsley research report].
+
+== Installation
+
+To install the Parsley type checker:
+
+. Install opam, the OCaml package manager (https://opam.ocaml.org/doc/Install.html).
+. Execute the following command: `opam install menhir dune`
+. Clone the repository containing the Parsley type checker, examples, and other documentation: `git clone git@github.com:SRI-CSL/parsley-lang.git` and then type `cd parsley-lang`.
+. Run `make`. You should now see an executable, `parsleyc.exe`, in `./_build/default/src`. This executable is the Parsley type checker.
+
+== Running the Type Checker
+
+The Parsley type checker takes a single command-line argument, a relative file path, and it checks whether the file specified by that path conforms to the Parsley specification.
+You can test this by running:
+
+`./_build/default/src/parsleyc.exe ./test/lang/examples.ply`
+
+The type checker will either approve of the file or specify where things went wrong.
+
+== Learning by Example
+
+This tutorial is organized as a series of short lessons.
+Each lesson focuses on creating a Parsley specification for a specific data format.
+Each lesson was designed to be done in a single short sitting (5-30 minutes).
+As mentioned, the examples corresponding to the lessons in this tutorial can be found in `./tutorial/examples/`.
+
+== Tutorial Layout
+
+Lesson 1: <<udp.adoc#, UDP>>: The https://tools.ietf.org/html/rfc768[User Datagram Protocol] format is used in conjunction with IP to deliver data over the internet with minimal overhead.
+
+Lesson 2: <<ipv4.adoc#, IPV4>>: The https://tools.ietf.org/html/rfc791[Internet Protocol] is a key protocol in the https://en.wikipedia.org/wiki/Internet_protocol_suite[IP suite] that is used for the transmission of packets over the internet.
+
+Lesson 3: <<pbm.adoc#, PBM>>: The http://netpbm.sourceforge.net/doc/pbm.html[Portable Bitmap] format is a simple bitmap-based image format.
+
+[red]#Navigation:# <<udp.adoc#, &#8594; The First Lesson>> | <<../readme.adoc#, &#128196; Documentation>>

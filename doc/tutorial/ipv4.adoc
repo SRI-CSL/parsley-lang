@@ -1,0 +1,301 @@
+= The Internet Protocol
+
+In the previous lesson, we developed a Parsley specification for the https://tools.ietf.org/html/rfc768[User Datagram Protocol].
+In this lesson, we continue looking at the IP suite.
+In particular, we develop a Parsley specification for the https://tools.ietf.org/html/rfc791[Internet Protocol] (version 4).
+
+== The Use Declaration
+
+First, we note that, as is the case with many protocols, we cannot parse IPv4 in isolation.
+IPv4 packets may contain a UDP packet, a TCP packet, other packets, or even fragments of packets.
+Moreover, correctly parsing IPv4 and UDP packets requires the parsers to be linked, e.g., because the checksums rely on both.
+
+NOTE: For the time being we will not ensure the correctness of checksums. Once we have incorporated bits into Parsley, we will.
+
+Bridging this parser-parser barrier is done via the `use` declaration.
+The `use` declaration is followed by a filename of a file within the same directory.
+It enables one to include all declarations within the specified file.
+
+....
+use udp
+....
+
+Here, we include `udp.ply`.
+
+== The IPv4 Header
+
+We now figure out the structure of the IPv4 header.
+This is provided in the https://tools.ietf.org/html/rfc791[Internet Protocol specification].
+This process and the type declaration below should mostly be straightforward.
+The one exception is that, although we soon plan to incorporate bit types, the current implementation in Parsley has none.
+Thus, for the current state of the tutorial, we use a workaround, capturing bit strings via the `int` type.
+
+....
+type ip_packet = {
+  version: int,
+  ihl: int,
+  type_of_service: int,
+  total_length: int,
+  identification: [byte],
+  flags: int,
+  fragment_offset: int,
+  time_to_live: int,
+  protocol: int,
+  header_checksum: int,
+  source_address: [byte],
+  destination_address: [byte],
+  options_and_padding: [byte]
+}
+....
+
+This type declaration should be straightforward if you look at Figure 4 of the https://tools.ietf.org/html/rfc791[Internet Protocol specification].
+If it is unclear, please review the type declaration of the UDP packet in <<udp.adoc#, the first lesson>> on UDP.
+
+== Writing the Format Block
+
+As we have done before, we use the format block to specify how to parse an IPv4 packet.
+
+....
+format {
+  IPPacket ipp {ip_packet} :=
+    (| version: int := 0, ihl: int := 0, flags: int := 0,
+       fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    version_and_ihl = UInt8<endian=endian::Big()>
+    {
+      version := version_and_ihl / 16;
+      ihl := (version_and_ihl * 16) / 16
+    }
+    [version = 4]
+    [ihl >= 5]  // the header length should be at least 5 as per the spec
+    type_of_service = UInt8<endian=endian::Big()>
+    total_length = UInt16<endian=endian::Big()>
+    identification = (Byte^2)
+    flags_and_fragment_offset = UInt16<endian=endian::Big()>
+    {
+      flags := flags_and_fragment_offset / 1024;
+      fragment_offset := (flags_and_fragment_offset * 8) / 8
+    }
+    time_to_live = UInt8<endian=endian::Big()>
+    protocol = UInt8<endian=endian::Big()>
+    header_checksum = UInt16<endian=endian::Big()>
+    source_address = (Byte^4)
+    destination_address = (Byte^4)
+    options_and_padding_len = {
+      expr1 := 4 * ihl;
+      expr2 := expr1 - 5
+      ;;
+      expr2
+    }
+    options_and_padding = (Byte^options_and_padding_len)
+    {
+      ipp.version := version;
+      ipp.ihl := ihl;
+      ipp.type_of_service := type_of_service;
+      ipp.total_length := total_length;
+      ipp.identification := identification;
+      ipp.flags := flags;
+      ipp.fragment_offset := fragment_offset;
+      ipp.time_to_live := time_to_live;
+      ipp.protocol := protocol;
+      ipp.header_checksum := header_checksum;
+      ipp.source_address := source_address;
+      ipp.destination_address := destination_address;
+      ipp.options_and_padding := options_and_padding
+    }
+
+    // udp w/o fragmentation
+    [protocol = 17 && flags = 2] UDPPacket | // udp w/o fragmentation
+
+    // placeholder for udp w/o fragmentation or other next level protocols,
+    // e.g., protocol 6 is tcp
+    [protocol != 17 || (protocol = 17 && flags != 2)] ()
+}
+....
+
+There's a lot in here! And while much of it should be clear, there is also much that is new, which requires explanation.
+
+=== Temporaries
+
+First, let's look at the beginning of the format declaration:
+
+....
+format {
+  IPPacket ipp {ip_packet} :=
+    (| version: int := 0, ihl: int := 0, flags: int := 0,
+       fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    ...
+}
+....
+
+The left-hand side of the rule declaration should be clear enough; we are creating a non-terminal named `IPPacket` with short name `ipp` that has the attribute `ip_packet`.
+But what is going on afterward?
+
+Well, at the beginning of the right-hand side of a rule declaration, temporaries may be specified.
+These temporaries are declared between `(|` and `|)` markers and remain in scope for the remainder of the rule.
+In our example, we declare six temporaries that have type `int`, all initialized to 0.
+We later assign values to these temporaries via action blocks.
+In fact, we do so very soon.
+Let's look at the next few lines.
+
+....
+format {
+  IPPacket ipp {ip_packet} :=
+    (| version: int := 0, ihl: int := 0, flags: int := 0,
+       fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    version_and_ihl = UInt8<endian=endian::Big()>
+    {
+      version := version_and_ihl / 16;
+      ihl := (version_and_ihl * 16) / 16
+    }
+    [version = 4]
+    [ihl >= 5]  // the header length should be at least 5 as per the spec
+    ...
+}
+....
+
+The identifier `version_and_ihl` is set to match an eight-byte unsigned integer.
+We then use action blocks to extract `version` and `ihl` flags from this integer.
+In fact, this form should look quite familiar from the previous lesson where we assigned values to synthesized attributes.
+The only difference here is that we are assigning values to temporaries instead of assigning values to synthesized attributes.
+Next, we have two constraints that ensure we are dealing with version 4 of IP and we ensure that the IHL value is at least 5, in accordance with the IPv4 specification.
+
+While much of the remainder of the file is straightforward, we'll review two more action blocks and two more constraints.
+
+In the following action block, we again assign values to temporaries.
+....
+format {
+  IPPacket ipp {ip_packet} :=
+    ...
+    flags_and_fragment_offset = UInt16<endian=endian::Big()>
+    {
+      flags := flags_and_fragment_offset / 1024;
+      fragment_offset := (flags_and_fragment_offset * 8) / 8
+    }
+    ...
+}
+....
+
+In the action block below, we compute a length value by doing basic arithmetic on temporaries.
+The result of the action block, as specified by `expr2` in the last line, following `;;` in the penultimate line of the action block, is assigned to the identifier `options_and_padding_len`.
+This identifier is then used to match the options and padding values in the line following the action block.
+
+....
+format {
+  IPPacket ipp {ip_packet} :=
+    ...
+    options_and_padding_len = {
+      expr1 := 4 * ihl;
+      expr2 := expr1 - 5
+      ;;
+      expr2
+    }
+    options_and_padding = (Byte^options_and_padding_len)
+    ...
+}
+....
+
+NOTE: Instead of using an action block to computer `options_and_padding_len`, we could have alternatively computed the expression corresponding to the options and paddling length directly within the `options_and_padding` assignment itself. We used the approach above for pedagogical purposes.
+
+=== The Use Declaration at Play
+
+Later on in the format declaration, we see:
+
+....
+format {
+  IPPacket ipp {ip_packet} :=
+    ...
+    // udp w/o fragmentation
+    [protocol = 17 && flags = 2] UDPPacket | // udp w/o fragmentation
+
+    // placeholder for udp w/o fragmentation or other next level protocols,
+    // e.g., protocol 6 is tcp
+    [protocol != 17 || (protocol = 17 && flags != 2)] ()
+    ...
+}
+....
+
+This is where the `use` declaration comes into play.
+We are now using the `UDPPacket` non-terminal from `udp.ply`.
+In a future iteration of this tutorial, once bits have been implemented, we will demonstrate how these two parsers interact in validating the checksums.
+This will also require passing along information to the `UDPPacket` non-terminal via inherited attributes.
+
+=== Our Final File
+
+Thus, we have the final file:
+
+....
+use udp
+
+type ip_packet = {
+  version: int,
+  ihl: int,
+  type_of_service: int,
+  total_length: int,
+  identification: [byte],
+  flags: int,
+  fragment_offset: int,
+  time_to_live: int,
+  protocol: int,
+  header_checksum: int,
+  source_address: [byte],
+  destination_address: [byte],
+  options_and_padding: [byte]
+}
+
+format {
+  IPPacket ipp {ip_packet} :=
+    (| version: int := 0, ihl: int := 0, flags: int := 0,
+       fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    version_and_ihl = UInt8<endian=endian::Big()>
+    {
+      version := version_and_ihl / 16;
+      ihl := (version_and_ihl * 16) / 16
+    }
+    [version = 4]
+    [ihl >= 5]  // the header length should be at least 5 as per the spec
+    type_of_service = UInt8<endian=endian::Big()>
+    total_length = UInt16<endian=endian::Big()>
+    identification = (Byte^2)
+    flags_and_fragment_offset = UInt16<endian=endian::Big()>
+    {
+      flags := flags_and_fragment_offset / 1024;
+      fragment_offset := (flags_and_fragment_offset * 8) / 8
+    }
+    time_to_live = UInt8<endian=endian::Big()>
+    protocol = UInt8<endian=endian::Big()>
+    header_checksum = UInt16<endian=endian::Big()>
+    source_address = (Byte^4)
+    destination_address = (Byte^4)
+    options_and_padding_len = {
+      expr1 := 4 * ihl;
+      expr2 := expr1 - 5
+      ;;
+      expr2
+    }
+    options_and_padding = (Byte^options_and_padding_len)
+    {
+      ipp.version := version;
+      ipp.ihl := ihl;
+      ipp.type_of_service := type_of_service;
+      ipp.total_length := total_length;
+      ipp.identification := identification;
+      ipp.flags := flags;
+      ipp.fragment_offset := fragment_offset;
+      ipp.time_to_live := time_to_live;
+      ipp.protocol := protocol;
+      ipp.header_checksum := header_checksum;
+      ipp.source_address := source_address;
+      ipp.destination_address := destination_address;
+      ipp.options_and_padding := options_and_padding
+    }
+
+    // udp w/o fragmentation
+    [protocol = 17 && flags = 2] UDPPacket | // udp w/o fragmentation
+
+    // placeholder for udp w/o fragmentation or other next level protocols,
+    // e.g., protocol 6 is tcp
+    [protocol != 17 || (protocol = 17 && flags != 2)] ()
+}
+....
+
+[red]#Navigation:# <<overview.adoc#, &#8593; Tutorial Overview>> | <<udp.adoc#, &#8592; Previous Lesson>> | <<pbm.adoc#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
