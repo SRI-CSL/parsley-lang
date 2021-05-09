@@ -1,0 +1,78 @@
+type ppbm_fc = {
+  magic_bytes: [byte],
+  height: int,
+  width: int,
+  img: [byte]
+}
+
+format {
+  MagicBytes := !"P1"!;;
+  Whitespace := (# [" " | "\t" | "\r" | "\n"] #);;  // missing VT, FF (vertical tabulation, form feed)
+  EndLineWhitespace := (# ["\r" | "\n"] #);;
+  NonEndLineWhitespace := (# [Whitespace \ EndLineWhitespace] #);;
+  DimensionValue := (#[DigitS]+#);;
+  BinaryDigit := (# ["0" | "1"] #);;
+  Comment := !"#"! (# [AsciiCharS \ EndLineWhitespace]*  EndLineWhitespace #);;
+  Junk := ; (# Whitespace AsciiCharS* #);;
+
+  LineCheck :=
+    clone_view = {;; View.clone(View.get_current())}
+    line = @[clone_view, (# [AsciiCharS \ EndLineWhitespace]* EndLineWhitespace #) ]
+    [List.length(line) <= 70];;
+
+  TokenSeparatorLine := (# LineCheck NonEndLineWhitespace* (Comment | EndLineWhitespace) #);;
+  PartialTokenSeparatorLine := (# LineCheck NonEndLineWhitespace #);;
+  
+  TokenSeparator := (# TokenSeparatorLine* (LineCheck Whitespace) TokenSeparatorLine* PartialTokenSeparatorLine* #);;
+  RasterSeparator := (# (LineCheck Comment)* LineCheck Whitespace #);;
+
+  ReadRasterLine rrl (width: int) {img_raster_line: [byte]} :=
+      ([width > 0]
+       img_val = BinaryDigit
+       rrl_res = ReadRasterLine<width = width - 1> 
+       {
+         rrl.img_raster_line := img_val[0]::rrl_res.img_raster_line
+       }) 
+    | ([width >= 0] // this guard isn't necessary, but I think it improves clarity
+       NonEndLineWhitespace
+       rrl_res = ReadRasterLine<width = width>
+       {
+         rrl.img_raster_line := rrl_res.img_raster_line
+       })
+    | ([width = 0]
+       EndLineWhitespace
+       {
+         rrl.img_raster_line := []
+       });;
+
+  ReadRaster rr (width: int, height: int) {img_raster: [byte]} := 
+    LineCheck
+    img_raster_line = ReadRasterLine<width = width>
+    img_raster_rest = ReadRaster<width = width, height = height - 1>
+    {
+      rr.img_raster := img_raster_line::img_raster_rest
+    };;
+     
+  PBM_FC fc {ppbm_fc} :=
+    (| raster_width: int := 0, raster_height: int := 0 |) 
+    magic_bytes = MagicBytes
+    TokenSeparator
+    height = DimensionValue 
+    [Int.of_bytes(height) ~~ option::Some]
+    TokenSeparator
+    width = DimensionValue
+    [Int.of_bytes(width) ~~ option::Some]
+    {
+      raster_width := Int.of_bytes_unsafe(width);
+      raster_height := Int.of_bytes_unsafe(height)
+    }
+    RasterSeparator
+    img = ReadRaster<width = Int.of_bytes_unsafe(width), height = Int.of_bytes_unsafe(height)>
+    junk = Junk
+    {
+      fc.magic_bytes := magic_bytes;
+      fc.height := raster_height;
+      fc.width := raster_width;
+      fc.img := img
+    }
+}
