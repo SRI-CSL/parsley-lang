@@ -511,6 +511,8 @@ and descend_expr (ctx, acc) e =
           List.fold_left descend_expr (ctx, acc) (f :: args)
       | E_binop (_, l, r) ->
           descend_expr (descend_expr (ctx, acc) l) r
+      | E_recop (_, _, e) ->
+          descend_expr (ctx, acc) e
       | E_bitrange (e, _, _) ->
           descend_expr (ctx, acc) e
       | E_case (e, bs) ->

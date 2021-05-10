@@ -1,5 +1,22 @@
 type bv = bitvector<1>
 
+bitfield bf = {
+  top: 8:7,
+  bot: 6:0
+}
+
 fun test_bitvector(b: bitvector<3>) -> bitvector<3> = {
   b[[2:0]]
+}
+
+fun test_bitfield (r: bf) -> (bitvector<2>, bitvector<7>) = {
+  (r.top, r.bot)
+}
+
+fun test_rop_record(r: bitvector<9>) -> bf = {
+  bf->record(r)
+}
+
+fun test_rop_bits(r: bf) -> bitvector<9> = {
+  bf->bits(r)
 }

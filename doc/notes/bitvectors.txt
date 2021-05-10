@@ -81,7 +81,7 @@ this as follows:
 
   v: bitvector<n>
   N, M: constant numbers
-  N > M
+  N > M > 0
   ----------------------
   v{N:M}: bitvector<N-M>
   RC + (n > N)
@@ -93,9 +93,28 @@ Bitfields
 =========
 
 bitfield r = {
-  bits:   3-1,
+  bits:   3:1,
   flag:   0,
 }
 
 flag: r -> bitvector<1>
 bits: r -> bitvector<3>
+
+ . bit ranges should not overlap
+ . bit ranges should be a cover of [0, n] when n is the max index.
+
+ . conversions
+   . these need to have the bitfield name encoded so that the typing is
+     unambiguous
+
+   . record -> bitvector: r->bits(x)
+     |= r :: bitfield<n>
+     |= x : r
+     ----------------------------
+     |= r->bits(x) : bitvector<n>
+
+   . bitvector -> record: r->record(v)
+     |= r :: bitfield<n>
+     |= v : bitfield<n>
+     -------------------
+     |= r->record(v) : r

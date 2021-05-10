@@ -32,9 +32,10 @@ open Parsing
     with their destructors and constructors *)
 type record_info =
   {adt: Ast.ident;
-   fields: (Ast.ident * Ast.type_expr) list;
+   fields: (Ast.ident * (Ast.type_expr * (int * int) option)) list;
    record_constructor: Ast.tname * MultiEquation.variable;
-   field_destructors: (Ast.lname * MultiEquation.variable) list}
+   field_destructors: (Ast.lname * MultiEquation.variable) list;
+   bitfield_length: int option}
 
 (** An algebraic datatype is characterized by a list of data
     constructors for variant types and field destructors for record types. *)

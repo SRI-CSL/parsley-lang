@@ -100,7 +100,18 @@ let print_type_rep tr =
           )
           fields;
         pp_print_string !ppf "}"
-
+    | TR_bitfield fields ->
+        pp_print_string !ppf "{";
+        print_list ", " (fun (f, (n,m)) ->
+            pp_print_string !ppf (Location.value f);
+            pp_print_string !ppf ": ";
+            let n = Location.value n in
+            let m = Location.value m in
+            let r = Printf.sprintf "%d:%d" n m in
+            pp_print_string !ppf r
+          )
+          fields;
+        pp_print_string !ppf "}"
     | TR_defn t ->
         print_type_expr t
 
@@ -236,6 +247,13 @@ and print_expr auxp e =
         pp_print_string !ppf "[";
         print_expr auxp r;
         pp_print_string !ppf "]"
+    | E_recop (r, rop, e) ->
+        let r = Printf.sprintf "%s->%s"
+                  (Location.value r) (Location.value rop) in
+        pp_print_string !ppf r;
+        pp_print_string !ppf "(";
+        print_expr auxp e;
+        pp_print_string !ppf ")"
     | E_binop (b, l, r) ->
         pp_print_string !ppf "(";
         print_expr auxp l;

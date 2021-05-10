@@ -180,13 +180,37 @@ type typing_error =
      a particular context. *)
   | UnboundIdentifier of Location.t * string
 
-  (* [Invalid_bitrange_low_bound i] is raised when the lower bound of
+  (* [InvalidBitrangeLowBound i] is raised when the lower bound of
      a bitrange is invalid (i.e. it is negative) *)
-  | Invalid_bitrange_low_bound of Location.t * int
+  | InvalidBitrangeLowBound of Location.t * int
 
-  (* [Invalid_empty_bitrange n m ] is raised when the selected range of
-     bit is empty *)
-  | Invalid_empty_bitrange of Location.t * int * int
+  (* [InvalidEmptyBitrange n m ] is raised when the selected range of
+     bits is empty *)
+  | InvalidEmptyBitrange of Location.t * int * int
+
+  (* [InvalidBitrangeOrder n m] is raised when the endpoints of the
+     range are not specified in decreasing order. *)
+  | InvalidBitrangeOrder of Location.t * int * int
+
+  (* [IncompleteBitfieldRanges bf n] is raised when the ranges of a
+     bitfield [bf] do not cover index [n]. *)
+  | IncompleteBitfieldRanges of Ast.ident * int
+
+  (* [OverlappingBitfieldRanges bf f f' idx] is raised when the
+     ranges of fields [f] and [f'] overlap at index [idx] *)
+  | OverlappingBitfieldRanges of Ast.ident * Ast.ident * Ast.ident * int
+
+  (* [InvalidRecordOperator op ] is raised when an unknown record
+     operator [op] is specified. *)
+  | InvalidRecordOperator of Location.t * string
+
+  (* [NotRecordType t] is raised when an record operator is applied on a
+     non-record type [t]. *)
+  | NotRecordType of Ast.ident
+
+  (* [NotBitfieldType t] is raised when an bitfield operator is applied
+     on a non-bitfield type [t]. *)
+  | NotBitfieldType of Ast.ident
 
 exception Error of typing_error
 
@@ -343,7 +367,33 @@ let error_msg = function
   | UnboundIdentifier (p, t) ->
       msg "%s:\n Unbound identifier `%s'.\n" p t
 
-  | Invalid_bitrange_low_bound (loc, b) ->
+  | InvalidBitrangeLowBound (loc, b) ->
       msg "%s:\n %d is an invalid low bound for bitvector range" loc b
-  | Invalid_empty_bitrange (loc, n, m) ->
+
+  | InvalidEmptyBitrange (loc, n, m) ->
       msg "%s:\n %d-%d is an invalid (empty) range" loc n m
+
+  | InvalidBitrangeOrder (loc, n, m) ->
+      msg "%s:\n index range %d-%d is in an invalid order" loc n m
+
+  | IncompleteBitfieldRanges (bf, idx) ->
+      msg
+        "%s:\n specified ranges of bitfield `%s' do not cover index %d"
+        (Location.loc bf) (Location.value bf) idx
+
+  | OverlappingBitfieldRanges (bf, f, f', idx) ->
+      msg
+        "%s:\n fields `%s' and `%s' of bitfield `%s' overlap at index %d"
+        (Location.loc bf) (Location.value f) (Location.value f')
+        (Location.value bf) idx
+
+  | InvalidRecordOperator(loc, op) ->
+      msg "%s:\n invalid record operator `%s'." loc op
+
+  | NotRecordType t ->
+      msg "%s:\n `%s' is not a record type."
+        (Location.loc t) (Location.value t)
+
+  | NotBitfieldType t ->
+      msg "%s:\n `%s' is not a bitfield type."
+        (Location.loc t) (Location.value t)
