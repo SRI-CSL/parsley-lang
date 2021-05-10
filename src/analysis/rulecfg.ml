@@ -142,6 +142,8 @@ let free_vars_of_expr (e: (typ, varid) expr) (bound: Bindings.t option)
           add (set', bound') e
       | E_binop (_, l, r) ->
           add (add acc l) r
+      | E_recop (_, _, e) ->
+          add acc e
       | E_bitrange (e, _, _) ->
           add acc e
       | E_literal _ | E_mod_member _ ->
@@ -581,8 +583,10 @@ let rec const_fold (e: (typ, varid) expr) : (typ, varid) expr =
                {e with expr = E_literal (PL_bool (not (l = r)))}
            | _ ->
                {e with expr = E_binop (op, l', r')})
-    | E_bitrange (e, n, m) ->
-        {e with expr = E_bitrange (const_fold e, n, m)}
+    | E_recop (t, rop, e') ->
+        {e with expr = E_recop (t, rop, const_fold e')}
+    | E_bitrange (e', n, m) ->
+        {e with expr = E_bitrange (const_fold e', n, m)}
 
 let is_non_zero (e: (typ, varid) expr) : bool =
   match (const_fold e).expr with
@@ -960,7 +964,7 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
                 | None -> assert false
                 | Some f -> f in
             (* ensure all synthesized attributes are initialized at exit *)
-            List.iter (fun (f, t) ->
+            List.iter (fun (f, (t, _)) ->
                 let f = Location.value f in
                 let attr = v, Some f, (vn, loc) in
 (*                Printf.eprintf " init-check for %s:\n" (binding_to_string attr);*)

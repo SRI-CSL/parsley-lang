@@ -281,7 +281,7 @@ let make_field_signature adt tvars f typ =
 let intern_field_destructor adt_id qs env_info f_info =
   let adt_name = Location.value adt_id in
   let tenv, acu, lrqs, let_env = env_info
-  and fname, typ = f_info in
+  and fname, (typ, _) = f_info in
   let destructor = make_field_signature adt_id qs fname typ in
   let qs = List.map (fun q -> TName (Location.value q)) qs in
   let rqs, rtenv = fresh_unnamed_rigid_vars (Location.loc adt_id) tenv qs in
@@ -311,7 +311,7 @@ let make_record_signature adt tvars fields =
            (Location.loc adt) in
   let fields = AstUtils.sort_fields fields in
   let signature =
-    List.fold_left (fun acc (f, t) ->
+    List.fold_left (fun acc (f, (t, _)) ->
         AstUtils.make_arrow_type [t; acc] (Location.loc f)
       ) res (List.rev fields) in
     signature, fields
@@ -341,6 +341,51 @@ let intern_record_constructor adt_id qs env_info fields =
     definition for the declared quantified type variables [qs]. *)
 let check_valid_type_defn tenv t qs defn =
   check_tvars_usage tenv t qs (TypeConv.variables_of_typ defn)
+
+(** [check_fields bf fields] ensures that the bit index ranges of
+   the [fields] of a bitfield [bf] cover the entire corresponding
+   bitvector, and do not overlap.  It returns the length of the
+   bitvector. *)
+let check_fields bf fields : int =
+  let rec check_ranges = function
+    | [] -> ()
+    | (_, (n, m)) :: rest ->
+        let n', m' = Location.value n, Location.value m in
+        let nl, ml = Location.loc n, Location.loc m in
+        let ext = Location.extent nl ml in
+        if m' < 0
+        then let err = InvalidBitrangeLowBound (ml, m') in
+             raise (Error err)
+        else if n' < m'
+        then let err = InvalidBitrangeOrder (ext, n', m') in
+             raise (Error err)
+        else check_ranges rest in
+  check_ranges fields;
+  let fields =
+    List.sort (fun (_, r) (_, r') -> compare r r') fields in
+  let first = ref true in
+  let rec check_cover = function
+    | [] ->
+        assert false
+    | (_, (x, n)) :: [] ->
+        (if !first && Location.value n != 0
+         then let err = IncompleteBitfieldRanges (bf, 0) in
+              raise (Error err));
+        1 + Location.value x
+    | (f, (x, n)) :: ((f', (_, n')) :: _ as rest) ->
+        (if !first && Location.value n != 0
+         then let err = IncompleteBitfieldRanges (bf, 0) in
+              raise (Error err));
+        first := false;
+        let x, n' = Location.value x, Location.value n' in
+        if x >= n'
+        then let err = OverlappingBitfieldRanges (bf, f, f', n') in
+             raise (Error err)
+        else if n' > x + 1
+        then let err = IncompleteBitfieldRanges (bf, x + 1) in
+             raise (Error err)
+        else check_cover rest in
+  check_cover fields
 
 (** Constraint contexts. *)
 type context = tconstraint -> tconstraint
@@ -407,6 +452,15 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
   and loc   = td.type_decl_loc
   and tvars = td.type_decl_tvars
   and typ   = td.type_decl_body in
+  let process_record_fields fields =
+    (* Add the record and field signatures into the environment *)
+    let tenv, dids, drqs, let_env =
+      List.fold_left
+        (intern_field_destructor ident tvars)
+        (tenv, [], rqs, let_env)
+        fields in
+    (dids, drqs, intern_record_constructor
+                   ident tvars (tenv, let_env) fields) in
   check_distinct_tvars ident tvars;
   match typ.type_rep with
     | TR_variant dcons ->
@@ -432,22 +486,35 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
         (* First expand any type abbreviations in the signatures *)
         let fields =
           List.map (fun (f, te) ->
-              f, TypedAstUtils.expand_type_abbrevs tenv te
+              f, (TypedAstUtils.expand_type_abbrevs tenv te, None)
             ) fields in
-        (* Add the record and field signatures into the environment *)
-        let tenv, dids, drqs, let_env =
-          List.fold_left
-            (intern_field_destructor ident tvars)
-            (tenv, [], rqs, let_env)
-            fields in
-        let tenv, cid, crqs, let_env =
-          intern_record_constructor ident tvars
-            (tenv, let_env) fields in
+        let dids, drqs, (tenv, cid, crqs, let_env) =
+          process_record_fields fields in
         (* Fill in the adt_info *)
         adt_ref := Some {adt = Record {adt = ident;
                                        fields;
                                        record_constructor = cid;
-                                       field_destructors = dids};
+                                       field_destructors  = dids;
+                                       bitfield_length    = None};
+                          loc};
+        tenv, crqs @ drqs, let_env
+    | TR_bitfield fields ->
+        let len = check_fields ident fields in
+        let fields =
+          List.map (fun (f, (s, e)) ->
+              let s, e = Location.value s, Location.value e in
+              assert (s >= e);
+              let loc = Location.loc f in
+              f, (AstUtils.make_bitvector_type (1 + s - e) loc, Some (s, e))
+            ) fields in
+        let dids, drqs, (tenv, cid, crqs, let_env) =
+          process_record_fields fields in
+        (* Fill in the adt_info *)
+        adt_ref := Some {adt = Record {adt = ident;
+                                       fields;
+                                       record_constructor = cid;
+                                       field_destructors  = dids;
+                                       bitfield_length    = Some len};
                           loc};
         tenv, crqs @ drqs, let_env
     | TR_defn _ ->
@@ -754,12 +821,73 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
                  mk_auxexpr (E_binop (op, le', re')))
               )
           )
+    | E_recop (rtyp, op, e') when Location.value op = "bits" ->
+        (* We need the following constraints:
+         * . rtyp should be a bitfield record for bitvector<n>
+         * . e' should be of type rtyp
+         * . result should be of type bitvector<n>
+         *)
+        let rtn = TName (Location.value rtyp) in
+        let adt = match lookup_adt tenv rtn with
+            | None ->
+                let err = UnboundRecord (Location.loc rtyp, rtn) in
+                raise (Error err)
+            | Some adt ->
+                adt in
+        let bf_len = match adt with
+            | {adt = Variant _; _} ->
+                let err = NotRecordType rtyp in
+                raise (Error err)
+            | {adt = Record {bitfield_length = None; _}; _} ->
+                let err = NotBitfieldType rtyp in
+                raise (Error err)
+            | {adt = Record {bitfield_length = Some len; _}; _} ->
+                len in
+        let v = TypeConv.bitvector_n tenv bf_len in
+        let rt =
+          TypeConv.intern tenv (AstUtils.make_tvar_ident rtyp) in
+        let ce, (wce, e') = infer_expr tenv venv e' rt in
+        ce ^ (v =?= t) e.expr_loc,
+        (wce, mk_auxexpr (E_recop (rtyp, op, e')))
+    | E_recop (rtyp, op, e') when Location.value op = "record" ->
+        (* We need the following constraints:
+         * . rtyp should be a bitfield record for bitvector<n>
+         * . e' should be of type bitvector<n>
+         * . result should be of type rtyp
+         *)
+        let rtn = TName (Location.value rtyp) in
+        let adt = match lookup_adt tenv rtn with
+            | None ->
+                let err = UnboundRecord (Location.loc rtyp, rtn) in
+                raise (Error err)
+            | Some adt ->
+                adt in
+        let bf_len = match adt with
+            | {adt = Variant _; _} ->
+                let err = NotRecordType rtyp in
+                raise (Error err)
+            | {adt = Record {bitfield_length = None; _}; _} ->
+                let err = NotBitfieldType rtyp in
+                raise (Error err)
+            | {adt = Record {bitfield_length = Some len; _}; _} ->
+                len in
+        let v = TypeConv.bitvector_n tenv bf_len in
+        let rt =
+          TypeConv.intern tenv (AstUtils.make_tvar_ident rtyp) in
+        let ce, (wce, e') = infer_expr tenv venv e' v in
+        ce ^ (rt =?= t) e.expr_loc,
+        (wce, mk_auxexpr (E_recop (rtyp, op, e')))
+    | E_recop (_, op, _) ->
+        let loc = Location.loc op in
+        let op  = Location.value op in
+        let err = InvalidRecordOperator (loc, op) in
+        raise (Error err)
     | E_bitrange (bve, n, m) ->
         if m < 0 then
-          (let err = Invalid_bitrange_low_bound (e.expr_loc, m) in
+          (let err = InvalidBitrangeLowBound (e.expr_loc, m) in
            raise (Error err));
         if m >= n then
-          (let err = Invalid_empty_bitrange (e.expr_loc, n, m) in
+          (let err = InvalidEmptyBitrange (e.expr_loc, n, m) in
            raise (Error err));
         let w = n - m + 1 in
         let v = TypeConv.bitvector_n tenv w in
@@ -1056,7 +1184,8 @@ let infer_non_term_type tenv ctxt ntd =
                         CTrue loc))
           ) in
         let attrs = List.map (fun (id, te, _) ->
-                        id, TypedAstUtils.expand_type_abbrevs tenv te
+                        id,
+                        (TypedAstUtils.expand_type_abbrevs tenv te, None)
                       ) attrs in
         let tenv', dids, drqs, let_env =
           List.fold_left
@@ -1069,7 +1198,8 @@ let infer_non_term_type tenv ctxt ntd =
         let rec_info = {adt    = ntid;
                         fields = attrs;
                         record_constructor = cid;
-                        field_destructors  = dids} in
+                        field_destructors  = dids;
+                        bitfield_length    = None} in
         rcd := Some rec_info;
         adt := Some {adt = Record rec_info; loc};
         let ctxt' = (fun c ->

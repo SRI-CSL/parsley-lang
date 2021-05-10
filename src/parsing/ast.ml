@@ -19,6 +19,7 @@ type tvar     = string Location.loc
 type ident    = string Location.loc
 type modident = string Location.loc
 type literal  = string Location.loc
+type bitidx   = int    Location.loc
 type 'b var   = (string * 'b) Location.loc
 
 (* names stripped of location, used in the type checker *)
@@ -44,6 +45,7 @@ and type_expr =
 type type_rep_desc =
   | TR_variant of (ident * type_expr option) list
   | TR_record of (ident * type_expr) list
+  | TR_bitfield of (ident * (bitidx * bitidx)) list
   | TR_defn of type_expr
 
 and type_rep =
@@ -85,6 +87,7 @@ type ('a, 'b) expr_desc =
   | E_apply of ('a, 'b) expr * ('a, 'b) expr list
   | E_unop of unop * ('a, 'b) expr
   | E_binop of binop * ('a, 'b) expr * ('a, 'b) expr
+  | E_recop of ident * ident * ('a, 'b) expr
   | E_bitrange of ('a, 'b) expr * int * int
   | E_match of ('a, 'b) expr * (ident * ident)
   | E_literal of primitive_literal

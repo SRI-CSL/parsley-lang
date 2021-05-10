@@ -22,7 +22,7 @@ open AstUtils
 %}
 
 %token EOF
-%token FORMAT TYPE AND FUN RECFUN USE OF CASE LET IN
+%token FORMAT TYPE BITFIELD AND FUN RECFUN USE OF CASE LET IN
 %token ATTR
 %token EPSILON
 
@@ -322,6 +322,24 @@ rec_typ_fields:
 | l=separated_list(COMMA, rec_typ_field)
   { l }
 
+bit_range_field:
+| i=ident COLON n=int_exp
+  { register_bitwidth n;
+    let l = Location.mk_loc $startpos(n) $endpos(n) in
+    let n = Location.mk_loc_val n l in
+    (i, (n, n)) }
+| i=ident COLON n=int_exp COLON m=int_exp
+  { register_bitwidth (max n m);
+    let l = Location.mk_loc $startpos(n) $endpos(n) in
+    let n = Location.mk_loc_val n l in
+    let l = Location.mk_loc $startpos(m) $endpos(m) in
+    let m = Location.mk_loc_val m l in
+    (i, (n, m)) }
+
+bit_range_fields:
+| l=separated_list(COMMA, bit_range_field)
+  { l }
+
 rec_exp_field:
 | i=ident COLON e=expr
   { (i, e) }
@@ -352,6 +370,8 @@ listelems:
 expr:
 | v=ident
   { make_expr (E_var (make_var v)) $startpos $endpos }
+| r=ident ARROW rop=ident LPAREN e=expr RPAREN
+  { make_expr (E_recop (r, rop, e)) $startpos $endpos }
 | u=UID DOT m=ident
   { make_expr (E_mod_member (u, m)) $startpos $endpos }
 | e=expr DOT f=ident
@@ -649,7 +669,15 @@ type_decl:
   { let rep = make_type_rep (TR_record r) $startpos $endpos in
     make_type_decl t (generate_kind tvs) tvs rep $startpos $endpos }
 
+
+bitfield:
+| bf=ident EQ LBRACE r=bit_range_fields RBRACE
+  { let rep = make_type_rep (TR_bitfield r) $startpos $endpos in
+    make_type_decl bf KStar [] rep $startpos $endpos }
+
 type_decls:
+| BITFIELD b=bitfield
+  { [b] }
 | TYPE t=type_decl
   { [t] }
 | TYPE t=type_decl AND l=separated_list(AND, type_decl)

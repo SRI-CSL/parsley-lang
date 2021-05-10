@@ -33,19 +33,20 @@
   let keywords =
     let tbl = Hashtbl.create 16 in
     List.iter (fun (key, tok) -> Hashtbl.add tbl key tok)
-              [ "format", FORMAT;
-                "use",    USE;
-                "type",   TYPE;
-                "and",    AND;
-                "fun",    FUN;
-                "recfun", RECFUN;
-                "of",     OF;
-                "case",   CASE;
-                "let",    LET;
-                "in",     IN;
+      [ "format",   FORMAT;
+        "bitfield", BITFIELD;
+        "use",      USE;
+        "type",     TYPE;
+        "and",      AND;
+        "fun",      FUN;
+        "recfun",   RECFUN;
+        "of",       OF;
+        "case",     CASE;
+        "let",      LET;
+        "in",       IN;
 
-                "$epsilon", EPSILON;
-              ];
+        "$epsilon", EPSILON;
+      ];
     tbl
 
   let decide_ident s loc =
