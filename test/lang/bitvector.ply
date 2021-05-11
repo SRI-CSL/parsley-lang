@@ -20,3 +20,12 @@ fun test_rop_record(r: bitvector<9>) -> bf = {
 fun test_rop_bits(r: bf) -> bitvector<9> = {
   bf->bits(r)
 }
+
+format {
+  N n {v: bitvector<7>, f: bf, t: bitvector<2>, b: bitvector<7>} :=
+    BitVector<1> $pad<8, 0b01> $align<8> v=BitVector<7> f=$bitfield(bf)
+    { n.v := v;
+      n.f := f;
+      n.t := f.top;
+      n.b := f.bot }
+}

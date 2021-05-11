@@ -24,7 +24,7 @@ open AstUtils
 %token EOF
 %token FORMAT TYPE BITFIELD AND FUN RECFUN USE OF CASE LET IN
 %token ATTR
-%token EPSILON
+%token EPSILON PAD ALIGN USE_BITFIELD
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LLBRACK RRBRACK
 %token LPARBAR RPARBAR SYN_BEGIN SYN_END
@@ -94,6 +94,11 @@ let make_bitvector_literal s =
       []
       (String.to_seq s) in
   List.rev l
+
+let make_bitint n b e =
+  register_bitwidth n;
+  let l = Location.mk_loc b e in
+  Location.mk_loc_val n l
 
 let make_type_expr t b e =
   {type_expr = t;
@@ -324,9 +329,7 @@ rec_typ_fields:
 
 bit_range_field:
 | i=ident COLON n=int_exp
-  { register_bitwidth n;
-    let l = Location.mk_loc $startpos(n) $endpos(n) in
-    let n = Location.mk_loc_val n l in
+  { let n = make_bitint n $startpos(n) $endpos(n) in
     (i, (n, n)) }
 | i=ident COLON n=int_exp COLON m=int_exp
   { register_bitwidth (max n m);
@@ -563,7 +566,29 @@ rule_elem:
     let r = make_regexp (RX_seq l) $startpos(s) $endpos(s) in
     make_rule_elem (RE_regexp r) $startpos $endpos }
 | nt=UID inh=option(nt_args)
-  { make_rule_elem (RE_non_term (nt, inh)) $startpos $endpos }
+  { let id = Location.value nt in
+    if id = "BitVector"
+    then let err = if inh = None
+                   then Missing_bitvector_width
+                   else Invalid_bitvector_syntax in
+         parse_error err (Location.loc nt)
+    else make_rule_elem (RE_non_term (nt, inh)) $startpos $endpos }
+| nt=UID LT i=int_exp GT
+  { let id = Location.value nt in
+    if id <> "BitVector"
+    then let err = Invalid_bitvector_nonterminal id in
+         parse_error err (Location.loc nt)
+    else let i = make_bitint i $startpos(i) $endpos(i) in
+         make_rule_elem (RE_bitvector i) $startpos $endpos }
+| ALIGN LT i=int_exp GT
+  { let i = make_bitint i $startpos(i) $endpos(i) in
+    make_rule_elem (RE_align i) $startpos $endpos }
+| PAD LT i=int_exp COMMA b=BV_LITERAL GT
+  { let b = make_bitvector_literal (Location.value b) in
+    let i = make_bitint i $startpos(i) $endpos(i) in
+    make_rule_elem (RE_pad (i, b)) $startpos $endpos }
+| USE_BITFIELD LPAREN i=ident RPAREN
+  { make_rule_elem (RE_bitfield i) $startpos $endpos }
 | LBRACK e=expr RBRACK
   { make_rule_elem (RE_constraint e) $startpos $endpos }
 | LBRACE a=action RBRACE

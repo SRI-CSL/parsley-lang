@@ -564,6 +564,10 @@ and descend_rule acc r =
 and descend_rule_elem (ctx, acc) re =
   match re.rule_elem with
     | RE_non_term (_, None)
+    | RE_bitvector _
+    | RE_align _
+    | RE_pad _
+    | RE_bitfield _
     | RE_epsilon ->
         ctx, acc
     | RE_regexp re ->

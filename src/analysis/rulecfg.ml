@@ -612,6 +612,8 @@ let rec add_rule_elem
   let env, closed, b = ctx in
   let pack b =
     env, closed, b in
+  let mk_bitvector_ident () =
+    Location.mk_loc_val "bitvector" r.rule_elem_loc in
   match r.rule_elem with
     | RE_regexp {regexp = RX_literals _; _}
     | RE_regexp {regexp = RX_wildcard; _} ->
@@ -627,6 +629,12 @@ let rec add_rule_elem
                     add_expr env b e
                   ) b ias in
         pack (add_gnode b (GN_type id) r.rule_elem_loc)
+    (* bitvectors and bitfields are treated just as types *)
+    | RE_bitvector _ ->
+        let bv = mk_bitvector_ident () in
+        pack (add_gnode b (GN_type bv) r.rule_elem_loc)
+    | RE_bitfield t ->
+        pack (add_gnode b (GN_type t) r.rule_elem_loc)
     | RE_constraint e ->
         pack (add_expr env b e)
     | RE_action {action_stmts = ss, oe; _}->
@@ -704,8 +712,10 @@ let rec add_rule_elem
         (* insert a jump to the continuation *)
         let c = end_block bb [cl] in
         env, c :: closed, cb
-    | RE_epsilon ->
-        (* this is a nop *)
+    | RE_epsilon
+    | RE_align _
+    | RE_pad _ ->
+        (* these are nops *)
         ctx
     | RE_at_pos (e, r') | RE_at_buf (e, r') ->
         (* [e] is evaluated before [r'] is matched *)

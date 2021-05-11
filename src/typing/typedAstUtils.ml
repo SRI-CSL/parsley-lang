@@ -76,3 +76,23 @@ let expand_type_abbrevs env te =
           {te with type_expr = TE_tapp (c', args')}
 
   in expand te
+
+let lookup_bitfield_length tenv t =
+  let tn = Location.value t in
+  let l  = Location.loc t in
+  let tt = TName tn in
+  let adt = match TEnv.lookup_adt tenv tt with
+      | None ->
+          let err = TExc.UnboundRecord (l, tt) in
+          raise (TExc.Error err)
+      | Some adt ->
+          adt in
+  match adt with
+    | {adt = Variant _; _} ->
+        let err = TExc.NotRecordType t in
+        raise (TExc.Error err)
+    | {adt = Record {bitfield_length = None; _}; _} ->
+        let err = TExc.NotBitfieldType t in
+        raise (TExc.Error err)
+    | {adt = Record {bitfield_length = Some len; _}; _} ->
+        len
