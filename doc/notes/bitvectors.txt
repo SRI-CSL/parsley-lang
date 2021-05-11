@@ -79,12 +79,13 @@ constant N, M.  Checking for this will have to be done in a
 postprocessing pass, once the type of v is solved.  So, we typecheck
 this as follows:
 
+  RC
   v: bitvector<n>
   N, M: constant numbers
-  N > M > 0
+  N >= M >= 0
   ----------------------
-  v{N:M}: bitvector<N-M>
-  RC + (n > N)
+  v{N:M}: bitvector<N-M+1>
+  RC + (n >= N)
 
   where RC is a collection of range constraints that we need to solve
   after type-checking.
@@ -115,6 +116,105 @@ bits: r -> bitvector<3>
 
    . bitvector -> record: r->record(v)
      |= r :: bitfield<n>
-     |= v : bitfield<n>
+     |= v : bitvector<n>
      -------------------
      |= r->record(v) : r
+
+Use in Grammars
+===============
+
+The bitlevel invariant that is maintained by design is that each rule
+for a non-terminal begins and ends on a byte-aligned boundary.  This
+implies that within a rule, each call to a non-terminal should begin
+and end on a byte-boundary.
+
+During static alignment checks, a symbolic cursor tracking the current
+bit-position is maintained while traversing the elements of a rule.
+Alignment checks are implemented by checking the value [c] of this
+cursor satisfies (c mod 8) == 0.
+
+Alignment checks are performed at the beginning and end of every
+non-sequence combinator.  In addition, it will be performed at
+selected positions within a sequence combinator, as specified below.
+
+To support alignment, we will support two alignment primitives:
+
+. [s] $align(n) [e]
+
+  If this primitive is encountered at symbolic cursor bit-position
+  [s], then it matches the least number of bits to end up at
+  bit-position [e], where (e mod n) = 0.
+
+  [s] is not checked for alignment. [e] will by definition have the
+  specified alignment. [e] can be computed as
+
+  e = s + (n - (s mod n))
+
+. [s] $pad(n, bv) [e]
+
+  This is a version of $align(n) where the padding bytes can be
+  checked to repeat the bitpattern specified by bv.
+
+. [s] BitVector<n> [e = s + n]
+
+  BitVector matching primitives are present in the standard library as
+  BitVector<n>.  This is the *only* non-terminal that is
+  non-byte-aligned.
+
+  [s] and [e] are not checked for alignment.
+
+. [s] 0b(1|0)+ [e = s + length(bit-literal 0b...)]
+
+  Bitvector literals can also be non-byte-aligned.
+
+  i.e. [s] and [e] are not checked for alignment.
+
+. User-defined bitfields can be used in a rule as
+
+  [s] $bitfield(bf) [e = s + bit-length(bf)]
+
+  where bf is the name of the user-defined bitfield.  When bound, the
+  binding has the bitfield record type.  This is the only other
+  construct (other than BitVector) that can match and bind unaligned
+  bits.
+
+  [s] and [e] are not checked for alignment.
+
+. [s] NT [e = 0]
+
+  If NT is any non-terminal (other than BitVector), regular
+  expression, or non-bitvector literal then [s] is checked for
+  alignment.
+
+  [e] will be at an byte-aligned position, and can be taken to have a
+  symbolic bit-position of 0.
+
+. The grammar operands of any non-sequence combinator C have to begin
+  and end on a byte-boundary.
+
+  [s] C (<arg seq>) [e = 0]
+
+  [s] is checked for alignment.
+
+  The sequence <arg seq> will be checked for alignment with a starting
+  symbolic bit-position of 0.  The ending bit-position after <arg seq>
+  is checked for alignment.
+
+  [e] will be at an byte-aligned position, and can be taken to have a
+  symbolic bit-position of 0.
+
+  In particular, this means that the following constructions will
+  generate errors:
+
+  Bitvector<n> [*|+|?]           where n mod 8 != 0.
+
+  [align<n> | pad<n,_>] [*|+|?]  where n mod 8 != 0.
+
+. Constraints and actions can be evaluated at non-byte-aligned
+  positions.
+
+  [Issue: cursor positions can be evaluated in the expressions within
+   these constraints and actions.  Should we have a different API to
+   get bit-level cursor positions?  This would allow us to prevent
+   setting window views at non-byte-aligned cursor positions.  It does
+   not seem practically useful to allow this.]

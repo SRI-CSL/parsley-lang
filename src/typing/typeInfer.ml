@@ -827,22 +827,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
          * . e' should be of type rtyp
          * . result should be of type bitvector<n>
          *)
-        let rtn = TName (Location.value rtyp) in
-        let adt = match lookup_adt tenv rtn with
-            | None ->
-                let err = UnboundRecord (Location.loc rtyp, rtn) in
-                raise (Error err)
-            | Some adt ->
-                adt in
-        let bf_len = match adt with
-            | {adt = Variant _; _} ->
-                let err = NotRecordType rtyp in
-                raise (Error err)
-            | {adt = Record {bitfield_length = None; _}; _} ->
-                let err = NotBitfieldType rtyp in
-                raise (Error err)
-            | {adt = Record {bitfield_length = Some len; _}; _} ->
-                len in
+        let bf_len = TypedAstUtils.lookup_bitfield_length tenv rtyp in
         let v = TypeConv.bitvector_n tenv bf_len in
         let rt =
           TypeConv.intern tenv (AstUtils.make_tvar_ident rtyp) in
@@ -1028,6 +1013,10 @@ let rec guess_is_regexp_elem rle =
       | RE_seq rles -> List.for_all guess_is_regexp_elem rles
 
     | RE_non_term _
+    | RE_bitvector _
+    | RE_bitfield _
+    | RE_align _
+    | RE_pad _
     | RE_map_bufs _ -> false
 
 (* Checks whether the rule element [rle] is composed of only regexps.
@@ -1056,6 +1045,10 @@ let rec is_regexp_elem tenv rle =
            | None -> false
         )
 
+    | RE_bitvector _
+    | RE_bitfield _
+    | RE_align _
+    | RE_pad _
     | RE_map_bufs _ -> false
 
 (** [infer_nt_rhs_type tenv ntd] tries to deduce a type for the
@@ -1359,6 +1352,25 @@ let infer_action tenv venv act t =
   wconj wcss @^ wce,
   {action_stmts = (ss', e'); action_loc = act.action_loc}
 
+
+(* The bit-alignment of the rule-element as an
+   integral number of bits.
+ *)
+type cursor = int
+
+let is_aligned cursor alignment =
+  (* alignments should be byte-aligned *)
+  assert (alignment mod 8 = 0);
+  cursor mod alignment = 0
+
+let check_aligned cursor alignment loc pos =
+  (* alignments should be byte-aligned *)
+  assert (alignment mod 8 = 0);
+  let offset = cursor mod alignment in
+  if offset <> 0
+  then let err = NotByteAligned (loc, offset, alignment, pos) in
+       raise (Error err)
+
 (* [bound] tracks whether this rule_elem is under a binding.
     This affects the typing of the '|' choice operator:
       a=( ... (re | re') ... )
@@ -1376,8 +1388,16 @@ let infer_action tenv venv act t =
    For type declarations, the chain is closed with a unit at the end
    of the spec.
  *)
-let rec infer_rule_elem tenv venv ntd ctx re t bound
-        : context * width_constraint * (crterm, varid) rule_elem * VEnv.t =
+(* The input [cursor] is the alignment at the beginning of the
+   rule-element, and the alignment at the end is returned.
+ *)
+
+let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
+        : context
+        * width_constraint
+        * (crterm, varid) rule_elem
+        * VEnv.t
+        * cursor =
   let unit = CTrue re.rule_elem_loc in
   let pack_constraint c' =
     (fun c -> ctx (c' ^ c)) in
@@ -1388,13 +1408,17 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
     {rule_elem = re'; rule_elem_loc = re.rule_elem_loc; rule_elem_aux = t} in
   match re.rule_elem with
     | RE_regexp r ->
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
         let c, (wc, r') = infer_regexp tenv venv r t in
         pack_constraint c,
         wc,
         mk_aux_rule_elem (RE_regexp r'),
-        venv
+        venv,
+        0
     | RE_non_term (nid, None) ->
         (let n = Location.value nid in
+         assert (n <> "BitVector");
+         check_aligned cursor 8 re.rule_elem_loc At_begin;
          match lookup_non_term tenv (NName n) with
            | None ->
                raise (Error (UnknownNonTerminal nid))
@@ -1406,12 +1430,15 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
                       pack_constraint c,
                       WC_true,
                       mk_aux_rule_elem (RE_non_term (nid, None)),
-                      venv
+                      venv,
+                      0
                   | Some (id, _) ->
                       raise (Error (NTInheritedUnspecified (nid, id))))
         )
     | RE_non_term (cntid, Some attrs) ->
         let cntn = Location.value cntid in
+        assert (cntn <> "BitVector");
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
         let cnti = match lookup_non_term tenv (NName cntn) with
             | None -> raise (Error (UnknownNonTerminal cntid))
             | Some ((inh_typ, _), _, _) -> inh_typ in
@@ -1438,7 +1465,66 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         pack_constraint (conj cs),
         wconj wcs,
         mk_aux_rule_elem (RE_non_term (cntid, Some attrs')),
-        venv
+        venv,
+        0
+    | RE_bitfield bf ->
+        let width = TypedAstUtils.lookup_bitfield_length tenv bf in
+        let cursor = cursor + width in
+        (* The matched bits are converted into the bitfield record
+           type. *)
+        let bft = AstUtils.make_tvar_ident bf in
+        let bft = TypeConv.intern tenv bft in
+        let c = (t =?= bft) re.rule_elem_loc in
+        pack_constraint c,
+        WC_true,
+        mk_aux_rule_elem (RE_bitfield bf),
+        venv,
+        cursor
+    | RE_bitvector w ->
+        let width = Location.value w in
+        let cursor = cursor + width in
+        let bvt = TypeConv.bitvector_n tenv width in
+        let c = (t =?= bvt) re.rule_elem_loc in
+        pack_constraint c,
+        WC_true,
+        mk_aux_rule_elem (RE_bitvector w),
+        venv,
+        cursor
+    | RE_align a ->
+        (* Alignments need to be a multiple of 8. *)
+        let align = Location.value a in
+        (if align mod 8 <> 0
+         then let err = InvalidAlignment a in
+              raise (Error err));
+        let width = align - (cursor mod align) in
+        let cursor' = cursor + width in
+        assert (is_aligned cursor' align);
+        let bvt = TypeConv.bitvector_n tenv width in
+        let c = (t =?= bvt) re.rule_elem_loc in
+        pack_constraint c,
+        WC_true,
+        mk_aux_rule_elem (RE_align a),
+        venv,
+        cursor'
+    | RE_pad(a, _) ->
+        (* Alignments need to be a multiple of 8.
+           TODO: if padding literal is longer than alignment, we
+           should warn about used bits, but probably not throw an
+           error. *)
+        let align = Location.value a in
+        (if align mod 8 <> 0
+         then let err = InvalidAlignment a in
+              raise (Error err));
+        let width = align - (cursor mod align) in
+        let cursor' = cursor + width in
+        assert (is_aligned cursor' align);
+        let bvt = TypeConv.bitvector_n tenv width in
+        let c = (t =?= bvt) re.rule_elem_loc in
+        pack_constraint c,
+        WC_true,
+        mk_aux_rule_elem (RE_align a),
+        venv,
+        cursor'
     | RE_constraint e ->
         let b = typcon_variable tenv (TName "bool") in
         let c, (wc, e') = infer_expr tenv venv e b in
@@ -1446,20 +1532,23 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         pack_constraint c,
         wc,
         mk_aux_rule_elem (RE_constraint e'),
-        venv
+        venv,
+        cursor
     | RE_action a ->
         let c, wc, a' = infer_action tenv venv a t in
         pack_constraint c,
         wc,
         mk_aux_rule_elem (RE_action a'),
-        venv
+        venv,
+        cursor
     | RE_named (id, re') ->
         (* [id] is bound in the environment when typing [re'] *)
         let idloc = Location.loc id in
         let id' = var_name id in
         let v, venv' = VEnv.add venv id in
         (* re' needs to be typed under a binding *)
-        let ctx', wc, re'', _ = infer_rule_elem tenv venv ntd (fun c -> c) re' t true in
+        let ctx', wc, re'', _, cursor' =
+          infer_rule_elem tenv venv ntd (fun c -> c) cursor re' t true in
         (fun c ->
           ctx (CLet ([Scheme (re.rule_elem_loc, [], [],
                               CTrue re.rule_elem_loc,
@@ -1467,7 +1556,8 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
                      c ^ ctx' unit))),
         wc,
         mk_aux_rule_elem (RE_named (v, re'')),
-        venv'
+        venv',
+        cursor'
 
     | RE_seq rels ->
         (* A sequence has a tuple type formed from the individual rule
@@ -1475,12 +1565,12 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
            are flattened. *)
         let is_regexp = List.for_all (is_regexp_elem tenv) rels in
         let qs, m = variable_list Flexible rels in
-        let ctx', wcs', rels', _ =
-          List.fold_left (fun (ctx', wcs', rels', venv') (re, t') ->
-              let ctx', wc', re', venv' =
-                infer_rule_elem tenv venv' ntd ctx' re t' bound in
-              ctx', wc' :: wcs', re' :: rels', venv'
-            ) ((fun c -> c), [], [], venv) m in
+        let ctx', wcs', rels', _, cursor' =
+          List.fold_left (fun (ctx', wcs', rels', venv', cursor') (re, t') ->
+              let ctx', wc', re', venv', cursor' =
+                infer_rule_elem tenv venv' ntd ctx' cursor' re t' bound in
+              ctx', wc' :: wcs', re' :: rels', venv', cursor'
+            ) ((fun c -> c), [], [], venv, cursor) m in
         let typ =
           if is_regexp then mk_regexp_type ()
           else tuple (typcon_variable tenv) (snd (List.split m)) in
@@ -1490,17 +1580,22 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         pack_constraint c,
         wconj wcs',
         mk_aux_rule_elem (RE_seq (List.rev rels')),
-        venv
+        venv,
+        cursor'
 
     | RE_choice rels when List.for_all (is_regexp_elem tenv) rels ->
+        (* Non-sequence combinators can only start and end at
+           bit-aligned positions. *)
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
         (* If the sequence is composed purely of regexps, flatten into
            a single byte list, after ensuring each element is
            well-typed. *)
         let qs, m = variable_list Flexible rels in
         let ctx', wcs', rels', _ =
           List.fold_left (fun (ctx', wcs', rels', venv') (re, t') ->
-              let ctx', wc', re', venv' =
-                infer_rule_elem tenv venv' ntd ctx' re t' bound in
+              let ctx', wc', re', venv', cursor' =
+                infer_rule_elem tenv venv' ntd ctx' 0 re t' bound in
+              check_aligned cursor' 8 re.rule_elem_loc At_end;
               ctx', wc' :: wcs', re' :: rels', venv'
             ) ((fun c -> c), [], [], venv) m in
         let typ = mk_regexp_type () in
@@ -1510,28 +1605,35 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         pack_constraint c,
         wconj wcs',
         mk_aux_rule_elem (RE_choice (List.rev rels')),
-        venv
+        venv,
+        0
 
     | RE_choice rels ->
+        (* Non-sequence combinators can only start and end at
+           bit-aligned positions. *)
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
         if bound then
           (* Each choice should have the same type [t]. *)
           let ctx', wcs', rels', _ =
             List.fold_left (fun (ctx', wcs', rels', venv') re ->
-                let ctx', wc', re', venv' =
-                  infer_rule_elem tenv venv' ntd ctx' re t bound in
+                let ctx', wc', re', venv', cursor' =
+                  infer_rule_elem tenv venv' ntd ctx' 0 re t bound in
+                check_aligned cursor' 8 re.rule_elem_loc At_end;
                 ctx', wc' :: wcs', re' :: rels', venv'
               ) ((fun c -> c), [], [], venv) rels in
           pack_constraint (ctx' unit),
           wconj wcs',
           mk_aux_rule_elem (RE_choice (List.rev rels')),
-          venv
+          venv,
+          0
         else
           (* Each choice can receive a different type, and [t] is unconstrained *)
           let qs, m = variable_list Flexible rels in
           let ctx', wcs', rels', _ =
             List.fold_left (fun (ctx', wcs', rels', venv') (re, t') ->
-                let ctx', wc', re', venv' =
-                  infer_rule_elem tenv venv' ntd ctx' re t' bound in
+                let ctx', wc', re', venv', cursor' =
+                  infer_rule_elem tenv venv' ntd ctx' 0 re t' bound in
+                check_aligned cursor' 8 re.rule_elem_loc At_end;
                 ctx', wc' :: wcs', re' :: rels', venv'
               ) ((fun c -> c), [], [], venv) m in
           let c =
@@ -1539,16 +1641,21 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
           pack_constraint c,
           wconj wcs',
           mk_aux_rule_elem (RE_choice (List.rev rels')),
-          venv
+          venv,
+          0
 
     | RE_star (re', None) ->
+        (* Non-sequence combinators can only start and end at
+           bit-aligned positions. *)
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
         (* [re] has a type [list t'] where [t'] is the type of [re'],
            unless [re'] is a regexp, in which case it is flattened. *)
         let is_regexp = is_regexp_elem tenv re' in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
-        let ctx', wc', re'', _ =
-          infer_rule_elem tenv venv ntd (fun c -> c) re' t' bound in
+        let ctx', wc', re'', _, cursor' =
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' bound in
+        check_aligned cursor' 8 re.rule_elem_loc At_end;
         let typ = if is_regexp
                   then mk_regexp_type ()
                   else list (typcon_variable tenv) t' in
@@ -1558,16 +1665,21 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         pack_constraint c,
         wc',
         mk_aux_rule_elem (RE_star (re'', None)),
-        venv
+        venv,
+        0
     | RE_star (re', Some e) ->
+        (* Non-sequence combinators can only start and end at
+           bit-aligned positions. *)
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
         (* [re] has a type [list t'] where [t'] is the type of [re']
            (unless [re'] is a regexp) and [e] has type int *)
         let is_regexp = is_regexp_elem tenv re' in
         let int = typcon_variable tenv (TName "int") in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
-        let ctx', wc'', re'', _ =
-          infer_rule_elem tenv venv ntd (fun c -> c) re' t' bound in
+        let ctx', wc'', re'', _, cursor' =
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' bound in
+        check_aligned cursor' 8 re.rule_elem_loc At_end;
         let typ = if is_regexp
                   then mk_regexp_type ()
                   else list (typcon_variable tenv) t' in
@@ -1578,16 +1690,21 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         pack_constraint c,
         wc'' @^ wce,
         mk_aux_rule_elem (RE_star (re'', Some e')),
-        venv
+        venv,
+        0
 
     | RE_opt re' ->
+        (* Non-sequence combinators can only start and end at
+           bit-aligned positions. *)
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
         (* [re] has a type [option t'] where [t'] is the type of [re']
            (unless [re'] is a regexp) *)
         let is_regexp = is_regexp_elem tenv re' in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
-        let ctx', wc', re'', _ =
-          infer_rule_elem tenv venv ntd (fun c -> c) re' t' bound in
+        let ctx', wc', re'', _, cursor' =
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' bound in
+        check_aligned cursor' 8 re.rule_elem_loc At_end;
         let typ = if is_regexp
                   then mk_regexp_type ()
                   else option (typcon_variable tenv) t' in
@@ -1597,7 +1714,8 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         pack_constraint c,
         wc',
         mk_aux_rule_elem (RE_opt re''),
-        venv
+        venv,
+        0
 
     | RE_epsilon ->
         let u = typcon_variable tenv (TName "unit") in
@@ -1605,29 +1723,43 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         pack_constraint c,
         WC_true,
         mk_aux_rule_elem RE_epsilon,
-        venv
+        venv,
+        cursor
 
     | RE_at_pos (e, re') ->
+        (* Non-sequence combinators can only start and end at
+           bit-aligned positions. *)
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
         (* [pos] needs to be an integer and [re'] should have type [t] *)
         let int = typcon_variable tenv (TName "int") in
         let ce, (wce, e') = infer_expr tenv venv e int in
-        let ctx', wc, re'', _ =
-          infer_rule_elem tenv venv ntd (fun c -> c) re' t bound in
+        let ctx', wc, re'', _, cursor' =
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t bound in
+        check_aligned cursor' 8 re.rule_elem_loc At_end;
         pack_constraint (ce ^ ctx' unit),
         wce @^ wc,
         mk_aux_rule_elem (RE_at_pos (e', re'')),
-        venv
+        venv,
+        0
     | RE_at_buf (buf, re') ->
+        (* Non-sequence combinators can only start and end at
+           bit-aligned positions. *)
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
         (* [buf] should have type [view] and [re'] should have type [t] *)
         let view = typcon_variable tenv (TName "view") in
         let cb, (wcb, buf') = infer_expr tenv venv buf view in
-        let ctx', wc', re'', _ =
-          infer_rule_elem tenv venv ntd (fun c -> c) re' t bound in
+        let ctx', wc', re'', _, cursor' =
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t bound in
+        check_aligned cursor' 8 re.rule_elem_loc At_end;
         pack_constraint (cb ^ ctx' unit),
         wcb @^ wc',
         mk_aux_rule_elem (RE_at_buf (buf', re'')),
-        venv
+        venv,
+        0
     | RE_map_bufs (bufs, re') ->
+        (* Non-sequence combinators can only start and end at
+           bit-aligned positions. *)
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
         (* [bufs] should have type [list view] and [re] should have
          * type [list t'] where [t'] is the type of [re'] *)
         let view = typcon_variable tenv (TName "view") in
@@ -1635,8 +1767,9 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         let cb, (wcb, bufs') = infer_expr tenv venv bufs views in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
-        let ctx', wc', re'', _ =
-          infer_rule_elem tenv venv ntd (fun c -> c) re' t' bound in
+        let ctx', wc', re'', _, cursor' =
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' bound in
+        check_aligned cursor' 8 re.rule_elem_loc At_end;
         let result = list (typcon_variable tenv) t' in
         let c =
           ex ~pos:re.rule_elem_loc [q]
@@ -1644,7 +1777,8 @@ let rec infer_rule_elem tenv venv ntd ctx re t bound
         pack_constraint c,
         wcb @^ wc',
         mk_aux_rule_elem (RE_map_bufs (bufs', re'')),
-        venv
+        venv,
+        0
 
 let infer_non_term_rule tenv venv ntd rule pids =
   (* add temporaries to local bindings *)
@@ -1674,13 +1808,15 @@ let infer_non_term_rule tenv venv ntd rule pids =
         temp :: temps,
         venv'
       ) (pids, empty_fragment, [], [], venv) rule.rule_temps in
-  let qs, ctx, wcs, rhs', _ =
-    List.fold_left (fun (qs, ctx, wcs, rhs', venv') re ->
+  let qs, ctx, wcs, rhs', _, cursor' =
+    List.fold_left (fun (qs, ctx, wcs, rhs', venv', cursor) re ->
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
-        let ctx', wc', re', venv' = infer_rule_elem tenv venv' ntd ctx re t' false in
-        q :: qs, ctx', wc' :: wcs, re' :: rhs', venv'
-      ) ([], (fun c -> c), wcs, [], venv') rule.rule_rhs in
+        let ctx', wc', re', venv', cursor' =
+          infer_rule_elem tenv venv' ntd ctx cursor re t' false in
+        q :: qs, ctx', wc' :: wcs, re' :: rhs', venv', cursor'
+      ) ([], (fun c -> c), wcs, [], venv', 0) rule.rule_rhs in
+  check_aligned cursor' 8 rule.rule_loc At_end;
   CLet ([ Scheme (rule.rule_loc, [],
                   bindings.vars,
                   bindings.tconstraint,

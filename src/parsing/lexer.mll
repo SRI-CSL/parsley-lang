@@ -45,7 +45,10 @@
         "let",      LET;
         "in",       IN;
 
-        "$epsilon", EPSILON;
+        "$epsilon",  EPSILON;
+        "$pad",      PAD;
+        "$align",    ALIGN;
+        "$bitfield", USE_BITFIELD;
       ];
     tbl
 

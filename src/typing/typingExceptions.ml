@@ -24,6 +24,10 @@
 
 open Parsing
 
+type rule_pos =
+  | At_begin
+  | At_end
+
 type typing_error =
   (* [UnboundTypeIdentifier] is raised when an unbound type identifier
      is found. *)
@@ -212,7 +216,19 @@ type typing_error =
      on a non-bitfield type [t]. *)
   | NotBitfieldType of Ast.ident
 
+  (* [NotByteAligned ofs align pos] is raised when a rule element is not
+     aligned to [align] bits at [pos] and is off by [ofs] bits. *)
+  | NotByteAligned of Location.t * int * int * rule_pos
+
+  (* [InvalidAlignment a] is raised when an alignment value that is
+     not a multiple of 8 is specified *)
+  | InvalidAlignment of Ast.bitint
+
 exception Error of typing_error
+
+let str_of_rule_pos = function
+  | At_begin -> "beginning"
+  | At_end   -> "end"
 
 let msg m loc =
   Printf.sprintf m (Location.str_of_loc loc)
@@ -397,3 +413,11 @@ let error_msg = function
   | NotBitfieldType t ->
       msg "%s:\n `%s' is not a bitfield type."
         (Location.loc t) (Location.value t)
+
+  | NotByteAligned (loc, ofs, align, pos) ->
+      msg
+        "%s:\n the %s of this rule element is not aligned to %d bits (off by %d bits)"
+        loc (str_of_rule_pos pos) align ofs
+  | InvalidAlignment a ->
+      msg "%s:\n alignment %d is not byte-aligned"
+        (Location.loc a) (Location.value a)

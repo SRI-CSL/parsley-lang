@@ -134,6 +134,12 @@ let print_type_decl td =
   pp_print_cut !ppf ();
   pp_print_newline !ppf ()
 
+let print_bitvector bv =
+  pp_print_string !ppf "0b";
+  List.iter (fun b ->
+      pp_print_string !ppf (if b then "1" else "0")
+    ) bv
+
 let rec print_pattern auxp p =
   match p.pattern with
     | P_wildcard ->
@@ -152,10 +158,7 @@ let rec print_pattern auxp p =
     | P_literal (PL_bit b) ->
         pp_print_string !ppf (if b then "bit::One" else "bit::Zero")
     | P_literal (PL_bitvector bv) ->
-        pp_print_string !ppf "0b";
-        List.iter (fun b ->
-            pp_print_string !ppf (if b then "1" else "0")
-          ) bv
+        print_bitvector bv
     | P_variant ((t,c), ps) ->
         pp_print_string !ppf
           (AstUtils.canonicalize_dcon
@@ -534,6 +537,24 @@ let rec print_rule_elem auxp rl =
                pp_print_string !ppf ">";
            | None -> ()
         )
+    | RE_bitvector w ->
+        pp_print_string !ppf "Bitvector<";
+        pp_print_string !ppf (string_of_int (Location.value w));
+        pp_print_string !ppf ">"
+    | RE_align w ->
+        pp_print_string !ppf "$align<";
+        pp_print_string !ppf (string_of_int (Location.value w));
+        pp_print_string !ppf ">"
+    | RE_pad (w, bv) ->
+        pp_print_string !ppf "$pad<";
+        pp_print_string !ppf (string_of_int (Location.value w));
+        pp_print_string !ppf ",";
+        print_bitvector bv;
+        pp_print_string !ppf ">"
+    | RE_bitfield bf ->
+        pp_print_string !ppf "$bitfield(";
+        pp_print_string !ppf (Location.value bf);
+        pp_print_string !ppf ">"
     | RE_constraint c ->
         pp_print_cut !ppf ();
         pp_print_string !ppf "[";
