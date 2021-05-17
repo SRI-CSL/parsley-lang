@@ -46,12 +46,13 @@ constraint expressions, and the computation of values to be assigned
 to synthesized attributes.
 
 The basic atomic types in this language are `byte`, `int`, `double`,
-`string`, `bool`, `endian`, and `unit` (known as `void` in C-like
-languages).  In addition, the language includes parsing buffers as
-atomic values, which belong to a special atomic type called `view`.
+`string`, `bool`, `endian`, `bit` and `unit` (known as `void` in
+C-like languages).  In addition, the language includes parsing buffers
+as atomic values, which belong to a special atomic type called `view`.
 The basic type constructors are lists, tuples, and option types.
-User-specified types include records and variants, and can be mutually
-recursive.
+Bitvectors of concrete lengths are also supported as type
+constructors.  User-specified types include records and variants, and
+can be mutually recursive; bitfield records can also be user-defined.
 
 The language is equipped with a module system that provides access to
 a standard library.  The library provides data structures such as
@@ -93,6 +94,12 @@ to the value matched by that element.  In addition, rule elements can
 be restricted to certain offsets within the parsing buffer, a
 different parsing buffer (represented by a value of type `view`), or
 applied to each view in a list of views.
+
+Bitvectors can also be used as rule-elements.  However, there are
+alignment restrictions on their use, and Parsley requires
+non-bit-oriented constructs to be byte-aligned.  Suitable alignment
+can be ensured with the use of suitable alignment and padding
+specifiers.
 
 The Parsley type-checker computes a type for each element of the
 production rule, to ensure that the computations performed in the rule

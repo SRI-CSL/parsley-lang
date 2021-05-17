@@ -17,9 +17,9 @@ type constructors, and support for polymorphic user-defined types.
 === Atomic types
 
 The basic atomic types in this language are `byte`, `int`, `double`,
-`string`, `bool`, `endian`, and `unit` (known as `void` in C-like
-languages).  In addition, the language includes parsing buffers as
-atomic values, which belong to a special atomic type called `view`.
+`string`, `bool`, `endian`, `bit` and `unit` (known as `void` in
+C-like languages).  In addition, the language includes parsing buffers
+as atomic values, which belong to a special atomic type called `view`.
 
 === Type constructors
 
@@ -31,12 +31,18 @@ Lists and tuples have syntactic support: lists are denoted with `[`
 and `]` enclosing the element type, while tuples are denoted within
 `(` and `)` with `,` separating the tuple element types.
 
+Bitvectors are also supported as special type constructors that take
+constant natural numbers as arguments instead of other types.  A
+bitvector of length `n` (e.g. 3) is specified as `bitvector<n>`
+(e.g. `bitvector<3>`).
+
 User-defined types are introduced with the `type` keyword, and must
 begin with a lowercase letter.
 ....
- type list_of_bytes = [ byte ]
- type pair_of_ints  = ( int, int )
- type list_of_pairs = [ (int, int) ]
+ type list_of_bytes   = [ byte ]
+ type pair_of_ints    = ( int, int )
+ type list_of_pairs   = [ (int, int) ]
+ type list_of_bitvecs = [ bitvector<5> ]
 ....
 
 NOTE: The `->` arrow type constructor used for function types, common
@@ -49,7 +55,7 @@ applications.
 prefixed by a `'` (tick).  They are declared as arguments to the type
 constructor within `(` and `)` and separated by `,`.  A polymorphic
 type is instantiated with the type arguments supplied within `<` and
-`>` and separated by `,`.
+`>` and separated by `,`.  Bitvector lengths cannot be polymorphic.
 
 ....
  type list_of_generic_pairs ('a, 'b) = [ ('a, 'b) ]
@@ -81,6 +87,9 @@ The `bool` built-in type is a variant type, with values of
 `bool::True()` and `bool::False()`.  The `endian` type is similar,
 with values of `endian::Big()` and `endian::Little()`.
 
+The `bit` type is also a variant type, with values of `bit::Zero()`
+and `bit::One()`.
+
 *Record types* are declared using the following syntax:
 
 ....
@@ -98,6 +107,29 @@ fields are accessed as `p.xcoord` and `p.ycoord`.  Fields, unlike data
 constructors, do not require a type prefix.  However, this means that
 they need to be globally unique: two record types cannot use the same
 field name.
+
+*Bitfields* are specialized records that allowing naming of contiguous
+and non-overlapping ranges of bitvectors, starting from index `0`.  An
+index range must be specified with the high-index preceding the
+low-index and separated by a `:`.  A field that is 1-bit wide can use
+the index position instead of a range as the range specifier.
+
+Bitfields are declared using the following syntax:
+
+....
+ bitfield bf = {
+   top: 8:7,
+   mid: 6,
+   bot: 5:0
+ }
+....
+
+If `f` is a variable of the above `bf` type, its fields `f.top`,
+`f.mid` and `f.bot` are of types `bitvector<2>`, `bitvector<1>` and
+`bitvector<6>`.
+
+NOTE: Currently, there cannot be an internal gap between the index
+ranges that leaves indices unnamed by a field.
 
 Types can also be *mutually recursive*.  Mutually recursive types are
 declared in a single `type` declaration and separated by `and` within
@@ -172,7 +204,8 @@ The primitive expressions are *literal values*, which can either be
 integer literals like `21`, strings like `"this is a string"`, or the
 unit value `()`.  Literal values can also be constructed from data
 constructors of variant and record types, such as `my_list::Null()`
-and `{xcoord:1, ycoord:2}` above.
+and `{xcoord:1, ycoord:2}` above.  Bitvector literals are specified
+with a leading `0b`, e.g. `0b010` is a literal of type `bitvector<3>`.
 
 *Variables* are denoted by identifiers containing alphanumeric
 characters, `_` and `@`.  Variable names must begin with a lowercase
@@ -269,6 +302,13 @@ constructors of variant types or the tuple constructor.
    )
  }
 ....
+
+*Bitfield conversions* allow the conversion between bitfields and
+ bitvectors of the appropriate length.  `bf->bits(r)` converts a
+ bitfield `r` of bitfield type `bf` into a bitvector `r` of length
+ `n`, where `n` is the number of bits covered by the bitfield `bf`.
+ Similarly, `bf->record(v)` converts a bitvector `v` of length `n`
+ into a bitfield record of type `bf`, provided `bf` covers `n` bits.
 
 === Views
 
