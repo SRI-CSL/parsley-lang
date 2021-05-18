@@ -402,6 +402,8 @@ expr:
   { make_expr (E_binop(Index, e, i)) $startpos $endpos }
 | e=expr LLBRACK n=int_exp COLON m=int_exp RRBRACK
   { make_expr (E_bitrange(e, n, m)) $startpos $endpos }
+| e=expr LLBRACK n=int_exp RRBRACK
+  { make_expr (E_bitrange(e, n, n)) $startpos $endpos }
 | c=CONSTR LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_constr(c, l)) $startpos $endpos }
 | MINUS e=expr %prec UMINUS

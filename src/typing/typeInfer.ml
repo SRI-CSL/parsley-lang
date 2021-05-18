@@ -871,7 +871,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
         if m < 0 then
           (let err = InvalidBitrangeLowBound (e.expr_loc, m) in
            raise (Error err));
-        if m >= n then
+        if m > n then
           (let err = InvalidEmptyBitrange (e.expr_loc, n, m) in
            raise (Error err));
         let w = n - m + 1 in

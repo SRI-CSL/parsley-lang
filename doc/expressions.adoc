@@ -303,6 +303,16 @@ constructors of variant types or the tuple constructor.
  }
 ....
 
+Bitvectors can be indexed with ranges to extract contiguous
+subsequences of bits as bitvectors using the indexing operator, which
+encloses the range within `[[`` and `]]`.  For example, given a
+bitvector `v` of type `bitvector<3>`,
+....
+  (v[[2:1]], v[[0]])
+....
+extracts the top two bits and the lowest bit into a tuple of two
+bitvectors of type `(bitvector<2>, bitvector<`>)`.
+
 *Bitfield conversions* allow the conversion between bitfields and
  bitvectors of the appropriate length.  `bf->bits(r)` converts a
  bitfield `r` of bitfield type `bf` into a bitvector `r` of length
