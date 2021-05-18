@@ -45,6 +45,14 @@ type solver_error =
      been unified. *)
   | NonDistinctVariables of Parsing.Location.t * (TypeConstraint.variable list)
 
+  (* [Not_a_bitvector] is raised when a type does not resolve to a bitvecor *)
+  | Not_a_bitvector of Parsing.Location.t
+  (* [Cannot_resolve_width] is raised when a width does not resolve to an integer *)
+  | Not_a_bitwidth of Parsing.Location.t * string option
+  (* [Invalid_bitwidth i pred] is raised when the bitwidth [i] does not
+     satisfy the inferred predicate [pred] *)
+  | Invalid_bitwidth of Parsing.Location.t * int * TypeConstraint.width_predicate
+
 exception Error of solver_error
 
 type tconstraint = TypeConstraint.tconstraint
@@ -358,7 +366,7 @@ let init () =
 (** The public version of [solve] starts out with an initial state
     and produces no result, except possibly an exception. *)
 let solve ?tracer c =
-  let env, pool = init() in
+  let env, pool = init () in
   let tracer = default ignore tracer in
     tracer (Init c);
     (* TEMPORARY integrer un occur check ici aussi *)
@@ -397,6 +405,18 @@ let error_msg = function
       msg
         ("%s:\n The following variables have been unified: [%s].\n")
         p lvs
+
+  | Not_a_bitvector loc ->
+      msg "%s:\n not a bitvector" loc
+
+  | Not_a_bitwidth (loc, s) ->
+      msg "%s:\n not a bitwidth%s" loc
+        (match s with
+           | Some s -> Printf.sprintf ": %s" s
+           | None -> "")
+  | Invalid_bitwidth (loc, i, p) ->
+      msg "%s:\n bitwidth %d does not satisfy %s" loc
+        i (TypeConstraintPrinter.print_width_predicate p)
 
 let tracer () =
   let mode = PrettyPrinter.(Txt (Channel stdout)) in
@@ -455,3 +475,42 @@ let tracer () =
       handle_step step;
       Format.close_box ();
       Format.print_newline ())
+
+(** check bitvector width constraints, using the resolved type
+    variables. *)
+let check_width_constraints wc =
+  let width_of v loc =
+    let v' = UnionFind.find v in
+    if v'.structure <> None
+       || v'.kind <> Constant
+       || v'.name = None
+    then
+      (let err = Not_a_bitvector loc in
+       raise (Error err));
+    match v'.name with
+      | None -> assert false
+      | Some (TName s) ->
+          (match int_of_string_opt s with
+             | None ->
+                 let err = Not_a_bitwidth (loc, Some s) in
+                 raise (Error err)
+             | Some i ->
+                 i) in
+  let check_pred v p loc =
+    let w = width_of v loc in
+    let b =
+      match p with
+        | WP_less    i -> w < i
+        | WP_more    i -> w > i
+        | WP_equal   i -> w = i
+        | WP_less_eq i -> w <= i
+        | WP_more_eq i -> w >= i in
+    if not b then
+      let err = Invalid_bitwidth (loc, w, p) in
+      raise (Error err) in
+  let rec checker wc =
+    match wc with
+      | WC_true -> ()
+      | WC_pred (loc, v, p) -> check_pred v p loc
+      | WC_conjunction l -> List.iter checker l in
+  checker wc

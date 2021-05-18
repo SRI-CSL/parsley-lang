@@ -24,6 +24,10 @@
 
 open Parsing
 
+type rule_pos =
+  | At_begin
+  | At_end
+
 type typing_error =
   (* [UnboundTypeIdentifier] is raised when an unbound type identifier
      is found. *)
@@ -180,8 +184,51 @@ type typing_error =
      a particular context. *)
   | UnboundIdentifier of Location.t * string
 
+  (* [InvalidBitrangeLowBound i] is raised when the lower bound of
+     a bitrange is invalid (i.e. it is negative) *)
+  | InvalidBitrangeLowBound of Location.t * int
+
+  (* [InvalidEmptyBitrange n m ] is raised when the selected range of
+     bits is empty *)
+  | InvalidEmptyBitrange of Location.t * int * int
+
+  (* [InvalidBitrangeOrder n m] is raised when the endpoints of the
+     range are not specified in decreasing order. *)
+  | InvalidBitrangeOrder of Location.t * int * int
+
+  (* [IncompleteBitfieldRanges bf n] is raised when the ranges of a
+     bitfield [bf] do not cover index [n]. *)
+  | IncompleteBitfieldRanges of Ast.ident * int
+
+  (* [OverlappingBitfieldRanges bf f f' idx] is raised when the
+     ranges of fields [f] and [f'] overlap at index [idx] *)
+  | OverlappingBitfieldRanges of Ast.ident * Ast.ident * Ast.ident * int
+
+  (* [InvalidRecordOperator op ] is raised when an unknown record
+     operator [op] is specified. *)
+  | InvalidRecordOperator of Location.t * string
+
+  (* [NotRecordType t] is raised when an record operator is applied on a
+     non-record type [t]. *)
+  | NotRecordType of Ast.ident
+
+  (* [NotBitfieldType t] is raised when an bitfield operator is applied
+     on a non-bitfield type [t]. *)
+  | NotBitfieldType of Ast.ident
+
+  (* [NotByteAligned ofs align pos] is raised when a rule element is not
+     aligned to [align] bits at [pos] and is off by [ofs] bits. *)
+  | NotByteAligned of Location.t * int * int * rule_pos
+
+  (* [InvalidAlignment a] is raised when an alignment value that is
+     not a multiple of 8 is specified *)
+  | InvalidAlignment of Ast.bitint
 
 exception Error of typing_error
+
+let str_of_rule_pos = function
+  | At_begin -> "beginning"
+  | At_end   -> "end"
 
 let msg m loc =
   Printf.sprintf m (Location.str_of_loc loc)
@@ -335,3 +382,42 @@ let error_msg = function
 
   | UnboundIdentifier (p, t) ->
       msg "%s:\n Unbound identifier `%s'.\n" p t
+
+  | InvalidBitrangeLowBound (loc, b) ->
+      msg "%s:\n %d is an invalid low bound for bitvector range" loc b
+
+  | InvalidEmptyBitrange (loc, n, m) ->
+      msg "%s:\n %d-%d is an invalid (empty) range" loc n m
+
+  | InvalidBitrangeOrder (loc, n, m) ->
+      msg "%s:\n index range %d-%d is in an invalid order" loc n m
+
+  | IncompleteBitfieldRanges (bf, idx) ->
+      msg
+        "%s:\n specified ranges of bitfield `%s' do not cover index %d"
+        (Location.loc bf) (Location.value bf) idx
+
+  | OverlappingBitfieldRanges (bf, f, f', idx) ->
+      msg
+        "%s:\n fields `%s' and `%s' of bitfield `%s' overlap at index %d"
+        (Location.loc bf) (Location.value f) (Location.value f')
+        (Location.value bf) idx
+
+  | InvalidRecordOperator(loc, op) ->
+      msg "%s:\n invalid record operator `%s'." loc op
+
+  | NotRecordType t ->
+      msg "%s:\n `%s' is not a record type."
+        (Location.loc t) (Location.value t)
+
+  | NotBitfieldType t ->
+      msg "%s:\n `%s' is not a bitfield type."
+        (Location.loc t) (Location.value t)
+
+  | NotByteAligned (loc, ofs, align, pos) ->
+      msg
+        "%s:\n the %s of this rule element is not aligned to %d bits (off by %d bits)"
+        loc (str_of_rule_pos pos) align ofs
+  | InvalidAlignment a ->
+      msg "%s:\n alignment %d is not byte-aligned"
+        (Location.loc a) (Location.value a)

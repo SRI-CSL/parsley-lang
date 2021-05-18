@@ -36,9 +36,10 @@ open MultiEquation
 
 type record_info =
   {adt: ident;
-   fields: (ident * type_expr) list;
+   fields: (ident * (type_expr * (int * int) option)) list;
    record_constructor: tname * variable; (* named "<adt>" *)
-   field_destructors: (lname * variable) list}
+   field_destructors: (lname * variable) list;
+   bitfield_length: int option}
 
 (* The following information is stored for each type constructor:
    - its kind ;

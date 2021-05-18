@@ -19,7 +19,10 @@ type tvar     = string Location.loc
 type ident    = string Location.loc
 type modident = string Location.loc
 type literal  = string Location.loc
+type bitint   = int    Location.loc
 type 'b var   = (string * 'b) Location.loc
+
+type bv_literal = bool list
 
 (* names stripped of location, used in the type checker *)
 type tname = TName of string
@@ -30,6 +33,7 @@ type mname = MName of string (* module name *)
 
 type kind =
   | KStar
+  | KNat
   | KArrow of kind * kind
 
 type type_expr_desc =
@@ -43,6 +47,7 @@ and type_expr =
 type type_rep_desc =
   | TR_variant of (ident * type_expr option) list
   | TR_record of (ident * type_expr) list
+  | TR_bitfield of (ident * (bitint * bitint)) list
   | TR_defn of type_expr
 
 and type_rep =
@@ -63,6 +68,8 @@ type primitive_literal =
   | PL_string of string
   | PL_unit
   | PL_bool of bool
+  | PL_bit of bool
+  | PL_bitvector of bv_literal
 
 type ('a, 'b) pattern_desc =
   | P_wildcard
@@ -82,6 +89,8 @@ type ('a, 'b) expr_desc =
   | E_apply of ('a, 'b) expr * ('a, 'b) expr list
   | E_unop of unop * ('a, 'b) expr
   | E_binop of binop * ('a, 'b) expr * ('a, 'b) expr
+  | E_recop of ident * ident * ('a, 'b) expr
+  | E_bitrange of ('a, 'b) expr * int * int
   | E_match of ('a, 'b) expr * (ident * ident)
   | E_literal of primitive_literal
   | E_field of ('a, 'b) expr * ident
@@ -137,6 +146,10 @@ and ('a, 'b) regexp =
 type ('a, 'b) rule_elem_desc =
   | RE_regexp of ('a, 'b) regexp
   | RE_non_term of ident * (ident * ('a, 'b) expr) list option
+  | RE_bitvector of bitint
+  | RE_align of bitint
+  | RE_pad of bitint * bv_literal
+  | RE_bitfield of ident
   | RE_constraint of ('a, 'b) expr
   | RE_action of ('a, 'b) rule_action
   | RE_named of 'b var * ('a, 'b) rule_elem
@@ -231,3 +244,8 @@ type ('a, 'b) program =
 
 let var_name v =
   fst (Location.value v)
+
+(* max concrete bit-width in spec *)
+let max_width : int ref = ref 0
+let register_bitwidth i =
+  max_width := max !max_width i

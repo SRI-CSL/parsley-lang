@@ -113,3 +113,22 @@ val exists_list:
 val exists_list_aux:
   ?pos:Location.t -> 'a list -> (('a * crterm) list -> tconstraint * 'b)
   -> tconstraint * 'b
+
+(* constraints on bitvector widths *)
+type width_predicate =
+  | WP_less of int
+  | WP_more of int
+  | WP_equal of int
+  | WP_less_eq of int
+  | WP_more_eq of int
+
+type width_constraint =
+  | WC_true
+  | WC_pred of Location.t * variable * width_predicate
+  | WC_conjunction of width_constraint list
+
+(** [c1 @^ c2] is a conjunction width constraint. *)
+val (@^): width_constraint -> width_constraint -> width_constraint
+
+(** [wconj cs] builds a conjunction between a list of width constraints. *)
+val wconj: width_constraint list -> width_constraint

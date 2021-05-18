@@ -79,6 +79,9 @@ let binop op x y =
 let star =
   variable ~name:(TName "@") ()
 
+let nat =
+  variable ~name:(TName "N") ()
+
 let arrow =
   variable ~name:(TName "=>") ()
 
@@ -171,4 +174,5 @@ and check env t k =
 
 let rec intern_kind env = function
   | KStar -> star
+  | KNat  -> nat
   | KArrow (k1, k2) -> mkarrow (intern_kind env k1) (intern_kind env k2)

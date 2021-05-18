@@ -20,8 +20,13 @@ open Parsing.Ast
 open Lexing
 module I = Parser.MenhirInterpreter
 
-let print_exception f loc msg =
-  Printf.fprintf f "%s: %s\n" (Location.str_of_loc loc) msg
+let print_exception loc msg =
+  Printf.sprintf "%s: %s\n" (Location.str_of_loc loc) msg
+
+let handle_exception bt msg =
+  Printf.fprintf stderr "%s\n" msg;
+  Printf.printf "%s\n" bt;
+  exit 1
 
 let parse_file fname cont =
   let lexbuf = from_channel (open_in fname) in
@@ -54,18 +59,18 @@ let parse_file fname cont =
     I.loop_handle cont fail supplier start
   with
     | Failure _f ->
-          (let _bt = Printexc.get_backtrace () in
-           Printf.fprintf stderr "%s: invalid token at or just before this location\n"
-                          (Location.str_of_curr_pos lexbuf);
-           (* Printf.fprintf stderr " %s\n" _bt; *)
-           exit 1)
+        handle_exception
+          (Printexc.get_backtrace ())
+          (Printf.sprintf "%s: invalid token at or just before this location"
+             (Location.str_of_curr_pos lexbuf))
     | Lexer.Error (e, l) ->
-          (print_exception stderr l (Lexer.error_string e);
-           exit 1)
+        handle_exception
+          (Printexc.get_backtrace ())
+          (print_exception l (Lexer.error_string e))
     | Parseerror.Error (e, l) ->
-          (print_exception stderr l (Parseerror.error_string e);
-           exit 1)
-
+        handle_exception
+          (Printexc.get_backtrace ())
+          (print_exception l (Parseerror.error_string e))
 
 (* TODO: include directory management.
  * make this a list specifiable via cli -I options.

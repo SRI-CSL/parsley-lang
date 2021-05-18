@@ -427,3 +427,48 @@ elements in `RE` do not execute if `views` is an empty list.  Parsley
 currently cannot statically determine if the list is always non-empty,
 and so also takes a conservative view: it assumes that `views` could
 be empty, and that any action blocks in `RE` may not execute.
+
+=== Bitvectors
+
+Bits can be matched within production rules; however, all
+non-bit-oriented constructs need to be byte-aligned.  An alignment
+specifier can be used to restore this alignment.
+
+A bitvector of length `n` can be matched using the non-terminal
+`BitVector<n>`.  A user-defined bitfield `bf` covering `n` bits can be
+matched using the specifier `$bitfield(bf)`, which converts the `n`
+matched bits into a value of the `bf` bitfield type.
+
+Bits upto a specified byte-boundary `n` can be skipped over using the
+alignment specifier `$align<n>`, where `n` is required to be a
+multiple of 8.  For example, the sequence `BitVector<1> $align<64>`,
+when started on a byte-boundary, matches 1 bit and then skips over 63
+bits to end at a cursor position 64 bits from the starting point.  The
+`n` in an alignment specifier `align<n>` is required to be a multiple
+of 8.
+
+A sequence of bits can be matched using a sequence of BitVectors and
+bitfield specifiers.  However, this sequence needs to start and end on
+a byte-boundary.  Parsley requires that within a rule, all regular
+expressions, non-terminals, and invocations of choice, star, option,
+and view-mapping combinators need to occur at byte-aligned positions
+in the parsing buffer.
+
+An example of the use of the bitvector and bitfield support is shown
+below.  The rule for non-terminal `N` matches 24 bits, with the first
+byte being ignored, the next 7 bits stored in attribute `v`, and the
+next 9 bits converted into a bitfield `bf` and stored in attribute
+`f`.
+....
+  bitfield bf = {
+    top: 8:7,
+    bot: 6:0
+  }
+
+  format {
+    N n {v: bitvector<7>, f: bf} :=
+      BitVector<1> $align<8> v=BitVector<7> f=$bitfield(bf)
+      { n.v := v;
+        n.f := f }
+  }
+....

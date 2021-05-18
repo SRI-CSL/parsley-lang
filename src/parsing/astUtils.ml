@@ -58,6 +58,11 @@ let add_arrow_result (typ : type_expr) (res : type_expr) : type_expr =
   let args = arrow_args typ in
   make_arrow_type (args @ [res]) typ.type_expr_loc
 
+let make_bitvector_type (n : int) loc : type_expr =
+  assert (n > 0);
+  let n = make_tvar_name (string_of_int n) loc in
+  make_type_app_name "bitvector" [n] loc
+
 (* constructing pattern expressions and expressions *)
 
 let make_pattern_loc (type b) (pat : (unit, b) pattern_desc) loc =
@@ -72,7 +77,7 @@ let make_expr_loc (type b) (exp : (unit, b) expr_desc) loc =
 
 (* sorting record fields into canonical order *)
 let sort_fields fields =
-  List.sort (fun (f1,_) (f2,_) ->
+  List.sort (fun (f1, _) (f2, _) ->
       String.compare (Location.value f1) (Location.value f2)
     ) fields
 
@@ -126,6 +131,10 @@ let rec unwrap_exp exp =
           E_unop (op, unwrap_exp e)
       | E_binop (op, l, r) ->
           E_binop (op, unwrap_exp l, unwrap_exp r)
+      | E_recop (r, rop, e) ->
+          E_recop (r, rop, unwrap_exp e)
+      | E_bitrange (e, n, m) ->
+          E_bitrange (unwrap_exp e, n, m)
       | E_match (e, (t, c)) ->
           E_match (unwrap_exp e, (unwrap_id t, unwrap_id c))
       | E_literal l ->
