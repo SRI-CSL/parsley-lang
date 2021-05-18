@@ -1,0 +1,71 @@
+fun convert(b : [byte]) -> int = {
+  (case Int.of_bytes(b) of
+   | option::Some(i) -> i
+   | option::None()  -> 0)
+}
+
+use header
+
+type sysstatus_payload = {
+                            ssp_onboard_control_sensors_present: int,
+                            ssp_onboard_control_sensors_enabled: int,
+                            ssp_onboard_control_sensors_health: int,
+                            ssp_load: int,
+                            ssp_voltage_battery : int,
+                            ssp_current_battery: int,
+                            ssp_drop_rate_comm: int,
+                            ssp_errors_comm: int, 
+                            ssp_errors_count1: int, 
+                            ssp_errors_count2: int, 
+                            ssp_errors_count3: int, 
+                            ssp_errors_count4: int, 
+                            ssp_battery_remaining: int
+                          }
+
+format {
+    
+
+SysStatusPayload pld { sysstatus_payload  } :=
+    onboard_control_sensors_present=(Byte ^ 4)
+    onboard_control_sensors_enabled=(Byte ^ 4)
+    onboard_control_sensors_health=(Byte ^ 4)
+    load=(Byte^2)
+    voltage_battery=(Byte^2)
+    current_battery=(Byte^2)
+    drop_rate_comm=(Byte^2)
+    errors_comm=(Byte^2)
+    errors_count1=(Byte^2)
+    errors_count2=(Byte^2)
+    errors_count3=(Byte^2)
+    errors_count4=(Byte^2)
+    battery_remaining=(Byte^2)
+    {
+      pld.ssp_onboard_control_sensors_present := convert(List.rev(onboard_control_sensors_present));    
+      pld.ssp_onboard_control_sensors_enabled := convert(List.rev(onboard_control_sensors_enabled));    
+      pld.ssp_onboard_control_sensors_health := convert(List.rev(onboard_control_sensors_health));
+      pld.ssp_load := convert(List.rev(load));
+      pld.ssp_voltage_battery := convert(List.rev(voltage_battery));
+      pld.ssp_current_battery := convert(List.rev(current_battery));
+      pld.ssp_drop_rate_comm := convert(List.rev(drop_rate_comm));
+      pld.ssp_errors_comm := convert(List.rev(errors_comm));
+      pld.ssp_errors_count1 := convert(List.rev(errors_count1));
+      pld.ssp_errors_count2 := convert(List.rev(errors_count2));
+      pld.ssp_errors_count3 := convert(List.rev(errors_count3));
+      pld.ssp_errors_count4 := convert(List.rev(errors_count4));
+      pld.ssp_battery_remaining := convert(List.rev(battery_remaining))
+    }
+    ;;
+
+
+SysStatus ss {  
+                ss_header: headertype,
+                ss_payload: sysstatus_payload
+                } := 
+    header=MavlinkHeader
+    payload=SysStatusPayload
+    [header.payload_length = 31 && header.message_id = 1]
+    {   
+      ss.ss_header  := header;
+      ss.ss_payload := payload
+    }
+}

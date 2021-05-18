@@ -1,0 +1,14 @@
+use {heartbeat, sys_status}
+format {
+CRC crc {crc: int} :=
+    uint16=(Byte ^ 2)
+    {
+        crc.crc := convert(List.rev(uint16))
+    }
+;;
+
+MavlinkPacket mp {
+        packet_type: int
+      } :=
+    (hb=Heartbeat {mp.packet_type := 0}) | (ss=SysStatus {mp.packet_type := 1})
+}

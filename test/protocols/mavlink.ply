@@ -1,0 +1,129 @@
+format {
+  // read byte as an unsigned int
+  IntegerObj i { val: int } :=
+    h=Byte
+    {
+      i.val := Int.of_byte(h)
+    };;
+
+  // start of header
+  MagicBytesObj mb { b: int } :=
+    n=IntegerObj ([n.val = 253 ]
+    {
+      mb.b := n.val
+    });;
+
+  // length of payload
+  PayloadLengthObj pl {length: int} :=
+    n = IntegerObj
+    {
+      pl.length := n.val
+    };;
+
+  // incompatibility flags
+  IncomatibilityFlagObj if {ifflag : bitvector<1>} :=
+    n = BitVector<1> $align<8>
+    {
+      if.ifflag := n
+    };;
+
+  // compatibility flag byte
+  CompatibilityFlagObj cf {cfflag: int} :=
+    n = IntegerObj
+    {
+     cf.cfflag := n.val
+    };;
+
+  // sequence number byte
+  PacketSequenceObj ps {ps_val: int} :=
+    n = IntegerObj
+    {
+     ps.ps_val := n.val
+    };;
+
+  // system ID byte
+  SystemIDObj sid {sid_val: int} :=
+    n = IntegerObj
+    {
+     sid.sid_val := n.val
+    };;
+
+  // Component ID byte
+  ComponentIDObj cid {cid_val: int} :=
+    n = IntegerObj
+    {
+      cid.cid_val := n.val
+    };;
+
+  // Message ID
+  MessageIDObj mid {message: [int]} :=
+    h1=Byte h2=Byte
+    {
+      mid.message := List.concat([Int.of_byte(h1)], [Int.of_byte(h2)])
+    };;
+
+
+  // Payload
+  PayloadObj pld ( len : int) { bytes: [byte] } :=
+    b = (Byte ^ len)
+    // b=Byte*
+    //b = (# [:byte:]{len+10, 255} #)
+	{
+      pld.bytes := b
+    };;
+
+  // CRC
+  CrcObj crc {crcval: [int]} :=
+    h1=Byte h2=Byte
+    {
+      crc.crcval := List.concat([Int.of_byte(h1)*16], [Int.of_byte(h2)])
+    };;
+
+  // Signature bytes
+  SignatureObj sig { sigbytes : [byte] } :=
+    b=Byte*
+    //b=(# [:byte:]{13} #)
+    {
+      sig.sigbytes := b
+    };;
+
+  // mavlink object is sequence of above
+  MavLink2Obj mvl2 {
+      magic : [int],
+      payloadLength : int,
+      incompatibilityFlags : bitvector<1>,
+      compatibilityFlags  : int,
+      packetSequenceNumber  : int,
+      systemID : int,
+      componentID : int,
+	  messageID : [int],
+      payload : [byte],
+      crc : [int],
+      sig : [byte]
+    } :=
+      mb = MagicBytesObj
+      pll = PayloadLengthObj
+      icf = IncomatibilityFlagObj
+      cf = CompatibilityFlagObj
+      ps = PacketSequenceObj
+      sid = SystemIDObj
+      cid = ComponentIDObj
+      mid = MessageIDObj
+      pld = PayloadObj<len=pll.length>
+      crcObj = CrcObj
+      sig = SignatureObj
+    // [pld.length() = pll.len]
+    {
+      mvl2.magic                    := [mb.b];
+      mvl2.payloadLength            := pll.length;
+      mvl2.incompatibilityFlags 	:= icf.ifflag;
+      mvl2.compatibilityFlags   	:= cf.cfflag;
+      mvl2.packetSequenceNumber 	:= ps.ps_val;
+      mvl2.systemID             	:= sid.sid_val;
+      mvl2.componentID          	:= cid.cid_val;
+      mvl2.messageID                := mid.message;
+      mvl2.payload                  := pld.bytes;
+      mvl2.crc                   	:= crcObj.crcval;
+      mvl2.sig                      := sig.sigbytes
+    }
+}
