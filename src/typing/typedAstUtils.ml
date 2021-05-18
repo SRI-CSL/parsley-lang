@@ -96,3 +96,90 @@ let lookup_bitfield_length tenv t =
         raise (TExc.Error err)
     | {adt = Record {bitfield_length = Some len; _}; _} ->
         len
+
+(* A helper to check if a bound for the repeat combinator is
+ * non-zero. It uses a primitive constant-folder that does not access
+ * the environment; a better approach would be to have an actual
+ * const-folding pass before this analysis.
+ *
+ * NOTE: The below const-folder strips type annotations for
+ * simplicity, and so the result cannot be used to replace the source
+ * argument. *)
+
+let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
+  fun e ->
+  match e.expr with
+    | E_var _ | E_literal _ | E_mod_member _ | E_apply _ | E_constr _ ->
+        e
+    | E_match _ | E_record _ | E_field _ | E_let _ | E_case _ ->
+        (* although these could be reduced in theory, it is unlikely
+         * to be useful in this context *)
+        e
+    | E_cast (e, _) ->
+        (* this loses information, but that's ok as long as we don't
+         * replace the source with the result *)
+        const_fold e
+    | E_unop (op, e') ->
+        let e' = const_fold e' in
+        (match op, e'.expr with
+          | Uminus, E_literal (PL_int i) ->
+              {e with expr = E_literal (PL_int (~- i))}
+          | Not, E_literal (PL_bool b) ->
+              {e with expr = E_literal (PL_bool (not b))}
+          | _ ->
+              {e with expr = E_unop (op, e')})
+    | E_binop (op, l, r) ->
+        let l', r' = const_fold l, const_fold r in
+        (match op, l'.expr, r'.expr with
+           | Lt,   E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (l < r))}
+           | Gt,   E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (l > r))}
+           | Lteq, E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (l <= r))}
+           | Gteq, E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (l >= r))}
+           | Plus, E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_int (l + r))}
+           | Minus, E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_int (l - r))}
+           | Mult, E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_int (l * r))}
+           | Div,  E_literal (PL_int _), E_literal (PL_int r)
+                when r = 0 ->
+               raise (TExc.Error (TExc.Possible_division_by_zero e.expr_loc))
+           | Div,  E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_int (l / r))}
+           | Land, E_literal (PL_bool l), E_literal (PL_bool r) ->
+               {e with expr = E_literal (PL_bool (l && r))}
+           | Lor,  E_literal (PL_bool l), E_literal (PL_bool r) ->
+               {e with expr = E_literal (PL_bool (l || r))}
+           (* Eq and Neq are polymorphic *)
+           | Eq,   E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (l = r))}
+           | Eq,   E_literal (PL_string l), E_literal (PL_string r) ->
+               {e with expr = E_literal (PL_bool (l = r))}
+           | Eq,   E_literal PL_unit, E_literal PL_unit ->
+               {e with expr = E_literal (PL_bool true)}
+           | Eq,   E_literal (PL_bool l), E_literal (PL_bool r) ->
+               {e with expr = E_literal (PL_bool (l = r))}
+           | Neq,  E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_bool (not (l = r)))}
+           | Neq,  E_literal (PL_string l), E_literal (PL_string r) ->
+               {e with expr = E_literal (PL_bool (not (l = r)))}
+           | Neq,  E_literal PL_unit, E_literal PL_unit ->
+               {e with expr = E_literal (PL_bool false)}
+           | Neq,  E_literal (PL_bool l), E_literal (PL_bool r) ->
+               {e with expr = E_literal (PL_bool (not (l = r)))}
+           | _ ->
+               {e with expr = E_binop (op, l', r')})
+    | E_recop (t, rop, e') ->
+        {e with expr = E_recop (t, rop, const_fold e')}
+    | E_bitrange (e', n, m) ->
+        {e with expr = E_bitrange (const_fold e', n, m)}
+
+let is_non_zero: 't 'v. ('t, 'v) expr -> bool =
+  fun e ->
+  match (const_fold e).expr with
+    | E_literal (PL_int i) -> i != 0
+    | _                    -> true

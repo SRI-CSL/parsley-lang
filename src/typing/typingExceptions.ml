@@ -224,6 +224,9 @@ type typing_error =
      not a multiple of 8 is specified *)
   | InvalidAlignment of Ast.bitint
 
+  (* [Possible_division_by_zero] is raised during constant folding *)
+  | Possible_division_by_zero of Location.t
+
 exception Error of typing_error
 
 let str_of_rule_pos = function
@@ -421,3 +424,6 @@ let error_msg = function
   | InvalidAlignment a ->
       msg "%s:\n alignment %d is not byte-aligned"
         (Location.loc a) (Location.value a)
+
+  | Possible_division_by_zero l ->
+      msg "%s:\n possible division by zero.\n" l
