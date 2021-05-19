@@ -166,9 +166,6 @@ let builtin_types, builtin_consts, builtin_vars,
       (Ast.DName "!=", [ TName "a" ], arrow_type (gen_tvar "a")
                                         (arrow_type (gen_tvar "a")
                                            (gen_tvar "bool")));
-      (Ast.DName "!=", [ TName "a" ], arrow_type (gen_tvar "a")
-                                        (arrow_type (gen_tvar "a")
-                                           (gen_tvar "bool")));
 
       (Ast.DName ".[]", [ TName "a" ], arrow_type (list_type (gen_tvar "a"))
                                         (arrow_type (gen_tvar "int")

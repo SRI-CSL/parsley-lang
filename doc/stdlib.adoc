@@ -22,6 +22,51 @@ NOTE: The standard library is under rapid evolution.
 | `endian`
 | `endian::Big()`, `endian::Little()`
 
+| `bit`
+| `bit::One()`, `bit::Zero()`
+|===
+
+.Built-in operators
+|===
+| Symbol | Signature | Description
+
+| `-`
+| `int -> int`
+| Unary minus
+
+| `!`
+| `bool -> bool`
+| Boolean negation
+
+| `~`
+| `bitvector<'n> -> bitvector<'n>`
+| Bitwise complement
+
+| `+`, `-`, `*`, `/`
+| `int -> int -> int`
+| Binary integer arithmetic operators
+
+| `<`, `<=`, `>`, `>=`
+| `int -> int -> bool`
+| Integer comparisons
+
+| `&&`, `\|\|`
+| `bool -> bool -> bool`
+| Binary boolean operators
+
+| `\|_b`, `&_b`
+| `bitvector<'n> -> bitvector<'n> -> bitvector<'n>`
+| Binary bitwise operators
+
+| `=`, `!=`
+| `'a -> 'a -> bool`
+| Operators to check equality
+
+| `[]`
+| `list<'a> -> int -> 'a`
+| `l[n]` extracts the `n` th element of list `l`;
+throws an exception if the index is out-of-range
+
 |===
 
 The following modules provide useful operations for the built-in types.
@@ -46,6 +91,44 @@ The following modules provide useful operations for the built-in types.
 | `[byte] -> int`
 | byte vector to integer conversion;
 throws an exception if conversion fails
+
+|===
+
+.`Bits`
+|===
+| Value | Signature | Description
+
+| `to_int`
+| `bitvector<'n> -> int`
+| signed integer value of a bitvector
+
+| `to_uint`
+| `bitvector<'n> -> int`
+| unsigned integer value of a bitvector
+
+| `to_bool`
+| `bit -> bool`
+| boolean value of a bit
+
+| `of_bool`
+| `bool -> bit`
+| bit value of a boolean
+
+| `to_bit`
+| `bitvector<1> -> bit`
+| extract the bit from a 1-bitvector
+
+| `of_bit`
+| `bit -> bitvector<1>`
+| put a bit into a 1-bitvector
+
+| `ones`
+| `int -> bitvector<n>`
+| `ones(n)` generates a `bitvector<n>` with all bits set
+
+| `zeros`
+| `int -> bitvector<n>`
+| `zeros(n)` generates a `bitvector<n>` with all bits clear
 
 |===
 
