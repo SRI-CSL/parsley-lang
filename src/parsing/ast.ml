@@ -57,11 +57,12 @@ and type_rep =
 type binop =
   | Lt | Gt | Lteq | Gteq | Eq | Neq
   | Plus | Minus | Mult | Div | Land | Lor
+  | Or_b | And_b
   | Plus_s | At
   | Cons | Index
 
 type unop =
-  | Uminus | Not
+  | Uminus | Not | Neg_b
 
 type primitive_literal =
   | PL_int of int

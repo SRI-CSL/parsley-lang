@@ -57,6 +57,10 @@ let builtin_types, builtin_consts, builtin_vars,
     let tvar = Location.mk_loc_val "[]" ghost_loc in
     let con = make_builtin_type (Ast.TE_tvar tvar) in
     make_builtin_type (Ast.TE_tapp (con, [ t ])) in
+  let bitvector_type t : Ast.type_expr =
+    let tvar = Location.mk_loc_val "bitvector" ghost_loc in
+    let con = make_builtin_type (Ast.TE_tvar tvar) in
+    make_builtin_type (Ast.TE_tapp (con, [ t ])) in
   let opt_type t : Ast.type_expr =
     let tvar  = Location.mk_loc_val "option" ghost_loc in
     let con = make_builtin_type (Ast.TE_tvar tvar) in
@@ -146,6 +150,15 @@ let builtin_types, builtin_consts, builtin_vars,
                              (arrow_type (gen_tvar "bool") (gen_tvar "bool")));
       (Ast.DName "||", [], arrow_type (gen_tvar "bool")
                              (arrow_type (gen_tvar "bool") (gen_tvar "bool")));
+
+      (Ast.DName "~",  [ TName "a" ], arrow_type (bitvector_type (gen_tvar "a"))
+                                           (bitvector_type (gen_tvar "a")));
+      (Ast.DName "|_b",  [ TName "a" ], arrow_type (bitvector_type (gen_tvar "a"))
+                                          (arrow_type (bitvector_type (gen_tvar "a"))
+                                             (bitvector_type (gen_tvar "a"))));
+      (Ast.DName "&_b",  [ TName "a" ], arrow_type (bitvector_type (gen_tvar "a"))
+                                          (arrow_type (bitvector_type (gen_tvar "a"))
+                                             (bitvector_type (gen_tvar "a"))));
 
       (Ast.DName "=",  [ TName "a" ], arrow_type (gen_tvar "a")
                                         (arrow_type (gen_tvar "a")
@@ -314,6 +327,34 @@ let builtin_types, builtin_consts, builtin_vars,
                (gen_tvar "view")));
          ];
       };
+      {mod_name   = Ast.MName "Bits";
+       mod_values = [
+           (Ast.DName "to_int", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a"))
+              (gen_tvar "int"));
+           (Ast.DName "to_uint", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a"))
+              (gen_tvar "int"));
+           (Ast.DName "to_bool", [],
+            arrow_type (gen_tvar "bit")
+              (gen_tvar "bool"));
+           (Ast.DName "of_bool", [],
+            arrow_type (gen_tvar "bool")
+              (gen_tvar "bit"));
+           (Ast.DName "to_bit", [],
+            arrow_type (bitvector_type (gen_tvar "1"))
+              (gen_tvar "bit"));
+           (Ast.DName "of_bit", [],
+            arrow_type (gen_tvar "bit")
+              (bitvector_type (gen_tvar "1")));
+           (Ast.DName "ones", [ TName "a" ],
+            arrow_type (gen_tvar "int")
+              (bitvector_type (gen_tvar "a")));
+           (Ast.DName "zeros", [ TName "a" ],
+            arrow_type (gen_tvar "int")
+              (bitvector_type (gen_tvar "a")));
+         ];
+      };
     ] in
   (* Builtin non-terminals are encoded as basic types. *)
   let builtin_non_terms : builtin_non_term array = [|
@@ -356,8 +397,11 @@ let as_symbol name =
 let unop_const_name = function
   | Ast.Uminus -> "1-"
   | Ast.Not    -> "!"
+  | Ast.Neg_b  -> "~"
 
 let binop_const_name = function
+  | Ast.Or_b  -> "|_b"
+  | Ast.And_b -> "&_b"
   | Ast.Plus  -> "+"
   | Ast.Minus -> "-"
   | Ast.Mult  -> "*"

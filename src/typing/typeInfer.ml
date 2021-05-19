@@ -690,6 +690,30 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
             (wc',
              mk_auxexpr (E_field (exp', f)))
           )
+    | E_apply ({expr = E_mod_member (m, i); _} as f, [n])
+         when Location.value m = "Bits"
+              && (Location.value i = "ones"
+                  || Location.value i = "zeros") ->
+        (* special case handling of bitvector api *)
+        (match n with
+           | {expr = E_literal (PL_int w); _} ->
+               (* we only need the typed ast, not the constraints *)
+               let int = typcon_variable tenv (TName "int") in
+               let _, (_, n') = infer_expr tenv venv n int in
+               (* we know the result type *)
+               let v = TypeConv.bitvector_n tenv w in
+               exists_aux ~pos:e.expr_loc (fun ex ->
+                   (* we only need the typed ast, not the constraints *)
+                   let ftyp = TypeConv.arrow tenv ex v in
+                   let _, (_, f') = infer_expr tenv venv f ftyp in
+                   (v =?= t) e.expr_loc,
+                   (WC_true,
+                    mk_auxexpr (E_apply (f', [n'])))
+                 )
+           | _ ->
+               let err = Non_constant_numerical_arg (n.expr_loc, m, i) in
+               raise (Error err)
+        )
     | E_apply (fexp, args) ->
         (* The constraint of an [apply] makes equal the type of the
            function expression [fexp] and the function type taking the

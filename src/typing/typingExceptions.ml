@@ -224,6 +224,10 @@ type typing_error =
      not a multiple of 8 is specified *)
   | InvalidAlignment of Ast.bitint
 
+  (* [Non_constant_numerical_arg m i] is raised when a non-numerical
+     argument is given to an operation to a standard library api 'm.i' . *)
+  | Non_constant_numerical_arg of Location.t * Ast.ident * Ast.ident
+
   (* [Possible_division_by_zero] is raised during constant folding *)
   | Possible_division_by_zero of Location.t
 
@@ -387,43 +391,47 @@ let error_msg = function
       msg "%s:\n Unbound identifier `%s'.\n" p t
 
   | InvalidBitrangeLowBound (loc, b) ->
-      msg "%s:\n %d is an invalid low bound for bitvector range" loc b
+      msg "%s:\n %d is an invalid low bound for bitvector range.\n" loc b
 
   | InvalidEmptyBitrange (loc, n, m) ->
-      msg "%s:\n %d-%d is an invalid (empty) range" loc n m
+      msg "%s:\n %d-%d is an invalid (empty) range.\n" loc n m
 
   | InvalidBitrangeOrder (loc, n, m) ->
-      msg "%s:\n index range %d-%d is in an invalid order" loc n m
+      msg "%s:\n index range %d-%d is in an invalid order.\n" loc n m
 
   | IncompleteBitfieldRanges (bf, idx) ->
       msg
-        "%s:\n specified ranges of bitfield `%s' do not cover index %d"
+        "%s:\n specified ranges of bitfield `%s' do not cover index %d.\n"
         (Location.loc bf) (Location.value bf) idx
 
   | OverlappingBitfieldRanges (bf, f, f', idx) ->
       msg
-        "%s:\n fields `%s' and `%s' of bitfield `%s' overlap at index %d"
+        "%s:\n fields `%s' and `%s' of bitfield `%s' overlap at index %d.\n"
         (Location.loc bf) (Location.value f) (Location.value f')
         (Location.value bf) idx
 
   | InvalidRecordOperator(loc, op) ->
-      msg "%s:\n invalid record operator `%s'." loc op
+      msg "%s:\n invalid record operator `%s'.\n" loc op
 
   | NotRecordType t ->
-      msg "%s:\n `%s' is not a record type."
+      msg "%s:\n `%s' is not a record type.\n"
         (Location.loc t) (Location.value t)
 
   | NotBitfieldType t ->
-      msg "%s:\n `%s' is not a bitfield type."
+      msg "%s:\n `%s' is not a bitfield type.\n"
         (Location.loc t) (Location.value t)
 
   | NotByteAligned (loc, ofs, align, pos) ->
       msg
-        "%s:\n the %s of this rule element is not aligned to %d bits (off by %d bits)"
+        "%s:\n the %s of this rule element is not aligned to %d bits (off by %d bits).\n"
         loc (str_of_rule_pos pos) align ofs
   | InvalidAlignment a ->
-      msg "%s:\n alignment %d is not byte-aligned"
+      msg "%s:\n alignment %d is not byte-aligned.\n"
         (Location.loc a) (Location.value a)
+  | Non_constant_numerical_arg (loc, m, i) ->
+      msg
+        "%s:\n operation `%s.%s' requires this to be a constant numerical argument.\n"
+        loc (Location.value m) (Location.value i)
 
   | Possible_division_by_zero l ->
       msg "%s:\n possible division by zero.\n" l

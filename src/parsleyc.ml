@@ -28,7 +28,7 @@ let options =
       ])
 
 let () =
-  Printexc.record_backtrace false;
+  Printexc.record_backtrace true;
   Arg.parse options (fun s -> input_file := s :: !input_file) usage;
   if List.length !input_file > 1 || List.length !input_file = 0
   then (Printf.eprintf "Please specify a single input file.\n";

@@ -99,6 +99,9 @@ rule token = parse
       let t = Location.mk_loc_val t (Location.curr lexbuf) in
       LITERAL t
     }
+| "|_b"  { BAR_B }
+| "&_b"  { AND_B }
+| "+_s"  { PLUS_S }
 | "#[" { ATTR }
 | "(#" { SYN_BEGIN }
 | "#)" { SYN_END }
@@ -124,9 +127,9 @@ rule token = parse
 | ":"  { COLON }
 | ";;" { SEMISEMI }
 | ";"  { SEMICOLON}
-| "+_s" { PLUS_S }
 | "+"  { PLUS }
 | "->" { ARROW }
+| "~"  { TILDE }
 | "-"  { MINUS }
 | "*"  { STAR }
 | "/"  { DIV }

@@ -30,7 +30,7 @@ open AstUtils
 %token LPARBAR RPARBAR SYN_BEGIN SYN_END
 %token AT_POS AT_BUF AT_MAP HASH
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI DOT QUESTION ARROW
-%token STAR PLUS MINUS DIV CARET PLUS_S AT
+%token STAR PLUS MINUS DIV CARET PLUS_S AT BAR_B AND_B TILDE
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
 %token CONSTR_MATCH COLONCOLON BACKSLASH EXCLAIM UNDERSCORE DOTDOT
 
@@ -56,6 +56,8 @@ open AstUtils
 %right COLONCOLON
 %left  PLUS MINUS PLUS_S
 %left  STAR DIV QUESTION
+%left  BAR_B
+%left  AND_B
 %left  CARET
 %nonassoc UMINUS
 %left  LPAREN LBRACK LLBRACK
@@ -408,6 +410,8 @@ expr:
   { make_expr (E_constr(c, l)) $startpos $endpos }
 | MINUS e=expr %prec UMINUS
   { make_expr (E_unop (Uminus, e)) $startpos $endpos }
+| TILDE e=expr %prec UMINUS
+  { make_expr (E_unop (Neg_b, e)) $startpos $endpos }
 | EXCLAIM e=expr
   { make_expr (E_unop (Not, e)) $startpos $endpos }
 | LBRACE r=rec_exp_fields RBRACE
@@ -418,10 +422,14 @@ expr:
   { make_expr (E_binop (Lor, l, r)) $startpos $endpos }
 | e=expr CONSTR_MATCH c=CONSTR
   { make_expr (E_match (e, c)) $startpos $endpos }
-| l=expr PLUS r=expr
-  { make_expr (E_binop (Plus, l, r)) $startpos $endpos }
 | l=expr PLUS_S r=expr
   { make_expr (E_binop (Plus_s, l, r)) $startpos $endpos }
+| l=expr BAR_B r=expr
+  { make_expr (E_binop (Or_b, l, r)) $startpos $endpos }
+| l=expr AND_B r=expr
+  { make_expr (E_binop (And_b, l, r)) $startpos $endpos }
+| l=expr PLUS r=expr
+  { make_expr (E_binop (Plus, l, r)) $startpos $endpos }
 | l=expr AT r=expr
   { make_expr (E_binop (At, l, r)) $startpos $endpos }
 | l=expr MINUS r=expr

@@ -190,11 +190,13 @@ let rec sprint_pattern p =
 let str_of_unop = function
   | Uminus -> "-"
   | Not -> "!"
+  | Neg_b -> "~"
 
 let str_of_binop = function
   | Lt -> "<" | Gt -> ">" | Lteq -> "<=" | Gteq -> ">=" | Eq -> "=" | Neq -> "!="
   | Plus -> "+" | Plus_s -> "+_s" | Minus -> "-" | Mult -> "*" | Div -> "/"
   | Land -> "&&" | Lor -> "||"
+  | And_b -> "&_b" | Or_b -> "|_b"
   | Cons -> "::" | At -> "@"
   | Index -> assert false (* needs special handling by caller *)
 

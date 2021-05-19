@@ -9,6 +9,26 @@ fun test_bitvector(b: bitvector<3>) -> (bitvector<3>, bitvector<1>) = {
   (b[[2:0]], b[[2]])
 }
 
+fun test_toint(b: bitvector<3>) -> (int, int) = {
+  (Bits.to_int(b[[2:0]]), Bits.to_int(b[[2]]))
+}
+
+fun test_ones(n: int) -> bitvector<3> = {
+  Bits.ones(3)
+}
+
+fun test_to_bit(v: bitvector<1>) -> (bool, bitvector<1>) = {
+  (Bits.to_bool(Bits.to_bit(v)), Bits.of_bit(Bits.to_bit(v)))
+}
+
+fun test_of_bool(b: bool) -> bit = {
+  Bits.of_bool(b)
+}
+
+fun test_and_b(l: bitvector<3>, r: bitvector<3>) -> (bitvector<3>, (bitvector<3>, bitvector<3>)) = {
+   (l &_b r, (l |_b r, ~l))
+}
+
 fun test_bitfield (r: bf) -> (bitvector<2>, bitvector<7>) = {
   (r.top, r.bot)
 }
