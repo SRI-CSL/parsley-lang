@@ -439,7 +439,7 @@ A bitvector of length `n` can be matched using the non-terminal
 matched using the specifier `$bitfield(bf)`, which converts the `n`
 matched bits into a value of the `bf` bitfield type.
 
-The `$align<n>$ operator can be used to skip over bits to the next
+The `$align<n>$` operator can be used to skip over bits to the next
 byte boundary lying at a multiple of `n` bits, where `n` must be a
 multiple of 8.  For example, the sequence `BitVector<1> $align<64>`,
 when started on a byte boundary, matches 1 bit and then skips over 63
