@@ -184,6 +184,9 @@ type typing_error =
      a particular context. *)
   | UnboundIdentifier of Location.t * string
 
+  (* [ZeroWidthBitVector] is raised when a bitvector<0> is specified. *)
+  | ZeroWidthBitvector of Location.t
+
   (* [InvalidBitrangeLowBound i] is raised when the lower bound of
      a bitrange is invalid (i.e. it is negative) *)
   | InvalidBitrangeLowBound of Location.t * int
@@ -223,6 +226,10 @@ type typing_error =
   (* [InvalidAlignment a] is raised when an alignment value that is
      not a multiple of 8 is specified *)
   | InvalidAlignment of Ast.bitint
+
+  (* [ZeroWidthAlignment] is raised when an alignment spec or padding
+     is not necessary since it matches 0 bits *)
+  | ZeroWidthAlignment of Location.t
 
   (* [Non_constant_numerical_arg m i] is raised when a non-numerical
      argument is given to an operation to a standard library api 'm.i' . *)
@@ -390,6 +397,9 @@ let error_msg = function
   | UnboundIdentifier (p, t) ->
       msg "%s:\n Unbound identifier `%s'.\n" p t
 
+  | ZeroWidthBitvector l ->
+      msg "%s:\n a zero-width bitvector is not a valid type.\n" l
+
   | InvalidBitrangeLowBound (loc, b) ->
       msg "%s:\n %d is an invalid low bound for bitvector range.\n" loc b
 
@@ -428,6 +438,8 @@ let error_msg = function
   | InvalidAlignment a ->
       msg "%s:\n alignment %d is not byte-aligned.\n"
         (Location.loc a) (Location.value a)
+  | ZeroWidthAlignment l ->
+      msg "%s:\n unnecessary alignment (matches 0 bits).\n" l
   | Non_constant_numerical_arg (loc, m, i) ->
       msg
         "%s:\n operation `%s.%s' requires this to be a constant numerical argument.\n"

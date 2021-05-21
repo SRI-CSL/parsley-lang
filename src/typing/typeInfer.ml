@@ -697,6 +697,10 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
         (* special case handling of bitvector api *)
         (match n with
            | {expr = E_literal (PL_int w); _} ->
+               (* zero-width bitvectors are invalid *)
+               (if w = 0
+                then let err = ZeroWidthBitvector e.expr_loc in
+                     raise (Error err));
                (* we only need the typed ast, not the constraints *)
                let int = typcon_variable tenv (TName "int") in
                let _, (_, n') = infer_expr tenv venv n int in
@@ -1506,6 +1510,10 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         cursor
     | RE_bitvector w ->
         let width = Location.value w in
+        (* zero-width bitvectors are invalid *)
+        (if width = 0
+         then let err = ZeroWidthBitvector re.rule_elem_loc in
+              raise (Error err));
         let cursor = cursor + width in
         let bvt = TypeConv.bitvector_n tenv width in
         let c = (t =?= bvt) re.rule_elem_loc in
@@ -1519,6 +1527,10 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         let align = Location.value a in
         (if align mod 8 <> 0
          then let err = InvalidAlignment a in
+              raise (Error err));
+        (* Alignments matching 0 bits are currently forbidden. *)
+        (if cursor mod align = 0
+         then let err = ZeroWidthAlignment re.rule_elem_loc in
               raise (Error err));
         let width = align - (cursor mod align) in
         let cursor' = cursor + width in
@@ -1538,6 +1550,10 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         let align = Location.value a in
         (if align mod 8 <> 0
          then let err = InvalidAlignment a in
+              raise (Error err));
+        (* Alignments matching 0 bits are currently forbidden. *)
+        (if cursor mod align = 0
+         then let err = ZeroWidthAlignment re.rule_elem_loc in
               raise (Error err));
         let width = align - (cursor mod align) in
         let cursor' = cursor + width in

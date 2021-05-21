@@ -61,15 +61,17 @@ to the N of bitvector<N>, and hence we cannot prevent:
 
 We could support simpler constructs such as zeros(N), ones(N).
 
-    N should be a constant
+    N should be a constant, N > 0
     -------------------------------
     zeros(N)/ones(N):  bitvector<N>
 
 We could allow zeros_of(v), ones_of(v).
 
-    v: bitvector<N>
+    v: bitvector<N>, N > 0
     ------------------------------------
     zeros_of(v)/ones_of(v): bitvector<N>
+
+Bitvectors of width 0 are currently forbidden.
 
 Bitvector ranges
 ================
@@ -136,6 +138,8 @@ cursor satisfies (c mod 8) == 0.
 Alignment checks are performed at the beginning and end of every
 non-sequence combinator.  In addition, it will be performed at
 selected positions within a sequence combinator, as specified below.
+
+Alignments that match 0 bits are forbidden.
 
 To support alignment, we will support two alignment primitives:
 

@@ -282,8 +282,8 @@ type_expr:
     if tc <> "bitvector"
     then let err = Invalid_bitvector_constructor tc in
          parse_error err (Location.loc d)
-    else if i < 0
-    then let err = Negative_bitvector_width i in
+    else if i <= 0
+    then let err = Nonpositive_bitvector_width i in
          parse_error err li
     else let n = string_of_int i in
          let n = Location.mk_loc_val n li in
