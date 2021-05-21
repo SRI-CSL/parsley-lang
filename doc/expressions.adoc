@@ -32,7 +32,7 @@ and `]` enclosing the element type, while tuples are denoted within
 `(` and `)` with `,` separating the tuple element types.
 
 Bitvectors are also supported as special type constructors that take
-constant natural numbers as arguments instead of other types.  A
+constant positive numbers as arguments instead of other types.  A
 bitvector of length `n` (e.g. 3) is specified as `bitvector<n>`
 (e.g. `bitvector<3>`).
 
@@ -108,7 +108,7 @@ constructors, do not require a type prefix.  However, this means that
 they need to be globally unique: two record types cannot use the same
 field name.
 
-*Bitfields* are specialized records that allowing naming of contiguous
+*Bitfields* are specialized records that allow naming of contiguous
 and non-overlapping ranges of bitvectors, starting from index `0`.  An
 index range must be specified with the high-index preceding the
 low-index and separated by a `:`.  A field that is 1-bit wide can use
@@ -305,13 +305,13 @@ constructors of variant types or the tuple constructor.
 
 Bitvectors can be indexed with ranges to extract contiguous
 subsequences of bits as bitvectors using the indexing operator, which
-encloses the range within `[[`` and `]]`.  For example, given a
+encloses the range within `[[` and `]]`.  For example, given a
 bitvector `v` of type `bitvector<3>`,
 ....
   (v[[2:1]], v[[0]])
 ....
 extracts the top two bits and the lowest bit into a tuple of two
-bitvectors of type `(bitvector<2>, bitvector<`>)`.
+bitvectors of type `(bitvector<2>, bitvector<1>)`.
 
 *Bitfield conversions* allow the conversion between bitfields and
  bitvectors of the appropriate length.  `bf->bits(r)` converts a

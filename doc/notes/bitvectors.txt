@@ -123,10 +123,10 @@ bits: r -> bitvector<3>
 Use in Grammars
 ===============
 
-The bitlevel invariant that is maintained by design is that each rule
+The bit-level invariant that is maintained by design is that each rule
 for a non-terminal begins and ends on a byte-aligned boundary.  This
 implies that within a rule, each call to a non-terminal should begin
-and end on a byte-boundary.
+and end on a byte boundary.
 
 During static alignment checks, a symbolic cursor tracking the current
 bit-position is maintained while traversing the elements of a rule.
@@ -153,7 +153,8 @@ To support alignment, we will support two alignment primitives:
 . [s] $pad(n, bv) [e]
 
   This is a version of $align(n) where the padding bytes can be
-  checked to repeat the bitpattern specified by bv.
+  checked to repeat the bit pattern specified by bv.
+
 
 . [s] BitVector<n> [e = s + n]
 
@@ -189,8 +190,8 @@ To support alignment, we will support two alignment primitives:
   [e] will be at an byte-aligned position, and can be taken to have a
   symbolic bit-position of 0.
 
-. The grammar operands of any non-sequence combinator C have to begin
-  and end on a byte-boundary.
+. The grammar operands of any combinator C other than the sequence
+  combinator have to begin and end on a byte boundary.
 
   [s] C (<arg seq>) [e = 0]
 
@@ -206,7 +207,7 @@ To support alignment, we will support two alignment primitives:
   In particular, this means that the following constructions will
   generate errors:
 
-  Bitvector<n> [*|+|?]           where n mod 8 != 0.
+  BitVector<n> [*|+|?]           where n mod 8 != 0.
 
   [align<n> | pad<n,_>] [*|+|?]  where n mod 8 != 0.
 
