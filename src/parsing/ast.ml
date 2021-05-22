@@ -246,7 +246,9 @@ type ('a, 'b) program =
 let var_name v =
   fst (Location.value v)
 
-(* max concrete bit-width in spec *)
-let max_width : int ref = ref 0
+(* max concrete bit-width in spec.
+   we need at least a width of 1 due to the std library.
+ *)
+let max_width : int ref = ref 1
 let register_bitwidth i =
   max_width := max !max_width i
