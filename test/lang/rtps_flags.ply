@@ -1,0 +1,15 @@
+bitfield data_flags = {
+  nonstandard: 4,
+  key:         3,
+  data:        2,
+  inlineQOS:   1,
+  endian:      0
+}
+
+format {
+  DataSubMsg dm {d: data_flags}
+      := Byte
+         BitVector<3>
+         d=$bitfield(data_flags)
+         { dm.d := d }
+}
