@@ -19,3 +19,10 @@ Then,
 $ make
 ```
 should build the compiler executable in `_build/default/src/parsleyc.exe`.
+
+Documentation
+-------------
+
+The Parsley language is documented in a [reference
+manual](doc/readme.adoc) and a [tutorial](doc/tutorial/overview.adoc)
+explains its use for some well-known formats.
