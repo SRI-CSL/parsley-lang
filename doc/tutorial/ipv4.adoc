@@ -72,7 +72,7 @@ format {
     identification = (Byte^2)
     flags_and_fragment_offset = UInt16<endian=endian::Big()>
     {
-      flags := flags_and_fragment_offset / 1024;
+      flags := flags_and_fragment_offset / 8192;
       fragment_offset := (flags_and_fragment_offset * 8) / 8
     }
     time_to_live = UInt8<endian=endian::Big()>
