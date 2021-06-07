@@ -1,0 +1,9 @@
+type my_list ('a) =
+ | Null
+ | Cons of 'a * my_list<'a>
+
+recfun len<'a> (l: my_list<'a>) -> int = {
+   (case l of
+   | my_list::Null()     -> 0
+   )
+ }

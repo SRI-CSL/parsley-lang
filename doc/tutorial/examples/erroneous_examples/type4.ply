@@ -1,0 +1,7 @@
+format {
+  NonTerm nt (inhInt: int) {synInt: int} :=
+    readBytes = (Byte^4)
+    { 
+      nt.synInt := inhInt + Int.of_bytes(readBytes)
+    }
+}

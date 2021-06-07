@@ -1,0 +1,8 @@
+format {
+  NonTerm nt {twoBytes: (byte, byte)} :=
+    twoBytes = (Byte^2)
+    { 
+      nt.twoBytes := twoBytes
+    }
+}
+

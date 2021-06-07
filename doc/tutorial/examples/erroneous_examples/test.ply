@@ -1,0 +1,6 @@
+format {
+  NonTerm nt (s: int) {t:int} :=
+    t = UInt8 
+    { nt.t := t}
+}
+

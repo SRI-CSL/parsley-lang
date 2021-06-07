@@ -265,6 +265,27 @@ You may noticed that we have incorporated some comments in our final Parsley fil
 Comments in Parsley begin with two forward slash characters (`//`).
 Everything that follows the `//` delimiter until the following new line character is part of the comment.
 
+==== Checking Parsley Files
+
+Much of this tutorial focuses on how to create Parsley files.
+But the capability to perform a check on a Parsley file to ensure its validity is also critical.
+Indeed, the Parsley file checker notifies the user when errors, such as type check errors, occur.
+Most errors belong to one of three error classes: syntax errors, type check errors, and pattern matching errors.
+Additionally, there is a catch-all fourth error class for other errors.
+
+
+- Syntax errors: The syntax is not as expected.
+- Type check errors: The type given in an expression does not match the type expected.
+- Pattern matching errors: A case expression does not cover all possible values.
+- Other errors: Additionally, there are other errors that do not conform to the above three types but are useful to know about.
+
+The first two classes of errors and the last class should be clear enough.
+Understanding the third class of errors, pattern matching errors, requires knowledge of case expressions, which we have yet to cover.
+
+In addition to the errors above, we note that empty or relatively simple Parsley files are perfectly acceptable.
+
+Some examples of erroneous Parsley files are provided in `./doc/tutorial/examples/erroneous_examples/`.
+
 ==== Do We Need a `udp_packet` Type?
 
 We had earlier declared a `udp_packet` type, which is used as a synthesized attribute in the UDPPacket non-terminal declaration.

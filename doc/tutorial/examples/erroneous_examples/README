@@ -1,0 +1,78 @@
+The Parsley type checker produces a number of errors, many of which belong to three error classes.
+We can loosely group errors into these three error classes, as well as a catch-all fourth class for other types of errors.
+- Syntax errors: The syntax is not as expected.
+- Type check errors: The type given in an expression does not match the type expected.
+- Pattern matching errors: A case expression does not cover all possible values.
+- Other errors: Additionally, there are other errors that do not conform to the above three types but are useful to know about.
+
+In addition to the errors above, we note that empty or relatively simple Parsley files are perfectly acceptable.
+
+Below, we briefly discuss the errors in the erroneous files.
+
+----------------------
+--- No Error Files ---
+----------------------
+
+These are simple files that do not generate any parse type error:
+
+no_error_empty.ply: This is NOT an erroneous file. It is simply a file with nothing in it. 
+
+no_error_tiny.ply: This is NOT an erroneous file. It is a very tiny file with a single format declaration that is empty.
+
+--------------------------
+--- Syntax Error Files ---
+--------------------------
+
+syntax_general1.ply: An ill-formed declaration where the very first token (e.g., use, format) is incorrect.
+
+syntax_use1.ply: The . delimiter and suffix are included in the use filename, which generates an ill-formed declaration error.
+
+syntax_use2.ply: An unacceptable character follows the use token.
+
+syntax_use3.ply: A parentheses-style use declaration where a ; is used instead of ,.
+
+syntax_use4.ply: A parentheses-style use declaration without the closing parenthesis.
+
+syntax_format1.ply: The format declaration does not have a terminating "}" symbol.
+
+syntax_format2.ply: The first non-terminal declaration is ill-formed in that "=" is used, not ":=" . 
+
+syntax_format3.ply: The last non-terminal declaration ends with ;;, but it should not.
+
+syntax_format4.ply: A ":" symbol is missing after the single inherited attributed of NT.
+
+syntax_fun1.ply: Missing the tokens that specify what the function returns (the "-> ..." part)
+
+syntax_fun2.ply: Function body is missing
+
+syntax_fun3.ply: No "=" sign following specification of return value.
+
+syntax_fun4.ply: Only one value may be returned (e.g., the two values must be enclosed in a tuple that looks like -> (int, int)).
+
+syntax_type1.ply: Missing "=" sign
+
+syntax_type2.ply: Missing "," after field x declaration
+
+------------------------------
+--- Type Check Error Files ---
+------------------------------
+
+type1.ply: The integer-declared synthesized attribute nt.anotherInt is assigned a byte value, producing an error. The Int.of_byte function from the standard library could be used to try to convert the byte to an int.
+
+type2.ply: We are assigning a two element list comprising two bytes to a 2-tuple comprising two bytes, producing an error. twoBytes should instead be declared as a byte list, i.e., [byte].
+
+type3: inhInt was mistakenly declared as a bool. This produces a type error when we try to add two integers together.
+
+type4: Int.of_bytes produces has signature [byte] -> option<int>, but synInt has type Int.
+
+------------------------------------
+--- Pattern Matching Error Files ---
+------------------------------------
+
+pattern1.ply: An example of a pattern matching error.
+
+-------------------------
+--- Other Error Files ---
+-------------------------
+
+other_use_nonexistent.ply: The file specified by the use declaration does not exist. This produces an unhandled system error.
