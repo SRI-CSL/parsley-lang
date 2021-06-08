@@ -3466,7 +3466,7 @@ toplevel: FORMAT LBRACE USE
 ## FORMAT LBRACE
 ##
 
-Ill-formed non-terminal definition.
+Ill-formed non-terminal definition: expected a non-terminal identifier.
 
 toplevel: FORMAT USE
 ##
