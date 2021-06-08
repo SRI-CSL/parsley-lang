@@ -156,6 +156,14 @@ type typing_error =
      it cannot be inferred from the productions of [ntid]. *)
   | NTTypeNotInferrable of Ast.ident
 
+  (* [NTNoRules ntid] is raised when no production rules have been
+     specified for the non-terminal [ntid]. *)
+  | NTNoRules of Ast.ident
+
+  (* [NTEmptyRule ntid] is raised when an empty production rule has been
+     specified for the non-terminal [ntid]. *)
+  | NTEmptyRule of Ast.ident * Location.t
+
   (* [NTRepeatedBinding nt id id'] is raised when a rule for
      non-terminal [nt] has a binding [id] with the same name as
      an earlier binding [id']. *)
@@ -367,6 +375,16 @@ let error_msg = function
       msg
         "%s:\n Non-terminal `%s' has an undeclared type that cannot be inferred.\n"
         (Location.loc ntid) (Location.value ntid)
+
+  | NTNoRules ntid ->
+      msg
+        "%s\n Non-terminal `%s' has no valid production rules."
+        (Location.loc ntid) (Location.value ntid)
+
+  | NTEmptyRule (ntid, loc) ->
+      msg
+        "%s\n Invalid empty production rule for non-terminal `%s'."
+        loc (Location.value ntid)
 
   | NTRepeatedBinding (ntid, id, id') ->
       msg

@@ -1856,6 +1856,9 @@ let infer_non_term_rule tenv venv ntd rule pids =
           infer_rule_elem tenv venv' ntd ctx cursor re t' false in
         q :: qs, ctx', wc' :: wcs, re' :: rhs', venv', cursor'
       ) ([], (fun c -> c), wcs, [], venv', 0) rule.rule_rhs in
+  (* Ensure that there is at least one rule element in the rule. *)
+  if List.length rhs' = 0 then
+    raise (Error (NTEmptyRule (ntd.non_term_name, rule.rule_loc)));
   check_aligned cursor' 8 rule.rule_loc At_end;
   CLet ([ Scheme (rule.rule_loc, [],
                   bindings.vars,
@@ -1938,6 +1941,9 @@ let infer_non_term tenv venv ntd =
   let crules' = List.map
                  (fun r -> infer_non_term_rule tenv venv' ntd r pids)
                  ntd.non_term_rules in
+  (* Ensure that there is at least one rule specified. *)
+  if List.length crules' = 0 then
+    raise (Error (NTNoRules ntd.non_term_name));
   let cs, rules' = List.split crules' in
   let wcs, rules' = List.split rules' in
   let cprod =
