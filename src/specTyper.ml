@@ -52,11 +52,10 @@ let check spec =
     AstPrinter.print_typed_spec TypeConstraintPrinter.print_crterm spec';
   (init_tenv, init_venv), tenv, spec'
 
-let type_check spec_file spec =
+let type_check spec =
   try
     let init_envs, tenv, spec' = check spec in
     Pattern_match.check_patterns tenv spec';
-    Printf.printf "%s: parsed and typed.\n" spec_file;
     init_envs, tenv, spec'
   with
     | TypingExceptions.Error e ->

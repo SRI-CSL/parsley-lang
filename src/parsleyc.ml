@@ -37,5 +37,6 @@ let () =
   let spec = SpecParser.parse_spec spec_file in
   if !opt_print_ast then
     Parsing.AstPrinter.print_parsed_spec spec;
-  let init_envs, tenv, tspec = SpecTyper.type_check spec_file spec in
-  SpecTyper.assignment_check init_envs tenv tspec
+  let init_envs, tenv, tspec = SpecTyper.type_check spec in
+  SpecTyper.assignment_check init_envs tenv tspec;
+  Printf.printf "%s: parsed and typed.\n" spec_file
