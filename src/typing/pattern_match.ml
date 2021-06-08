@@ -442,7 +442,7 @@ let check_pattern tenv col =
            | None ->
                ()
            | Some exs ->
-               assert (List.length exs = 1);
+               assert (List.length exs > 0);
                let ex = AstPrinter.sprint_pattern (List.hd exs) in
                raise (Error (UnmatchedPattern (p.pattern_loc, ex)))
         )
