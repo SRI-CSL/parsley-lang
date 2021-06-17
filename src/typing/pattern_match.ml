@@ -18,258 +18,12 @@
 open Parsing
 open Misc
 open Ast
-open TypingEnvironment
 open TypingExceptions
+open Pattern_utils
 
 (** Adapted from the algorithm in
     'Warnings for pattern matching', by Luc Maranget.
     Journal of Functional Programming, Volume 17, Issue 3, May 2007. *)
-
-let repeat p n =
-  let rec iter n acc =
-    if n = 0 then acc
-    else iter (n - 1) (p :: acc) in
-  iter n []
-
-let arity tenv typ constr =
-  let arity, _, _ =
-    let dcid =
-      AstUtils.canonicalize_dcon
-        (Location.value typ) (Location.value constr) in
-    lookup_datacon tenv (Location.loc typ) (DName dcid) in
-  arity
-
-(** [default_mat m] computes the default matrix for a given pattern
-    matrix [m]. *)
-let default_mat m =
-  let default_row ps =
-    match ps with
-      | p :: rest ->
-          (match p.pattern with
-             | P_wildcard  | P_var _     -> Some rest
-             | P_literal _ | P_variant _ -> None)
-      | [] -> assert false in
-  List.fold_right (fun p acc ->
-      match default_row p with
-        | None   -> acc
-        | Some r -> r :: acc
-    ) m []
-
-(** [specialize_row_constr tenv (typ, constr) ps] computes the
-    specialized version of a pattern row [ps] with respect to the
-    constructor [constr] of type [typ]. *)
-let specialize_row_constr tenv (typ, constr) ps =
-  let arity = arity tenv typ constr in
-  match ps with
-    | p :: rest ->
-        (match p.pattern with
-           | P_wildcard
-           | P_var _ ->
-               let p' = { p with pattern = P_wildcard } in
-               Some (repeat p' arity)
-           | P_variant ((typ', constr'), ps)
-                when Location.value typ' = Location.value typ ->
-               if Location.value constr' = Location.value constr
-               then (
-                 assert (List.length ps = arity);
-                 Some (ps @ rest)
-               )
-               else None
-           | P_literal _ ->
-               (* Type-check should forbid this. *)
-               assert false
-           | P_variant ((typ', _), _) ->
-               (* Type-check should forbid this assertion failing. *)
-               assert (Location.value typ' == Location.value typ);
-               None)
-    | [] ->
-        assert false
-
-(** [specialize_row_literal lit ps] computes the specialized version
-    of a pattern row [ps] with respect to the constructor
-    corresponding to the literal [lit]. *)
-let specialize_row_literal lit ps =
-  match ps with
-    | p :: rest ->
-        (match p.pattern with
-           | P_wildcard
-           | P_var _ ->
-               Some rest
-           | P_literal l when l = lit ->
-               Some rest
-           | P_literal _ ->
-               None
-           | P_variant _ ->
-               (* Type-check should forbid this. *)
-               ignore (assert false);
-               None)
-    | [] ->
-        assert false
-
-let specialize_mat tenv mat p =
-  let filter mat =
-    List.fold_right (fun r acc ->
-        match r with
-          | None   -> acc
-          | Some r -> r :: acc
-      ) mat [] in
-  match p.pattern with
-    | P_wildcard | P_var _ ->
-        (* these are not constructors *)
-        assert false
-    | P_literal l ->
-        filter (List.map (specialize_row_literal l) mat)
-    | P_variant ((typ, constr), _) ->
-        filter (List.map (specialize_row_constr tenv (typ, constr)) mat)
-
-(** [unused_constructors tenv typ cs] computes the set of unused
-    constructors of type [typ] given a list [cs] of used
-    constructors. *)
-let unused_constructors tenv typ cs =
-  let tn = Location.value typ in
-  let adti =
-    match lookup_adt tenv (TName tn) with
-      | None -> assert false
-      | Some i -> i in
-  let dcons = match adti.adt with
-      | Variant dcons -> dcons
-      | Record _ -> assert false in
-  let dcons =
-    List.fold_left (fun acc (DName c, _) ->
-        StringSet.add c acc
-      ) StringSet.empty dcons in
-  List.fold_left (fun acc c ->
-      StringSet.remove (Location.value c) acc
-    ) dcons cs
-
-(** [check_variant_completeness tenv typ cs] checks whether the list
-    [cs] of constructors of type [typ] contains all the constructors
-    of the type. *)
-let check_variant_completeness tenv typ cs =
-  StringSet.is_empty (unused_constructors tenv typ cs)
-
-(* helpers for bitvector patterns *)
-
-let bv_to_int bv =
-  List.fold_left (fun i b ->
-      let i = Int64.shift_left i 1 in
-      Int64.add i (if b then Int64.one else Int64.zero)
-    ) Int64.zero bv
-
-let int_to_bv int width =
-  let bit_to_bool i =
-    Int64.logand i Int64.one == Int64.one in
-  let rec iter acc cnt =
-    if cnt = width
-    then acc
-    else let int = Int64.shift_right int cnt in
-         let bit = bit_to_bool int in
-         iter (bit :: acc) (cnt + 1) in
-  iter [] 0
-
-module BVSet = Set.Make(Int64)
-
-let check_bitvector_completeness set width =
-  assert (width <= 64);
-  let max = Int64.shift_left Int64.one width in
-  let rec check i =
-    if Int64.equal i max
-    then true
-    else if BVSet.mem i set
-    then check (Int64.succ i)
-    else false in
-  check Int64.zero
-
-(** [is_complete_sig tenv roots] checks whether the root constructors
-    [roots] form a complete signature for their type. *)
-let is_complete_sig tenv roots =
-  match roots with
-    | [] ->
-        false
-    | p :: rest ->
-        (match p.pattern with
-           | P_wildcard | P_var _ ->
-               (* these are not roots *)
-               assert false
-           | P_literal PL_unit ->
-               List.iter (fun p ->
-                   assert (p.pattern = P_literal PL_unit)
-                 ) rest;
-               true
-           | P_literal (PL_string _) ->
-               List.iter (fun p ->
-                   match p.pattern with
-                     | P_literal (PL_string _) -> ()
-                     | _ -> assert false
-                 ) rest;
-               false
-           | P_literal (PL_int _) ->
-               List.iter (fun p ->
-                   match p.pattern with
-                     | P_literal (PL_int _) -> ()
-                     | _ -> assert false
-                 ) rest;
-               false
-           | P_literal (PL_bool b) ->
-               List.fold_left (fun acc p ->
-                   match p.pattern with
-                     | P_literal (PL_bool b') ->
-                         b != b' || acc
-                     | _ -> assert false
-                 ) false rest
-           | P_literal (PL_bit b) ->
-               List.fold_left (fun acc p ->
-                   match p.pattern with
-                     | P_literal (PL_bit b') ->
-                         b != b' || acc
-                     | _ -> assert false
-                 ) false rest
-           | P_literal (PL_bitvector bv) ->
-               let bvs =
-                 List.fold_left (fun acc p ->
-                     match p.pattern with
-                       | P_literal (PL_bitvector bv') ->
-                           assert (List.length bv' == List.length bv);
-                           BVSet.add (bv_to_int bv') acc
-                       | _ -> assert false
-                   )
-                   (BVSet.add (bv_to_int bv) BVSet.empty)
-                   rest in
-               check_bitvector_completeness bvs (List.length bv)
-           | P_variant ((t, c), _) ->
-               let cs =
-                 List.fold_left (fun acc p ->
-                     match p.pattern with
-                       | P_variant ((t', c'), _) ->
-                           assert (Location.value t = Location.value t');
-                           c' :: acc
-                       | _ ->
-                           assert false
-                   ) [c] rest in
-               check_variant_completeness tenv t cs
-        )
-
-(* extract the first column of a pattern matrix *)
-let first_col mat =
-  List.fold_right (fun row acc ->
-      match row with
-        | []     -> assert false  (* not called for base case *)
-        | h :: _ -> h  :: acc
-    ) mat []
-
-(* extract the constructors from a pattern column *)
-let roots tenv col =
-  List.fold_right (fun p acc ->
-      match p.pattern with
-        | P_wildcard | P_var _ ->
-            (* these are not constructors *)
-            acc
-        | P_literal _ ->
-            (* literals have arity 0 *)
-            (p, 0) :: acc
-        | P_variant ((typ, constr), _) ->
-            (p, arity tenv typ constr) :: acc
-    ) col []
 
 (* create the most general instance of the constructor pattern *)
 let mk_head_instance p =
@@ -373,17 +127,20 @@ let pick_missed_constructor tenv signature =
         let p = {p with pattern = P_variant ((typ, c), ps)} in
         mk_head_instance p
 
-let rec check_matrix tenv mat cols wildcard =
+type pmat =
+  ((MultiEquation.crterm, TypeInfer.varid) pattern list * unit) list
+
+let rec check_matrix tenv (mat: pmat) cols wildcard =
   match mat with
     | [] ->
         (* the base case where mat has zero rows *)
         Some (repeat wildcard cols)
-    | p :: rest when p = [] ->
+    | (p, _) :: rest when p = [] ->
         (* the base case where mat has zero columns *)
         assert (cols = 0);
-        List.iter (fun p -> assert (List.length p = 0)) rest;
+        List.iter (fun (p, _) -> assert (List.length p = 0)) rest;
         None
-    | p :: _ ->
+    | (p, _) :: _ ->
         let roots = roots tenv (first_col mat) in
         let signature = List.map fst roots in
         if is_complete_sig tenv signature
@@ -437,7 +194,7 @@ let check_pattern tenv col =
         ()
     | p :: _ ->
         let wild = {p with pattern = P_wildcard} in
-        let mat = List.map (fun p -> [p]) col in
+        let mat = List.map (fun p -> [p], ()) col in
         (match check_matrix tenv mat 1 wild with
            | None ->
                ()
@@ -633,7 +390,7 @@ and descend_stmt (ctx, acc) s =
             List.fold_left descend_stmt (ctx, acc)  s
           ) (descend_expr (ctx, pmat :: acc) e) ss
 
-let check_patterns tenv spec =
+let check_patterns tenv (spec: (MultiEquation.crterm, TypeInfer.varid) Ast.program)  =
   let ctx = ExpConstraint.empty in
   List.iter (function
       | Decl_types _ ->
