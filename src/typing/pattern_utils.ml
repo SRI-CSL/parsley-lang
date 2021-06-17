@@ -264,7 +264,7 @@ let first_col mat =
 let nth_col mat n =
   (match mat with
      | [] ->
-         ()
+         assert false
      | (p, _) :: rest ->
          let cols = List.length p in
          assert (0 <= n && n < cols);
