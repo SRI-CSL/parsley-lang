@@ -32,6 +32,36 @@ let rec print_list sep printer = function
       pp_print_string !ppf sep;
       print_list sep printer t
 
+let string_of_constructor (t, c) =
+  AstUtils.canonicalize_dcon (Location.value t) (Location.value c)
+
+let str_of_unop = function
+  | Uminus -> "-"
+  | Not -> "!"
+  | Neg_b -> "~"
+
+let str_of_binop = function
+  | Lt -> "<" | Gt -> ">" | Lteq -> "<=" | Gteq -> ">=" | Eq -> "=" | Neq -> "!="
+  | Plus -> "+" | Plus_s -> "+_s" | Minus -> "-" | Mult -> "*" | Div -> "/"
+  | Land -> "&&" | Lor -> "||"
+  | And_b -> "&_b" | Or_b -> "|_b"
+  | Cons -> "::" | At -> "@"
+  | Index -> assert false (* needs special handling by caller *)
+
+let string_of_bitvector v =
+  "0b" ^ (String.concat "" (List.map (fun b ->
+                                if b then "1" else "0"
+                              ) v))
+
+let string_of_literal l =
+  match l with
+    | PL_unit        -> "()"
+    | PL_string s    -> Printf.sprintf "\"%s\"" s
+    | PL_int i       -> string_of_int i
+    | PL_bool b      -> if b then "bool::True" else "bool::False"
+    | PL_bit b       -> if b then "bit::One"   else "bit::Zero"
+    | PL_bitvector v -> string_of_bitvector v
+
 let rec print_kind = function
   | KStar ->
       pp_print_string !ppf "*"
@@ -134,12 +164,6 @@ let print_type_decl td =
   pp_print_cut !ppf ();
   pp_print_newline !ppf ()
 
-let print_bitvector bv =
-  pp_print_string !ppf "0b";
-  List.iter (fun b ->
-      pp_print_string !ppf (if b then "1" else "0")
-    ) bv
-
 let rec print_pattern auxp p =
   match p.pattern with
     | P_wildcard ->
@@ -147,22 +171,10 @@ let rec print_pattern auxp p =
     | P_var id ->
         pp_print_string !ppf (var_name id);
         pp_print_string !ppf (auxp p.pattern_aux)
-    | P_literal PL_unit ->
-        pp_print_string !ppf "()"
-    | P_literal (PL_string l) ->
-        pp_print_string !ppf (Printf.sprintf "\"%s\"" l)
-    | P_literal (PL_int l) ->
-        pp_print_string !ppf (string_of_int l)
-    | P_literal (PL_bool b) ->
-        pp_print_string !ppf (if b then "true" else "false")
-    | P_literal (PL_bit b) ->
-        pp_print_string !ppf (if b then "bit::One" else "bit::Zero")
-    | P_literal (PL_bitvector bv) ->
-        print_bitvector bv
-    | P_variant ((t,c), ps) ->
-        pp_print_string !ppf
-          (AstUtils.canonicalize_dcon
-             (Location.value t) (Location.value c));
+    | P_literal l ->
+        pp_print_string !ppf (string_of_literal l)
+    | P_variant (c, ps) ->
+        pp_print_string !ppf (string_of_constructor c);
         if List.length ps > 0 then begin
             pp_print_string !ppf "(";
             print_list ", " (print_pattern auxp) ps;
@@ -180,25 +192,11 @@ let rec sprint_pattern p =
     | P_literal (PL_bitvector bv) ->
         "0b" ^
           (String.concat "" (List.map (fun b -> if b then "1" else "0") bv))
-    | P_variant ((t, c), ps) ->
-        let con = AstUtils.canonicalize_dcon
-                    (Location.value t) (Location.value c) in
+    | P_variant (c, ps) ->
+        let con = string_of_constructor c in
         if List.length ps = 0 then con
         else let args = List.map sprint_pattern ps in
              Printf.sprintf "%s(%s)" con (String.concat ", " args)
-
-let str_of_unop = function
-  | Uminus -> "-"
-  | Not -> "!"
-  | Neg_b -> "~"
-
-let str_of_binop = function
-  | Lt -> "<" | Gt -> ">" | Lteq -> "<=" | Gteq -> ">=" | Eq -> "=" | Neq -> "!="
-  | Plus -> "+" | Plus_s -> "+_s" | Minus -> "-" | Mult -> "*" | Div -> "/"
-  | Land -> "&&" | Lor -> "||"
-  | And_b -> "&_b" | Or_b -> "|_b"
-  | Cons -> "::" | At -> "@"
-  | Index -> assert false (* needs special handling by caller *)
 
 let rec print_clause auxp (p, e) =
   pp_print_string !ppf "| ";
@@ -219,10 +217,8 @@ and print_expr auxp e =
     | E_var i ->
         pp_print_string !ppf (var_name i);
         pp_print_string !ppf (auxp e.expr_aux)
-    | E_constr ((t, c), args) ->
-        pp_print_string !ppf
-          (AstUtils.canonicalize_dcon
-             (Location.value t) (Location.value c));
+    | E_constr (c, args) ->
+        pp_print_string !ppf (string_of_constructor c);
         if List.length args > 0 then begin
             pp_print_string !ppf "(";
             print_list ", " (print_expr auxp) args;
@@ -252,18 +248,18 @@ and print_expr auxp e =
         pp_print_string !ppf "[";
         print_expr auxp r;
         pp_print_string !ppf "]"
+    | E_binop (b, l, r) ->
+        pp_print_string !ppf "(";
+        print_expr auxp l;
+        pp_print_string !ppf (Printf.sprintf " %s " (str_of_binop b));
+        print_expr auxp r;
+        pp_print_string !ppf ")"
     | E_recop (r, rop, e) ->
         let r = Printf.sprintf "%s->%s"
                   (Location.value r) (Location.value rop) in
         pp_print_string !ppf r;
         pp_print_string !ppf "(";
         print_expr auxp e;
-        pp_print_string !ppf ")"
-    | E_binop (b, l, r) ->
-        pp_print_string !ppf "(";
-        print_expr auxp l;
-        pp_print_string !ppf (Printf.sprintf " %s " (str_of_binop b));
-        print_expr auxp r;
         pp_print_string !ppf ")"
     | E_bitrange (e, n, m) ->
         print_expr auxp e;
@@ -272,21 +268,8 @@ and print_expr auxp e =
         pp_print_string !ppf ":";
         pp_print_string !ppf (string_of_int m);
         pp_print_string !ppf "]]"
-    | E_literal PL_unit ->
-        pp_print_string !ppf "()"
-    | E_literal (PL_string l) ->
-        pp_print_string !ppf (Printf.sprintf "\"%s\"" l)
-    | E_literal (PL_int i) ->
-        pp_print_string !ppf (string_of_int i)
-    | E_literal (PL_bool b) ->
-        pp_print_string !ppf (if b then "bool::True" else "bool::False")
-    | E_literal (PL_bit b) ->
-        pp_print_string !ppf (if b then "bit::One" else "bool::Zero")
-    | E_literal (PL_bitvector bv) ->
-        pp_print_string !ppf "0b";
-        List.iter (fun b ->
-            pp_print_string !ppf (if b then "1" else "0")
-          ) bv
+    | E_literal l ->
+        pp_print_string !ppf (string_of_literal l)
     | E_field (e, f) ->
         let complex = (match e.expr with E_var _ -> false | _ -> true) in
         if complex then pp_print_string !ppf "(";
@@ -297,13 +280,11 @@ and print_expr auxp e =
     | E_mod_member (m, i) ->
         pp_print_string !ppf
           (Printf.sprintf "%s.%s" (Location.value m) (Location.value i))
-    | E_match (e, (t, c)) ->
+    | E_match (e, c) ->
         pp_print_string !ppf "(";
         print_expr auxp e;
         pp_print_string !ppf " ~~ ";
-        pp_print_string !ppf
-          (AstUtils.canonicalize_dcon
-             (Location.value t) (Location.value c));
+        pp_print_string !ppf (string_of_constructor c);
         pp_print_string !ppf ")"
     | E_case (d, clauses) ->
         pp_open_vbox !ppf 2;
@@ -551,7 +532,7 @@ let rec print_rule_elem auxp rl =
         pp_print_string !ppf "$pad<";
         pp_print_string !ppf (string_of_int (Location.value w));
         pp_print_string !ppf ",";
-        print_bitvector bv;
+        pp_print_string !ppf (string_of_bitvector bv);
         pp_print_string !ppf ">"
     | RE_bitfield bf ->
         pp_print_string !ppf "$bitfield(";
