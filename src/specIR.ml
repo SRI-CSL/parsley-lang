@@ -15,29 +15,15 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let opt_print_ast = ref false
-let input_file = ref []
+open Ir
 
-let usage = Printf.sprintf
-              "Usage: %s <options> <file.ply> " (Sys.argv.(0))
-let options =
-  Arg.align ([
-        ( "-p",
-          Arg.Set opt_print_ast,
-          " print the parsed AST" )
-      ])
+let handle_exception bt msg =
+  Printf.fprintf stderr "%s\n" msg;
+  Printf.printf "%s\n" bt;
+  exit 1
 
-let () =
-  Printexc.record_backtrace false;
-  Arg.parse options (fun s -> input_file := s :: !input_file) usage;
-  if List.length !input_file > 1 || List.length !input_file = 0
-  then (Printf.eprintf "Please specify a single input file.\n";
-        exit 1);
-  let spec_file = List.hd !input_file in
-  let spec = SpecParser.parse_spec spec_file in
-  if !opt_print_ast then
-    Parsing.AstPrinter.print_parsed_spec spec;
-  let init_envs, tenv, tspec = SpecTyper.type_check spec in
-  SpecTyper.assignment_check init_envs tenv tspec;
-  Printf.printf "%s: parsed and typed.\n" spec_file;
-  SpecIR.to_ir tenv tspec
+let to_ir tenv spec =
+  try
+    Anf_lower.lower tenv spec
+  with Anf.Error e ->
+    handle_exception (Printexc.get_backtrace ()) (Anf.error_msg e)

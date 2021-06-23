@@ -159,7 +159,8 @@ let print_fun f =
   print_aexp f.afun_body;
   pp_close_box !ppf ();
   pp_print_newline !ppf ();
-  pp_print_string !ppf "}"
+  pp_print_string !ppf "}";
+  pp_print_newline !ppf ()
 
 let rec print_clause (p, s) =
   pp_print_string !ppf "| ";

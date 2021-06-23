@@ -15,29 +15,18 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let opt_print_ast = ref false
-let input_file = ref []
+open Parsing
+open Ast
 
-let usage = Printf.sprintf
-              "Usage: %s <options> <file.ply> " (Sys.argv.(0))
-let options =
-  Arg.align ([
-        ( "-p",
-          Arg.Set opt_print_ast,
-          " print the parsed AST" )
-      ])
-
-let () =
-  Printexc.record_backtrace false;
-  Arg.parse options (fun s -> input_file := s :: !input_file) usage;
-  if List.length !input_file > 1 || List.length !input_file = 0
-  then (Printf.eprintf "Please specify a single input file.\n";
-        exit 1);
-  let spec_file = List.hd !input_file in
-  let spec = SpecParser.parse_spec spec_file in
-  if !opt_print_ast then
-    Parsing.AstPrinter.print_parsed_spec spec;
-  let init_envs, tenv, tspec = SpecTyper.type_check spec in
-  SpecTyper.assignment_check init_envs tenv tspec;
-  Printf.printf "%s: parsed and typed.\n" spec_file;
-  SpecIR.to_ir tenv tspec
+let lower tenv spec =
+  let _venv =
+    List.fold_left (fun venv d ->
+        match d with
+          | Decl_types _ | Decl_format _ ->
+              venv
+          | Decl_fun f ->
+              let nf, venv = Anf_exp.normalize_fun tenv venv f in
+              Anf_printer.print_fun nf;
+              venv
+      ) Anf.VEnv.empty spec.decls in
+  ()

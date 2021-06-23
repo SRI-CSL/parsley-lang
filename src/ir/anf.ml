@@ -165,3 +165,10 @@ type anf_error =
   | Unassignable_expression of Location.t
 
 exception Error of anf_error
+
+let msg m loc =
+  Printf.sprintf m (Location.str_of_loc loc)
+
+let error_msg = function
+  | Unassignable_expression l ->
+      msg "%s:\n The left side of this assignment is not assignable." l
