@@ -234,9 +234,14 @@ and normalize_exp_case (tenv: TypingEnvironment.environment)
              each pvar *)
           let letpats, venv =
             List.fold_left (fun (letpats, venv) (v, t, occ) ->
-                let avar, venv = VEnv.bind venv v in
-                let var = make_var avar t (Location.loc v) in
-                (var, occ) :: letpats, venv
+                (* No need to create a binding for the scrutinee,
+                   since it is already an ANF var. *)
+                if occ = root_occurrence
+                then letpats, venv
+                else let avar, venv = VEnv.bind venv v in
+                     let var = make_var avar t (Location.loc v) in
+                     (var, occ) :: letpats, venv
+
               ) ([], venv) pvs in
           (* Normalize the action expression in this augmented
              variable environment *)
@@ -271,18 +276,28 @@ and normalize_exp_case (tenv: TypingEnvironment.environment)
           let occ_typ, case_typ = match opt_typ with
               | None          -> assert false
               | Some (ot, ct) -> ot, ct in
-          (* Bind an ANF variable to the subterm being scrutinized *)
-          let v, venv = VEnv.gen venv in
-          let var  = make_var v occ_typ Location.ghost_loc in
-          let aexp =
-            {aexp     = AE_case (var, cases);
-             aexp_typ = case_typ;
-             aexp_loc = loc} in
-          (* Wrap the case in a letpat for the ANF variable *)
-          {aexp     = AE_letpat (var, (scrutinee, occ), aexp);
-           aexp_typ = aexp.aexp_typ;
-           aexp_loc = loc},
-          venv in
+          (* Bind an ANF variable to the subterm being scrutinized,
+             unless it is the root of a variable term *)
+          (match scrutinee.av with
+             | AV_var v when occ = root_occurrence ->
+                 let var =
+                   make_var v scrutinee.av_typ scrutinee.av_loc in
+                 {aexp     = AE_case (var, cases);
+                  aexp_typ = case_typ;
+                  aexp_loc = loc},
+                 venv
+             | _ ->
+                 let v, venv = VEnv.gen venv in
+                 let var  = make_var v occ_typ Location.ghost_loc in
+                 let aexp =
+                   {aexp     = AE_case (var, cases);
+                    aexp_typ = case_typ;
+                    aexp_loc = loc} in
+                 (* Wrap the case in a letpat for the ANF variable *)
+                 {aexp     = AE_letpat (var, (scrutinee, occ), aexp);
+                  aexp_typ = aexp.aexp_typ;
+                  aexp_loc = loc},
+                 venv) in
   (* construct the anf *)
   unfold venv dt
 
@@ -375,9 +390,13 @@ and normalize_stmt_case (tenv: TypingEnvironment.environment)
              each pvar *)
           let letpats, venv =
             List.fold_left (fun (letpats, venv) (v, t, occ) ->
-                let avar, venv = VEnv.bind venv v in
-                let var = make_var avar t (Location.loc v) in
-                (var, occ) :: letpats, venv
+                (* No need to create a binding for the
+                   scrutinee, since it is already an ANF var. *)
+                if occ = root_occurrence
+                then letpats, venv
+                else let avar, venv = VEnv.bind venv v in
+                     let var = make_var avar t (Location.loc v) in
+                     (var, occ) :: letpats, venv
               ) ([], venv) pvs in
           (* Normalize the action block in this augmented
              variable environment (note the order reversal) *)
@@ -419,14 +438,23 @@ and normalize_stmt_case (tenv: TypingEnvironment.environment)
           let occ_typ = match opt_typ with
               | None    -> assert false
               | Some ot -> ot in
-          (* Bind an ANF variable to the subterm being scrutinized *)
-          let v, venv = VEnv.gen venv in
-          let var  = make_var v occ_typ Location.ghost_loc in
-          let astmt =
-            {astmt     = AS_case (var, cases);
-             astmt_loc = loc} in
-          (* Wrap the case in a letpat for the ANF variable *)
-          {astmt     = AS_letpat (var, (scrutinee, occ), astmt);
-           astmt_loc = loc},
-          venv in
+          (* Bind an ANF variable to the subterm being scrutinized,
+             unless it is the root of a variable term *)
+          (match scrutinee.av with
+             | AV_var v when occ = root_occurrence ->
+                 let var =
+                   make_var v scrutinee.av_typ scrutinee.av_loc in
+                 {astmt     = AS_case (var, cases);
+                  astmt_loc = loc},
+                 venv
+             | _ ->
+                 let v, venv = VEnv.gen venv in
+                 let var  = make_var v occ_typ Location.ghost_loc in
+                 let astmt =
+                   {astmt     = AS_case (var, cases);
+                    astmt_loc = loc} in
+                 (* Wrap the case in a letpat for the ANF variable *)
+                 {astmt     = AS_letpat (var, (scrutinee, occ), astmt);
+                  astmt_loc = loc},
+                 venv) in
   unfold venv dt

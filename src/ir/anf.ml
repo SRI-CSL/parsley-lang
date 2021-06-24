@@ -71,6 +71,7 @@ and apat =
    the root.  An empty list indicates the entire value.  Constructor
    arguments are numbered starting from 1.*)
 type occurrence = int list
+let root_occurrence = []
 
 (* In the A-normal form, primitive operations are performed on
    `values' that are essentially names for evaluated subexpressions.
