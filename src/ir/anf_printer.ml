@@ -6,10 +6,14 @@ open Format
 let ppf = ref std_formatter
 
 let string_of_var (v, id) =
-  Printf.sprintf "%s%d" v id
+  if v <> "" && id = 1
+  then v
+  else Printf.sprintf "#%s%d" v id
 
 let string_of_occurrence occ =
-  String.concat "/" (List.map string_of_int occ)
+  if occ = []
+  then ""
+  else "@" ^ (String.concat "/" (List.map string_of_int occ))
 
 let rec print_av av =
   match av.av with
@@ -138,8 +142,8 @@ and print_aexp e =
         pp_print_string !ppf (string_of_var v.v);
         pp_print_string !ppf " = ";
         print_av av;
-        pp_print_string !ppf "@";
         pp_print_string !ppf (string_of_occurrence occ);
+        pp_print_string !ppf " in ";
         print_aexp e
 
 let print_fun f =
@@ -221,6 +225,5 @@ and print_stmt s =
         pp_print_string !ppf (string_of_var v.v);
         pp_print_string !ppf " = ";
         print_av av;
-        pp_print_string !ppf "@";
         pp_print_string !ppf (string_of_occurrence occ);
         print_stmt b
