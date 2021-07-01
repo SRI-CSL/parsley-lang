@@ -26,7 +26,7 @@ format {
   PDF_EOL := !"\n"! | !"\r"! | !"\r\n"! ;;
 
   // The 'Comment' non-terminal will have a byte vector type.
-  Comment := !"%"! (# [AsciiCharS \ "\n" ]* #) !"\n"!;;
+  Comment := !"%"! (# [AsciiCharS \ "\n" ]* PDF_EOL #);;
 
   // The 'Whitespace' non-terminal has a boolean inherited attribute
   // 'allow_empty', which is used within constraint expressions that
@@ -83,25 +83,33 @@ format {
   // The below syntax essentially implements a simple CFG for strings with
   // balanced parentheses, using recursion.
   LitString ls {ls: [byte] := []} :=
-      !"("!
-        prefix=(# [AsciiCharS \ "("]* #)
-        n=LitString
-        suffix=(# [AsciiCharS \ "("]* #)
-      !")"!
-       { ls.ls := "(" @ prefix @ n.ls @ suffix @ ")" } ;
+    !"("!
+      prefix=(# LitStringToken* #)
+      n=LitStringSubsequence
+      suffix=(# LitStringToken* #)
+    !")"!
+    { ls.ls := "(" @ prefix @ n.lssubseq @ suffix @ ")" } 
+  ; !"("!
+      prefix=(# LitStringToken* #)
+      p=LitStringSubsequence
+      midfix=(# LitStringToken* #)
+      q=LitStringSubsequence
+      suffix=(# LitStringToken* #)
+    !")"!
+    { ls.ls := "(" @ prefix @ p.lssubseq @ midfix @ q.lssubseq @ suffix @ ")" }
+  ;;  
 
-      !"("!
-        prefix=(# [AsciiCharS \ "("]* #)
-        p=LitString
-        midfix=(# [AsciiCharS \ "("]* #)
-        q=LitString
-        suffix=(# [AsciiCharS \ "("]* #)
-      !")"!
-      { ls.ls := "(" @ prefix @ p.ls @ midfix @ q.ls @ suffix @ ")" } ;
+  LitStringSubsequence lssubseq {lssubseq: [byte] := []}:=
+    ls = LitString {lssubseq.lssubseq := ls.ls} ; $epsilon
+  ;;  
 
-      $epsilon                   // Parsley keyword
+  LitStringEscapeSequence lsesc :=
+    (# ["\n" | "\r" | "\t" | "\b" | "\f" | "\(" | "\)" | "\\"] | (["\"] DigitS^3) #)
+  ;;  
 
-    ;;
+  LitStringToken lstoken :=
+    (# LitStringEscapeSequence | [AsciiCharS \ "(" \ ")"] #)
+  ;;
 
   // A PDF String is one of the above two string objects.
   String s {s: [byte]} :=
@@ -114,24 +122,76 @@ format {
   // The _unsafe() version could be used if since we can be certain
   // that the string indeed contains a value convertible to an integer.
   Integer i { i: int } :=
-    n=(# DigitS+ #)             { i.i := Int.of_bytes_unsafe(n)  }
+    n = (# DigitS+ #) { i.i := Int.of_bytes_unsafe(n) }
   ;
-    !"-"! n=(# DigitS+ #) { i.i := -Int.of_bytes_unsafe(n) }
+    !"+"! n = (# DigitS+ #) { i.i := Int.of_bytes_unsafe(n) }
+  ;
+    !"-"! n = (# DigitS+ #) { i.i := -Int.of_bytes_unsafe(n) }
   ;;
 
   // TODO: we might need to have a user-defined type for PDF reals,
   // since they are not defined in terms of IEEE 754.
+
+  // VERY MESSY but I believe this is correct atm
+  // we can clean this up by having a sign followed by 4 cases for the forms of the double:
+  //   (+/-) a
+  //   (+/-) a.b
+  //   (+/-) a.
+  //   (+/-) .b
+  // I haven't yet done this, but the NumericSign non-terminal below should serve useful
+  // when we try to clean this up
   Real r { r: double } :=
-    n=(# DigitS+ #)
-    { r.r := Double.of_bytes_unsafe(n)  }
+
+
+    // reals of form (+/) n (integer signatures)
+
+
+    n = (# DigitS+ #) { r.r := Double.of_bytes_unsafe(n)  }
   ;
-    !"-"! n=(# DigitS+ #)
-    { r.r := Double.of_bytes_unsafe("-" @ n) }
+    !"+"! n = (# DigitS+ #) { r.r := Double.of_bytes_unsafe(n) }
   ;
-    n=(# DigitS+ #) !"."! f=(# DigitS+ #)
+    !"-"! n = (# DigitS+ #) { r.r := Double.of_bytes_unsafe("-" @ n) }
+  ; 
+
+    // reals of form: (+/-) n.f
+
+    n = (# DigitS+ #) !"."! f = (# DigitS+ #)
     { r.r := Double.of_bytes_unsafe(n @ "." @ f) }
   ;
-    !"-"!  n=(# DigitS+ #) !"."! f=(# DigitS+ #)
+    !"+"!  n = (# DigitS+ #) !"."! f = (# DigitS+ #)
+    { r.r := Double.of_bytes_unsafe(n @ "." @ f) }
+  ;
+    !"-"!  n = (# DigitS+ #) !"."! f = (# DigitS+ #)
     { r.r := Double.of_bytes_unsafe("-" @ n @ "." @ f) }
+  ;
 
+    // reals of form: (+/-) n.
+
+    n = (# DigitS+ #) !"."!
+    { r.r := Double.of_bytes_unsafe(n)}
+  ;
+    !"+"!  n = (# DigitS+ #) !"."!
+    { r.r := Double.of_bytes_unsafe(n) }
+  ;
+    !"-"!  n = (# DigitS+ #) !"."!
+    { r.r := Double.of_bytes_unsafe("-" @ n) }
+  ;
+    
+    // reals of form: (+/-) .f
+
+    !"."! f = (# DigitS+ #)
+    { r.r := Double.of_bytes_unsafe("." @ f) }
+  ;
+    !"+"!  !"."! f = (# DigitS+ #)
+    { r.r := Double.of_bytes_unsafe("." @ f) }
+  ;
+    !"-"!  !"."! f = (# DigitS+ #)
+    { r.r := Double.of_bytes_unsafe("-" @ "." @ f) }
+  ;;
+
+  // UNUSED ATM
+  NumericSign ns {ival: int} :=
+    !"+"! {ns.ival := 1}
+  ; !"-"! {ns.ival := -1}
+  ; $epsilon {ns.ival := 1}
 }
