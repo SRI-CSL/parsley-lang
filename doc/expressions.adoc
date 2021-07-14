@@ -242,7 +242,7 @@ specified, the operators below are binary and take two arguments.
 | \|\|
 | Boolean or
 
-| <=
+| \<=
 | Integer less-than-equal
 
 | >=
