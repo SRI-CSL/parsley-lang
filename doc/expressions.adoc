@@ -206,6 +206,7 @@ unit value `()`.  Literal values can also be constructed from data
 constructors of variant and record types, such as `my_list::Null()`
 and `{xcoord:1, ycoord:2}` above.  Bitvector literals are specified
 with a leading `0b`, e.g. `0b010` is a literal of type `bitvector<3>`.
+The `[]` literal represents the empty list.
 
 *Variables* are denoted by identifiers containing alphanumeric
 characters, `_` and `@`.  Variable names must begin with a lowercase
@@ -299,6 +300,18 @@ constructors of variant types or the tuple constructor.
    (case l of
    | my_list::Null()     -> 0
    | my_list::Cons(_, t) -> 1 + len(t)
+   )
+ }
+....
+
+The above example used a user-defined list `my_list`.  There is
+syntactic support for the `list` of the standard library:
+
+....
+ recfun len <'a> (l: ['a]) -> int = {
+   (case l of
+   | []     -> 0
+   | _ :: t -> 1 + len(t)
    )
  }
 ....

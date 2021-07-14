@@ -1,6 +1,6 @@
 toplevel: FORMAT LBRACE ATTR ID LPAREN ID RPAREN RBRACK USE
 ##
-## Ends in an error in state: 299.
+## Ends in an error in state: 303.
 ##
 ## format_decl -> option(attr_decl) . nt_defn [ SEMISEMI RBRACE ]
 ##
@@ -12,7 +12,7 @@ An attribute specification should immediately precede the non-terminal definitio
 
 toplevel: FORMAT LBRACE ATTR ID LPAREN UID COLON ID COMMA USE
 ##
-## Ends in an error in state: 296.
+## Ends in an error in state: 300.
 ##
 ## separated_nonempty_list(COMMA,attr_arg) -> attr_arg COMMA . separated_nonempty_list(COMMA,attr_arg) [ RPAREN ]
 ##
@@ -24,7 +24,7 @@ Unterminated attribute specification: a key is expected after the ','.
 
 toplevel: FORMAT LBRACE ATTR ID LPAREN UID COLON ID EQ ID USE
 ##
-## Ends in an error in state: 295.
+## Ends in an error in state: 299.
 ##
 ## separated_nonempty_list(COMMA,attr_arg) -> attr_arg . [ RPAREN ]
 ## separated_nonempty_list(COMMA,attr_arg) -> attr_arg . COMMA separated_nonempty_list(COMMA,attr_arg) [ RPAREN ]
@@ -37,7 +37,7 @@ Unterminated keys in attribute specification: perhaps you forgot a ')'?
 
 toplevel: FORMAT LBRACE ATTR ID LPAREN UID COLON ID EQ USE
 ##
-## Ends in an error in state: 293.
+## Ends in an error in state: 297.
 ##
 ## attr_arg -> ident EQ . ident [ RPAREN COMMA ]
 ##
@@ -49,7 +49,7 @@ Unterminated attribute key assignment: a key value is expected after a '='.
 
 toplevel: FORMAT LBRACE ATTR ID LPAREN UID COLON ID USE
 ##
-## Ends in an error in state: 292.
+## Ends in an error in state: 296.
 ##
 ## attr_arg -> ident . EQ ident [ RPAREN COMMA ]
 ## attr_arg -> ident . [ RPAREN COMMA ]
@@ -62,7 +62,7 @@ Unterminated keys in attribute specification: perhaps you forgot a ')'?
 
 toplevel: FORMAT LBRACE ATTR ID LPAREN UID COLON RPAREN USE
 ##
-## Ends in an error in state: 290.
+## Ends in an error in state: 294.
 ##
 ## attr_decl -> ATTR ident LPAREN def COLON loption(separated_nonempty_list(COMMA,attr_arg)) RPAREN . RBRACK [ UID ]
 ##
@@ -74,7 +74,7 @@ Unterminated keys in attribute specification (omit the colon (:) to specify no k
 
 toplevel: FORMAT LBRACE ATTR ID LPAREN UID COLON USE
 ##
-## Ends in an error in state: 287.
+## Ends in an error in state: 291.
 ##
 ## attr_decl -> ATTR ident LPAREN def COLON . loption(separated_nonempty_list(COMMA,attr_arg)) RPAREN RBRACK [ UID ]
 ##
@@ -86,7 +86,7 @@ Unterminated keys in attribute specification (omit the colon (:) to specify no k
 
 toplevel: FORMAT LBRACE ATTR ID LPAREN UID RPAREN USE
 ##
-## Ends in an error in state: 285.
+## Ends in an error in state: 289.
 ##
 ## attr_decl -> ATTR ident LPAREN def RPAREN . RBRACK [ UID ]
 ##
@@ -98,7 +98,7 @@ Unterminated attribute specification: perhaps you forgot a ']'?
 
 toplevel: FORMAT LBRACE ATTR ID LPAREN UID USE
 ##
-## Ends in an error in state: 284.
+## Ends in an error in state: 288.
 ##
 ## attr_decl -> ATTR ident LPAREN def . COLON loption(separated_nonempty_list(COMMA,attr_arg)) RPAREN RBRACK [ UID ]
 ## attr_decl -> ATTR ident LPAREN def . RPAREN RBRACK [ UID ]
@@ -111,7 +111,7 @@ Unterminated keys in attribute specification.
 
 toplevel: FORMAT LBRACE ATTR ID LPAREN USE
 ##
-## Ends in an error in state: 282.
+## Ends in an error in state: 286.
 ##
 ## attr_decl -> ATTR ident LPAREN . def COLON loption(separated_nonempty_list(COMMA,attr_arg)) RPAREN RBRACK [ UID ]
 ## attr_decl -> ATTR ident LPAREN . def RPAREN RBRACK [ UID ]
@@ -124,7 +124,7 @@ Unterminated attribute specification: perhaps you forgot a ']'?
 
 toplevel: FORMAT LBRACE ATTR ID USE
 ##
-## Ends in an error in state: 281.
+## Ends in an error in state: 285.
 ##
 ## attr_decl -> ATTR ident . LPAREN def COLON loption(separated_nonempty_list(COMMA,attr_arg)) RPAREN RBRACK [ UID ]
 ## attr_decl -> ATTR ident . LPAREN def RPAREN RBRACK [ UID ]
@@ -137,7 +137,7 @@ Unspecified primary key in attribute specification.
 
 toplevel: FORMAT LBRACE ATTR USE
 ##
-## Ends in an error in state: 280.
+## Ends in an error in state: 284.
 ##
 ## attr_decl -> ATTR . ident LPAREN def COLON loption(separated_nonempty_list(COMMA,attr_arg)) RPAREN RBRACK [ UID ]
 ## attr_decl -> ATTR . ident LPAREN def RPAREN RBRACK [ UID ]
@@ -150,7 +150,7 @@ An attribute name is expected in an attribute specification.
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_BUF LITERAL COMMA UID UID
 ##
-## Ends in an error in state: 439.
+## Ends in an error in state: 443.
 ##
 ## rule_elem -> rule_elem . BAR rule_elem [ STAR RBRACK QUESTION PLUS CARET BAR ]
 ## rule_elem -> rule_elem . STAR [ STAR RBRACK QUESTION PLUS CARET BAR ]
@@ -166,15 +166,15 @@ toplevel: FORMAT LBRACE UID COLONEQ AT_BUF LITERAL COMMA UID UID
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 314, spurious reduction of production option(nt_args) ->
-## In state 327, spurious reduction of production rule_elem -> UID option(nt_args)
+## In state 318, spurious reduction of production option(nt_args) ->
+## In state 331, spurious reduction of production rule_elem -> UID option(nt_args)
 ##
 
 A view-restricted parse can only be applied to a single rule element: perhaps you forgot a ']'?
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_BUF LITERAL COMMA USE
 ##
-## Ends in an error in state: 434.
+## Ends in an error in state: 438.
 ##
 ## rule_elem -> AT_BUF expr COMMA . rule_elem RBRACK [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -186,7 +186,7 @@ A view-restricted parse requires a rule element to follow the ',' after the posi
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_BUF LITERAL USE
 ##
-## Ends in an error in state: 433.
+## Ends in an error in state: 437.
 ##
 ## expr -> expr . DOT ident [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
@@ -221,7 +221,7 @@ A view-restricted parse requires a ',' to follow the position expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_BUF USE
 ##
-## Ends in an error in state: 432.
+## Ends in an error in state: 436.
 ##
 ## rule_elem -> AT_BUF . expr COMMA rule_elem RBRACK [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -233,7 +233,7 @@ A position expression was expected for the view-restricted parse.
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_MAP LITERAL COMMA UID UID
 ##
-## Ends in an error in state: 451.
+## Ends in an error in state: 455.
 ##
 ## rule_elem -> rule_elem . BAR rule_elem [ STAR RBRACK QUESTION PLUS CARET BAR ]
 ## rule_elem -> rule_elem . STAR [ STAR RBRACK QUESTION PLUS CARET BAR ]
@@ -249,15 +249,15 @@ toplevel: FORMAT LBRACE UID COLONEQ AT_MAP LITERAL COMMA UID UID
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 314, spurious reduction of production option(nt_args) ->
-## In state 327, spurious reduction of production rule_elem -> UID option(nt_args)
+## In state 318, spurious reduction of production option(nt_args) ->
+## In state 331, spurious reduction of production rule_elem -> UID option(nt_args)
 ##
 
 A view-restricted parse can only be applied to a single rule element: perhaps you forgot a ']'?
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_MAP LITERAL COMMA USE
 ##
-## Ends in an error in state: 431.
+## Ends in an error in state: 435.
 ##
 ## rule_elem -> AT_MAP expr COMMA . rule_elem RBRACK [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -269,7 +269,7 @@ A rule-element was expected after the ',' for the view-restricted parse.
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_MAP LITERAL USE
 ##
-## Ends in an error in state: 430.
+## Ends in an error in state: 434.
 ##
 ## expr -> expr . DOT ident [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
@@ -304,7 +304,7 @@ Ill-formed view-map restricted parse: perhaps you forgot a ',' after the view ex
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_MAP USE
 ##
-## Ends in an error in state: 429.
+## Ends in an error in state: 433.
 ##
 ## rule_elem -> AT_MAP . expr COMMA rule_elem RBRACK [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -316,7 +316,7 @@ A position expression was expected for the view-restricted parse.
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_POS LITERAL COMMA UID UID
 ##
-## Ends in an error in state: 453.
+## Ends in an error in state: 457.
 ##
 ## rule_elem -> rule_elem . BAR rule_elem [ STAR RPAREN QUESTION PLUS CARET BAR ]
 ## rule_elem -> rule_elem . STAR [ STAR RPAREN QUESTION PLUS CARET BAR ]
@@ -332,15 +332,15 @@ toplevel: FORMAT LBRACE UID COLONEQ AT_POS LITERAL COMMA UID UID
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 314, spurious reduction of production option(nt_args) ->
-## In state 327, spurious reduction of production rule_elem -> UID option(nt_args)
+## In state 318, spurious reduction of production option(nt_args) ->
+## In state 331, spurious reduction of production rule_elem -> UID option(nt_args)
 ##
 
 Ill-formed positioned parse: perhaps you forgot a ']' after the parsing rule?
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_POS LITERAL COMMA USE
 ##
-## Ends in an error in state: 428.
+## Ends in an error in state: 432.
 ##
 ## rule_elem -> AT_POS expr COMMA . rule_elem RPAREN [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -352,7 +352,7 @@ A rule element was expected after the ',' in the positioned parse.
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_POS LITERAL USE
 ##
-## Ends in an error in state: 427.
+## Ends in an error in state: 431.
 ##
 ## expr -> expr . DOT ident [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
@@ -387,7 +387,7 @@ Ill-formed positioned parse: perhaps you forgot a ',' after the position express
 
 toplevel: FORMAT LBRACE UID COLONEQ AT_POS USE
 ##
-## Ends in an error in state: 426.
+## Ends in an error in state: 430.
 ##
 ## rule_elem -> AT_POS . expr COMMA rule_elem RPAREN [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -399,7 +399,7 @@ A position expression was expected for a positioned parse.
 
 toplevel: FORMAT LBRACE UID COLONEQ EXCLAIM LITERAL BAR LITERAL USE
 ##
-## Ends in an error in state: 339.
+## Ends in an error in state: 343.
 ##
 ## separated_nonempty_list(BAR,LITERAL) -> LITERAL . [ UID RPAREN RBRACK LPAREN LITERAL EXCLAIM BACKSLASH ]
 ## separated_nonempty_list(BAR,LITERAL) -> LITERAL . BAR separated_nonempty_list(BAR,LITERAL) [ UID RPAREN RBRACK LPAREN LITERAL EXCLAIM BACKSLASH ]
@@ -412,7 +412,7 @@ Invalid separator in literal set: perhaps you forgot a '|'?
 
 toplevel: FORMAT LBRACE UID COLONEQ EXCLAIM LITERAL BAR USE
 ##
-## Ends in an error in state: 338.
+## Ends in an error in state: 342.
 ##
 ## separated_nonempty_list(BAR,LITERAL) -> LITERAL BAR . separated_nonempty_list(BAR,LITERAL) [ UID RPAREN RBRACK LPAREN LITERAL EXCLAIM BACKSLASH ]
 ##
@@ -424,7 +424,7 @@ Ill-formed literal in literal set.
 
 toplevel: FORMAT LBRACE UID COLONEQ EXCLAIM LITERAL DOTDOT USE
 ##
-## Ends in an error in state: 336.
+## Ends in an error in state: 340.
 ##
 ## literal_set -> LITERAL DOTDOT . LITERAL [ UID RPAREN RBRACK LPAREN LITERAL EXCLAIM BACKSLASH ]
 ##
@@ -436,7 +436,7 @@ Ill-formed literal used to terminate literal range.
 
 toplevel: FORMAT LBRACE UID COLONEQ EXCLAIM LITERAL USE
 ##
-## Ends in an error in state: 335.
+## Ends in an error in state: 339.
 ##
 ## literal_set -> LITERAL . DOTDOT LITERAL [ UID RPAREN RBRACK LPAREN LITERAL EXCLAIM BACKSLASH ]
 ## separated_nonempty_list(BAR,LITERAL) -> LITERAL . [ UID RPAREN RBRACK LPAREN LITERAL EXCLAIM BACKSLASH ]
@@ -450,7 +450,7 @@ Ill-formed literal in literal set: perhaps you forgot a separator like '..', '|'
 
 toplevel: FORMAT LBRACE UID COLONEQ EXCLAIM LPAREN UID USE
 ##
-## Ends in an error in state: 342.
+## Ends in an error in state: 346.
 ##
 ## literal_set -> literal_set . BACKSLASH literal_set [ RPAREN BACKSLASH ]
 ## literal_set -> LPAREN literal_set . RPAREN [ UID RPAREN RBRACK LPAREN LITERAL EXCLAIM BACKSLASH ]
@@ -463,7 +463,7 @@ Ill-formed literal in literal set: perhaps you forgot a separator like '..', '|'
 
 toplevel: FORMAT LBRACE UID COLONEQ EXCLAIM LPAREN USE
 ##
-## Ends in an error in state: 334.
+## Ends in an error in state: 338.
 ##
 ## literal_set -> LPAREN . literal_set RPAREN [ UID RPAREN RBRACK LPAREN LITERAL EXCLAIM BACKSLASH ]
 ##
@@ -475,7 +475,7 @@ Ill-formed literal in literal set.
 
 toplevel: FORMAT LBRACE UID COLONEQ EXCLAIM UID BACKSLASH USE
 ##
-## Ends in an error in state: 344.
+## Ends in an error in state: 348.
 ##
 ## literal_set -> literal_set BACKSLASH . literal_set [ UID RPAREN RBRACK LPAREN LITERAL EXCLAIM BACKSLASH ]
 ##
@@ -487,7 +487,7 @@ Ill-formed literal in literal set.
 
 toplevel: FORMAT LBRACE UID COLONEQ EXCLAIM UID USE
 ##
-## Ends in an error in state: 421.
+## Ends in an error in state: 425.
 ##
 ## list(literal_set) -> literal_set . list(literal_set) [ EXCLAIM ]
 ## literal_set -> literal_set . BACKSLASH literal_set [ UID LPAREN LITERAL EXCLAIM BACKSLASH ]
@@ -500,7 +500,7 @@ Ill-formed literal in literal set: perhaps you forgot a separator like '..', '|'
 
 toplevel: FORMAT LBRACE UID COLONEQ EXCLAIM USE
 ##
-## Ends in an error in state: 420.
+## Ends in an error in state: 424.
 ##
 ## rule_elem -> EXCLAIM . list(literal_set) EXCLAIM [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -512,7 +512,7 @@ Ill-formed literal in literal set.
 
 toplevel: FORMAT LBRACE UID COLONEQ ID EQ EPSILON USE
 ##
-## Ends in an error in state: 450.
+## Ends in an error in state: 454.
 ##
 ## rule_elem -> rule_elem . BAR rule_elem [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ## rule_elem -> rule_elem . STAR [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
@@ -529,7 +529,7 @@ Ill-formed rule element.
 
 toplevel: FORMAT LBRACE UID COLONEQ ID EQ USE
 ##
-## Ends in an error in state: 449.
+## Ends in an error in state: 453.
 ##
 ## rule_elem -> ident EQ . rule_elem [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -541,7 +541,7 @@ Ill-formed rule element.
 
 toplevel: FORMAT LBRACE UID COLONEQ ID USE
 ##
-## Ends in an error in state: 448.
+## Ends in an error in state: 452.
 ##
 ## rule_elem -> ident . EQ rule_elem [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -553,7 +553,7 @@ Ill-formed rule element.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE ID COLONEQ ID RPAREN
 ##
-## Ends in an error in state: 390.
+## Ends in an error in state: 394.
 ##
 ## separated_nonempty_list(SEMICOLON,stmt) -> stmt . [ SEMISEMI RBRACE ]
 ## separated_nonempty_list(SEMICOLON,stmt) -> stmt . SEMICOLON separated_nonempty_list(SEMICOLON,stmt) [ SEMISEMI RBRACE ]
@@ -565,15 +565,15 @@ toplevel: FORMAT LBRACE UID COLONEQ LBRACE ID COLONEQ ID RPAREN
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 146, spurious reduction of production expr -> ident
-## In state 401, spurious reduction of production stmt -> assign_lhs_expr COLONEQ expr
+## In state 150, spurious reduction of production expr -> ident
+## In state 405, spurious reduction of production stmt -> assign_lhs_expr COLONEQ expr
 ##
 
 Ill-formed rhs expression in action statement: perhaps you forgot a ';' or ';;' or a terminating '}'?
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE ID COLONEQ ID SEMICOLON USE
 ##
-## Ends in an error in state: 391.
+## Ends in an error in state: 395.
 ##
 ## separated_nonempty_list(SEMICOLON,stmt) -> stmt SEMICOLON . separated_nonempty_list(SEMICOLON,stmt) [ SEMISEMI RBRACE ]
 ##
@@ -585,7 +585,7 @@ Ill-formed lhs expression in action statement.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE ID COLONEQ LITERAL USE
 ##
-## Ends in an error in state: 401.
+## Ends in an error in state: 405.
 ##
 ## expr -> expr . DOT ident [ STAR SEMISEMI SEMICOLON RPAREN RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B BAR AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR SEMISEMI SEMICOLON RPAREN RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B BAR AT AND_B ]
@@ -620,7 +620,7 @@ Ill-formed rhs expression in action statement: perhaps you forgot a ';' or ';;' 
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE ID COLONEQ USE
 ##
-## Ends in an error in state: 400.
+## Ends in an error in state: 404.
 ##
 ## stmt -> assign_lhs_expr COLONEQ . expr [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ##
@@ -632,7 +632,7 @@ Ill-formed rhs expression in action statement.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE ID DOT USE
 ##
-## Ends in an error in state: 398.
+## Ends in an error in state: 402.
 ##
 ## assign_lhs_expr -> assign_lhs_expr DOT . ident [ LBRACK DOT COLONEQ ]
 ##
@@ -644,7 +644,7 @@ Ill-formed record field or attribute in lhs expression in action statement.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE ID LBRACK LITERAL USE
 ##
-## Ends in an error in state: 396.
+## Ends in an error in state: 400.
 ##
 ## assign_lhs_expr -> assign_lhs_expr LBRACK expr . RBRACK [ LBRACK DOT COLONEQ ]
 ## expr -> expr . DOT ident [ STAR RBRACK PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -679,7 +679,7 @@ Ill-formed index expression in lhs expression in action statement.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE ID LBRACK USE
 ##
-## Ends in an error in state: 395.
+## Ends in an error in state: 399.
 ##
 ## assign_lhs_expr -> assign_lhs_expr LBRACK . expr RBRACK [ LBRACK DOT COLONEQ ]
 ##
@@ -691,7 +691,7 @@ Ill-formed lhs expression in action statement: expected an index expression afte
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE ID USE
 ##
-## Ends in an error in state: 394.
+## Ends in an error in state: 398.
 ##
 ## assign_lhs_expr -> assign_lhs_expr . DOT ident [ LBRACK DOT COLONEQ ]
 ## assign_lhs_expr -> assign_lhs_expr . LBRACK expr RBRACK [ LBRACK DOT COLONEQ ]
@@ -705,7 +705,7 @@ Ill-formed lhs expression in action statement: perhaps you forgot a '.', '[' or 
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LET UNDERSCORE EQ LITERAL IN LBRACE ID COLONEQ ID SEMISEMI
 ##
-## Ends in an error in state: 403.
+## Ends in an error in state: 407.
 ##
 ## stmt -> LET pattern EQ expr IN LBRACE loption(separated_nonempty_list(SEMICOLON,stmt)) . RBRACE [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ##
@@ -716,17 +716,17 @@ toplevel: FORMAT LBRACE UID COLONEQ LBRACE LET UNDERSCORE EQ LITERAL IN LBRACE I
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 146, spurious reduction of production expr -> ident
-## In state 401, spurious reduction of production stmt -> assign_lhs_expr COLONEQ expr
-## In state 390, spurious reduction of production separated_nonempty_list(SEMICOLON,stmt) -> stmt
-## In state 402, spurious reduction of production loption(separated_nonempty_list(SEMICOLON,stmt)) -> separated_nonempty_list(SEMICOLON,stmt)
+## In state 150, spurious reduction of production expr -> ident
+## In state 405, spurious reduction of production stmt -> assign_lhs_expr COLONEQ expr
+## In state 394, spurious reduction of production separated_nonempty_list(SEMICOLON,stmt) -> stmt
+## In state 406, spurious reduction of production loption(separated_nonempty_list(SEMICOLON,stmt)) -> separated_nonempty_list(SEMICOLON,stmt)
 ##
 
 Unterminated record expression: perhaps you forgot a '}'?
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LET UNDERSCORE EQ LITERAL IN LBRACE USE
 ##
-## Ends in an error in state: 389.
+## Ends in an error in state: 393.
 ##
 ## stmt -> LET pattern EQ expr IN LBRACE . loption(separated_nonempty_list(SEMICOLON,stmt)) RBRACE [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ##
@@ -738,7 +738,7 @@ Ill-formed statement: expected a statement in statement block.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LET UNDERSCORE EQ LITERAL IN USE
 ##
-## Ends in an error in state: 388.
+## Ends in an error in state: 392.
 ##
 ## stmt -> LET pattern EQ expr IN . stmt [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ## stmt -> LET pattern EQ expr IN . LBRACE loption(separated_nonempty_list(SEMICOLON,stmt)) RBRACE [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
@@ -751,7 +751,7 @@ Ill-formed body for 'let' statement: expected a statement or a statement block.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LET UNDERSCORE EQ LITERAL USE
 ##
-## Ends in an error in state: 387.
+## Ends in an error in state: 391.
 ##
 ## expr -> expr . DOT ident [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND IN GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND IN GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -787,7 +787,7 @@ Ill-formed let statement: error in either the rhs of the binding, or there is a 
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LET UNDERSCORE EQ USE
 ##
-## Ends in an error in state: 386.
+## Ends in an error in state: 390.
 ##
 ## stmt -> LET pattern EQ . expr IN stmt [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ## stmt -> LET pattern EQ . expr IN LBRACE loption(separated_nonempty_list(SEMICOLON,stmt)) RBRACE [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
@@ -800,8 +800,9 @@ Ill-formed rhs of the binding in the let statement.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LET UNDERSCORE USE
 ##
-## Ends in an error in state: 385.
+## Ends in an error in state: 389.
 ##
+## pattern -> pattern . COLONCOLON pattern [ EQ COLONCOLON ]
 ## stmt -> LET pattern . EQ expr IN stmt [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ## stmt -> LET pattern . EQ expr IN LBRACE loption(separated_nonempty_list(SEMICOLON,stmt)) RBRACE [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ##
@@ -813,7 +814,7 @@ A let binding pattern is followed by '='.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LET USE
 ##
-## Ends in an error in state: 384.
+## Ends in an error in state: 388.
 ##
 ## stmt -> LET . pattern EQ expr IN stmt [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ## stmt -> LET . pattern EQ expr IN LBRACE loption(separated_nonempty_list(SEMICOLON,stmt)) RBRACE [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
@@ -826,7 +827,7 @@ Ill-formed let binding pattern.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE LITERAL OF BAR USE
 ##
-## Ends in an error in state: 380.
+## Ends in an error in state: 384.
 ##
 ## stmt -> LPAREN CASE expr OF option(BAR) . loption(separated_nonempty_list(BAR,branchstmt)) RPAREN [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ##
@@ -838,7 +839,7 @@ Ill-formed branch pattern in case statement.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE LITERAL OF UNDERSCORE ARROW ID COLONEQ ID BAR USE
 ##
-## Ends in an error in state: 413.
+## Ends in an error in state: 417.
 ##
 ## separated_nonempty_list(BAR,branchstmt) -> branchstmt BAR . separated_nonempty_list(BAR,branchstmt) [ RPAREN ]
 ##
@@ -850,7 +851,7 @@ Ill-formed branch pattern in case statement.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE LITERAL OF UNDERSCORE ARROW ID COLONEQ ID SEMISEMI
 ##
-## Ends in an error in state: 412.
+## Ends in an error in state: 416.
 ##
 ## separated_nonempty_list(BAR,branchstmt) -> branchstmt . [ RPAREN ]
 ## separated_nonempty_list(BAR,branchstmt) -> branchstmt . BAR separated_nonempty_list(BAR,branchstmt) [ RPAREN ]
@@ -862,16 +863,16 @@ toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE LITERAL OF UNDERSCORE ARR
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 146, spurious reduction of production expr -> ident
-## In state 401, spurious reduction of production stmt -> assign_lhs_expr COLONEQ expr
-## In state 409, spurious reduction of production branchstmt -> pattern ARROW stmt
+## In state 150, spurious reduction of production expr -> ident
+## In state 405, spurious reduction of production stmt -> assign_lhs_expr COLONEQ expr
+## In state 413, spurious reduction of production branchstmt -> pattern ARROW stmt
 ##
 
 Unterminated 'case' expression: perhaps you forgot a ')' terminator?
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE LITERAL OF UNDERSCORE ARROW LBRACE ID COLONEQ ID SEMISEMI
 ##
-## Ends in an error in state: 407.
+## Ends in an error in state: 411.
 ##
 ## branchstmt -> pattern ARROW LBRACE separated_nonempty_list(SEMICOLON,stmt) . RBRACE [ RPAREN BAR ]
 ##
@@ -882,16 +883,16 @@ toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE LITERAL OF UNDERSCORE ARR
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 146, spurious reduction of production expr -> ident
-## In state 401, spurious reduction of production stmt -> assign_lhs_expr COLONEQ expr
-## In state 390, spurious reduction of production separated_nonempty_list(SEMICOLON,stmt) -> stmt
+## In state 150, spurious reduction of production expr -> ident
+## In state 405, spurious reduction of production stmt -> assign_lhs_expr COLONEQ expr
+## In state 394, spurious reduction of production separated_nonempty_list(SEMICOLON,stmt) -> stmt
 ##
 
 Unterminated branch statement block in case statement: perhaps you forgot a terminating '}'?
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE LITERAL OF UNDERSCORE ARROW LBRACE USE
 ##
-## Ends in an error in state: 406.
+## Ends in an error in state: 410.
 ##
 ## branchstmt -> pattern ARROW LBRACE . separated_nonempty_list(SEMICOLON,stmt) RBRACE [ RPAREN BAR ]
 ##
@@ -903,7 +904,7 @@ Ill-formed branch statement block: expected a statement after the '{'.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE LITERAL OF UNDERSCORE ARROW USE
 ##
-## Ends in an error in state: 383.
+## Ends in an error in state: 387.
 ##
 ## branchstmt -> pattern ARROW . stmt [ RPAREN BAR ]
 ## branchstmt -> pattern ARROW . LBRACE separated_nonempty_list(SEMICOLON,stmt) RBRACE [ RPAREN BAR ]
@@ -916,10 +917,11 @@ Ill-formed branch in case statement: expected a statement or statement block aft
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE LITERAL OF UNDERSCORE USE
 ##
-## Ends in an error in state: 382.
+## Ends in an error in state: 386.
 ##
 ## branchstmt -> pattern . ARROW stmt [ RPAREN BAR ]
 ## branchstmt -> pattern . ARROW LBRACE separated_nonempty_list(SEMICOLON,stmt) RBRACE [ RPAREN BAR ]
+## pattern -> pattern . COLONCOLON pattern [ COLONCOLON ARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## pattern
@@ -929,7 +931,7 @@ Ill-formed branch in case statement: perhaps you forgot a '->'?
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE LITERAL OF USE
 ##
-## Ends in an error in state: 379.
+## Ends in an error in state: 383.
 ##
 ## stmt -> LPAREN CASE expr OF . option(BAR) loption(separated_nonempty_list(BAR,branchstmt)) RPAREN [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ##
@@ -941,7 +943,7 @@ Ill-formed pattern in branch of case statement.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE LITERAL USE
 ##
-## Ends in an error in state: 378.
+## Ends in an error in state: 382.
 ##
 ## expr -> expr . DOT ident [ STAR PLUS_S PLUS OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR PLUS_S PLUS OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -976,7 +978,7 @@ Ill-formed scrutinee expression in case statement: perhaps you forgot an 'of' af
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN CASE USE
 ##
-## Ends in an error in state: 377.
+## Ends in an error in state: 381.
 ##
 ## stmt -> LPAREN CASE . expr OF option(BAR) loption(separated_nonempty_list(BAR,branchstmt)) RPAREN [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ##
@@ -988,7 +990,7 @@ Ill-formed scrutinee expression in case statement.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE LPAREN USE
 ##
-## Ends in an error in state: 376.
+## Ends in an error in state: 380.
 ##
 ## stmt -> LPAREN . CASE expr OF option(BAR) loption(separated_nonempty_list(BAR,branchstmt)) RPAREN [ SEMISEMI SEMICOLON RPAREN RBRACE BAR ]
 ##
@@ -1000,7 +1002,7 @@ Ill-formed statement: expected a 'case' to follow the '('.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE SEMISEMI LITERAL USE
 ##
-## Ends in an error in state: 417.
+## Ends in an error in state: 421.
 ##
 ## action -> loption(separated_nonempty_list(SEMICOLON,stmt)) SEMISEMI expr . [ RBRACE ]
 ## expr -> expr . DOT ident [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -1035,7 +1037,7 @@ Ill-formed return expression in action: perhaps you forgot a '}'?
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE SEMISEMI USE
 ##
-## Ends in an error in state: 416.
+## Ends in an error in state: 420.
 ##
 ## action -> loption(separated_nonempty_list(SEMICOLON,stmt)) SEMISEMI . expr [ RBRACE ]
 ##
@@ -1047,7 +1049,7 @@ Ill-formed return expression in action.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACE USE
 ##
-## Ends in an error in state: 375.
+## Ends in an error in state: 379.
 ##
 ## rule_elem -> LBRACE . action RBRACE [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -1059,7 +1061,7 @@ Ill-formed statement in action.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK CONSTR LPAREN USE
 ##
-## Ends in an error in state: 141.
+## Ends in an error in state: 145.
 ##
 ## expr -> CONSTR LPAREN . loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1071,7 +1073,7 @@ Ill-formed argument expression for constructor.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK CONSTR USE
 ##
-## Ends in an error in state: 140.
+## Ends in an error in state: 144.
 ##
 ## expr -> CONSTR . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1083,7 +1085,7 @@ Ill-formed arguments to constructor: did you forget a '(' before the arguments, 
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK EXCLAIM LITERAL USE
 ##
-## Ends in an error in state: 205.
+## Ends in an error in state: 209.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -1118,7 +1120,7 @@ Ill-formed argument expression for the '!' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK EXCLAIM USE
 ##
-## Ends in an error in state: 139.
+## Ends in an error in state: 143.
 ##
 ## expr -> EXCLAIM . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1130,7 +1132,7 @@ Ill-formed expression: expected an argument for the '!' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LBRACE ID COLON ID COMMA USE
 ##
-## Ends in an error in state: 134.
+## Ends in an error in state: 138.
 ##
 ## separated_nonempty_list(COMMA,rec_exp_field) -> rec_exp_field COMMA . separated_nonempty_list(COMMA,rec_exp_field) [ RBRACE ]
 ##
@@ -1142,7 +1144,7 @@ Ill-formed record field: perhaps you forgot a '}' to terminate the record?
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LBRACE ID COLON LITERAL USE
 ##
-## Ends in an error in state: 206.
+## Ends in an error in state: 210.
 ##
 ## expr -> expr . DOT ident [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
@@ -1177,7 +1179,7 @@ Ill-formed record field: perhaps you forgot a '}' to terminate the record?
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LBRACE ID COLON USE
 ##
-## Ends in an error in state: 137.
+## Ends in an error in state: 141.
 ##
 ## rec_exp_field -> ident COLON . expr [ RBRACE COMMA ]
 ##
@@ -1189,7 +1191,7 @@ Ill-formed value expression in record field: expected an expression after the ':
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LBRACE ID USE
 ##
-## Ends in an error in state: 136.
+## Ends in an error in state: 140.
 ##
 ## rec_exp_field -> ident . COLON expr [ RBRACE COMMA ]
 ##
@@ -1201,7 +1203,7 @@ Ill-formed record field expression: perhaps you forgot a ':' after the field nam
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LBRACE USE
 ##
-## Ends in an error in state: 129.
+## Ends in an error in state: 133.
 ##
 ## expr -> LBRACE . rec_exp_fields RBRACE [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1213,7 +1215,7 @@ Ill-formed record field.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LBRACK LITERAL SEMICOLON USE
 ##
-## Ends in an error in state: 209.
+## Ends in an error in state: 213.
 ##
 ## listelems -> expr SEMICOLON . listelems [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1225,7 +1227,7 @@ Ill-formed expression for list element.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LBRACK LITERAL USE
 ##
-## Ends in an error in state: 208.
+## Ends in an error in state: 212.
 ##
 ## expr -> expr . DOT ident [ STAR SEMICOLON RBRACK PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR SEMICOLON RBRACK PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -1261,7 +1263,7 @@ Ill-formed expression for list element.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LBRACK USE
 ##
-## Ends in an error in state: 127.
+## Ends in an error in state: 131.
 ##
 ## expr -> LBRACK . listelems [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1273,9 +1275,9 @@ Ill-formed list expression: expected an expression for a list element.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET CONSTR USE
 ##
-## Ends in an error in state: 114.
+## Ends in an error in state: 115.
 ##
-## pattern -> CONSTR . option(pattern_args) [ RPAREN EQ COMMA ARROW ]
+## pattern -> CONSTR . option(pattern_args) [ RPAREN EQ COMMA COLONCOLON ARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## CONSTR
@@ -1285,7 +1287,7 @@ Ill-formed constructor pattern argument.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET LPAREN UNDERSCORE COMMA USE
 ##
-## Ends in an error in state: 120.
+## Ends in an error in state: 121.
 ##
 ## separated_nonempty_list(COMMA,pattern) -> pattern COMMA . separated_nonempty_list(COMMA,pattern) [ RPAREN ]
 ##
@@ -1297,8 +1299,9 @@ Ill-formed pattern argument in tuple pattern.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET LPAREN UNDERSCORE USE
 ##
-## Ends in an error in state: 119.
+## Ends in an error in state: 120.
 ##
+## pattern -> pattern . COLONCOLON pattern [ RPAREN COMMA COLONCOLON ]
 ## separated_nonempty_list(COMMA,pattern) -> pattern . [ RPAREN ]
 ## separated_nonempty_list(COMMA,pattern) -> pattern . COMMA separated_nonempty_list(COMMA,pattern) [ RPAREN ]
 ##
@@ -1312,7 +1315,7 @@ toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET LPAREN USE
 ##
 ## Ends in an error in state: 111.
 ##
-## pattern_args -> LPAREN . loption(separated_nonempty_list(COMMA,pattern)) RPAREN [ RPAREN EQ COMMA ARROW ]
+## pattern_args -> LPAREN . loption(separated_nonempty_list(COMMA,pattern)) RPAREN [ RPAREN EQ COMMA COLONCOLON ARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## LPAREN
@@ -1322,7 +1325,7 @@ Ill-formed tuple pattern: expected a pattern argument.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET UNDERSCORE EQ LITERAL IN LITERAL USE
 ##
-## Ends in an error in state: 214.
+## Ends in an error in state: 218.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -1357,7 +1360,7 @@ Ill-formed expression body in let expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET UNDERSCORE EQ LITERAL IN USE
 ##
-## Ends in an error in state: 213.
+## Ends in an error in state: 217.
 ##
 ## expr -> LET pattern EQ expr IN . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1369,7 +1372,7 @@ Ill-formed expression body in let expression: expected an expression for the bod
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET UNDERSCORE EQ LITERAL USE
 ##
-## Ends in an error in state: 212.
+## Ends in an error in state: 216.
 ##
 ## expr -> expr . DOT ident [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND IN GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND IN GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -1404,7 +1407,7 @@ Ill-formed let expression: error in either the rhs of the binding, or there is a
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET UNDERSCORE EQ USE
 ##
-## Ends in an error in state: 126.
+## Ends in an error in state: 129.
 ##
 ## expr -> LET pattern EQ . expr IN expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1416,9 +1419,10 @@ Ill-formed rhs of the binding in the let expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET UNDERSCORE USE
 ##
-## Ends in an error in state: 125.
+## Ends in an error in state: 128.
 ##
 ## expr -> LET pattern . EQ expr IN expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
+## pattern -> pattern . COLONCOLON pattern [ EQ COLONCOLON ]
 ##
 ## The known suffix of the stack is as follows:
 ## LET pattern
@@ -1440,7 +1444,7 @@ Ill-formed let binding pattern.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL AT LITERAL USE
 ##
-## Ends in an error in state: 185.
+## Ends in an error in state: 189.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -1475,7 +1479,7 @@ Ill-formed expression for the second argument of the '@' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL AT USE
 ##
-## Ends in an error in state: 184.
+## Ends in an error in state: 188.
 ##
 ## expr -> expr AT . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1487,7 +1491,7 @@ Ill-formed expression for the first argument of the '@' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL COLONCOLON LITERAL USE
 ##
-## Ends in an error in state: 183.
+## Ends in an error in state: 187.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -1522,7 +1526,7 @@ Ill-formed expression for the second argument of the '::' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL COLONCOLON USE
 ##
-## Ends in an error in state: 182.
+## Ends in an error in state: 186.
 ##
 ## expr -> expr COLONCOLON . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1534,7 +1538,7 @@ Ill-formed expression for the first argument of the '::' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL CONSTR_MATCH USE
 ##
-## Ends in an error in state: 198.
+## Ends in an error in state: 202.
 ##
 ## expr -> expr CONSTR_MATCH . CONSTR [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1546,7 +1550,7 @@ Ill-formed expression for the second argument of the '~~' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL DIV LITERAL USE
 ##
-## Ends in an error in state: 173.
+## Ends in an error in state: 177.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -1581,7 +1585,7 @@ Ill-formed denominator argument for the '/' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL DIV USE
 ##
-## Ends in an error in state: 172.
+## Ends in an error in state: 176.
 ##
 ## expr -> expr DIV . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1593,7 +1597,7 @@ Ill-formed denominator argument for the '/' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL DOT USE
 ##
-## Ends in an error in state: 170.
+## Ends in an error in state: 174.
 ##
 ## expr -> expr DOT . ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1605,7 +1609,7 @@ Ill-formed record field or attribute in expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL EQ LITERAL USE
 ##
-## Ends in an error in state: 197.
+## Ends in an error in state: 201.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -1640,7 +1644,7 @@ Ill-formed expression for the second argument of the '=' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL EQ USE
 ##
-## Ends in an error in state: 196.
+## Ends in an error in state: 200.
 ##
 ## expr -> expr EQ . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1652,7 +1656,7 @@ Ill-formed expression for the second argument of the '=' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL GT LITERAL USE
 ##
-## Ends in an error in state: 195.
+## Ends in an error in state: 199.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -1687,7 +1691,7 @@ Ill-formed expression for the second argument of the '>' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL GT USE
 ##
-## Ends in an error in state: 194.
+## Ends in an error in state: 198.
 ##
 ## expr -> expr GT . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1699,7 +1703,7 @@ Ill-formed expression for the second argument of the '>' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL GTEQ LITERAL USE
 ##
-## Ends in an error in state: 193.
+## Ends in an error in state: 197.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -1734,7 +1738,7 @@ Ill-formed expression for the second argument of the '>=' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL GTEQ USE
 ##
-## Ends in an error in state: 192.
+## Ends in an error in state: 196.
 ##
 ## expr -> expr GTEQ . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1746,7 +1750,7 @@ Ill-formed expression for the second argument of the '>=' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LAND LITERAL USE
 ##
-## Ends in an error in state: 201.
+## Ends in an error in state: 205.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -1781,7 +1785,7 @@ Ill-formed expression for the second argument of the '&&' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LAND USE
 ##
-## Ends in an error in state: 200.
+## Ends in an error in state: 204.
 ##
 ## expr -> expr LAND . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1793,7 +1797,7 @@ Ill-formed expression for the second argument of the '&&' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LBRACK LITERAL USE
 ##
-## Ends in an error in state: 166.
+## Ends in an error in state: 170.
 ##
 ## expr -> expr . DOT ident [ STAR RBRACK PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR RBRACK PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -1828,7 +1832,7 @@ Ill-formed index expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LBRACK USE
 ##
-## Ends in an error in state: 165.
+## Ends in an error in state: 169.
 ##
 ## expr -> expr LBRACK . expr RBRACK [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1840,7 +1844,7 @@ Ill-formed index expression: expected an expression after the '['.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LOR LITERAL USE
 ##
-## Ends in an error in state: 191.
+## Ends in an error in state: 195.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -1875,7 +1879,7 @@ Ill-formed expression for the second argument of the '||' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LOR USE
 ##
-## Ends in an error in state: 190.
+## Ends in an error in state: 194.
 ##
 ## expr -> expr LOR . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1887,7 +1891,7 @@ Ill-formed expression for the second argument of the '||' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LPAREN LITERAL USE
 ##
-## Ends in an error in state: 156.
+## Ends in an error in state: 160.
 ##
 ## expr -> expr . DOT ident [ STAR RPAREN PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR RPAREN PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
@@ -1923,7 +1927,7 @@ Ill-formed argument in application: did you forget a ',' to separate arguments?
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LPAREN USE
 ##
-## Ends in an error in state: 153.
+## Ends in an error in state: 157.
 ##
 ## expr -> expr LPAREN . loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1935,7 +1939,7 @@ Ill-formed argument in application.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LT LITERAL USE
 ##
-## Ends in an error in state: 189.
+## Ends in an error in state: 193.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -1970,7 +1974,7 @@ Ill-formed expression for the second argument of the '<' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LT USE
 ##
-## Ends in an error in state: 188.
+## Ends in an error in state: 192.
 ##
 ## expr -> expr LT . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -1982,7 +1986,7 @@ Ill-formed expression for the second argument of the '<' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LTEQ LITERAL USE
 ##
-## Ends in an error in state: 187.
+## Ends in an error in state: 191.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -2017,7 +2021,7 @@ Ill-formed expression for the second argument of the '<=' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LTEQ USE
 ##
-## Ends in an error in state: 186.
+## Ends in an error in state: 190.
 ##
 ## expr -> expr LTEQ . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -2029,7 +2033,7 @@ Ill-formed expression for the second argument of the '<=' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL MINUS LITERAL USE
 ##
-## Ends in an error in state: 181.
+## Ends in an error in state: 185.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -2064,7 +2068,7 @@ Ill-formed expression for the second argument of the '-' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL MINUS USE
 ##
-## Ends in an error in state: 180.
+## Ends in an error in state: 184.
 ##
 ## expr -> expr MINUS . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -2076,7 +2080,7 @@ Ill-formed expression for the second argument of the '-' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL NEQ LITERAL USE
 ##
-## Ends in an error in state: 179.
+## Ends in an error in state: 183.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -2111,7 +2115,7 @@ Ill-formed expression for the second argument of the '!=' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL NEQ USE
 ##
-## Ends in an error in state: 178.
+## Ends in an error in state: 182.
 ##
 ## expr -> expr NEQ . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -2123,7 +2127,7 @@ Ill-formed expression for the second argument of the '!=' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL PLUS LITERAL USE
 ##
-## Ends in an error in state: 169.
+## Ends in an error in state: 173.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -2158,7 +2162,7 @@ Ill-formed expression for the second argument of the '+' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL PLUS USE
 ##
-## Ends in an error in state: 168.
+## Ends in an error in state: 172.
 ##
 ## expr -> expr PLUS . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -2170,7 +2174,7 @@ Ill-formed expression for the second argument of the '+' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL PLUS_S LITERAL USE
 ##
-## Ends in an error in state: 158.
+## Ends in an error in state: 162.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -2205,7 +2209,7 @@ Ill-formed expression for the second argument of the '+_s' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL PLUS_S USE
 ##
-## Ends in an error in state: 157.
+## Ends in an error in state: 161.
 ##
 ## expr -> expr PLUS_S . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -2217,7 +2221,7 @@ Ill-formed expression for the second argument of the '+_s' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL STAR LITERAL USE
 ##
-## Ends in an error in state: 152.
+## Ends in an error in state: 156.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -2252,7 +2256,7 @@ Ill-formed expression for the second argument of the '*' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL STAR USE
 ##
-## Ends in an error in state: 151.
+## Ends in an error in state: 155.
 ##
 ## expr -> expr STAR . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -2264,7 +2268,7 @@ Ill-formed expression for the second argument of the '*' operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL USE
 ##
-## Ends in an error in state: 373.
+## Ends in an error in state: 377.
 ##
 ## expr -> expr . DOT ident [ STAR RBRACK PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR RBRACK PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -2299,7 +2303,7 @@ Ill-formed constraint expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN CASE LITERAL OF BAR USE
 ##
-## Ends in an error in state: 219.
+## Ends in an error in state: 223.
 ##
 ## expr -> LPAREN CASE expr OF option(BAR) . loption(separated_nonempty_list(BAR,branch)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -2311,7 +2315,7 @@ Ill-formed branch pattern in case expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN CASE LITERAL OF UNDERSCORE ARROW ID BAR USE
 ##
-## Ends in an error in state: 227.
+## Ends in an error in state: 231.
 ##
 ## separated_nonempty_list(BAR,branch) -> branch BAR . separated_nonempty_list(BAR,branch) [ RPAREN ]
 ##
@@ -2323,7 +2327,7 @@ Ill-formed branch pattern in case expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN CASE LITERAL OF UNDERSCORE ARROW LITERAL USE
 ##
-## Ends in an error in state: 223.
+## Ends in an error in state: 227.
 ##
 ## branch -> pattern ARROW expr . [ RPAREN BAR ]
 ## expr -> expr . DOT ident [ STAR RPAREN PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B BAR AT AND_B ]
@@ -2358,7 +2362,7 @@ Ill-formed expression for branch body in case expression: perhaps you forgot to 
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN CASE LITERAL OF UNDERSCORE ARROW USE
 ##
-## Ends in an error in state: 222.
+## Ends in an error in state: 226.
 ##
 ## branch -> pattern ARROW . expr [ RPAREN BAR ]
 ##
@@ -2370,9 +2374,10 @@ Ill-formed expression for branch body in case expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN CASE LITERAL OF UNDERSCORE USE
 ##
-## Ends in an error in state: 221.
+## Ends in an error in state: 225.
 ##
 ## branch -> pattern . ARROW expr [ RPAREN BAR ]
+## pattern -> pattern . COLONCOLON pattern [ COLONCOLON ARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## pattern
@@ -2382,7 +2387,7 @@ Ill-formed branch in case expression: perhaps you forgot a '->' after the branch
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN CASE LITERAL OF USE
 ##
-## Ends in an error in state: 217.
+## Ends in an error in state: 221.
 ##
 ## expr -> LPAREN CASE expr OF . option(BAR) loption(separated_nonempty_list(BAR,branch)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -2394,7 +2399,7 @@ Ill-formed pattern in branch of case expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN CASE LITERAL USE
 ##
-## Ends in an error in state: 216.
+## Ends in an error in state: 220.
 ##
 ## expr -> expr . DOT ident [ STAR PLUS_S PLUS OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR PLUS_S PLUS OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -2430,7 +2435,7 @@ Ill-formed scrutinee expression in case expression: perhaps you forgot an 'of' a
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN CASE USE
 ##
-## Ends in an error in state: 215.
+## Ends in an error in state: 219.
 ##
 ## expr -> LPAREN CASE . expr OF option(BAR) loption(separated_nonempty_list(BAR,branch)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -2442,7 +2447,7 @@ Ill-formed scrutinee expression in case expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN LITERAL COLON TVAR USE
 ##
-## Ends in an error in state: 233.
+## Ends in an error in state: 237.
 ##
 ## expr -> LPAREN expr COLON type_expr . RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -2454,7 +2459,7 @@ Ill-formed type constraint in expression: perhaps you forgot to terminate the co
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN LITERAL COLON USE
 ##
-## Ends in an error in state: 232.
+## Ends in an error in state: 236.
 ##
 ## expr -> LPAREN expr COLON . type_expr RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -2466,7 +2471,7 @@ Ill-formed type constraint expression: expected a type expression after the ':'.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN LITERAL COMMA USE
 ##
-## Ends in an error in state: 202.
+## Ends in an error in state: 206.
 ##
 ## separated_nonempty_list(COMMA,expr) -> expr COMMA . separated_nonempty_list(COMMA,expr) [ RPAREN ]
 ##
@@ -2478,7 +2483,7 @@ Ill-formed expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LPAREN LITERAL USE
 ##
-## Ends in an error in state: 231.
+## Ends in an error in state: 235.
 ##
 ## expr -> expr . DOT ident [ STAR RPAREN PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR RPAREN PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON BAR_B AT AND_B ]
@@ -2529,7 +2534,7 @@ Ill-formed expression: expected an expression after the '('.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK MINUS LITERAL USE
 ##
-## Ends in an error in state: 235.
+## Ends in an error in state: 239.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -2600,7 +2605,7 @@ Ill-formed record field expression: perhaps you forgot a '.' before the field id
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK USE
 ##
-## Ends in an error in state: 372.
+## Ends in an error in state: 376.
 ##
 ## rule_elem -> LBRACK . expr RBRACK [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -2612,7 +2617,7 @@ Ill-formed constraint expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LPARBAR ID COLON ID COLONEQ ID COMMA USE
 ##
-## Ends in an error in state: 464.
+## Ends in an error in state: 468.
 ##
 ## separated_nonempty_list(COMMA,temp_decl) -> temp_decl COMMA . separated_nonempty_list(COMMA,temp_decl) [ RPARBAR ]
 ##
@@ -2624,7 +2629,7 @@ Ill-formed temporary declaration.
 
 toplevel: FORMAT LBRACE UID COLONEQ LPARBAR ID COLON TVAR COLONEQ LITERAL USE
 ##
-## Ends in an error in state: 470.
+## Ends in an error in state: 474.
 ##
 ## expr -> expr . DOT ident [ STAR RPARBAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR RPARBAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
@@ -2659,7 +2664,7 @@ Ill-formed initializer expression in temporary declaration.
 
 toplevel: FORMAT LBRACE UID COLONEQ LPARBAR ID COLON TVAR COLONEQ USE
 ##
-## Ends in an error in state: 469.
+## Ends in an error in state: 473.
 ##
 ## temp_decl -> ident COLON type_expr COLONEQ . expr [ RPARBAR COMMA ]
 ##
@@ -2671,7 +2676,7 @@ Ill-formed initializer expression in temporary declaration: expected an expressi
 
 toplevel: FORMAT LBRACE UID COLONEQ LPARBAR ID COLON TVAR USE
 ##
-## Ends in an error in state: 468.
+## Ends in an error in state: 472.
 ##
 ## temp_decl -> ident COLON type_expr . COLONEQ expr [ RPARBAR COMMA ]
 ##
@@ -2683,7 +2688,7 @@ Ill-formed temporary declaration: expected an initializer expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LPARBAR ID COLON USE
 ##
-## Ends in an error in state: 467.
+## Ends in an error in state: 471.
 ##
 ## temp_decl -> ident COLON . type_expr COLONEQ expr [ RPARBAR COMMA ]
 ##
@@ -2695,7 +2700,7 @@ Ill-formed temporary declaration: expected a type specifier.
 
 toplevel: FORMAT LBRACE UID COLONEQ LPARBAR ID USE
 ##
-## Ends in an error in state: 466.
+## Ends in an error in state: 470.
 ##
 ## temp_decl -> ident . COLON type_expr COLONEQ expr [ RPARBAR COMMA ]
 ##
@@ -2707,7 +2712,7 @@ Ill-formed temporary declaration: perhaps you forgot a ':' after the temporary i
 
 toplevel: FORMAT LBRACE UID COLONEQ LPARBAR RPARBAR USE
 ##
-## Ends in an error in state: 461.
+## Ends in an error in state: 465.
 ##
 ## rule -> LPARBAR temp_decls RPARBAR . list(rule_elem) [ SEMISEMI SEMICOLON RBRACE ]
 ##
@@ -2719,7 +2724,7 @@ Ill-formed rule: expected a rule element, or a ';' or ';;' terminator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LPARBAR USE
 ##
-## Ends in an error in state: 459.
+## Ends in an error in state: 463.
 ##
 ## rule -> LPARBAR . temp_decls RPARBAR list(rule_elem) [ SEMISEMI SEMICOLON RBRACE ]
 ##
@@ -2731,7 +2736,7 @@ Ill-formed temporaries declaration.
 
 toplevel: FORMAT LBRACE UID COLONEQ LPAREN UID RBRACE
 ##
-## Ends in an error in state: 457.
+## Ends in an error in state: 461.
 ##
 ## rule_elem -> LPAREN list(rule_elem) . RPAREN [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -2742,17 +2747,17 @@ toplevel: FORMAT LBRACE UID COLONEQ LPAREN UID RBRACE
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 314, spurious reduction of production option(nt_args) ->
-## In state 327, spurious reduction of production rule_elem -> UID option(nt_args)
-## In state 455, spurious reduction of production list(rule_elem) ->
-## In state 456, spurious reduction of production list(rule_elem) -> rule_elem list(rule_elem)
+## In state 318, spurious reduction of production option(nt_args) ->
+## In state 331, spurious reduction of production rule_elem -> UID option(nt_args)
+## In state 459, spurious reduction of production list(rule_elem) ->
+## In state 460, spurious reduction of production list(rule_elem) -> rule_elem list(rule_elem)
 ##
 
 Ill-formed rule element list: perhaps you forgot a ')'?
 
 toplevel: FORMAT LBRACE UID COLONEQ LPAREN USE
 ##
-## Ends in an error in state: 371.
+## Ends in an error in state: 375.
 ##
 ## rule_elem -> LPAREN . list(rule_elem) RPAREN [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -2764,7 +2769,7 @@ Ill-formed rule element.
 
 toplevel: FORMAT LBRACE UID COLONEQ SEMICOLON USE
 ##
-## Ends in an error in state: 475.
+## Ends in an error in state: 479.
 ##
 ## separated_nonempty_list(SEMICOLON,rule) -> rule SEMICOLON . separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ##
@@ -2776,7 +2781,7 @@ A rule begins with an ill-formed rule element.
 
 toplevel: FORMAT LBRACE UID COLONEQ SEMISEMI USE
 ##
-## Ends in an error in state: 503.
+## Ends in an error in state: 507.
 ##
 ## separated_nonempty_list(SEMISEMI,format_decl) -> format_decl SEMISEMI . separated_nonempty_list(SEMISEMI,format_decl) [ RBRACE ]
 ##
@@ -2788,7 +2793,7 @@ Ill-formed non-terminal definition: expected a non-terminal identifier (optional
 
 toplevel: FORMAT LBRACE UID COLONEQ SYN_BEGIN LBRACK UID USE
 ##
-## Ends in an error in state: 346.
+## Ends in an error in state: 350.
 ##
 ## literal_set -> literal_set . BACKSLASH literal_set [ RBRACK BACKSLASH ]
 ## regexp -> LBRACK literal_set . RBRACK [ UID SYN_END STAR RPAREN QUESTION PLUS LPAREN LBRACK HASH DOT CARET BAR ]
@@ -2801,7 +2806,7 @@ Ill-formed literal set: perhaps you forget a '\' separator or a ']' terminator?
 
 toplevel: FORMAT LBRACE UID COLONEQ SYN_BEGIN LBRACK USE
 ##
-## Ends in an error in state: 332.
+## Ends in an error in state: 336.
 ##
 ## regexp -> LBRACK . literal_set RBRACK [ UID SYN_END STAR RPAREN QUESTION PLUS LPAREN LBRACK HASH DOT CARET BAR ]
 ##
@@ -2813,7 +2818,7 @@ Ill-formed literal set: expected a literal.
 
 toplevel: FORMAT LBRACE UID COLONEQ SYN_BEGIN LPAREN UID USE
 ##
-## Ends in an error in state: 350.
+## Ends in an error in state: 354.
 ##
 ## list(regexp) -> regexp . list(regexp) [ RPAREN ]
 ## regexp -> regexp . STAR [ UID STAR RPAREN QUESTION PLUS LPAREN LBRACK HASH DOT CARET BAR ]
@@ -2830,7 +2835,7 @@ Ill-formed regular expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ SYN_BEGIN LPAREN USE
 ##
-## Ends in an error in state: 331.
+## Ends in an error in state: 335.
 ##
 ## regexp -> LPAREN . list(regexp) RPAREN [ UID SYN_END STAR RPAREN QUESTION PLUS LPAREN LBRACK HASH DOT CARET BAR ]
 ##
@@ -2842,7 +2847,7 @@ Ill-formed regular expression: expected a regular expression after the '('.
 
 toplevel: FORMAT LBRACE UID COLONEQ SYN_BEGIN UID BAR UID USE
 ##
-## Ends in an error in state: 357.
+## Ends in an error in state: 361.
 ##
 ## regexp -> regexp . STAR [ UID SYN_END STAR RPAREN QUESTION PLUS LPAREN LBRACK HASH DOT CARET BAR ]
 ## regexp -> regexp . CARET expr [ UID SYN_END STAR RPAREN QUESTION PLUS LPAREN LBRACK HASH DOT CARET BAR ]
@@ -2859,7 +2864,7 @@ Ill-formed regular expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ SYN_BEGIN UID BAR USE
 ##
-## Ends in an error in state: 356.
+## Ends in an error in state: 360.
 ##
 ## regexp -> regexp BAR . regexp [ UID SYN_END STAR RPAREN QUESTION PLUS LPAREN LBRACK HASH DOT CARET BAR ]
 ##
@@ -2871,7 +2876,7 @@ Ill-formed regular expression: expected a regular expression after the '|'.
 
 toplevel: FORMAT LBRACE UID COLONEQ SYN_BEGIN UID CARET LITERAL USE
 ##
-## Ends in an error in state: 355.
+## Ends in an error in state: 359.
 ##
 ## expr -> expr . DOT ident [ UID SYN_END STAR RPAREN QUESTION PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND HASH GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON CARET BAR_B BAR AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ UID SYN_END STAR RPAREN QUESTION PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND HASH GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON CARET BAR_B BAR AT AND_B ]
@@ -2906,7 +2911,7 @@ Ill-formed bound expression in regular expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ SYN_BEGIN UID CARET USE
 ##
-## Ends in an error in state: 354.
+## Ends in an error in state: 358.
 ##
 ## regexp -> regexp CARET . expr [ UID SYN_END STAR RPAREN QUESTION PLUS LPAREN LBRACK HASH DOT CARET BAR ]
 ##
@@ -2918,7 +2923,7 @@ Ill-formed bound expression in regular expression: expected an expression after 
 
 toplevel: FORMAT LBRACE UID COLONEQ SYN_BEGIN UID USE
 ##
-## Ends in an error in state: 361.
+## Ends in an error in state: 365.
 ##
 ## nonempty_list(regexp) -> regexp . [ SYN_END ]
 ## nonempty_list(regexp) -> regexp . nonempty_list(regexp) [ SYN_END ]
@@ -2936,7 +2941,7 @@ Ill-formed regular expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ SYN_BEGIN USE
 ##
-## Ends in an error in state: 329.
+## Ends in an error in state: 333.
 ##
 ## rule_elem -> SYN_BEGIN . nonempty_list(regexp) SYN_END [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -2948,7 +2953,7 @@ Ill-formed regular expression: expected a regular expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ UID BAR EPSILON USE
 ##
-## Ends in an error in state: 447.
+## Ends in an error in state: 451.
 ##
 ## rule_elem -> rule_elem . BAR rule_elem [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ## rule_elem -> rule_elem BAR rule_elem . [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
@@ -2965,7 +2970,7 @@ Ill-formed rule element in rule.
 
 toplevel: FORMAT LBRACE UID COLONEQ UID BAR USE
 ##
-## Ends in an error in state: 446.
+## Ends in an error in state: 450.
 ##
 ## rule_elem -> rule_elem BAR . rule_elem [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -2977,7 +2982,7 @@ Ill-formed rule element: expected a rule element after the '|'.
 
 toplevel: FORMAT LBRACE UID COLONEQ UID CARET LITERAL USE
 ##
-## Ends in an error in state: 445.
+## Ends in an error in state: 449.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS_S PLUS PAD NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND ID GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COLONCOLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS_S PLUS PAD NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND ID GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COLONCOLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -3012,7 +3017,7 @@ Ill-formed bound expression for rule element.
 
 toplevel: FORMAT LBRACE UID COLONEQ UID CARET USE
 ##
-## Ends in an error in state: 444.
+## Ends in an error in state: 448.
 ##
 ## rule_elem -> rule_elem CARET . expr [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -3024,7 +3029,7 @@ Ill-formed bound expression: expected an expression after the '^'.
 
 toplevel: FORMAT LBRACE UID COLONEQ UID LT ID EQ ID COMMA USE
 ##
-## Ends in an error in state: 318.
+## Ends in an error in state: 322.
 ##
 ## separated_nonempty_list(COMMA,nt_attr_val) -> nt_attr_val COMMA . separated_nonempty_list(COMMA,nt_attr_val) [ GT ]
 ##
@@ -3036,7 +3041,7 @@ Ill-formed inherited attribute specifier: expected an attribute initializer afte
 
 toplevel: FORMAT LBRACE UID COLONEQ UID LT ID EQ LITERAL USE
 ##
-## Ends in an error in state: 322.
+## Ends in an error in state: 326.
 ##
 ## expr -> expr . DOT ident [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
@@ -3071,7 +3076,7 @@ Ill-formed inherited attribute specifier: ill-formed initializer expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ UID LT ID EQ USE
 ##
-## Ends in an error in state: 321.
+## Ends in an error in state: 325.
 ##
 ## nt_attr_val -> ident EQ . expr [ GT COMMA ]
 ##
@@ -3083,7 +3088,7 @@ Ill-formed inherited attribute specifier: expected an expression after the '='.
 
 toplevel: FORMAT LBRACE UID COLONEQ UID LT ID USE
 ##
-## Ends in an error in state: 320.
+## Ends in an error in state: 324.
 ##
 ## nt_attr_val -> ident . EQ expr [ GT COMMA ]
 ##
@@ -3095,7 +3100,7 @@ Ill-formed inherited attribute specifier: perhaps you forgot an '=' after the at
 
 toplevel: FORMAT LBRACE UID COLONEQ UID LT USE
 ##
-## Ends in an error in state: 315.
+## Ends in an error in state: 319.
 ##
 ## nt_args -> LT . loption(separated_nonempty_list(COMMA,nt_attr_val)) GT [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ## rule_elem -> UID LT . int_exp GT [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
@@ -3108,7 +3113,7 @@ Ill-formed inherited attribute specifier: expected an attribute identifier after
 
 toplevel: FORMAT LBRACE UID COLONEQ UID RBRACK
 ##
-## Ends in an error in state: 455.
+## Ends in an error in state: 459.
 ##
 ## list(rule_elem) -> rule_elem . list(rule_elem) [ SEMISEMI SEMICOLON RPAREN RBRACE ]
 ## rule_elem -> rule_elem . BAR rule_elem [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
@@ -3124,15 +3129,15 @@ toplevel: FORMAT LBRACE UID COLONEQ UID RBRACK
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 314, spurious reduction of production option(nt_args) ->
-## In state 327, spurious reduction of production rule_elem -> UID option(nt_args)
+## In state 318, spurious reduction of production option(nt_args) ->
+## In state 331, spurious reduction of production rule_elem -> UID option(nt_args)
 ##
 
 Ill-formed rule element.
 
 toplevel: FORMAT LBRACE UID COLONEQ UID RPAREN
 ##
-## Ends in an error in state: 474.
+## Ends in an error in state: 478.
 ##
 ## separated_nonempty_list(SEMICOLON,rule) -> rule . [ SEMISEMI RBRACE ]
 ## separated_nonempty_list(SEMICOLON,rule) -> rule . SEMICOLON separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
@@ -3144,18 +3149,18 @@ toplevel: FORMAT LBRACE UID COLONEQ UID RPAREN
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 314, spurious reduction of production option(nt_args) ->
-## In state 327, spurious reduction of production rule_elem -> UID option(nt_args)
-## In state 455, spurious reduction of production list(rule_elem) ->
-## In state 456, spurious reduction of production list(rule_elem) -> rule_elem list(rule_elem)
-## In state 477, spurious reduction of production rule -> list(rule_elem)
+## In state 318, spurious reduction of production option(nt_args) ->
+## In state 331, spurious reduction of production rule_elem -> UID option(nt_args)
+## In state 459, spurious reduction of production list(rule_elem) ->
+## In state 460, spurious reduction of production list(rule_elem) -> rule_elem list(rule_elem)
+## In state 481, spurious reduction of production rule -> list(rule_elem)
 ##
 
 Ill-formed rule: perhaps you forgot a ';', ';;' or '}' terminator?
 
 toplevel: FORMAT LBRACE UID COLONEQ UID USE
 ##
-## Ends in an error in state: 314.
+## Ends in an error in state: 318.
 ##
 ## rule_elem -> UID . option(nt_args) [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ## rule_elem -> UID . LT int_exp GT [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
@@ -3168,7 +3173,7 @@ Ill-formed rule element.
 
 toplevel: FORMAT LBRACE UID COLONEQ USE
 ##
-## Ends in an error in state: 496.
+## Ends in an error in state: 500.
 ##
 ## nt_defn -> UID option(ident) COLONEQ . separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ##
@@ -3180,7 +3185,7 @@ Ill-formed rule: expected a rule after the ':='.
 
 toplevel: FORMAT LBRACE UID ID COLONCOLON
 ##
-## Ends in an error in state: 301.
+## Ends in an error in state: 305.
 ##
 ## nt_defn -> UID option(ident) . COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ## nt_defn -> UID option(ident) . LBRACE nt_param_decls RBRACE COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
@@ -3195,7 +3200,7 @@ Ill-formed non-terminal definition: expected attribute declarations or a ':=' af
 
 toplevel: FORMAT LBRACE UID LBRACE ID COLON ID COMMA USE
 ##
-## Ends in an error in state: 480.
+## Ends in an error in state: 484.
 ##
 ## separated_nonempty_list(COMMA,nt_attr_decl) -> nt_attr_decl COMMA . separated_nonempty_list(COMMA,nt_attr_decl) [ RBRACE ]
 ##
@@ -3207,7 +3212,7 @@ Ill-formed declaration of synthesized attributes: perhaps you forgot a '}'?
 
 toplevel: FORMAT LBRACE UID LBRACE ID COLON ID COMMA ID USE
 ##
-## Ends in an error in state: 482.
+## Ends in an error in state: 486.
 ##
 ## nt_attr_decl -> ident . COLON type_expr [ RBRACE COMMA ]
 ## nt_attr_decl -> ident . COLON type_expr COLONEQ expr [ RBRACE COMMA ]
@@ -3220,7 +3225,7 @@ Ill-formed declaration of synthesized attributes: perhaps you forgot a ':'?
 
 toplevel: FORMAT LBRACE UID LBRACE ID COLON USE
 ##
-## Ends in an error in state: 483.
+## Ends in an error in state: 487.
 ##
 ## nt_attr_decl -> ident COLON . type_expr [ RBRACE COMMA ]
 ## nt_attr_decl -> ident COLON . type_expr COLONEQ expr [ RBRACE COMMA ]
@@ -3233,7 +3238,7 @@ Ill-formed type specifier for attribute.
 
 toplevel: FORMAT LBRACE UID LBRACE ID COLON ID RPAREN
 ##
-## Ends in an error in state: 484.
+## Ends in an error in state: 488.
 ##
 ## nt_attr_decl -> ident COLON type_expr . [ RBRACE COMMA ]
 ## nt_attr_decl -> ident COLON type_expr . COLONEQ expr [ RBRACE COMMA ]
@@ -3252,7 +3257,7 @@ Ill-formed declaration of synthesized attributes: perhaps you forgot a '}'?
 
 toplevel: FORMAT LBRACE UID LBRACE ID COLON TVAR COLONEQ USE
 ##
-## Ends in an error in state: 485.
+## Ends in an error in state: 489.
 ##
 ## nt_attr_decl -> ident COLON type_expr COLONEQ . expr [ RBRACE COMMA ]
 ##
@@ -3264,7 +3269,7 @@ Ill-formed initializer for synthesized attribute.
 
 toplevel: FORMAT LBRACE UID LBRACE ID COLON TVAR COLONEQ LITERAL USE
 ##
-## Ends in an error in state: 486.
+## Ends in an error in state: 490.
 ##
 ## expr -> expr . DOT ident [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COMMA COLONCOLON BAR_B AT AND_B ]
@@ -3299,7 +3304,7 @@ Ill-formed declaration of synthesized attributes: perhaps you forgot a '}'?
 
 toplevel: FORMAT LBRACE UID LBRACE ID USE
 ##
-## Ends in an error in state: 488.
+## Ends in an error in state: 492.
 ##
 ## nt_attr_decl -> ident . COLON type_expr [ RBRACE COMMA ]
 ## nt_attr_decl -> ident . COLON type_expr COLONEQ expr [ RBRACE COMMA ]
@@ -3313,7 +3318,7 @@ Ill-formed synthesized attribute declaration: perhaps you forgot a ':' or '}'?
 
 toplevel: FORMAT LBRACE UID LBRACE RBRACE COLONEQ USE
 ##
-## Ends in an error in state: 494.
+## Ends in an error in state: 498.
 ##
 ## nt_defn -> UID option(ident) LBRACE nt_param_decls RBRACE COLONEQ . separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ##
@@ -3325,7 +3330,7 @@ Ill-formed rule: expected a rule after the ':='.
 
 toplevel: FORMAT LBRACE UID LBRACE RBRACE USE
 ##
-## Ends in an error in state: 493.
+## Ends in an error in state: 497.
 ##
 ## nt_defn -> UID option(ident) LBRACE nt_param_decls RBRACE . COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ##
@@ -3337,7 +3342,7 @@ Ill-formed non-terminal definition: perhaps you forgot a ':=' after the attribut
 
 toplevel: FORMAT LBRACE UID LBRACE USE
 ##
-## Ends in an error in state: 491.
+## Ends in an error in state: 495.
 ##
 ## nt_defn -> UID option(ident) LBRACE . nt_param_decls RBRACE COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ##
@@ -3349,7 +3354,7 @@ Ill-formed non-terminal definition: expected synthesized attribute declarations 
 
 toplevel: FORMAT LBRACE UID LPAREN ID COLON ID RBRACE
 ##
-## Ends in an error in state: 239.
+## Ends in an error in state: 243.
 ##
 ## separated_nonempty_list(COMMA,param_decl) -> param_decl . [ RPAREN ]
 ## separated_nonempty_list(COMMA,param_decl) -> param_decl . COMMA separated_nonempty_list(COMMA,param_decl) [ RPAREN ]
@@ -3362,14 +3367,14 @@ toplevel: FORMAT LBRACE UID LPAREN ID COLON ID RBRACE
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
 ## In state 32, spurious reduction of production type_expr -> ident
-## In state 244, spurious reduction of production param_decl -> ident COLON type_expr
+## In state 248, spurious reduction of production param_decl -> ident COLON type_expr
 ##
 
 Ill-formed non-terminal definition: perhaps you forgot a ')' after the inherited attribute declarations?
 
 toplevel: FORMAT LBRACE UID LPAREN RPAREN COLONEQ USE
 ##
-## Ends in an error in state: 489.
+## Ends in an error in state: 493.
 ##
 ## nt_defn -> UID option(ident) LPAREN param_decls RPAREN COLONEQ . separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ##
@@ -3381,7 +3386,7 @@ Ill-formed rule: expected a rule after the ':='.
 
 toplevel: FORMAT LBRACE UID LPAREN RPAREN LBRACE RBRACE COLONEQ USE
 ##
-## Ends in an error in state: 309.
+## Ends in an error in state: 313.
 ##
 ## nt_defn -> UID option(ident) LPAREN param_decls RPAREN LBRACE nt_param_decls RBRACE COLONEQ . separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ##
@@ -3393,7 +3398,7 @@ Ill-formed rule: expected a rule to follow the ':='.
 
 toplevel: FORMAT LBRACE UID LPAREN RPAREN LBRACE RBRACE USE
 ##
-## Ends in an error in state: 308.
+## Ends in an error in state: 312.
 ##
 ## nt_defn -> UID option(ident) LPAREN param_decls RPAREN LBRACE nt_param_decls RBRACE . COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ##
@@ -3405,7 +3410,7 @@ Ill-formed non-terminal definition: perhaps you forgot a ':=' after the attribut
 
 toplevel: FORMAT LBRACE UID LPAREN RPAREN LBRACE USE
 ##
-## Ends in an error in state: 305.
+## Ends in an error in state: 309.
 ##
 ## nt_defn -> UID option(ident) LPAREN param_decls RPAREN LBRACE . nt_param_decls RBRACE COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ##
@@ -3417,7 +3422,7 @@ Ill-formed declaration of synthesized attributes.
 
 toplevel: FORMAT LBRACE UID LPAREN RPAREN USE
 ##
-## Ends in an error in state: 304.
+## Ends in an error in state: 308.
 ##
 ## nt_defn -> UID option(ident) LPAREN param_decls RPAREN . COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ## nt_defn -> UID option(ident) LPAREN param_decls RPAREN . LBRACE nt_param_decls RBRACE COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
@@ -3430,7 +3435,7 @@ Ill-formed non-terminal definition: expected either a declaration of synthesized
 
 toplevel: FORMAT LBRACE UID LPAREN USE
 ##
-## Ends in an error in state: 302.
+## Ends in an error in state: 306.
 ##
 ## nt_defn -> UID option(ident) LPAREN . param_decls RPAREN COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ## nt_defn -> UID option(ident) LPAREN . param_decls RPAREN LBRACE nt_param_decls RBRACE COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
@@ -3443,7 +3448,7 @@ Ill-formed inherited attribute declaration: expected an attribute identifier aft
 
 toplevel: FORMAT LBRACE UID USE
 ##
-## Ends in an error in state: 300.
+## Ends in an error in state: 304.
 ##
 ## nt_defn -> UID . option(ident) COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
 ## nt_defn -> UID . option(ident) LBRACE nt_param_decls RBRACE COLONEQ separated_nonempty_list(SEMICOLON,rule) [ SEMISEMI RBRACE ]
@@ -3458,7 +3463,7 @@ Ill-formed non-terminal definition.
 
 toplevel: FORMAT LBRACE USE
 ##
-## Ends in an error in state: 279.
+## Ends in an error in state: 283.
 ##
 ## pre_decl -> FORMAT LBRACE . loption(separated_nonempty_list(SEMISEMI,format_decl)) RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3470,7 +3475,7 @@ Ill-formed non-terminal definition: expected a non-terminal identifier.
 
 toplevel: FORMAT USE
 ##
-## Ends in an error in state: 278.
+## Ends in an error in state: 282.
 ##
 ## pre_decl -> FORMAT . LBRACE loption(separated_nonempty_list(SEMISEMI,format_decl)) RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3482,7 +3487,7 @@ Ill-formed format grammar section: did you forget a '{'?
 
 toplevel: FUN ID LPAREN RPAREN ARROW TVAR EQ LBRACE LITERAL USE
 ##
-## Ends in an error in state: 276.
+## Ends in an error in state: 280.
 ##
 ## expr -> expr . DOT ident [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -3517,7 +3522,7 @@ Ill-formed expression in function body: perhaps you forgot a '}'?
 
 toplevel: FUN ID LPAREN RPAREN ARROW TVAR EQ LBRACE USE
 ##
-## Ends in an error in state: 275.
+## Ends in an error in state: 279.
 ##
 ## pre_decl -> FUN ident LPAREN param_decls RPAREN ARROW type_expr EQ LBRACE . expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3529,7 +3534,7 @@ Ill-formed function body: expected an expression after the '{'.
 
 toplevel: FUN ID LPAREN RPAREN ARROW TVAR EQ USE
 ##
-## Ends in an error in state: 274.
+## Ends in an error in state: 278.
 ##
 ## pre_decl -> FUN ident LPAREN param_decls RPAREN ARROW type_expr EQ . LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3541,7 +3546,7 @@ Ill-formed function definition: did you forget a '{' after the '='?
 
 toplevel: FUN ID LPAREN RPAREN ARROW TVAR USE
 ##
-## Ends in an error in state: 273.
+## Ends in an error in state: 277.
 ##
 ## pre_decl -> FUN ident LPAREN param_decls RPAREN ARROW type_expr . EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3553,7 +3558,7 @@ Ill-formed function definition: did you forget a '=' after the function signatur
 
 toplevel: FUN ID LPAREN RPAREN ARROW USE
 ##
-## Ends in an error in state: 272.
+## Ends in an error in state: 276.
 ##
 ## pre_decl -> FUN ident LPAREN param_decls RPAREN ARROW . type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3565,7 +3570,7 @@ Ill-formed function definition: expected a type expression after the '->'.
 
 toplevel: FUN ID LPAREN RPAREN USE
 ##
-## Ends in an error in state: 271.
+## Ends in an error in state: 275.
 ##
 ## pre_decl -> FUN ident LPAREN param_decls RPAREN . ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3577,7 +3582,7 @@ Ill-formed function definition: expected an '->' after the function parameter de
 
 toplevel: FUN ID LPAREN USE
 ##
-## Ends in an error in state: 269.
+## Ends in an error in state: 273.
 ##
 ## pre_decl -> FUN ident LPAREN . param_decls RPAREN ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3589,7 +3594,7 @@ Ill-formed function definition: expected a parameter identifer after the '('.
 
 toplevel: FUN ID LT GT LPAREN RPAREN ARROW TVAR EQ LBRACE LITERAL USE
 ##
-## Ends in an error in state: 267.
+## Ends in an error in state: 271.
 ##
 ## expr -> expr . DOT ident [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -3624,7 +3629,7 @@ Ill-formed expression in function body.
 
 toplevel: FUN ID LT GT LPAREN RPAREN ARROW TVAR EQ LBRACE USE
 ##
-## Ends in an error in state: 266.
+## Ends in an error in state: 270.
 ##
 ## pre_decl -> FUN ident LT loption(separated_nonempty_list(COMMA,TVAR)) GT LPAREN param_decls RPAREN ARROW type_expr EQ LBRACE . expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3636,7 +3641,7 @@ Ill-formed expression in function body.
 
 toplevel: FUN ID LT GT LPAREN RPAREN ARROW TVAR EQ USE
 ##
-## Ends in an error in state: 265.
+## Ends in an error in state: 269.
 ##
 ## pre_decl -> FUN ident LT loption(separated_nonempty_list(COMMA,TVAR)) GT LPAREN param_decls RPAREN ARROW type_expr EQ . LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3648,7 +3653,7 @@ Ill-formed function definition: did you forget a '{'?
 
 toplevel: FUN ID LT GT LPAREN RPAREN ARROW TVAR USE
 ##
-## Ends in an error in state: 264.
+## Ends in an error in state: 268.
 ##
 ## pre_decl -> FUN ident LT loption(separated_nonempty_list(COMMA,TVAR)) GT LPAREN param_decls RPAREN ARROW type_expr . EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3660,7 +3665,7 @@ Ill-formed return type in function signature: perhaps you forgot an '='?
 
 toplevel: FUN ID LT GT LPAREN RPAREN ARROW USE
 ##
-## Ends in an error in state: 263.
+## Ends in an error in state: 267.
 ##
 ## pre_decl -> FUN ident LT loption(separated_nonempty_list(COMMA,TVAR)) GT LPAREN param_decls RPAREN ARROW . type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3672,7 +3677,7 @@ Ill-formed return type in function signature.
 
 toplevel: FUN ID LT GT LPAREN RPAREN USE
 ##
-## Ends in an error in state: 262.
+## Ends in an error in state: 266.
 ##
 ## pre_decl -> FUN ident LT loption(separated_nonempty_list(COMMA,TVAR)) GT LPAREN param_decls RPAREN . ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3684,7 +3689,7 @@ Ill-formed function signature: perhaps you forgot an '->'?
 
 toplevel: FUN ID LT GT LPAREN USE
 ##
-## Ends in an error in state: 260.
+## Ends in an error in state: 264.
 ##
 ## pre_decl -> FUN ident LT loption(separated_nonempty_list(COMMA,TVAR)) GT LPAREN . param_decls RPAREN ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3696,7 +3701,7 @@ Ill-formed parameter declaration in function signature.
 
 toplevel: FUN ID LT GT USE
 ##
-## Ends in an error in state: 259.
+## Ends in an error in state: 263.
 ##
 ## pre_decl -> FUN ident LT loption(separated_nonempty_list(COMMA,TVAR)) GT . LPAREN param_decls RPAREN ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3708,7 +3713,7 @@ Ill-formed parameter declaration in function signature: perhaps you forgot a '('
 
 toplevel: FUN ID LT TVAR RPAREN
 ##
-## Ends in an error in state: 258.
+## Ends in an error in state: 262.
 ##
 ## pre_decl -> FUN ident LT loption(separated_nonempty_list(COMMA,TVAR)) . GT LPAREN param_decls RPAREN ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3727,7 +3732,7 @@ Ill-formed type parameter declarations in function signature: perhaps you forgot
 
 toplevel: FUN ID LT USE
 ##
-## Ends in an error in state: 257.
+## Ends in an error in state: 261.
 ##
 ## pre_decl -> FUN ident LT . loption(separated_nonempty_list(COMMA,TVAR)) GT LPAREN param_decls RPAREN ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3739,7 +3744,7 @@ Ill-formed type parameter in function signature.
 
 toplevel: FUN ID USE
 ##
-## Ends in an error in state: 256.
+## Ends in an error in state: 260.
 ##
 ## pre_decl -> FUN ident . LPAREN param_decls RPAREN ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ## pre_decl -> FUN ident . LT loption(separated_nonempty_list(COMMA,TVAR)) GT LPAREN param_decls RPAREN ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
@@ -3752,7 +3757,7 @@ Ill-formed function definition: expected a declaration of type parameters or arg
 
 toplevel: FUN USE
 ##
-## Ends in an error in state: 255.
+## Ends in an error in state: 259.
 ##
 ## pre_decl -> FUN . ident LPAREN param_decls RPAREN ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ## pre_decl -> FUN . ident LT loption(separated_nonempty_list(COMMA,TVAR)) GT LPAREN param_decls RPAREN ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
@@ -3765,7 +3770,7 @@ Ill-formed function definition: expected a function identifier.
 
 toplevel: RECFUN ID LPAREN ID COLON ID COMMA USE
 ##
-## Ends in an error in state: 240.
+## Ends in an error in state: 244.
 ##
 ## separated_nonempty_list(COMMA,param_decl) -> param_decl COMMA . separated_nonempty_list(COMMA,param_decl) [ RPAREN ]
 ##
@@ -3777,7 +3782,7 @@ Ill-formed function parameter declaration: expected a parameter identifier.
 
 toplevel: RECFUN ID LPAREN ID COLON USE
 ##
-## Ends in an error in state: 243.
+## Ends in an error in state: 247.
 ##
 ## param_decl -> ident COLON . type_expr [ RPAREN COMMA ]
 ##
@@ -3789,7 +3794,7 @@ Expected a type expression after the ':'.
 
 toplevel: RECFUN ID LPAREN ID USE
 ##
-## Ends in an error in state: 242.
+## Ends in an error in state: 246.
 ##
 ## param_decl -> ident . COLON type_expr [ RPAREN COMMA ]
 ##
@@ -3801,7 +3806,7 @@ Expected a ':' after the identifier.
 
 toplevel: RECFUN ID LPAREN RPAREN ARROW TVAR EQ LBRACE LITERAL USE
 ##
-## Ends in an error in state: 253.
+## Ends in an error in state: 257.
 ##
 ## expr -> expr . DOT ident [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -3836,7 +3841,7 @@ Ill-formed expression in function body.
 
 toplevel: RECFUN ID LPAREN RPAREN ARROW TVAR EQ LBRACE USE
 ##
-## Ends in an error in state: 252.
+## Ends in an error in state: 256.
 ##
 ## pre_decl -> RECFUN ident LPAREN param_decls RPAREN ARROW type_expr EQ LBRACE . expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3848,7 +3853,7 @@ Ill-formed expression for function body: expected an expression after the '{'.
 
 toplevel: RECFUN ID LPAREN RPAREN ARROW TVAR EQ USE
 ##
-## Ends in an error in state: 251.
+## Ends in an error in state: 255.
 ##
 ## pre_decl -> RECFUN ident LPAREN param_decls RPAREN ARROW type_expr EQ . LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3860,7 +3865,7 @@ Ill-formed function definition: did you forget a '{' after the '='?
 
 toplevel: RECFUN ID LPAREN RPAREN ARROW TVAR USE
 ##
-## Ends in an error in state: 250.
+## Ends in an error in state: 254.
 ##
 ## pre_decl -> RECFUN ident LPAREN param_decls RPAREN ARROW type_expr . EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3872,7 +3877,7 @@ Ill-formed function definition: did you forget a '=' after the function signatur
 
 toplevel: RECFUN ID LPAREN RPAREN ARROW USE
 ##
-## Ends in an error in state: 249.
+## Ends in an error in state: 253.
 ##
 ## pre_decl -> RECFUN ident LPAREN param_decls RPAREN ARROW . type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3884,7 +3889,7 @@ Ill-formed function definition: expected a type expression after the '->'.
 
 toplevel: RECFUN ID LPAREN RPAREN USE
 ##
-## Ends in an error in state: 248.
+## Ends in an error in state: 252.
 ##
 ## pre_decl -> RECFUN ident LPAREN param_decls RPAREN . ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3896,7 +3901,7 @@ Ill-formed function definition: expected an '->' after the function parameter de
 
 toplevel: RECFUN ID LPAREN USE
 ##
-## Ends in an error in state: 246.
+## Ends in an error in state: 250.
 ##
 ## pre_decl -> RECFUN ident LPAREN . param_decls RPAREN ARROW type_expr EQ LBRACE expr RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -3908,7 +3913,7 @@ Ill-formed function definition: expected a parameter identifer after the '('.
 
 toplevel: RECFUN ID LT GT LPAREN RPAREN ARROW TVAR EQ LBRACE LITERAL USE
 ##
-## Ends in an error in state: 237.
+## Ends in an error in state: 241.
 ##
 ## expr -> expr . DOT ident [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ STAR RBRACE PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -4570,7 +4575,7 @@ Ill-formed declaration.
 
 toplevel: USE ID UNDERSCORE
 ##
-## Ends in an error in state: 525.
+## Ends in an error in state: 529.
 ##
 ## list(pre_decl) -> pre_decl . list(pre_decl) [ EOF ]
 ##
@@ -4753,7 +4758,7 @@ Ill-formed type: expected an integer argument.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LLBRACK INT_LITERAL COLON INT_LITERAL USE
 ##
-## Ends in an error in state: 163.
+## Ends in an error in state: 167.
 ##
 ## expr -> expr LLBRACK int_exp COLON int_exp . RRBRACK [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## int_exp -> int_exp . PLUS int_exp [ STAR RRBRACK PLUS MINUS ]
@@ -4768,7 +4773,7 @@ Ill-formed bitrange: there might be a missing ']]' to terminate the bitrange.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LLBRACK INT_LITERAL COLON USE
 ##
-## Ends in an error in state: 162.
+## Ends in an error in state: 166.
 ##
 ## expr -> expr LLBRACK int_exp COLON . int_exp RRBRACK [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -4780,7 +4785,7 @@ Ill-formed bitrange: expected a second numerical bitrange argument.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LLBRACK INT_LITERAL USE
 ##
-## Ends in an error in state: 160.
+## Ends in an error in state: 164.
 ##
 ## expr -> expr LLBRACK int_exp . COLON int_exp RRBRACK [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr LLBRACK int_exp . RRBRACK [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -4796,7 +4801,7 @@ Ill-formed bitrange: bad numerical expression as first range argument.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL LLBRACK USE
 ##
-## Ends in an error in state: 159.
+## Ends in an error in state: 163.
 ##
 ## expr -> expr LLBRACK . int_exp COLON int_exp RRBRACK [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr LLBRACK . int_exp RRBRACK [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -4809,7 +4814,7 @@ Ill-formed bitrange: expected a numerical argument.
 
 toplevel: BITFIELD ID EQ LBRACE ID COLON INT_LITERAL COLON INT_LITERAL USE
 ##
-## Ends in an error in state: 516.
+## Ends in an error in state: 520.
 ##
 ## bit_range_field -> ident COLON int_exp COLON int_exp . [ RBRACE COMMA ]
 ## int_exp -> int_exp . PLUS int_exp [ STAR RBRACE PLUS MINUS COMMA ]
@@ -4824,7 +4829,7 @@ Ill-formed bitfield: expected a comma or right brace.
 
 toplevel: BITFIELD ID EQ LBRACE ID COLON INT_LITERAL COLON USE
 ##
-## Ends in an error in state: 515.
+## Ends in an error in state: 519.
 ##
 ## bit_range_field -> ident COLON int_exp COLON . int_exp [ RBRACE COMMA ]
 ##
@@ -4836,7 +4841,7 @@ Ill-formed bitfield: expected terminating index of bitfield range.
 
 toplevel: BITFIELD ID EQ LBRACE ID COLON INT_LITERAL COMMA USE
 ##
-## Ends in an error in state: 520.
+## Ends in an error in state: 524.
 ##
 ## separated_nonempty_list(COMMA,bit_range_field) -> bit_range_field COMMA . separated_nonempty_list(COMMA,bit_range_field) [ RBRACE ]
 ##
@@ -4848,7 +4853,7 @@ Ill-formed bitfield: expected a field name.
 
 toplevel: BITFIELD ID EQ LBRACE ID COLON INT_LITERAL USE
 ##
-## Ends in an error in state: 514.
+## Ends in an error in state: 518.
 ##
 ## bit_range_field -> ident COLON int_exp . [ RBRACE COMMA ]
 ## bit_range_field -> ident COLON int_exp . COLON int_exp [ RBRACE COMMA ]
@@ -4864,7 +4869,7 @@ Ill-formed bitfield: expected a comma or a colon preceding a terminating index.
 
 toplevel: BITFIELD ID EQ LBRACE ID COLON USE
 ##
-## Ends in an error in state: 513.
+## Ends in an error in state: 517.
 ##
 ## bit_range_field -> ident COLON . int_exp [ RBRACE COMMA ]
 ## bit_range_field -> ident COLON . int_exp COLON int_exp [ RBRACE COMMA ]
@@ -4877,7 +4882,7 @@ Ill-formed bitfield: expected a numerical index.
 
 toplevel: BITFIELD ID EQ LBRACE ID USE
 ##
-## Ends in an error in state: 512.
+## Ends in an error in state: 516.
 ##
 ## bit_range_field -> ident . COLON int_exp [ RBRACE COMMA ]
 ## bit_range_field -> ident . COLON int_exp COLON int_exp [ RBRACE COMMA ]
@@ -4890,7 +4895,7 @@ Ill-formed bitfield: expected a colon.
 
 toplevel: BITFIELD ID EQ LBRACE USE
 ##
-## Ends in an error in state: 509.
+## Ends in an error in state: 513.
 ##
 ## bitfield -> ident EQ LBRACE . bit_range_fields RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -4902,7 +4907,7 @@ Ill-formed bitfield: expected a field name.
 
 toplevel: BITFIELD ID EQ USE
 ##
-## Ends in an error in state: 508.
+## Ends in an error in state: 512.
 ##
 ## bitfield -> ident EQ . LBRACE bit_range_fields RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -4914,7 +4919,7 @@ Ill-formed bitfield: expected a left brace.
 
 toplevel: BITFIELD ID USE
 ##
-## Ends in an error in state: 507.
+## Ends in an error in state: 511.
 ##
 ## bitfield -> ident . EQ LBRACE bit_range_fields RBRACE [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -4926,7 +4931,7 @@ Ill-formed bitfield: expected an equals character.
 
 toplevel: BITFIELD USE
 ##
-## Ends in an error in state: 506.
+## Ends in an error in state: 510.
 ##
 ## type_decls -> BITFIELD . bitfield [ USE TYPE RECFUN FUN FORMAT EOF BITFIELD ]
 ##
@@ -4938,7 +4943,7 @@ Ill-formed bitfield: expected a bitfield name.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK ID ARROW ID LPAREN LITERAL USE
 ##
-## Ends in an error in state: 150.
+## Ends in an error in state: 154.
 ##
 ## expr -> ident ARROW ident LPAREN expr . RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . DOT ident [ STAR RPAREN PLUS_S PLUS NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LAND GTEQ GT EQ DOT DIV CONSTR_MATCH COLONCOLON BAR_B AT AND_B ]
@@ -4973,7 +4978,7 @@ Ill-formed argument for bitfield record operator: there might be a missing right
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK ID ARROW ID LPAREN USE
 ##
-## Ends in an error in state: 149.
+## Ends in an error in state: 153.
 ##
 ## expr -> ident ARROW ident LPAREN . expr RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -4985,7 +4990,7 @@ Ill-formed argument for bitfield record operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK ID ARROW ID USE
 ##
-## Ends in an error in state: 148.
+## Ends in an error in state: 152.
 ##
 ## expr -> ident ARROW ident . LPAREN expr RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -4997,7 +5002,7 @@ The argument for a bitfield record operator needs a preceding left parenthesis.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK ID ARROW USE
 ##
-## Ends in an error in state: 147.
+## Ends in an error in state: 151.
 ##
 ## expr -> ident ARROW . ident LPAREN expr RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -5009,7 +5014,7 @@ Ill-formed name for a bitfield record operator.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK ID USE
 ##
-## Ends in an error in state: 146.
+## Ends in an error in state: 150.
 ##
 ## expr -> ident . [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> ident . ARROW ident LPAREN expr RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -5022,7 +5027,7 @@ Ill-formed constraint expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ ALIGN LT INT_LITERAL USE_BITFIELD
 ##
-## Ends in an error in state: 437.
+## Ends in an error in state: 441.
 ##
 ## int_exp -> int_exp . PLUS int_exp [ STAR PLUS MINUS GT ]
 ## int_exp -> int_exp . MINUS int_exp [ STAR PLUS MINUS GT ]
@@ -5037,7 +5042,7 @@ Ill-formed alignment width: there might be missing '>' to terminate the width sp
 
 toplevel: FORMAT LBRACE UID COLONEQ ALIGN LT USE_BITFIELD
 ##
-## Ends in an error in state: 436.
+## Ends in an error in state: 440.
 ##
 ## rule_elem -> ALIGN LT . int_exp GT [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -5049,7 +5054,7 @@ Ill-formed alignment width: expected a numerical literal.
 
 toplevel: FORMAT LBRACE UID COLONEQ ALIGN USE_BITFIELD
 ##
-## Ends in an error in state: 435.
+## Ends in an error in state: 439.
 ##
 ## rule_elem -> ALIGN . LT int_exp GT [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -5061,7 +5066,7 @@ Ill-formed alignment: expected an opening '<' preceding a numerical alignment wi
 
 toplevel: FORMAT LBRACE UID COLONEQ PAD LT INT_LITERAL COMMA BV_LITERAL USE_BITFIELD
 ##
-## Ends in an error in state: 369.
+## Ends in an error in state: 373.
 ##
 ## rule_elem -> PAD LT int_exp COMMA BV_LITERAL . GT [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -5073,7 +5078,7 @@ Ill-formed pad specifier: expected a terminating '>'.
 
 toplevel: FORMAT LBRACE UID COLONEQ PAD LT INT_LITERAL COMMA USE_BITFIELD
 ##
-## Ends in an error in state: 368.
+## Ends in an error in state: 372.
 ##
 ## rule_elem -> PAD LT int_exp COMMA . BV_LITERAL GT [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -5085,7 +5090,7 @@ Ill-formed padding specifier: expected a bitvector literal.
 
 toplevel: FORMAT LBRACE UID COLONEQ PAD LT INT_LITERAL USE_BITFIELD
 ##
-## Ends in an error in state: 367.
+## Ends in an error in state: 371.
 ##
 ## int_exp -> int_exp . PLUS int_exp [ STAR PLUS MINUS COMMA ]
 ## int_exp -> int_exp . MINUS int_exp [ STAR PLUS MINUS COMMA ]
@@ -5100,7 +5105,7 @@ Ill-formed pad specifier: expected a comma between the width and a bitvector lit
 
 toplevel: FORMAT LBRACE UID COLONEQ PAD LT USE_BITFIELD
 ##
-## Ends in an error in state: 366.
+## Ends in an error in state: 370.
 ##
 ## rule_elem -> PAD LT . int_exp COMMA BV_LITERAL GT [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -5112,7 +5117,7 @@ Ill-formed pad specifier: expected a numerical width.
 
 toplevel: FORMAT LBRACE UID COLONEQ PAD USE_BITFIELD
 ##
-## Ends in an error in state: 365.
+## Ends in an error in state: 369.
 ##
 ## rule_elem -> PAD . LT int_exp COMMA BV_LITERAL GT [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -5124,7 +5129,7 @@ Ill-formed pad specifier: expected a '<' preceding a numerical width.
 
 toplevel: FORMAT LBRACE UID COLONEQ UID LT INT_LITERAL USE_BITFIELD
 ##
-## Ends in an error in state: 325.
+## Ends in an error in state: 329.
 ##
 ## int_exp -> int_exp . PLUS int_exp [ STAR PLUS MINUS GT ]
 ## int_exp -> int_exp . MINUS int_exp [ STAR PLUS MINUS GT ]
@@ -5139,7 +5144,7 @@ Ill-formed non-terminal width specifier: expected a terminating '>'.
 
 toplevel: FORMAT LBRACE UID COLONEQ USE_BITFIELD LPAREN ID USE_BITFIELD
 ##
-## Ends in an error in state: 312.
+## Ends in an error in state: 316.
 ##
 ## rule_elem -> USE_BITFIELD LPAREN ident . RPAREN [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -5151,7 +5156,7 @@ Ill-formed bitfield use specifier: expected a terminating ')'.
 
 toplevel: FORMAT LBRACE UID COLONEQ USE_BITFIELD LPAREN USE_BITFIELD
 ##
-## Ends in an error in state: 311.
+## Ends in an error in state: 315.
 ##
 ## rule_elem -> USE_BITFIELD LPAREN . ident RPAREN [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -5163,7 +5168,7 @@ Ill-formed bitfield use specifier: expected an identifier for a type.
 
 toplevel: FORMAT LBRACE UID COLONEQ USE_BITFIELD USE_BITFIELD
 ##
-## Ends in an error in state: 310.
+## Ends in an error in state: 314.
 ##
 ## rule_elem -> USE_BITFIELD . LPAREN ident RPAREN [ USE_BITFIELD UID SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RBRACK RBRACE QUESTION PLUS PAD LPAREN LBRACK LBRACE ID EXCLAIM EPSILON CARET BAR AT_POS AT_MAP AT_BUF ALIGN ]
 ##
@@ -5175,7 +5180,7 @@ Ill-formed bitfield use specifier: expected an opening '('.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL AND_B LITERAL USE
 ##
-## Ends in an error in state: 177.
+## Ends in an error in state: 181.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -5210,7 +5215,7 @@ Ill-formed expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL AND_B USE_BITFIELD
 ##
-## Ends in an error in state: 176.
+## Ends in an error in state: 180.
 ##
 ## expr -> expr AND_B . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -5222,7 +5227,7 @@ Ill-formed expression: expected a bitvector argument.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL BAR_B LITERAL USE
 ##
-## Ends in an error in state: 175.
+## Ends in an error in state: 179.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -5257,7 +5262,7 @@ Ill-formed expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK LITERAL BAR_B USE_BITFIELD
 ##
-## Ends in an error in state: 174.
+## Ends in an error in state: 178.
 ##
 ## expr -> expr BAR_B . expr [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ##
@@ -5269,7 +5274,7 @@ Ill-formed expression: expected a bitvector argument.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK TILDE LITERAL USE
 ##
-## Ends in an error in state: 236.
+## Ends in an error in state: 240.
 ##
 ## expr -> expr . DOT ident [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
 ## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ USE_BITFIELD UID SYN_END SYN_BEGIN STAR SEMISEMI SEMICOLON RPAREN RPARBAR RBRACK RBRACE QUESTION PLUS_S PLUS PAD OF NEQ MINUS LTEQ LT LPAREN LOR LLBRACK LBRACK LBRACE LAND IN ID HASH GTEQ GT EXCLAIM EQ EPSILON DOT DIV CONSTR_MATCH COMMA COLONCOLON COLON CARET BAR_B BAR AT_POS AT_MAP AT_BUF AT AND_B ALIGN ]
@@ -5313,3 +5318,28 @@ toplevel: FORMAT LBRACE UID COLONEQ LBRACK TILDE USE_BITFIELD
 ##
 
 Ill-formed expression: expected a bitvector argument.
+
+toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET UNDERSCORE COLONCOLON UNDERSCORE USE_BITFIELD
+##
+## Ends in an error in state: 125.
+##
+## pattern -> pattern . COLONCOLON pattern [ RPAREN EQ COMMA COLONCOLON ARROW ]
+## pattern -> pattern COLONCOLON pattern . [ RPAREN EQ COMMA COLONCOLON ARROW ]
+##
+## The known suffix of the stack is as follows:
+## pattern COLONCOLON pattern
+##
+
+Ill-formed pattern: unexpected operator.
+
+toplevel: FORMAT LBRACE UID COLONEQ LBRACK LET UNDERSCORE COLONCOLON USE_BITFIELD
+##
+## Ends in an error in state: 124.
+##
+## pattern -> pattern COLONCOLON . pattern [ RPAREN EQ COMMA COLONCOLON ARROW ]
+##
+## The known suffix of the stack is as follows:
+## pattern COLONCOLON
+##
+
+Ill-formed pattern argument for list pattern.

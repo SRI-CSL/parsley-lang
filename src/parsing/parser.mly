@@ -26,7 +26,7 @@ open AstUtils
 %token ATTR
 %token EPSILON PAD ALIGN USE_BITFIELD
 
-%token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LLBRACK RRBRACK
+%token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LLBRACK RRBRACK LBRACKRBRACK
 %token LPARBAR RPARBAR SYN_BEGIN SYN_END
 %token AT_POS AT_BUF AT_MAP HASH
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI DOT QUESTION ARROW
@@ -389,6 +389,11 @@ expr:
 | b=BV_LITERAL
   { let b = make_bitvector_literal (Location.value b) in
     make_expr (E_literal (PL_bitvector b)) $startpos $endpos }
+| LBRACKRBRACK
+  { let loc = Location.mk_loc $startpos $endpos in
+    let t = Location.mk_loc_val "[]" loc in
+    let c = Location.mk_loc_val "[]" loc in
+    make_expr (E_constr ((t, c), [])) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, expr) RPAREN
   { let loc = Location.mk_loc $startpos $endpos in
     let t = Location.mk_loc_val "*" loc in
@@ -466,11 +471,23 @@ pattern:
   { make_pattern P_wildcard $startpos $endpos }
 | v=ident
   { make_pattern (P_var (make_var v)) $startpos $endpos }
+| LBRACKRBRACK
+  { let loc = Location.mk_loc $startpos $endpos in
+    let t = Location.mk_loc_val "[]" loc in
+    let c = Location.mk_loc_val "[]" loc in
+    let p = P_variant ((t,c), []) in
+    make_pattern p $startpos $endpos }
+| hd=pattern COLONCOLON tl=pattern
+  { let loc = Location.mk_loc $startpos $endpos in
+    let t = Location.mk_loc_val "[]" loc in
+    let c = Location.mk_loc_val "::" loc in
+    let p = P_variant ((t,c), [hd; tl]) in
+    make_pattern p $startpos $endpos }
 | v=CONSTR a=option(pattern_args)
   { let pat = match a with
         | None   -> P_variant (v, [])
-        | Some l -> P_variant (v, l)
-    in make_pattern pat $startpos $endpos }
+        | Some l -> P_variant (v, l) in
+    make_pattern pat $startpos $endpos }
 | l=LITERAL
   { make_pattern (P_literal (PL_string (Location.value l))) $startpos $endpos }
 | l=INT_LITERAL

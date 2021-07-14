@@ -113,6 +113,7 @@ rule token = parse
 | "|)" { RPARBAR }
 | "[[" { LLBRACK }
 | "]]" { RRBRACK }
+| "[]" { LBRACKRBRACK }
 | "|"  { BAR }
 | "{"  { LBRACE }
 | "}"  { RBRACE }

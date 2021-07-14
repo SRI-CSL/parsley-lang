@@ -9,9 +9,30 @@ fun cons <'a> (l: my_list<'a>, e: 'a) -> my_list<'a> = {
   )
 }
 
-recfun len <'a> (l: my_list<'a>) -> int = {
+recfun my_len <'a> (l: my_list<'a>) -> int = {
   (case l of
   | my_list::Null()     -> 0
-  | my_list::Cons(_, t) -> 1 + len(t)
+  | my_list::Cons(_, t) -> 1 + my_len(t)
   )
+}
+
+recfun len <'a> (l: ['a]) -> int = {
+  (case l of
+  | []     -> 0
+  | _ :: t -> 1 + len(t)
+  )
+}
+
+type shape =
+ | Square
+ | Circle
+ | Rectangle
+
+recfun all_square (l: [shape]) -> bool = {
+  (case l of
+   | []       -> bool::True()
+   | hd :: tl ->
+      (case hd of
+       | shape::Square() -> all_square (tl)
+       | _               -> bool::False()))
 }
