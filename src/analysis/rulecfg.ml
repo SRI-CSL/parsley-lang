@@ -493,7 +493,7 @@ let rec lift_regexp rx =
     | RX_choice rxs ->
         wrap (RE_choice (List.map lift_regexp rxs))
     | RX_seq rxs ->
-        wrap (RE_seq (List.map lift_regexp rxs))
+        wrap (RE_seq_flat (List.map lift_regexp rxs))
 
 (* A helper to extract the record info for the synthesized attributes
  * of a non-terminal from a typing environment *)
@@ -562,7 +562,7 @@ let rec add_rule_elem
         let p = pattern_of_var n r.rule_elem_loc r.rule_elem_aux in
         let b = add_pattern env b p in
         env, closed, b
-    | RE_seq rs ->
+    | RE_seq rs | RE_seq_flat rs ->
         List.fold_left (fun ctx r -> add_rule_elem tenv ctx r) ctx rs
     | RE_choice rs ->
         (* This introduces a branch point, so we need to terminate

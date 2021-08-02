@@ -551,7 +551,7 @@ let rec print_rule_elem auxp rl =
         pp_print_string !ppf (auxp rl.rule_elem_aux);
         pp_print_string !ppf "=";
         print_rule_elem auxp rl
-    | RE_seq rls ->
+    | RE_seq rls | RE_seq_flat rls ->
         pp_print_string !ppf "(";
         print_list " " (print_rule_elem auxp) rls;
         pp_print_string !ppf ")"

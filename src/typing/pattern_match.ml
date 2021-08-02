@@ -348,7 +348,7 @@ and descend_rule_elem (ctx, acc) re =
     | RE_star (re, None)
     | RE_opt re ->
         ctx, snd (descend_rule_elem (ctx, acc) re)
-    | RE_seq res
+    | RE_seq res | RE_seq_flat res
     | RE_choice res ->
         ctx, snd (List.fold_left descend_rule_elem (ctx, acc) res)
     | RE_star (re, Some e)

@@ -1038,7 +1038,8 @@ let rec guess_is_regexp_elem rle =
       | RE_at_buf (_, rle') -> guess_is_regexp_elem rle'
 
     | RE_choice rles
-      | RE_seq rles -> List.for_all guess_is_regexp_elem rles
+      | RE_seq rles
+      | RE_seq_flat rles -> List.for_all guess_is_regexp_elem rles
 
     | RE_non_term _
     | RE_bitvector _
@@ -1064,7 +1065,8 @@ let rec is_regexp_elem tenv rle =
       | RE_at_buf (_, rle') -> is_regexp_elem tenv rle'
 
     | RE_choice rles
-      | RE_seq rles -> List.for_all (is_regexp_elem tenv) rles
+      | RE_seq rles
+      | RE_seq_flat rles -> List.for_all (is_regexp_elem tenv) rles
 
     | RE_non_term (nid, _) ->
         let n = Location.value nid in
@@ -1599,7 +1601,7 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         venv',
         cursor'
 
-    | RE_seq rels ->
+    | RE_seq rels | RE_seq_flat rels ->
         (* A sequence has a tuple type formed from the individual rule
            elements, unless they are all regexps, in which case they
            are flattened. *)
@@ -1617,9 +1619,10 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         let c =
           ex ~pos:re.rule_elem_loc qs
             ((t =?= typ) re.rule_elem_loc ^ ctx' unit) in
+        let rels' = List.rev rels' in
         pack_constraint c,
         wconj wcs',
-        mk_aux_rule_elem (RE_seq (List.rev rels')),
+        mk_aux_rule_elem (if is_regexp then RE_seq_flat rels' else RE_seq rels'),
         venv,
         cursor'
 

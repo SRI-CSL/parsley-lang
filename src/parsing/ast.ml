@@ -162,6 +162,8 @@ type ('a, 'b) rule_elem_desc =
   | RE_at_pos of ('a, 'b) expr * ('a, 'b) rule_elem
   | RE_at_buf of ('a, 'b) expr * ('a, 'b) rule_elem
   | RE_map_bufs of ('a, 'b) expr * ('a, 'b) rule_elem
+  (* internal use only: to flatten regexps after typing *)
+  | RE_seq_flat  of ('a, 'b) rule_elem list
 
 and ('a, 'b) rule_elem =
   {rule_elem: ('a, 'b) rule_elem_desc;
