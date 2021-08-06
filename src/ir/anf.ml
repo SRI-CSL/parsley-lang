@@ -120,11 +120,13 @@ and astmt =
   {astmt: astmt_desc;
    astmt_loc: Location.t}
 
-(* variable generator for A-normal form *)
-
 module Bindings = Map.Make(struct type t = string * TypeInfer.varid
                                   let compare = compare
                            end)
+
+(* variable generator for A-normal form: it ensures variables are
+   globally unique.
+ *)
 module VEnv : sig
   type t
   val empty: t

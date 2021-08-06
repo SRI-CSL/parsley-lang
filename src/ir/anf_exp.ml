@@ -304,6 +304,9 @@ and normalize_exp_case (tenv: TypingEnvironment.environment)
 let normalize_fun tenv venv (f: func) : afun * VEnv.t =
   let fident, venv = VEnv.bind venv f.fun_defn_ident in
   let params, venv =
+    (* fold_right ensures params are in the correct order in the
+       struct, but causes them to be bound in reverse order in the
+       VEnv. *)
     List.fold_right (fun (v, _) (ps, venv) ->
         let p, venv = VEnv.bind venv v in
         p :: ps, venv

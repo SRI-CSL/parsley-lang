@@ -17,8 +17,19 @@
 
 open Parsing
 open Ast
+open Typing
 
-let lower tenv spec =
+let lower (_, init_venv) tenv spec =
+  (* VEnv creates globally unique bindings for all variables bound in
+     the spec; however, the predefined/builtin variables from the
+     standard library are not bound in the spec, so the VEnv needs to
+     be initialized to include them.  For this it uses the init_venv
+     created by the type inferencer, which is already seeded with the
+     tagged variables from the standard library. *)
+  let venv = TypeInfer.VEnv.fold_left (fun venv v ->
+                 let _, venv = Anf.VEnv.bind venv v in
+                 venv
+               ) Anf.VEnv.empty init_venv in
   let _venv =
     List.fold_left (fun venv d ->
         match d with
@@ -28,5 +39,5 @@ let lower tenv spec =
               let nf, venv = Anf_exp.normalize_fun tenv venv f in
               Anf_printer.print_fun nf;
               venv
-      ) Anf.VEnv.empty spec.decls in
+      ) venv spec.decls in
   ()

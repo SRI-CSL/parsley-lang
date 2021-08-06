@@ -31,7 +31,10 @@ type context = TypeConstraint.tconstraint -> TypeConstraint.tconstraint
 
 (** Variable binding map *)
 
-(* binding identifier *)
+(** [varid] is a binding identifier used to disambiguate variable
+   names within local contexts; the id for a variable is not globally
+   unique.
+*)
 type varid = private int
 val varid_to_string: varid -> string
 
