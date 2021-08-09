@@ -19,6 +19,8 @@ open Parsing
 open Ast
 open Typing
 
+let print_anf = false
+
 let lower (_, init_venv) tenv spec =
   (* VEnv creates globally unique bindings for all variables bound in
      the spec; however, the predefined/builtin variables from the
@@ -37,7 +39,8 @@ let lower (_, init_venv) tenv spec =
               venv
           | Decl_fun f ->
               let nf, venv = Anf_exp.normalize_fun tenv venv f in
-              Anf_printer.print_fun nf;
+              if print_anf then
+                Anf_printer.print_fun nf;
               venv
       ) venv spec.decls in
   ()
