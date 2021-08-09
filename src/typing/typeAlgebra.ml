@@ -73,11 +73,39 @@ let builtin_types, builtin_consts, builtin_vars,
     let tvar  = Location.mk_loc_val "map" ghost_loc in
     let con = make_builtin_type (Ast.TE_tvar tvar) in
     make_builtin_type (Ast.TE_tapp (con, [ k; v ])) in
+  let parser_type t : Ast.type_expr =
+    let tvar  = Location.mk_loc_val "parser" ghost_loc in
+    let con = make_builtin_type (Ast.TE_tvar tvar) in
+    make_builtin_type (Ast.TE_tapp (con, [ t ])) in
+  let parse_result_type t : Ast.type_expr =
+    let tvar  = Location.mk_loc_val "parse_result" ghost_loc in
+    let con = make_builtin_type (Ast.TE_tvar tvar) in
+    make_builtin_type (Ast.TE_tapp (con, [ t ])) in
   let gen_tvar (v : string) : Ast.type_expr =
     let tvar = Location.mk_loc_val v ghost_loc in
     make_builtin_type (Ast.TE_tvar tvar) in
   let builtin_types : builtin_type array = [|
+      (* core primitive type *)
       TName "->",     (Ast.KArrow (Ast.KStar, Ast.KArrow (Ast.KStar, Ast.KStar)), []);
+
+      (* opaque types *)
+      TName "parser",       (Ast.KArrow (Ast.KStar, Ast.KStar), []);
+      TName "parse_error",  (Ast.KStar,
+                             (* this needs to be extended as needed *)
+                             [ (Ast.DName "EndOfBuffer", [],
+                                (gen_tvar "parse_error"));
+                               (Ast.DName "ConstraintFailure", [],
+                                (gen_tvar "parse_error"))
+                             ]);
+      TName "parse_result", (Ast.KArrow (Ast.KStar, Ast.KStar),
+                             [ (Ast.DName "Value", [ TName "a" ],
+                                (arrow_type (gen_tvar "a")
+                                   (parse_result_type (gen_tvar "a"))));
+                               (Ast.DName "Error", [ TName "a" ],
+                                (arrow_type (gen_tvar "parse_error")
+                                   (parse_result_type (gen_tvar "a")))) ]);
+
+      (* value types *)
       TName "*",      (Ast.KArrow (Ast.KStar, Ast.KArrow (Ast.KStar, Ast.KStar)),
                        [ (Ast.DName "_Tuple", [ TName "a"; TName "b" ],
                           arrow_type (gen_tvar "a")
@@ -175,6 +203,10 @@ let builtin_types, builtin_consts, builtin_vars,
       (* utility convertors *)
       (Ast.DName "byte_of_int_unsafe", [], arrow_type (gen_tvar "int")
                                              (gen_tvar "byte"));
+      (* operators *)
+      (Ast.DName "parse", [TName "a"], arrow_type (parser_type (gen_tvar "a"))
+                                         (arrow_type (gen_tvar "view")
+                                            (parse_result_type (gen_tvar "a"))));
     |] in
   let builtin_modules : builtin_module list = [
       {mod_name   = Ast.MName "Int";
