@@ -548,7 +548,8 @@ let rec add_rule_elem
         pack (add_gnode b (GN_type bv) r.rule_elem_loc)
     | RE_bitfield t ->
         pack (add_gnode b (GN_type t) r.rule_elem_loc)
-    | RE_constraint e ->
+    | RE_constraint e
+    | RE_set_buf e ->
         pack (add_expr env b e)
     | RE_action {action_stmts = ss, oe; _}->
         let env, closed, b = List.fold_left add_stmt ctx ss in

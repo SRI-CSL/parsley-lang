@@ -262,10 +262,6 @@ addressed soon.
 | `unit -> int`
 | get the cursor offset in the current parsing buffer
 
-| `make_current`
-| `view -> unit`
-| makes the specified parsing buffer the current buffer
-
 | `restrict`
 | `view -> int -> int -> view`
 | `restrict(v, n, len)` returns a parsing buffer of size `len` that starts `n` bytes from the cursor of `v`;

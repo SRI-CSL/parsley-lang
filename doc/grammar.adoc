@@ -321,6 +321,10 @@ Hence, if a match of `RE` has type `t`, then the type of the match
 returned by this combinator is `[t]`.  The map-views combinator fails
 if `RE` fails at any view in `views`.
 
+The *set-view* operator `@^[v]` sets the current view to `v`.
+Subsequent matching will be performed in this view until the current
+view is altered.
+
 ==== Regular Expressions
 
 A regular expression rule element can use a special syntax within a

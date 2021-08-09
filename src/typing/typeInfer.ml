@@ -1046,6 +1046,7 @@ let rec guess_is_regexp_elem rle =
     | RE_bitfield _
     | RE_align _
     | RE_pad _
+    | RE_set_buf _
     | RE_map_bufs _ -> false
 
 (* Checks whether the rule element [rle] is composed of only regexps.
@@ -1079,6 +1080,7 @@ let rec is_regexp_elem tenv rle =
     | RE_bitfield _
     | RE_align _
     | RE_pad _
+    | RE_set_buf _
     | RE_map_bufs _ -> false
 
 (** [guess_nt_rhs_type tenv ntd] tries to guess a type for the
@@ -1769,6 +1771,18 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         venv,
         cursor
 
+    | RE_set_buf (buf) ->
+        (* Non-sequence combinators can only start and end at
+           bit-aligned positions. *)
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
+        (* [buf] should have type [view] *)
+        let view = typcon_variable tenv (TName "view") in
+        let cb, (wcb, buf') = infer_expr tenv venv buf view in
+        pack_constraint cb,
+        wcb,
+        mk_aux_rule_elem (RE_set_buf buf'),
+        venv,
+        0
     | RE_at_pos (e, re') ->
         (* Non-sequence combinators can only start and end at
            bit-aligned positions. *)

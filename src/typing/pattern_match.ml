@@ -337,7 +337,8 @@ and descend_rule_elem (ctx, acc) re =
                | stmts, Some e ->
                    List.fold_left descend_stmt (descend_expr (ctx, acc) e) stmts
             )
-    | RE_constraint e ->
+    | RE_constraint e
+    | RE_set_buf e ->
         descend_expr (ctx, acc) e
     | RE_non_term (_, Some ias) ->
         ctx,

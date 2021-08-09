@@ -145,23 +145,34 @@ and ('a, 'b) regexp =
    regexp_aux: 'a}
 
 type ('a, 'b) rule_elem_desc =
-  | RE_regexp of ('a, 'b) regexp
-  | RE_non_term of ident * (ident * ('a, 'b) expr) list option
+  (* bit-level support *)
   | RE_bitvector of bitint
   | RE_align of bitint
   | RE_pad of bitint * bv_literal
   | RE_bitfield of ident
-  | RE_constraint of ('a, 'b) expr
-  | RE_action of ('a, 'b) rule_action
+
+  (* other basic primitives *)
+  | RE_regexp of ('a, 'b) regexp
+  | RE_non_term of ident * (ident * ('a, 'b) expr) list option
   | RE_named of 'b var * ('a, 'b) rule_elem
+
+  (* side-effects *)
+  | RE_action of ('a, 'b) rule_action
+
+  (* control flow and combinators *)
+  | RE_constraint of ('a, 'b) expr
   | RE_seq of ('a, 'b) rule_elem list
   | RE_choice of ('a, 'b) rule_elem list
   | RE_star of ('a, 'b) rule_elem * ('a, 'b) expr option
   | RE_opt of ('a, 'b) rule_elem
   | RE_epsilon
+
+  (* view control *)
+  | RE_set_buf of ('a, 'b) expr
   | RE_at_pos of ('a, 'b) expr * ('a, 'b) rule_elem
   | RE_at_buf of ('a, 'b) expr * ('a, 'b) rule_elem
   | RE_map_bufs of ('a, 'b) expr * ('a, 'b) rule_elem
+
   (* internal use only: to flatten regexps after typing *)
   | RE_seq_flat  of ('a, 'b) rule_elem list
 

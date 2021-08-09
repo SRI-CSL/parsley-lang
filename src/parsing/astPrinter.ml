@@ -574,6 +574,10 @@ let rec print_rule_elem auxp rl =
         pp_print_string !ppf "(";
         print_rule_elem auxp r;
         pp_print_string !ppf ")?*"
+    | RE_set_buf (e) ->
+        pp_print_string !ppf "@^[";
+        print_expr auxp e;
+        pp_print_string !ppf "]"
     | RE_at_pos (e, rl) ->
         pp_print_string !ppf "@(";
         print_expr auxp e;

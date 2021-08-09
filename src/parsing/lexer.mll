@@ -108,6 +108,7 @@ rule token = parse
 | "@(" { AT_POS }
 | "@[" { AT_BUF }
 | "@#["{ AT_MAP }
+| "@^["{ SET_BUF }
 | "@"  { AT }
 | "(|" { LPARBAR }
 | "|)" { RPARBAR }

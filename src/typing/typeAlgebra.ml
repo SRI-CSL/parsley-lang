@@ -339,9 +339,6 @@ let builtin_types, builtin_consts, builtin_vars,
            (Ast.DName "get_current_cursor", [],
             (arrow_type (gen_tvar "unit")
                (gen_tvar "int")));
-           (Ast.DName "make_current", [],
-            (arrow_type (gen_tvar "view")
-               (gen_tvar "unit")));
            (Ast.DName "restrict", [],
             (arrow_type (gen_tvar "view")
                (arrow_type (gen_tvar "int")

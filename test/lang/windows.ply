@@ -16,7 +16,7 @@ format {
     next = { ;; View.restrict_from(w, n) }
     s=@[w, (# ["0" .. "9"]* [" "]* #)]
     { lf.s := s }
-    { ;; View.make_current(next) }
+    @^[next]
 }
 
 format {
