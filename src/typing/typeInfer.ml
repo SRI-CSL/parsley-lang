@@ -1081,7 +1081,7 @@ let rec is_regexp_elem tenv rle =
     | RE_pad _
     | RE_map_bufs _ -> false
 
-(** [infer_nt_rhs_type tenv ntd] tries to deduce a type for the
+(** [guess_nt_rhs_type tenv ntd] tries to guess a type for the
     right-hand side of the definition of [ntd]. This is done
     in the following cases:
     . there is a single production with a single non-terminal
@@ -1094,7 +1094,7 @@ let rec is_regexp_elem tenv rle =
     TODO: this could be extended, e.g. for the above under a star or option
     operator, or restricted to views, etc.
  *)
-let infer_nt_rhs_type tenv ntd =
+let guess_nt_rhs_type tenv ntd =
   let res =
     match ntd.non_term_rules with
       (* a single production with a single non-terminal *)
@@ -1180,7 +1180,7 @@ let infer_non_term_type tenv ctxt ntd =
     | ALT_decls [] ->
         (* No type is declared; so it needs to be inferred.  This NT
            cannot be used as a type constructor. *)
-        let tvar  = infer_nt_rhs_type tenv ntd in
+        let tvar  = guess_nt_rhs_type tenv ntd in
         let ivar  = variable ~name:(TName ntnm) Flexible () in
         let cnstr = (CoreAlgebra.TVariable ivar =?= tvar) ntd.non_term_loc in
         let ntt   = (inh_typ, NTT_type (CoreAlgebra.TVariable ivar, None)) in
