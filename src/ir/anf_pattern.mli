@@ -47,3 +47,7 @@ val to_decision_tree:
 (* computes the path occurrences for each pattern variable in a
    pattern *)
 val pvar_paths: pat -> (TypeInfer.varid Ast.var * typ * occurrence) list
+
+(* printers *)
+val print_dectree: decision_tree -> unit
+val print_pmat: pmat -> unit

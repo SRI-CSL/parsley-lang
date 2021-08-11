@@ -131,3 +131,50 @@ let pvar_paths (p: pat)
           acc in
   (* start with the occurrence for the root path *)
   helper [] p []
+
+(* printers *)
+
+let sprint_con = function
+  | Con ((t, c), a) ->
+      Printf.sprintf "%s::%s(#%d)" (Location.value t) (Location.value c) a
+  | Lit l ->
+      Printf.sprintf "Lit (%s)" (AstPrinter.string_of_literal l)
+  | Default ->
+      "_"
+
+open Format
+let pp_string    = pp_print_string !AstPrinter.ppf
+let pp_open_box  = pp_open_box !AstPrinter.ppf
+let pp_close_box = pp_close_box !AstPrinter.ppf
+let pp_break     = pp_print_break !AstPrinter.ppf
+let pp_flush     = pp_print_flush !AstPrinter.ppf
+
+let rec print_dectree d =
+  match d with
+    | Leaf d ->
+        pp_string (Printf.sprintf "Leaf %d" d);
+        pp_flush ()
+    | Switch (occ, cases) ->
+        pp_string ("occ:" ^ (sprint_occ occ));
+        pp_string "(";
+        pp_open_box 0;
+        pp_break 0 0;
+        List.iter print_case cases;
+        pp_close_box ();
+        pp_string ")";
+        pp_flush ()
+
+and print_case (c, _, _, d) =
+  pp_string (" |" ^ (sprint_con c) ^ " => (");
+  print_dectree d;
+  pp_string ")"
+
+let print_pmat m =
+  let auxp = (fun _ -> "") in
+  let prow (r, d) =
+    pp_string (Printf.sprintf " [%d: " d);
+    List.iter (AstPrinter.print_pattern auxp) r;
+    pp_string "] ";
+    pp_break 0 0 in
+  List.iter prow m;
+  pp_flush ()
