@@ -133,6 +133,7 @@ module VEnv : sig
   val gen: t -> varid * t
   val bind: t -> TypeInfer.varid Ast.var -> varid * t
   val lookup: t -> TypeInfer.varid Ast.var -> varid
+  val is_bound: t -> TypeInfer.varid Ast.var -> bool
 end = struct
   type t = int ref * varid Bindings.t
 
@@ -162,6 +163,10 @@ end = struct
   let lookup (_, binds) (var: TypeInfer.varid Ast.var) =
     let v = var_val var in
     Bindings.find v binds
+
+  (* checks if a variable has already been bound *)
+  let is_bound (_, binds) (var: TypeInfer.varid Ast.var) =
+    Bindings.mem (var_val var) binds
 end
 
 type anf_error =
