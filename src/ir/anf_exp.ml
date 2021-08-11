@@ -219,6 +219,7 @@ and normalize_exp_case (tenv: TypingEnvironment.environment)
         (albl, (e, pvar_paths p)) :: act_infos,
         albl + 1
       ) ([], [], 0) cases in
+  let pmat = List.rev pmat in
   (* construct a decision tree for the pattern-action matrix *)
   let dt = to_decision_tree tenv pmat in
   (* convert a decision tree into an ANF expression *)
