@@ -49,6 +49,7 @@ type av_desc =
   | AV_var of varid
   | AV_constr of (Ast.ident * Ast.ident) * av list
   | AV_record of (Ast.ident * av) list
+  | AV_mod_member of Ast.modident * Ast.ident
 
 and av =
   {av: av_desc;
@@ -108,7 +109,6 @@ type aexp_desc =
   | AE_bitrange of av * int * int
   | AE_match of av * (Ast.ident * Ast.ident)
   | AE_field of av * Ast.ident
-  | AE_mod_member of Ast.modident * Ast.ident
   | AE_case of var * (apat * aexp) list
   | AE_let of var * aexp * aexp
   | AE_cast of av * Ast.type_expr

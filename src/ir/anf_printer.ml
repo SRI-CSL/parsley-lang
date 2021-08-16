@@ -37,6 +37,9 @@ let rec print_av av =
             print_av v
           ) fields;
         pp_print_string !ppf "}"
+    | AV_mod_member (m, i) ->
+        pp_print_string !ppf
+          (Printf.sprintf "%s.%s" (Location.value m) (Location.value i))
 
 let print_pat p =
   match p.apat with
@@ -112,9 +115,6 @@ and print_aexp e =
         print_av v;
         pp_print_string !ppf ".";
         pp_print_string !ppf (Location.value f)
-    | AE_mod_member (m, i) ->
-        pp_print_string !ppf
-          (Printf.sprintf "%s.%s" (Location.value m) (Location.value i))
     | AE_cast (v, t) ->
         pp_print_string !ppf "(";
         print_av v;

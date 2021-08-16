@@ -165,7 +165,8 @@ and normalize_exp tenv venv (e: exp) : aexp * VEnv.t =
         let ae = make_lets binds ae in
         ae, venv
     | E_mod_member (m, id) ->
-        wrap (AE_mod_member (m, id)), venv
+        let mm = make_av (AV_mod_member (m, id)) e.expr_aux e.expr_loc in
+        wrap (AE_val mm), venv
     | E_cast (e, t) ->
         let se, venv  = subnorm tenv venv e in
         let binds, av = match se with
