@@ -55,6 +55,23 @@ and av =
    av_typ: typ;
    av_loc: Location.t}
 
+(* constructors for variables and values *)
+
+let make_var v t l =
+  {v;
+   v_typ = t;
+   v_loc = l}
+
+let make_av v t l =
+  {av     = v;
+   av_typ = t;
+   av_loc = l}
+
+let av_of_var (v: var) : av =
+  {av = AV_var v.v;
+   av_typ = v.v_typ;
+   av_loc = v.v_loc}
+
 (* pattern tags for switches *)
 type apat_desc =
   | AP_wildcard
@@ -102,6 +119,18 @@ and aexp =
   {aexp: aexp_desc;
    aexp_typ: typ;
    aexp_loc: Location.t}
+
+(* constructors for expressions *)
+
+let make_ae ae t l =
+  {aexp     = ae;
+   aexp_typ = t;
+   aexp_loc = l}
+
+let ae_of_av (av: av) : aexp =
+  {aexp = AE_val av;
+   aexp_typ = av.av_typ;
+   aexp_loc = av.av_loc}
 
 type afun =
   {afun_ident: varid;
