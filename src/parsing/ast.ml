@@ -154,6 +154,8 @@ type ('a, 'b) rule_elem_desc =
   (* other basic primitives *)
   | RE_regexp of ('a, 'b) regexp
   | RE_non_term of ident * (ident * ('a, 'b) expr) list option
+
+  (* binding for return values *)
   | RE_named of 'b var * ('a, 'b) rule_elem
 
   (* side-effects *)
@@ -168,10 +170,10 @@ type ('a, 'b) rule_elem_desc =
   | RE_epsilon
 
   (* view control *)
-  | RE_set_buf of ('a, 'b) expr
+  | RE_set_view of ('a, 'b) expr
   | RE_at_pos of ('a, 'b) expr * ('a, 'b) rule_elem
-  | RE_at_buf of ('a, 'b) expr * ('a, 'b) rule_elem
-  | RE_map_bufs of ('a, 'b) expr * ('a, 'b) rule_elem
+  | RE_at_view of ('a, 'b) expr * ('a, 'b) rule_elem
+  | RE_map_views of ('a, 'b) expr * ('a, 'b) rule_elem
 
   (* internal use only: to flatten regexps after typing *)
   | RE_seq_flat  of ('a, 'b) rule_elem list

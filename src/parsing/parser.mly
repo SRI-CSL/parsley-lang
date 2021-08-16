@@ -28,7 +28,7 @@ open AstUtils
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LLBRACK RRBRACK LBRACKRBRACK
 %token LPARBAR RPARBAR SYN_BEGIN SYN_END
-%token SET_BUF AT_POS AT_BUF AT_MAP HASH
+%token SET_VIEW AT_POS AT_VIEW AT_MAP HASH
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI DOT QUESTION ARROW
 %token STAR PLUS MINUS DIV CARET PLUS_S AT BAR_B AND_B TILDE
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
@@ -639,12 +639,12 @@ rule_elem:
   { make_rule_elem (RE_opt r) $startpos $endpos }
 | AT_POS e=expr COMMA r=rule_elem RPAREN
   { make_rule_elem (RE_at_pos (e, r)) $startpos $endpos }
-| AT_BUF e=expr COMMA r=rule_elem RBRACK
-  { make_rule_elem (RE_at_buf (e, r)) $startpos $endpos }
+| AT_VIEW e=expr COMMA r=rule_elem RBRACK
+  { make_rule_elem (RE_at_view (e, r)) $startpos $endpos }
 | AT_MAP e=expr COMMA r=rule_elem RBRACK
-  { make_rule_elem (RE_map_bufs (e, r)) $startpos $endpos }
-| SET_BUF e=expr RBRACK
-  { make_rule_elem (RE_set_buf e) $startpos $endpos }
+  { make_rule_elem (RE_map_views (e, r)) $startpos $endpos }
+| SET_VIEW e=expr RBRACK
+  { make_rule_elem (RE_set_view e) $startpos $endpos }
 
 rule:
 | LPARBAR d=temp_decls RPARBAR l=list(rule_elem)

@@ -338,7 +338,7 @@ and descend_rule_elem (ctx, acc) re =
                    List.fold_left descend_stmt (descend_expr (ctx, acc) e) stmts
             )
     | RE_constraint e
-    | RE_set_buf e ->
+    | RE_set_view e ->
         descend_expr (ctx, acc) e
     | RE_non_term (_, Some ias) ->
         ctx,
@@ -354,8 +354,8 @@ and descend_rule_elem (ctx, acc) re =
         ctx, snd (List.fold_left descend_rule_elem (ctx, acc) res)
     | RE_star (re, Some e)
     | RE_at_pos (e, re)
-    | RE_at_buf (e, re)
-    | RE_map_bufs (e, re) ->
+    | RE_at_view (e, re)
+    | RE_map_views (e, re) ->
         ctx, snd (descend_rule_elem (descend_expr (ctx, acc) e) re)
 
 and descend_regexp ctx acc re =

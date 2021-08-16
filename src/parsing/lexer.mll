@@ -106,9 +106,9 @@ rule token = parse
 | "(#" { SYN_BEGIN }
 | "#)" { SYN_END }
 | "@(" { AT_POS }
-| "@[" { AT_BUF }
+| "@[" { AT_VIEW }
 | "@#["{ AT_MAP }
-| "@^["{ SET_BUF }
+| "@^["{ SET_VIEW }
 | "@"  { AT }
 | "(|" { LPARBAR }
 | "|)" { RPARBAR }

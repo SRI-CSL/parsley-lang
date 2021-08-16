@@ -1035,7 +1035,7 @@ let rec guess_is_regexp_elem rle =
       | RE_star (rle', _)
       | RE_opt rle'
       | RE_at_pos (_, rle')
-      | RE_at_buf (_, rle') -> guess_is_regexp_elem rle'
+      | RE_at_view (_, rle') -> guess_is_regexp_elem rle'
 
     | RE_choice rles
       | RE_seq rles
@@ -1046,8 +1046,8 @@ let rec guess_is_regexp_elem rle =
     | RE_bitfield _
     | RE_align _
     | RE_pad _
-    | RE_set_buf _
-    | RE_map_bufs _ -> false
+    | RE_set_view _
+    | RE_map_views _ -> false
 
 (* Checks whether the rule element [rle] is composed of only regexps.
    Since an environment is provided, it looks up the types of any
@@ -1063,7 +1063,7 @@ let rec is_regexp_elem tenv rle =
       | RE_star (rle', _)
       | RE_opt rle'
       | RE_at_pos (_, rle')
-      | RE_at_buf (_, rle') -> is_regexp_elem tenv rle'
+      | RE_at_view (_, rle') -> is_regexp_elem tenv rle'
 
     | RE_choice rles
       | RE_seq rles
@@ -1080,8 +1080,8 @@ let rec is_regexp_elem tenv rle =
     | RE_bitfield _
     | RE_align _
     | RE_pad _
-    | RE_set_buf _
-    | RE_map_bufs _ -> false
+    | RE_set_view _
+    | RE_map_views _ -> false
 
 (** [guess_nt_rhs_type tenv ntd] tries to guess a type for the
     right-hand side of the definition of [ntd]. This is done
@@ -1771,16 +1771,16 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         venv,
         cursor
 
-    | RE_set_buf (buf) ->
+    | RE_set_view (vu) ->
         (* Non-sequence combinators can only start and end at
            bit-aligned positions. *)
         check_aligned cursor 8 re.rule_elem_loc At_begin;
-        (* [buf] should have type [view] *)
+        (* [vu] should have type [view] *)
         let view = typcon_variable tenv (TName "view") in
-        let cb, (wcb, buf') = infer_expr tenv venv buf view in
+        let cb, (wcb, vu') = infer_expr tenv venv vu view in
         pack_constraint cb,
         wcb,
-        mk_aux_rule_elem (RE_set_buf buf'),
+        mk_aux_rule_elem (RE_set_view vu'),
         venv,
         0
     | RE_at_pos (e, re') ->
@@ -1798,30 +1798,30 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         mk_aux_rule_elem (RE_at_pos (e', re'')),
         venv,
         0
-    | RE_at_buf (buf, re') ->
+    | RE_at_view (vu, re') ->
         (* Non-sequence combinators can only start and end at
            bit-aligned positions. *)
         check_aligned cursor 8 re.rule_elem_loc At_begin;
-        (* [buf] should have type [view] and [re'] should have type [t] *)
+        (* [vu] should have type [view] and [re'] should have type [t] *)
         let view = typcon_variable tenv (TName "view") in
-        let cb, (wcb, buf') = infer_expr tenv venv buf view in
+        let cb, (wcb, vu') = infer_expr tenv venv vu view in
         let ctx', wc', re'', _, cursor' =
           infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t bound in
         check_aligned cursor' 8 re.rule_elem_loc At_end;
         pack_constraint (cb ^ ctx' unit),
         wcb @^ wc',
-        mk_aux_rule_elem (RE_at_buf (buf', re'')),
+        mk_aux_rule_elem (RE_at_view (vu', re'')),
         venv,
         0
-    | RE_map_bufs (bufs, re') ->
+    | RE_map_views (vus, re') ->
         (* Non-sequence combinators can only start and end at
            bit-aligned positions. *)
         check_aligned cursor 8 re.rule_elem_loc At_begin;
-        (* [bufs] should have type [list view] and [re] should have
+        (* [vus] should have type [list view] and [re] should have
          * type [list t'] where [t'] is the type of [re'] *)
         let view = typcon_variable tenv (TName "view") in
         let views = list (typcon_variable tenv) view in
-        let cb, (wcb, bufs') = infer_expr tenv venv bufs views in
+        let cb, (wcb, vus') = infer_expr tenv venv vus views in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
         let ctx', wc', re'', _, cursor' =
@@ -1833,7 +1833,7 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
             (cb ^ (t =?= result) re.rule_elem_loc ^ ctx' unit) in
         pack_constraint c,
         wcb @^ wc',
-        mk_aux_rule_elem (RE_map_bufs (bufs', re'')),
+        mk_aux_rule_elem (RE_map_views (vus', re'')),
         venv,
         0
 

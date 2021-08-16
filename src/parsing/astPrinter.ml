@@ -574,7 +574,7 @@ let rec print_rule_elem auxp rl =
         pp_print_string !ppf "(";
         print_rule_elem auxp r;
         pp_print_string !ppf ")?*"
-    | RE_set_buf (e) ->
+    | RE_set_view (e) ->
         pp_print_string !ppf "@^[";
         print_expr auxp e;
         pp_print_string !ppf "]"
@@ -584,13 +584,13 @@ let rec print_rule_elem auxp rl =
         pp_print_string !ppf ", ";
         print_rule_elem auxp rl;
         pp_print_string !ppf ")"
-    | RE_at_buf (e, rl) ->
+    | RE_at_view (e, rl) ->
         pp_print_string !ppf "@[";
         print_expr auxp e;
         pp_print_string !ppf ", ";
         print_rule_elem auxp rl;
         pp_print_string !ppf "]"
-    | RE_map_bufs (e, rl) ->
+    | RE_map_views (e, rl) ->
         pp_print_string !ppf "@#[";
         print_expr auxp e;
         pp_print_string !ppf ", ";

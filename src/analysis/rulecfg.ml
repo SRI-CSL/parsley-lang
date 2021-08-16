@@ -549,7 +549,7 @@ let rec add_rule_elem
     | RE_bitfield t ->
         pack (add_gnode b (GN_type t) r.rule_elem_loc)
     | RE_constraint e
-    | RE_set_buf e ->
+    | RE_set_view e ->
         pack (add_expr env b e)
     | RE_action {action_stmts = ss, oe; _}->
         let env, closed, b = List.fold_left add_stmt ctx ss in
@@ -593,9 +593,9 @@ let rec add_rule_elem
         let ctx = env, closed, b in
         add_rule_elem tenv ctx r'
     | RE_star (r', Some e)
-    | RE_map_bufs (e, r') ->
+    | RE_map_views (e, r') ->
         (* If we can't statically determine that [e] is always
-         * non-zero for RE_star or non-empty for RE_map_bufs, we
+         * non-zero for RE_star or non-empty for RE_map_views, we
          * conservatively assume that they could be zero or empty,
          * and create a branch point for the case that [r'] may not
          * execute. *)
@@ -631,7 +631,7 @@ let rec add_rule_elem
     | RE_pad _ ->
         (* these are nops *)
         ctx
-    | RE_at_pos (e, r') | RE_at_buf (e, r') ->
+    | RE_at_pos (e, r') | RE_at_view (e, r') ->
         (* [e] is evaluated before [r'] is matched *)
         let b = add_expr env b e in
         let ctx = env, closed, b in
