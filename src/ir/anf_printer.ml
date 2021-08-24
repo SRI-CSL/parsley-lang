@@ -1,9 +1,32 @@
+(**************************************************************************)
+(*  This program is free software; you can redistribute it and/or modify  *)
+(*  it under the terms of the GNU General Public License as published by  *)
+(*  the Free Software Foundation; version 2 of the License.               *)
+(*                                                                        *)
+(*  This program is distributed in the hope that it will be useful, but   *)
+(*  WITHOUT ANY WARRANTY; without even the implied warranty of            *)
+(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU     *)
+(*  General Public License for more details.                              *)
+(*                                                                        *)
+(*  You should have received a copy of the GNU General Public License     *)
+(*  along with this program; if not, write to the Free Software           *)
+(*  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA         *)
+(*  02110-1301 USA                                                        *)
+(*                                                                        *)
+(**************************************************************************)
+
 open Parsing
 open Anf
 open Format
 
-
-let ppf = ref std_formatter
+let pp_string    = pp_print_string !AstPrinter.ppf
+let pp_open_box  = pp_open_box !AstPrinter.ppf
+let pp_open_vbox = pp_open_vbox !AstPrinter.ppf
+let pp_close_box = pp_close_box !AstPrinter.ppf
+let pp_break     = pp_print_break !AstPrinter.ppf
+let pp_flush     = pp_print_flush !AstPrinter.ppf
+let pp_newline   = pp_print_newline !AstPrinter.ppf
+let pp_cut       = pp_print_cut !AstPrinter.ppf
 
 let string_of_var (v, id) =
   if v <> "" && id = 1
@@ -19,41 +42,41 @@ let rec print_av av =
   match av.av with
     | AV_lit l ->
         let s = AstPrinter.string_of_literal l in
-        pp_print_string !ppf s
+        pp_string s
     | AV_var v ->
-        pp_print_string !ppf (string_of_var v)
+        pp_string (string_of_var v)
     | AV_constr (c, avs) ->
-        pp_print_string !ppf (AstPrinter.string_of_constructor c);
+        pp_string (AstPrinter.string_of_constructor c);
         if List.length avs > 0 then begin
-            pp_print_string !ppf "(";
+            pp_string "(";
             AstPrinter.print_list ", " print_av avs;
-            pp_print_string !ppf ")";
+            pp_string ")";
           end
     | AV_record fields ->
-        pp_print_string !ppf "{";
+        pp_string "{";
         AstPrinter.print_list ", " (fun (f, v) ->
-            pp_print_string !ppf (Location.value f);
-            pp_print_string !ppf ": ";
+            pp_string (Location.value f);
+            pp_string ": ";
             print_av v
           ) fields;
-        pp_print_string !ppf "}"
+        pp_string "}"
     | AV_mod_member (m, i) ->
-        pp_print_string !ppf
+        pp_string
           (Printf.sprintf "%s.%s" (Location.value m) (Location.value i))
 
 let print_pat p =
   match p.apat with
     | AP_wildcard ->
-        pp_print_string !ppf "_"
+        pp_string "_"
     | AP_literal l ->
-        pp_print_string !ppf (AstPrinter.string_of_literal l)
+        pp_string (AstPrinter.string_of_literal l)
     | AP_variant c ->
-        pp_print_string !ppf (AstPrinter.string_of_constructor c)
+        pp_string (AstPrinter.string_of_constructor c)
 
 let rec print_clause (p, e) =
-  pp_print_string !ppf "| ";
+  pp_string "| ";
   print_pat p;
-  pp_print_string !ppf " -> ";
+  pp_string " -> ";
   print_aexp e
 
 and print_clauses = function
@@ -61,7 +84,7 @@ and print_clauses = function
   | [c] -> print_clause c
   | c :: t ->
       print_clause c;
-      pp_print_break !ppf 1 0;
+      pp_break 1 0;
       print_clauses t
 
 and print_aexp e =
@@ -69,161 +92,161 @@ and print_aexp e =
     | AE_val v ->
         print_av v
     | AE_apply (f, vs) ->
-        pp_print_string !ppf "(";
+        pp_string "(";
         print_av f;
-        pp_print_string !ppf " ";
+        pp_string " ";
         AstPrinter.print_list " " print_av vs;
-        pp_print_string !ppf ")"
+        pp_string ")"
     | AE_unop (op, v) ->
-        pp_print_string !ppf (AstPrinter.str_of_unop op);
-        pp_print_string !ppf "(";
+        pp_string (AstPrinter.str_of_unop op);
+        pp_string "(";
         print_av v;
-        pp_print_string !ppf ")"
+        pp_string ")"
     | AE_binop (Index, l, r) ->
         print_av l;
-        pp_print_string !ppf "[";
+        pp_string "[";
         print_av r;
-        pp_print_string !ppf "]"
+        pp_string "]"
     | AE_binop (b, l, r) ->
-        pp_print_string !ppf "(";
+        pp_string "(";
         print_av l;
         let op = Printf.sprintf " %s " (AstPrinter.str_of_binop b) in
-        pp_print_string !ppf op;
+        pp_string op;
         print_av r;
-        pp_print_string !ppf ")"
+        pp_string ")"
     | AE_recop (r, rop, v) ->
         let r = Printf.sprintf "%s->%s"
                   (Location.value r) (Location.value rop) in
-        pp_print_string !ppf r;
-        pp_print_string !ppf "(";
+        pp_string r;
+        pp_string "(";
         print_av v;
-        pp_print_string !ppf ")"
+        pp_string ")"
     | AE_bitrange (v, n, m) ->
         print_av v;
-        pp_print_string !ppf "[[";
-        pp_print_string !ppf (string_of_int n);
-        pp_print_string !ppf ":";
-        pp_print_string !ppf (string_of_int m);
-        pp_print_string !ppf "]]"
+        pp_string "[[";
+        pp_string (string_of_int n);
+        pp_string ":";
+        pp_string (string_of_int m);
+        pp_string "]]"
     | AE_match (v, c) ->
-        pp_print_string !ppf "(";
+        pp_string "(";
         print_av v;
-        pp_print_string !ppf " ~~ ";
-        pp_print_string !ppf (AstPrinter.string_of_constructor c);
-        pp_print_string !ppf ")"
+        pp_string " ~~ ";
+        pp_string (AstPrinter.string_of_constructor c);
+        pp_string ")"
     | AE_field (v, f) ->
         print_av v;
-        pp_print_string !ppf ".";
-        pp_print_string !ppf (Location.value f)
+        pp_string ".";
+        pp_string (Location.value f)
     | AE_cast (v, t) ->
-        pp_print_string !ppf "(";
+        pp_string "(";
         print_av v;
-        pp_print_string !ppf " : ";
+        pp_string " : ";
         AstPrinter.print_type_expr t;
-        pp_print_string !ppf ")"
+        pp_string ")"
     | AE_case (v, clauses) ->
-        pp_open_vbox !ppf 2;
-        pp_print_string !ppf "(case ";
-        pp_print_string !ppf (string_of_var v.v);
-        pp_print_string !ppf " of ";
-        pp_print_break !ppf 0 0;
+        pp_open_vbox 2;
+        pp_string "(case ";
+        pp_string (string_of_var v.v);
+        pp_string " of ";
+        pp_break 0 0;
         print_clauses clauses;
-        pp_close_box !ppf ();
-        pp_print_string !ppf ")"
+        pp_close_box ();
+        pp_string ")"
     | AE_let (v, e, b) ->
-        pp_print_string !ppf "let ";
-        pp_print_string !ppf (string_of_var v.v);
-        pp_print_string !ppf " = ";
+        pp_string "let ";
+        pp_string (string_of_var v.v);
+        pp_string " = ";
         print_aexp e;
-        pp_print_string !ppf " in ";
+        pp_string " in ";
         print_aexp b
     | AE_letpat (v, (av, occ), e) ->
-        pp_print_string !ppf "letpat ";
-        pp_print_string !ppf (string_of_var v.v);
-        pp_print_string !ppf " = ";
+        pp_string "letpat ";
+        pp_string (string_of_var v.v);
+        pp_string " = ";
         print_av av;
-        pp_print_string !ppf (string_of_occurrence occ);
-        pp_print_string !ppf " in ";
+        pp_string (string_of_occurrence occ);
+        pp_string " in ";
         print_aexp e
 
 let print_fun f =
-  pp_open_vbox !ppf 0;
-  pp_open_box !ppf 0;
-  pp_print_string !ppf "fun ";
-  pp_print_string !ppf (string_of_var f.afun_ident);
-  pp_print_string !ppf "(";
+  pp_open_vbox 0;
+  pp_open_box 0;
+  pp_string "fun ";
+  pp_string (string_of_var f.afun_ident);
+  pp_string "(";
   AstPrinter.print_list ", "
-    (fun s -> pp_print_string !ppf (string_of_var s))
+    (fun s -> pp_string (string_of_var s))
     f.afun_params;
-  pp_print_string !ppf ") = {";
-  pp_close_box !ppf ();
-  pp_print_cut !ppf ();
-  pp_open_box !ppf 2;
-  pp_print_break !ppf 2 0;
+  pp_string ") = {";
+  pp_close_box ();
+  pp_cut ();
+  pp_open_box 2;
+  pp_break 2 0;
   print_aexp f.afun_body;
-  pp_close_box !ppf ();
-  pp_print_newline !ppf ();
-  pp_print_string !ppf "}";
-  pp_print_newline !ppf ()
+  pp_close_box ();
+  pp_newline ();
+  pp_string "}";
+  pp_newline ()
 
 let rec print_clause (p, s) =
-  pp_print_string !ppf "| ";
+  pp_string "| ";
   print_pat p;
-  pp_print_string !ppf " -> ";
-  pp_print_cut !ppf ();
-  pp_open_vbox !ppf 2;
-  pp_print_string !ppf " { ";
+  pp_string " -> ";
+  pp_cut ();
+  pp_open_vbox 2;
+  pp_string " { ";
   print_stmt s;
-  pp_print_string !ppf " }";
-  pp_close_box !ppf ()
+  pp_string " }";
+  pp_close_box ()
 
 and print_clauses = function
   | [] -> ()
   | [c] -> print_clause c
   | c :: t ->
       print_clause c;
-      pp_print_break !ppf 1 0;
+      pp_break 1 0;
       print_clauses t
 
 and print_stmt s =
   match s.astmt with
     | AS_set_var (v, e) ->
-        pp_print_string !ppf (string_of_var v.v);
-        pp_print_string !ppf " := ";
+        pp_string (string_of_var v.v);
+        pp_string " := ";
         print_aexp e
     | AS_set_field (v, f, e) ->
-        pp_print_string !ppf (string_of_var v.v);
-        pp_print_string !ppf ".";
-        pp_print_string !ppf (Location.value f);
-        pp_print_string !ppf " := ";
+        pp_string (string_of_var v.v);
+        pp_string ".";
+        pp_string (Location.value f);
+        pp_string " := ";
         print_aexp e
     | AS_let (v, e, s) ->
-        pp_print_string !ppf "let ";
-        pp_print_string !ppf (string_of_var v.v);
-        pp_print_string !ppf " = ";
+        pp_string "let ";
+        pp_string (string_of_var v.v);
+        pp_string " = ";
         print_aexp e;
-        pp_print_string !ppf " in ";
-        pp_print_cut !ppf ();
-        pp_open_vbox !ppf 2;
-        pp_print_string !ppf " { ";
+        pp_string " in ";
+        pp_cut ();
+        pp_open_vbox 2;
+        pp_string " { ";
         print_stmt s;
-        pp_print_string !ppf " }";
-        pp_close_box !ppf ()
+        pp_string " }";
+        pp_close_box ()
     | AS_case (v, clauses) ->
-        pp_open_vbox !ppf 2;
-        pp_print_string !ppf "(case ";
-        pp_print_string !ppf (string_of_var v.v);
-        pp_print_string !ppf " of ";
-        pp_print_break !ppf 0 0;
+        pp_open_vbox 2;
+        pp_string "(case ";
+        pp_string (string_of_var v.v);
+        pp_string " of ";
+        pp_break 0 0;
         print_clauses clauses;
-        pp_close_box !ppf ();
-        pp_print_string !ppf ")"
+        pp_close_box ();
+        pp_string ")"
     | AS_block ss ->
         AstPrinter.print_list "; " print_stmt ss
     | AS_letpat (v, (av, occ), b) ->
-        pp_print_string !ppf "letpat ";
-        pp_print_string !ppf (string_of_var v.v);
-        pp_print_string !ppf " = ";
+        pp_string "letpat ";
+        pp_string (string_of_var v.v);
+        pp_string " = ";
         print_av av;
-        pp_print_string !ppf (string_of_occurrence occ);
+        pp_string (string_of_occurrence occ);
         print_stmt b
