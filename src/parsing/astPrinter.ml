@@ -659,8 +659,22 @@ let print_format auxp f =
   pp_print_cut !ppf ();
   pp_print_string !ppf "}"
 
+let print_const auxp c =
+  pp_open_box !ppf 0;
+  pp_print_string !ppf "const ";
+  pp_print_string !ppf (var_name c.const_defn_ident);
+  pp_print_string !ppf " : ";
+  print_type_expr c.const_defn_type;
+  pp_print_string !ppf " = ";
+  print_expr auxp c.const_defn_val;
+  pp_close_box !ppf ();
+  pp_print_cut !ppf ();
+  pp_print_newline !ppf ()
+
 let print_decl auxp d =
   match d with
+    | Decl_const c ->
+        print_const auxp c
     | Decl_types (typs, _) ->
         List.iter print_type_decl typs
     | Decl_fun fd ->

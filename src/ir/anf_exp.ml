@@ -283,6 +283,14 @@ and normalize_exp_case (tenv: TypingEnvironment.environment)
   (* construct the anf *)
   unfold venv dt
 
+let normalize_const tenv venv (c: const) : aconst * VEnv.t =
+  let cident, venv = VEnv.bind venv c.const_defn_ident in
+  let cval, venv = normalize_exp tenv venv c.const_defn_val in
+  {aconst_ident = cident;
+   aconst_val = cval;
+   aconst_loc = c.const_defn_loc},
+  venv
+
 let normalize_fun tenv venv (f: func) : afun * VEnv.t =
   let fident, venv = VEnv.bind venv f.fun_defn_ident in
   let params, venv =

@@ -156,6 +156,17 @@ conforms to a valid character encoding.
 NOTE: Full support for character encodings in strings is not yet
 present.
 
+== Constant definitions
+
+Constants are declared with the `const` keyword, and with an explicit
+type and value expression, with the following syntax:
+
+....
+ const max_packet_length : int = 1554
+....
+
+Constants cannot have polymorphic type.
+
 == Function declarations
 
 Functions are declared with the `fun` keyword, and with explicit

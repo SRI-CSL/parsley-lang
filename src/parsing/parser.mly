@@ -22,7 +22,7 @@ open AstUtils
 %}
 
 %token EOF
-%token FORMAT TYPE BITFIELD AND FUN RECFUN USE OF CASE LET IN
+%token FORMAT TYPE BITFIELD AND FUN RECFUN USE OF CASE LET IN CONST
 %token ATTR
 %token EPSILON PAD ALIGN USE_BITFIELD
 
@@ -181,6 +181,13 @@ let make_fun_defn n r tvs p t bd b e =
    fun_defn_recursive = r;
    fun_defn_loc = Location.mk_loc b e;
    fun_defn_aux = ()}
+
+let make_const_defn n t v b e =
+  {const_defn_ident = n;
+   const_defn_type = t;
+   const_defn_val = v;
+   const_defn_loc = Location.mk_loc b e;
+   const_defn_aux = ()}
 
 let make_use m b e =
   {use_modules = m;
@@ -744,6 +751,8 @@ pre_decl:
   { PDecl_use (make_use m $startpos $endpos) }
 | l=type_decls
   { PDecl_types (l, Location.mk_loc $startpos $endpos) }
+| CONST c=ident COLON t=type_expr EQ e=expr
+  { PDecl_const (make_const_defn (make_var c) t e $startpos $endpos) }
 | FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
   { PDecl_fun (make_fun_defn (make_var f) false [] p r e $startpos $endpos) }
 | FUN f=ident LT tvs=separated_list(COMMA, TVAR) GT

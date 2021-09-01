@@ -221,6 +221,13 @@ type ('a, 'b) fun_defn =
    fun_defn_loc: Location.t;
    fun_defn_aux: 'a}
 
+type ('a, 'b) const_defn =
+  {const_defn_ident: 'b var;
+   const_defn_type: type_expr;
+   const_defn_val: ('a, 'b) expr;
+   const_defn_loc: Location.t;
+   const_defn_aux: 'a}
+
 type attribute_arg =
   | Attr_key of ident
   | Attr_keyvalue of ident * ident
@@ -243,6 +250,7 @@ type ('a, 'b) format =
 type ('a, 'b) pre_decl =
   | PDecl_use of use
   | PDecl_types of type_decl list * Location.t (* possibly mutually recursive *)
+  | PDecl_const of ('a, 'b) const_defn
   | PDecl_fun of ('a, 'b) fun_defn
   | PDecl_format of ('a, 'b) format
 
@@ -252,6 +260,7 @@ type ('a, 'b) pre_top_level =
 (* flattened version after including use files *)
 type ('a, 'b) top_decl =
   | Decl_types of type_decl list * Location.t (* possibly mutually recursive *)
+  | Decl_const of ('a, 'b) const_defn
   | Decl_fun of ('a, 'b) fun_defn
   | Decl_format of ('a, 'b) format
 

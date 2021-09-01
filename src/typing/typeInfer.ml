@@ -924,10 +924,44 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
         (WC_true,
          mk_auxexpr (E_mod_member (m, i)))
 
+(* [infer_const_defn tenv venv ctxt cd] examines the const definition [fd]
+   and constraint context [ctxt] in the type environment [tenv] and
+   value environment [venv] and generates an updated constraint
+   context for [ctxt] and a type signature for [cd]. *)
+let infer_const_defn tenv venv ctxt cd =
+  let loc = Location.loc cd.const_defn_ident
+  and cn = var_name cd.const_defn_ident in
+  (* Introduce a type variable for the constant signature. *)
+  let cv = variable Flexible () in
+  let ctyp = CoreAlgebra.TVariable cv in
+  (* Create a value variable for the constant *)
+  let cn', _ = VEnv.add venv cd.const_defn_ident in
+  (* Expand and intern the specified type *)
+  let typ = TypedAstUtils.expand_type_abbrevs tenv cd.const_defn_type in
+  let ityp = TypeConv.intern tenv typ in
+  (* Generate the typing constraint for the value expression *)
+  let cval, (wcval, val') =
+    infer_expr tenv venv cd.const_defn_val ityp in
+  (* Bind the type variable for the full constraint *)
+  let cc = (ctyp =?= ityp) cd.const_defn_loc ^ cval in
+  let bind = StringMap.singleton cn (ctyp, loc) in
+  (* Construct the binding for the value definition. *)
+  let scheme =
+    Scheme (cd.const_defn_loc, [], [cv], cc, bind) in
+  (* Generate the constraint context *)
+  (fun c -> ctxt (CLet ([scheme], c))),
+  wcval,
+  (* The annotated constant *)
+  {const_defn_ident = cn';
+   const_defn_type = cd.const_defn_type;
+   const_defn_val = val';
+   const_defn_loc = loc;
+   const_defn_aux = ityp}
+
 (* [infer_fun_defn tenv venv ctxt fd] examines the function definition [fd]
    and constraint context [ctxt] in the type environment [tenv] and
-   generates an updated constraint context for [ctxt] and a type
-   signature for [fd]. *)
+   value environment [venv] and generates an updated constraint
+   context for [ctxt] and a type signature for [fd]. *)
 let infer_fun_defn tenv venv ctxt fd =
   let loc = Location.loc fd.fun_defn_ident
   and fdn = var_name fd.fun_defn_ident
@@ -2169,6 +2203,13 @@ let infer_spec tenv venv spec =
                        infer_type_decls tenv ctxt tdsloc tds in
                      tenv', ctxt, wc, decls', venv
               )
+          | Decl_const const ->
+              let c, wc', const' =
+                infer_const_defn tenv venv ctxt const in
+              (* bind the const name *)
+              let cid = const'.const_defn_ident in
+              let venv' = VEnv.extend venv (var_name cid) cid in
+              tenv, c, wc @^ wc', Decl_const const' :: decls, venv'
           | Decl_fun f ->
               (* TODO: solve eagerly? *)
               let c, wc', f' = infer_fun_defn tenv venv ctxt f in

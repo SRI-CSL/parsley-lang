@@ -132,6 +132,7 @@ following:
 
 * `use` specifiers for inclusions of declarations from other Parsley files
 * `type` definitions
+* `const` definitions of constant expressions
 * `fun` (function) or `recfun` (recursive function) definitions
 * `format` blocks containing a set of non-terminal definitions
 
@@ -154,10 +155,11 @@ entire specification.
 
 The scoping of `type` and `fun`/`recfun` is _lexical_: a `type`
 definition can only use the types defined by definitions in scope at
-that point.  Similarly, a `fun`/`recfun` function definition can only
-refer to types or call other functions that have been defined in
-definitions in scope.
+that point.  A `const` definition can only refer to types and other
+constants and functions whose definitions are in scope.  Similarly, a
+`fun`/`recfun` function definition can only refer to types or call
+other functions whose definitions are in scope.
 
-`type` and `fun`/`recfun` definitions are processed before any format
-block, so all type and function definitions are in scope in every
-format block.
+`type`, `const` and `fun`/`recfun` definitions are processed before
+any format block, so all type, constant and function definitions are
+in scope in every format block.

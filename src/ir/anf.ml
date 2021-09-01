@@ -27,6 +27,9 @@ type exp = (typ, TypeInfer.varid) Ast.expr
 (* source-level patterns *)
 type pat = (typ, TypeInfer.varid) Ast.pattern
 
+(* source-level constants *)
+type const = (typ, TypeInfer.varid) Ast.const_defn
+
 (* source-level functions *)
 type func = (typ, TypeInfer.varid) Ast.fun_defn
 
@@ -131,6 +134,11 @@ let ae_of_av (av: av) : aexp =
   {aexp = AE_val av;
    aexp_typ = av.av_typ;
    aexp_loc = av.av_loc}
+
+type aconst =
+  {aconst_ident: varid;
+   aconst_val: aexp;
+   aconst_loc: Location.t}
 
 type afun =
   {afun_ident: varid;

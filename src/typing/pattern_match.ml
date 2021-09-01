@@ -394,7 +394,7 @@ and descend_stmt (ctx, acc) s =
 let check_patterns tenv (spec: (MultiEquation.crterm, TypeInfer.varid) Ast.program)  =
   let ctx = ExpConstraint.empty in
   List.iter (function
-      | Decl_types _ ->
+      | Decl_types _ | Decl_const _ ->
           ()
       | Decl_fun f ->
           List.iter

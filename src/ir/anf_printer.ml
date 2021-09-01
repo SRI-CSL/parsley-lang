@@ -169,6 +169,18 @@ and print_aexp e =
         pp_string " in ";
         print_aexp e
 
+let print_const c =
+  pp_open_vbox 0;
+  pp_open_box 0;
+  pp_string "const ";
+  pp_string (string_of_var c.aconst_ident);
+  pp_string " = ";
+  print_aexp c.aconst_val;
+  pp_close_box ();
+  pp_newline ();
+  pp_close_box ();
+  pp_newline ()
+
 let print_fun f =
   pp_open_vbox 0;
   pp_open_box 0;

@@ -15,7 +15,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* A control-flow graph for production rules in the typed AST *)
+(* An analysis to ensure that all synthesized attributes of a
+   non-terminal are assigned in each of its production rules, and no
+   uninitialized variables are used in any expression.  *)
 
 module Location = Parsing.Location
 open Parsing.Ast
@@ -793,7 +795,7 @@ let fwd_transfer : v VA.fwd_transfer =
 
 (* build up the base set of initialized variables:
  * . constants and functions from the prelude
- * . functions defined in the spec
+ * . constants and functions defined in the spec
  *)
 let build_init_bindings (init_venv: VEnv.t) (tspec: (typ, varid) program) =
   let mk_elem v =
@@ -807,6 +809,8 @@ let build_init_bindings (init_venv: VEnv.t) (tspec: (typ, varid) program) =
       match d with
         | Decl_types _ | Decl_format _ ->
             init
+        | Decl_const c ->
+            Bindings.add (mk_elem c.const_defn_ident) init
         | Decl_fun f ->
             Bindings.add (mk_elem f.fun_defn_ident) init
     ) init tspec.decls
@@ -922,7 +926,7 @@ let check_spec init_envs (tenv: TE.environment) (tspec: (typ, varid) program) =
   let init = build_init_bindings init_venv tspec in
   List.iter (fun d ->
       match d with
-        | Decl_types _ | Decl_fun _ -> ()
+        | Decl_types _ | Decl_fun _ | Decl_const _ -> ()
         | Decl_format f ->
             List.iter (fun fd ->
                 check_non_term tenv init fd.format_decl

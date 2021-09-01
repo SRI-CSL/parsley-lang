@@ -44,6 +44,7 @@
         "case",     CASE;
         "let",      LET;
         "in",       IN;
+        "const",    CONST;
 
         "$epsilon",  EPSILON;
         "$pad",      PAD;

@@ -37,6 +37,11 @@ let lower (_, init_venv) tenv spec =
         match d with
           | Decl_types _ | Decl_format _ ->
               venv
+          | Decl_const c ->
+              let nc, venv = Anf_exp.normalize_const tenv venv c in
+              if print_anf then
+                Anf_printer.print_const nc;
+              venv
           | Decl_fun f ->
               let nf, venv = Anf_exp.normalize_fun tenv venv f in
               if print_anf then
