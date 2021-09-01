@@ -241,6 +241,10 @@ throws an exception if no binding exists
 | byte vector to string conversion;
 throws an exception if conversion fails
 
+| `of_literal`
+| `string -> string`
+| converts a string literal into a string
+
 |===
 
 NOTE: Character encoding issues for string conversion will be

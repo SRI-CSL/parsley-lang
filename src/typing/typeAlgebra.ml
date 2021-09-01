@@ -326,6 +326,9 @@ let builtin_types, builtin_consts, builtin_vars,
            (Ast.DName "of_bytes_unsafe", [],
             arrow_type (list_type (gen_tvar "byte"))
               (gen_tvar "string"));
+           (Ast.DName "of_literal", [],
+            arrow_type (gen_tvar "string")
+              (gen_tvar "string"))
          ];
       };
       {mod_name   = Ast.MName "View";

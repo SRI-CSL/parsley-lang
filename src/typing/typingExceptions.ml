@@ -240,11 +240,17 @@ type typing_error =
   | ZeroWidthAlignment of Location.t
 
   (* [Non_constant_numerical_arg m i] is raised when a non-numerical
-     argument is given to an operation to a standard library api 'm.i' . *)
+     argument is given to a standard library api 'm.i' that expects a
+     numerical argument. *)
   | Non_constant_numerical_arg of Location.t * Ast.ident * Ast.ident
 
   (* [Possible_division_by_zero] is raised during constant folding *)
   | Possible_division_by_zero of Location.t
+
+  (* [Non_literal_string_arg s] is raised when a non-literal argument
+     is given to a standard library api 'm.i' that expects a literal
+     string argument. *)
+  | Non_literal_string_arg of Location.t * Ast.ident * Ast.ident
 
 exception Error of typing_error
 
@@ -461,6 +467,11 @@ let error_msg = function
   | Non_constant_numerical_arg (loc, m, i) ->
       msg
         "%s:\n operation `%s.%s' requires this to be a constant numerical argument.\n"
+        loc (Location.value m) (Location.value i)
+
+  | Non_literal_string_arg (loc, m, i) ->
+      msg
+        "%s:\n operation `%s.%s' requires this to be a literal string argument.\n"
         loc (Location.value m) (Location.value i)
 
   | Possible_division_by_zero l ->
