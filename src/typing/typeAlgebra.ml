@@ -411,6 +411,34 @@ let builtin_types, builtin_consts, builtin_vars,
   builtin_types, builtin_consts, builtin_vars,
   builtin_modules, builtin_non_terms
 
+(* Types that are character classes and their membership *)
+
+let character_classes =
+  let ascii =
+    Array.init 255 (fun i -> Char.chr i) in
+  let hex =
+    Array.of_list ['0';'1';'2';'3';'4';'5';'6';'7';'8';'9';
+                   'a';'b';'c';'d';'e';'f';
+                   'A';'B';'C';'D';'E';'F'] in
+  let digits =
+    Array.of_list ['0';'1';'2';'3';'4';'5';'6';'7';'8';'9'] in
+  let lower =
+    Array.init 26 (fun i -> Char.chr (i + 97)) in
+  let upper =
+    Array.init 26 (fun i -> Char.chr (i + 65)) in
+  let alphanum =
+    Array.of_list (Array.to_list digits
+                   @ Array.to_list lower
+                   @ Array.to_list upper) in
+  [ "AsciiCharS", ascii;
+    "HexCharS", hex;
+    "AlphaNumS", digits;
+    "DigitS", alphanum;
+  ]
+
+let is_character_class t =
+  List.mem (Location.value t) (List.map fst character_classes)
+
 let mk_builtin_bitwidth i =
   assert(i >= 0);
   let n = string_of_int i in

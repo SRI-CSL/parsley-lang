@@ -252,6 +252,32 @@ type typing_error =
      string argument. *)
   | Non_literal_string_arg of Location.t * Ast.ident * Ast.ident
 
+  (* [Not_character_class] is raised when a character class is
+     not provided as a regular expression (e.g. as the left operand
+     of a difference operator). *)
+  | Not_character_class of Location.t
+
+  (* [Unknown_character_class] is raised when an unknown character class is
+     specified. *)
+  | Unknown_character_class of Ast.ident
+
+  (* [Not_literal_set] is raised when a set of literals is expected
+     (e.g. as the right operand of a difference operator). *)
+  | Not_literal_set of Location.t
+
+  (* [Not_in_character_set id l] is raised when a literal [l] is not
+     a member of character class [id]. *)
+  | Not_in_character_set of Ast.ident * Ast.literal
+
+  (* [Inconsistent_literal_ranges s e] is raised when the starting and
+     ending literals in a literal range have unequal lengths [s] and
+     [e]. *)
+  | Inconsistent_literal_ranges of Location.t * string * int * string * int
+
+  (* [Inconsistent_literal_ranges idx s e] is raised when the starting [s]
+     and ending literal [e] in a literal range are inconsistent. *)
+  | Inconsistent_literal_range of Location.t * string * string * int
+
 exception Error of typing_error
 
 let str_of_rule_pos = function
@@ -477,3 +503,27 @@ let error_msg = function
         "%s:\n Operation `%s.%s' requires this to be a literal string argument.\n"
         loc (Location.value m) (Location.value i)
 
+  | Not_character_class loc ->
+      msg
+        "%s:\n A character class was expected.\n"
+        loc
+  | Unknown_character_class id ->
+      msg
+        "%s:\n Unknown character class `%s'.\n"
+        (Location.loc id) (Location.value id)
+  | Not_literal_set loc ->
+      msg
+        "%s:\n A literal set was expected.\n"
+        loc
+  | Not_in_character_set (id, l) ->
+      msg
+        "%s:\n Literal `%s' is not in character class `%s'."
+        (Location.loc l) (Location.value l) (Location.value id)
+  | Inconsistent_literal_ranges (loc, s, sl, e, el) ->
+      msg
+        "%s:\n Starting (`%s') and ending (`%s') literals in range have inconsistent lengths %d and %d."
+        loc s e sl el
+  | Inconsistent_literal_range (loc, s, e, idx) ->
+      msg
+        "%s:\n Starting literal `%s' at position %d of range is not smaller than ending literal `%s'."
+        loc s idx e

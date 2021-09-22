@@ -1295,17 +1295,59 @@ let check_non_term tenv id t =
     | Some t' ->
         (t =?= t') (Location.loc id)
 
-let rec check_literals tenv ls t =
+(* this assumes that the character class [id] is known *)
+let check_in_character_class id ls =
+  let chars = (List.assoc (Location.value id) character_classes) in
+  let chars = Array.map Char.escaped chars in
+  List.iter (fun l ->
+      let c = Location.value l in
+      if not (Array.mem c chars)
+      then raise (Error (Not_in_character_set (id, l)))
+    ) ls
+
+let check_literals tenv ls t =
+  let byte  = typcon_variable tenv (TName "byte") in
+  let bytes = list (typcon_variable tenv) byte in
   match ls.literal_set with
     | LS_type id ->
         (* This non-terminal should have byte list type *)
         check_non_term tenv id t
-    | LS_diff (l, r) ->
-        (check_literals tenv l t) ^ (check_literals tenv r t)
-    | LS_set _ | LS_range (_, _) ->
+    | LS_diff ({literal_set = LS_type cc; _}, {literal_set = LS_set ls'; _}) ->
+        (* Set difference is only supported for elision of single
+           characters from character classes.  i.e. the left operand
+           needs to be a character class, and the right a union of
+           single characters *)
+        if not (is_character_class cc)
+        then raise (Error (Unknown_character_class cc));
+        (check_in_character_class cc ls');
+        (t =?= bytes) ls.literal_set_loc
+    | LS_diff ({literal_set = LS_type _; _}, {literal_set_loc = l'; _}) ->
+        raise (Error (Not_literal_set l'))
+    | LS_diff (l, _) ->
+        raise (Error (Not_character_class l.literal_set_loc))
+    | LS_range (s, e) ->
+        (* Both start and end literals should have the same length,
+           and the literal at each position of `s` should be <= the
+           corresponding literal of `e`. *)
+        let ss = Location.value s in
+        let es = Location.value e in
+        let sl, el = String.length ss, String.length es in
+        if sl != el
+        then raise (Error (Inconsistent_literal_ranges
+                             (ls.literal_set_loc, ss, sl, es, el)));
+        let i = ref 0 in
+        while !i != sl do
+          (if Char.code ss.[!i] > Char.code es.[!i]
+           then let err =
+                 Inconsistent_literal_range
+                   (ls.literal_set_loc,
+                    Char.escaped ss.[!i], Char.escaped es.[!i], !i) in
+                raise (Error err));
+          incr i;
+        done;
+        (t =?= bytes) ls.literal_set_loc
+    | LS_set _ ->
         (* Literals will always be byte lists *)
-        let byte  = typcon_variable tenv (TName "byte") in
-        let bytes = list (typcon_variable tenv) byte in
         (t =?= bytes) ls.literal_set_loc
 
 let rec infer_regexp tenv venv re t =

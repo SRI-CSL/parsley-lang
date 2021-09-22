@@ -344,10 +344,17 @@ literal strings.
 ....
   ["A" | "B" | "C"]
 ....
-The *difference* operator, denoted with an infix `\`, matches the set
-difference between the left literal set and the right literal set.
-For example, the below literal set matches any ASCII character except
-`(`.
+A *character class* is a set of related literal characters that is
+named for convenience.  The character classes available in the
+standard library are `AsciiCharS`, `DigitS`, `HexCharS` and
+`AlphaNumS`.
+
+It is often convenient to use all but a few of the characters from a
+character class.  This can be done using the *difference* operator,
+denoted with an infix `\`.  It denotes the difference between the
+character class specified as the left operand and the literal set
+given as the right operand.  For example, the below literal set
+matches any ASCII character except `(`.
 ....
   [AsciiCharS \ "("]
 ....

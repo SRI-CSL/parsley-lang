@@ -81,6 +81,12 @@ val type_of_primitive : 'a environment -> Ast.primitive_literal -> 'a CoreAlgebr
  ** for regular expressions *)
 val is_regexp_type : 'a environment -> 'a CoreAlgebra.arterm -> bool
 
+(** [is_character_class t] checks if [t] is the name of a pre-defined
+ ** character class *)
+val is_character_class : Ast.ident -> bool
+
+val character_classes : (string * char array) list
+
 (** The type of predefined data constructors. *)
 type builtin_dataconstructor = Ast.dname * Ast.tname list * Ast.type_expr
 
