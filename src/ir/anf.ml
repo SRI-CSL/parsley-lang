@@ -33,7 +33,7 @@ type const = (typ, TypeInfer.varid) Ast.const_defn
 (* source-level functions *)
 type func = (typ, TypeInfer.varid) Ast.fun_defn
 
-(* source-level functions *)
+(* source-level statements *)
 type stmt = (typ, TypeInfer.varid) Ast.stmt
 
 (* The IR for the expression language is the A-normal form. *)

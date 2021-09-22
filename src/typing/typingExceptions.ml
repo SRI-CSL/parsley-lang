@@ -71,8 +71,8 @@ type typing_error =
   (* [DuplicateRecordField] is raised when a field label is
      defined multiple times, perhaps in different types. *)
   | DuplicateRecordField
-            (* current definition *) (* previous definition *)
-          of Location.t * Ast.lname * Ast.tname * Location.t
+    (* current definition *) (* previous definition *)
+    of Location.t * Ast.lname * Ast.tname * Location.t
 
   (* [RepeatedRecordField] is raised when a field label is
      repeated in a record. *)
@@ -349,20 +349,20 @@ let error_msg = function
         u
 
   | RepeatedFunctionParameter (p, p') ->
-      msg "%s:\n parameter `%s' is repeated at %s.\n"
+      msg "%s:\n Parameter `%s' is repeated at %s.\n"
         (Location.loc p) (Location.value p)
         (Location.str_of_file_loc (Location.loc p'))
 
   | DuplicateModItem (p, MName m, DName v, loc) ->
-      msg "%s:\n redefinition of value `%s' of module `%s' defined at %s.\n"
+      msg "%s:\n Redefinition of value `%s' of module `%s' defined at %s.\n"
         p v m (Location.str_of_file_loc loc)
 
   | UnknownModule (p, MName mid) ->
-      msg "%s:\n unknown module `%s'\n."
+      msg "%s:\n Unknown module `%s'\n."
         p mid
 
   | UnknownModItem (p, MName mid, DName vid) ->
-      msg "%s:\n undefined value `%s' of module `%s'.\n"
+      msg "%s:\n Undefined value `%s' of module `%s'.\n"
         p vid mid
 
   | UnknownNonTerminal nid ->
@@ -422,7 +422,7 @@ let error_msg = function
       msg "%s:\n Unbound identifier `%s'.\n" p t
 
   | ZeroWidthBitvector l ->
-      msg "%s:\n a zero-width bitvector is not a valid type.\n" l
+      msg "%s:\n A zero-width bitvector is not a valid type.\n" l
 
   | InvalidBitrangeLowBound (loc, b) ->
       msg "%s:\n %d is an invalid low bound for bitvector range.\n" loc b
@@ -431,21 +431,21 @@ let error_msg = function
       msg "%s:\n %d-%d is an invalid (empty) range.\n" loc n m
 
   | InvalidBitrangeOrder (loc, n, m) ->
-      msg "%s:\n index range %d-%d is in an invalid order.\n" loc n m
+      msg "%s:\n Index range %d-%d is in an invalid order.\n" loc n m
 
   | IncompleteBitfieldRanges (bf, idx) ->
       msg
-        "%s:\n specified ranges of bitfield `%s' do not cover index %d.\n"
+        "%s:\n Specified ranges of bitfield `%s' do not cover index %d.\n"
         (Location.loc bf) (Location.value bf) idx
 
   | OverlappingBitfieldRanges (bf, f, f', idx) ->
       msg
-        "%s:\n fields `%s' and `%s' of bitfield `%s' overlap at index %d.\n"
+        "%s:\n Fields `%s' and `%s' of bitfield `%s' overlap at index %d.\n"
         (Location.loc bf) (Location.value f) (Location.value f')
         (Location.value bf) idx
 
   | InvalidRecordOperator(loc, op) ->
-      msg "%s:\n invalid record operator `%s'.\n" loc op
+      msg "%s:\n Invalid record operator `%s'.\n" loc op
 
   | NotRecordType t ->
       msg "%s:\n `%s' is not a record type.\n"
@@ -457,22 +457,23 @@ let error_msg = function
 
   | NotByteAligned (loc, ofs, align, pos) ->
       msg
-        "%s:\n the %s of this rule element is not aligned to %d bits (off by %d bits).\n"
+        "%s:\n The %s of this rule element is not aligned to %d bits (off by %d bits).\n"
         loc (str_of_rule_pos pos) align ofs
   | InvalidAlignment a ->
-      msg "%s:\n alignment %d is not byte-aligned.\n"
+      msg "%s:\n Alignment %d is not byte-aligned.\n"
         (Location.loc a) (Location.value a)
   | ZeroWidthAlignment l ->
-      msg "%s:\n unnecessary alignment (matches 0 bits).\n" l
+      msg "%s:\n Unnecessary alignment (matches 0 bits).\n" l
   | Non_constant_numerical_arg (loc, m, i) ->
       msg
-        "%s:\n operation `%s.%s' requires this to be a constant numerical argument.\n"
-        loc (Location.value m) (Location.value i)
-
-  | Non_literal_string_arg (loc, m, i) ->
-      msg
-        "%s:\n operation `%s.%s' requires this to be a literal string argument.\n"
+        "%s:\n Operation `%s.%s' requires this to be a constant numerical argument.\n"
         loc (Location.value m) (Location.value i)
 
   | Possible_division_by_zero l ->
-      msg "%s:\n possible division by zero.\n" l
+      msg "%s:\n Possible division by zero.\n" l
+
+  | Non_literal_string_arg (loc, m, i) ->
+      msg
+        "%s:\n Operation `%s.%s' requires this to be a literal string argument.\n"
+        loc (Location.value m) (Location.value i)
+
