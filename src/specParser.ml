@@ -63,10 +63,6 @@ let parse_file fname cont =
           (Printexc.get_backtrace ())
           (Printf.sprintf "%s: invalid token at or just before this location"
              (Location.str_of_curr_pos lexbuf))
-    | Lexer.Error (e, l) ->
-        handle_exception
-          (Printexc.get_backtrace ())
-          (print_exception l (Lexer.error_string e))
     | Parseerror.Error (e, l) ->
         handle_exception
           (Printexc.get_backtrace ())

@@ -19,15 +19,6 @@
   open Lexing
   open Parser
 
-  type error =
-    | Unterminated_string
-
-  exception Error of error * Location.t
-
-  let error_string = function
-    | Unterminated_string ->
-        "unterminated string"
-
   let token_buf = ref (Buffer.create 256)
 
   let keywords =
