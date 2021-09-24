@@ -338,9 +338,18 @@ combinator. As usual, `(` and `)` can be used for grouping purposes.
 
 A *literal set* is enclosed within `[` and `]` markers, and is
 composed from individual literal ASCII strings and other literal sets,
-using the choice, difference, and range operators.  The *choice*
-operator, denoted with an infix `|`, matches one of a given set of
-literal strings.
+using the choice, difference, and range operators.  Within a
+*literal*, conventional escapes can be used to denote characters for
+linefeed (`\n`), carriage-return (`\r`), and horizontal tab (`\t`).
+Numerical escape-codes are also supported in the form of decimal codes
+(`\ddd`, where `d` is a decimal), hexadecimal codes (`\xhh` where `h`
+is hexadecimal), and octal codes (`\occc` where c is octal).
+
+NOTE: Currently, the `"` double-quote character can only be specified
+with a numerical escape code (e.g. `\034`, `\x22`, or `\o042`).
+
+The *choice* operator, denoted with an infix `|`, matches one of a
+given set of literal strings.
 ....
   ["A" | "B" | "C"]
 ....

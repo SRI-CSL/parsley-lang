@@ -58,6 +58,9 @@ let type_check spec =
     Pattern_match.check_patterns tenv spec';
     init_envs, tenv, spec'
   with
+    (* error messages from conversion of regexp literals *)
+    | Literal_lexer.Error e ->
+        handle_exception (Printexc.get_backtrace ()) (Literal_lexer.error_msg e)
     | TypingExceptions.Error e ->
         handle_exception
           (Printexc.get_backtrace ()) (TypingExceptions.error_msg e)

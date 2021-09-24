@@ -1295,37 +1295,83 @@ let check_non_term tenv id t =
     | Some t' ->
         (t =?= t') (Location.loc id)
 
-(* this assumes that the character class [id] is known *)
-let check_in_character_class id ls =
-  let chars = (List.assoc (Location.value id) character_classes) in
-  let chars = Array.map Char.escaped chars in
-  List.iter (fun l ->
+(* The next few functions deal with processing literals in regular
+   expressions.  The main tasks in this processing are:
+
+   . Converting any embedded escape sequences using a specialized
+     lexer.  The converted literal then replaces the original in the
+     AST.
+
+   . Checking membership of character classes for the difference
+     operator.
+ *)
+
+(* Use a specialized lexer to convert any embedded escapes in string
+   literals into their char denotations; return both the converted
+   and original literals for better error reporting. *)
+let convert_escapes (s : literal) : literal * literal =
+  let loc = Location.loc s in
+  let lexbuf = Lexing.from_string (Location.value s) in
+  let start = Location.get_start loc in
+  let cnum = start.pos_cnum in
+  (* tweak for more accurate error message *)
+  let cnum = if cnum <= 0 then 0 else cnum - 1 in
+  let lexbuf = {lexbuf with
+                 (* adjust lexer's notion of position *)
+                 lex_abs_pos = cnum;
+                 lex_curr_p = {start with pos_cnum = cnum}} in
+  Literal_lexer.reset_literal ();
+  let l = Literal_lexer.literal lexbuf in
+  Location.mk_loc_val l loc, s
+
+(* This assumes the character class [id] has been checked to be
+   defined. *)
+let check_in_character_class id (ls : (literal * literal) list) =
+  let chars = List.assoc (Location.value id) character_classes in
+  List.iter (fun (l, l') ->
       let c = Location.value l in
-      if not (Array.mem c chars)
+      if String.length c != 1
+      then raise (Error (Not_a_character l'));
+      if not (Array.mem c.[0] chars)
       then raise (Error (Not_in_character_set (id, l)))
     ) ls
 
-let check_literals tenv ls t =
+(* checking a literal set generates a type constraint and the
+   escape-converted literal set *)
+let check_literals tenv ls t : tconstraint * literal_set =
   let byte  = typcon_variable tenv (TName "byte") in
   let bytes = list (typcon_variable tenv) byte in
   match ls.literal_set with
+    (* two types of identifiers are allowed as literals:
+       character-classes, and non-terminals that are defined as
+       regular expressions.
+     *)
+    | LS_type id when is_character_class id ->
+        (t =?= bytes) ls.literal_set_loc, ls
     | LS_type id ->
-        (* This non-terminal should have byte list type *)
-        check_non_term tenv id t
-    | LS_diff ({literal_set = LS_type cc; _}, {literal_set = LS_set ls'; _}) ->
-        (* Set difference is only supported for elision of single
-           characters from character classes.  i.e. the left operand
-           needs to be a character class, and the right a union of
-           single characters *)
+        check_non_term tenv id t, ls
+
+    (* Set difference is only supported for elision of single
+       characters from character classes.  i.e. the left operand
+       needs to be a character class, and the right a union of
+       single characters *)
+    | LS_diff (({literal_set = LS_type cc; _} as lls),
+               ({literal_set = LS_set ls'; _} as rls)) ->
         if not (is_character_class cc)
         then raise (Error (Unknown_character_class cc));
-        (check_in_character_class cc ls');
-        (t =?= bytes) ls.literal_set_loc
+        let ls' = List.map convert_escapes ls' in
+        check_in_character_class cc ls';
+        let ls', _ = List.split ls' in
+        let rls = {rls with literal_set = LS_set ls'} in
+        (t =?= bytes) ls.literal_set_loc,
+        {ls with literal_set = LS_diff (lls, rls)}
     | LS_diff ({literal_set = LS_type _; _}, {literal_set_loc = l'; _}) ->
         raise (Error (Not_literal_set l'))
     | LS_diff (l, _) ->
         raise (Error (Not_character_class l.literal_set_loc))
+
     | LS_range (s, e) ->
+        let (s, so), (e, eo) = convert_escapes s, convert_escapes e in
         (* Both start and end literals should have the same length,
            and the literal at each position of `s` should be <= the
            corresponding literal of `e`. *)
@@ -1333,22 +1379,23 @@ let check_literals tenv ls t =
         let es = Location.value e in
         let sl, el = String.length ss, String.length es in
         if sl != el
-        then raise (Error (Inconsistent_literal_ranges
-                             (ls.literal_set_loc, ss, sl, es, el)));
+        then raise (Error (Inconsistent_range_literals
+                             (ls.literal_set_loc, so, eo, sl, el)));
         let i = ref 0 in
         while !i != sl do
           (if Char.code ss.[!i] > Char.code es.[!i]
-           then let err =
-                 Inconsistent_literal_range
-                   (ls.literal_set_loc,
-                    Char.escaped ss.[!i], Char.escaped es.[!i], !i) in
+           then let err = Inconsistent_literal_range
+                            (ls.literal_set_loc, so, eo, !i) in
                 raise (Error err));
           incr i;
         done;
-        (t =?= bytes) ls.literal_set_loc
-    | LS_set _ ->
+        (t =?= bytes) ls.literal_set_loc,
+        {ls with literal_set = LS_range (s, e)}
+    | LS_set ls' ->
+        let ls', _ = List.split (List.map convert_escapes ls') in
         (* Literals will always be byte lists *)
-        (t =?= bytes) ls.literal_set_loc
+        (t =?= bytes) ls.literal_set_loc,
+        {ls with literal_set = LS_set ls'}
 
 let rec infer_regexp tenv venv re t =
   let byte    = typcon_variable tenv (TName "byte") in
@@ -1358,7 +1405,8 @@ let rec infer_regexp tenv venv re t =
     {regexp = re'; regexp_loc = re.regexp_loc; regexp_aux = t} in
   match re.regexp with
     | RX_literals ls ->
-        check_literals tenv ls bytes, (WC_true, mk_auxregexp (RX_literals ls))
+        let c, ls' = check_literals tenv ls t in
+        c, (WC_true, mk_auxregexp (RX_literals ls'))
     | RX_wildcard ->
         default, (WC_true, mk_auxregexp RX_wildcard)
     | RX_type id ->

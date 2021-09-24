@@ -36,9 +36,9 @@ format {
   // of rules.
   Whitespace w (allow_empty: bool) :=
     [allow_empty]
-    (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
+    (# ( [" " | "\000" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
   ; [!allow_empty]
-    (# ( [" " | "\0" | "\t" | "\r" | "\n" | "\x0c"] | Comment )+ #)
+    (# ( [" " | "\000" | "\t" | "\r" | "\n" | "\x0c"] | Comment )+ #)
   ;;
 
   // The 'Name' non-terminal has a synthesized attribute 'nm' that

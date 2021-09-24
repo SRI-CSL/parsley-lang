@@ -66,6 +66,7 @@ let str_of_curr_pos lexbuf =
   Printf.sprintf "File \"%s\", line %d, character %d"
                  file line startchar
 
+(* formatted to start a sentence *)
 let str_of_loc loc =
   let file, line, startchar = get_pos_info loc.loc_start in
   let endchar =
@@ -73,6 +74,7 @@ let str_of_loc loc =
   Printf.sprintf "File \"%s\", line %d, characters %d-%d"
                  file line startchar endchar
 
+(* formatted to fit in the middle of a sentence *)
 let str_of_file_loc loc =
   let file, line, startchar = get_pos_info loc.loc_start in
   let endchar =

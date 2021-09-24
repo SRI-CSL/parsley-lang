@@ -269,14 +269,20 @@ type typing_error =
      a member of character class [id]. *)
   | Not_in_character_set of Ast.ident * Ast.literal
 
-  (* [Inconsistent_literal_ranges s e] is raised when the starting and
-     ending literals in a literal range have unequal lengths [s] and
-     [e]. *)
-  | Inconsistent_literal_ranges of Location.t * string * int * string * int
+  (* [Inconsistent_range_literals s e sl el] is raised when the starting [s]
+     and ending literals [e] in a literal range have unequal lengths
+     [sl] and [el] respectively. *)
+  | Inconsistent_range_literals of
+      Location.t * Ast.literal * Ast.literal * int * int
 
-  (* [Inconsistent_literal_ranges idx s e] is raised when the starting [s]
-     and ending literal [e] in a literal range are inconsistent. *)
-  | Inconsistent_literal_range of Location.t * string * string * int
+  (* [Inconsistent_literal_ranges s e idx] is raised when the starting [s]
+     and ending literal [e] in a literal range are inconsistent at
+     index [idx]. *)
+  | Inconsistent_literal_range of Location.t * Ast.literal * Ast.literal * int
+
+  (* [Not_a_character] is raised when a literal does not decode to a
+     valid character. *)
+  | Not_a_character of Ast.literal
 
 exception Error of typing_error
 
@@ -519,11 +525,17 @@ let error_msg = function
       msg
         "%s:\n Literal `%s' is not in character class `%s'."
         (Location.loc l) (Location.value l) (Location.value id)
-  | Inconsistent_literal_ranges (loc, s, sl, e, el) ->
+  | Inconsistent_range_literals (loc, s, e, sl, el) ->
+      let ss, se = Location.value s, Location.value e in
       msg
         "%s:\n Starting (`%s') and ending (`%s') literals in range have inconsistent lengths %d and %d."
-        loc s e sl el
+        loc ss se sl el
   | Inconsistent_literal_range (loc, s, e, idx) ->
       msg
         "%s:\n Starting literal `%s' at position %d of range is not smaller than ending literal `%s'."
-        loc s idx e
+        loc (Location.value s) idx (Location.value e)
+
+  | Not_a_character l ->
+      msg
+        "%s:\n Not a valid character `%s'."
+        (Location.loc l) (Location.value l)
