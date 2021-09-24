@@ -25,5 +25,6 @@ let handle_exception bt msg =
 let to_ir init_envs tenv spec =
   try
     Anf_lower.lower init_envs tenv spec
-  with Anf.Error e ->
-    handle_exception (Printexc.get_backtrace ()) (Anf.error_msg e)
+  with
+    | Anf.Error e ->
+        handle_exception (Printexc.get_backtrace ()) (Anf.error_msg e)

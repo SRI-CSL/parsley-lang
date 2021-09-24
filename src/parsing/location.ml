@@ -55,6 +55,12 @@ let loc_or_ghost = function
 let get_pos_info pos =
   pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol
 
+let get_start loc =
+  loc.loc_start
+
+let get_end loc =
+  loc.loc_end
+
 let str_of_curr_pos lexbuf =
   let file, line, startchar = get_pos_info lexbuf.lex_curr_p in
   Printf.sprintf "File \"%s\", line %d, character %d"

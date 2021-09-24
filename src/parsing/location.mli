@@ -25,6 +25,8 @@ val ghost_loc : t
 val mk_loc: Lexing.position -> Lexing.position -> t
 val extent: t -> t -> t
 val loc_or_ghost: t option -> t
+val get_start:    t -> Lexing.position
+val get_end:      t -> Lexing.position
 
 type 'a loc
 
