@@ -431,9 +431,9 @@ let character_classes =
                    @ Array.to_list lower
                    @ Array.to_list upper) in
   [ "AsciiCharS", ascii;
-    "HexCharS", hex;
-    "AlphaNumS", digits;
-    "DigitS", alphanum;
+    "HexCharS",   hex;
+    "AlphaNumS",  alphanum;
+    "DigitS",     digits;
   ]
 
 let is_character_class t =

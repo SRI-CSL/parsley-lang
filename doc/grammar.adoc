@@ -336,6 +336,11 @@ choice (`|`) and sequence (` \`) combinators.  These combinators are
 denoted by the same symbol used by the corresponding rule element
 combinator. As usual, `(` and `)` can be used for grouping purposes.
 
+NOTE: In regular expressions, bounds for the repeat combinator (`^`)
+need to be constant expressions.  In addition, the choice (`|`)
+operator implements unordered or unbiased choice, unlike the choice
+operator in the attribute grammar.
+
 A *literal set* is enclosed within `[` and `]` markers, and is
 composed from individual literal ASCII strings and other literal sets,
 using the choice, difference, and range operators.  Within a

@@ -288,7 +288,8 @@ type context =
    (* the current failure continuation *)
    ctx_failcont: Label.label}
 
-(* source-level rule-elements, rules and non-terminals *)
+(* source-level regexps, rule-elements, rules and non-terminals *)
+type regexp         = (typ, TypeInfer.varid) Ast.regexp
 type rule_elem      = (typ, TypeInfer.varid) Ast.rule_elem
 type rule           = (typ, TypeInfer.varid) Ast.rule
 type non_term_defn  = (typ, TypeInfer.varid) Ast.non_term_defn
