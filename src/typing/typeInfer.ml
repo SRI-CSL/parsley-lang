@@ -1075,68 +1075,6 @@ let infer_fun_defn tenv venv ctxt fd =
    fun_defn_loc       = fd.fun_defn_loc;
    fun_defn_aux       = signature}
 
-(* Guesses whether the rule element [rle] is composed of only regexps.
-   Since no environment is provided, it assumes any non-terminals are
-   not regular expressions. *)
-let rec guess_is_regexp_elem rle =
-  match rle.rule_elem with
-    | RE_epsilon
-      | RE_regexp _
-      | RE_action _
-      | RE_constraint _ -> true
-
-    | RE_named (_, rle')
-      | RE_star (rle', _)
-      | RE_opt rle'
-      | RE_at_pos (_, rle')
-      | RE_at_view (_, rle') -> guess_is_regexp_elem rle'
-
-    | RE_choice rles
-      | RE_seq rles
-      | RE_seq_flat rles -> List.for_all guess_is_regexp_elem rles
-
-    | RE_non_term _
-    | RE_bitvector _
-    | RE_bitfield _
-    | RE_align _
-    | RE_pad _
-    | RE_set_view _
-    | RE_map_views _ -> false
-
-(* Checks whether the rule element [rle] is composed of only regexps.
-   Since an environment is provided, it looks up the types of any
-   non-terminals to check whether they are regular expressions. *)
-let rec is_regexp_elem tenv rle =
-  match rle.rule_elem with
-    | RE_epsilon
-      | RE_regexp _
-      | RE_action _
-      | RE_constraint _ -> true
-
-    | RE_named (_, rle')
-      | RE_star (rle', _)
-      | RE_opt rle'
-      | RE_at_pos (_, rle')
-      | RE_at_view (_, rle') -> is_regexp_elem tenv rle'
-
-    | RE_choice rles
-      | RE_seq rles
-      | RE_seq_flat rles -> List.for_all (is_regexp_elem tenv) rles
-
-    | RE_non_term (nid, _) ->
-        let n = Location.value nid in
-        (match lookup_non_term_type tenv (NName n) with
-           | Some t -> is_regexp_type (typcon_variable tenv) t
-           | None -> false
-        )
-
-    | RE_bitvector _
-    | RE_bitfield _
-    | RE_align _
-    | RE_pad _
-    | RE_set_view _
-    | RE_map_views _ -> false
-
 (** [guess_nt_rhs_type tenv ntd] tries to guess a type for the
     right-hand side of the definition of [ntd]. This is done
     in the following cases:
@@ -1160,7 +1098,7 @@ let guess_nt_rhs_type tenv ntd =
       | rules ->
           let is_regexp =
             List.for_all (fun r ->
-                List.for_all guess_is_regexp_elem r.rule_rhs
+                List.for_all TypedAstUtils.guess_is_regexp_elem r.rule_rhs
               ) rules in
           if is_regexp then
             let byte  = typcon_variable tenv (TName "byte") in
@@ -1407,8 +1345,11 @@ let rec infer_regexp tenv venv re t =
     | RX_literals ls ->
         let c, ls' = check_literals tenv ls t in
         c, (WC_true, mk_auxregexp (RX_literals ls'))
+
+    | RX_empty
     | RX_wildcard ->
         default, (WC_true, mk_auxregexp RX_wildcard)
+
     | RX_type id ->
         (* This non-terminal should have a byte list type *)
         check_non_term tenv id bytes,
@@ -1751,7 +1692,8 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         (* A sequence has a tuple type formed from the individual rule
            elements, unless they are all regexps, in which case they
            are flattened. *)
-        let is_regexp = List.for_all (is_regexp_elem tenv) rels in
+        let is_regexp =
+          List.for_all (TypedAstUtils.is_regexp_elem tenv) rels in
         let qs, m = variable_list Flexible rels in
         let ctx', wcs', rels', _, cursor' =
           List.fold_left (fun (ctx', wcs', rels', venv', cursor') (re, t') ->
@@ -1772,7 +1714,8 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         venv,
         cursor'
 
-    | RE_choice rels when List.for_all (is_regexp_elem tenv) rels ->
+    | RE_choice rels
+         when List.for_all (TypedAstUtils.is_regexp_elem tenv) rels ->
         (* Non-sequence combinators can only start and end at
            bit-aligned positions. *)
         check_aligned cursor 8 re.rule_elem_loc At_begin;
@@ -1839,7 +1782,7 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         check_aligned cursor 8 re.rule_elem_loc At_begin;
         (* [re] has a type [list t'] where [t'] is the type of [re'],
            unless [re'] is a regexp, in which case it is flattened. *)
-        let is_regexp = is_regexp_elem tenv re' in
+        let is_regexp = TypedAstUtils.is_regexp_elem tenv re' in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
         let ctx', wc', re'', _, cursor' =
@@ -1862,7 +1805,7 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         check_aligned cursor 8 re.rule_elem_loc At_begin;
         (* [re] has a type [list t'] where [t'] is the type of [re']
            (unless [re'] is a regexp) and [e] has type int *)
-        let is_regexp = is_regexp_elem tenv re' in
+        let is_regexp = TypedAstUtils.is_regexp_elem tenv re' in
         let int = typcon_variable tenv (TName "int") in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
@@ -1888,7 +1831,7 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         check_aligned cursor 8 re.rule_elem_loc At_begin;
         (* [re] has a type [option t'] where [t'] is the type of [re']
            (unless [re'] is a regexp) *)
-        let is_regexp = is_regexp_elem tenv re' in
+        let is_regexp = TypedAstUtils.is_regexp_elem tenv re' in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
         let ctx', wc', re'', _, cursor' =

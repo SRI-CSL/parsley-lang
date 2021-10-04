@@ -483,7 +483,7 @@ let rec lift_regexp rx =
      rule_elem_loc = rx.regexp_loc;
      rule_elem_aux = rx.regexp_aux} in
   match rx.regexp with
-    | RX_literals _ | RX_wildcard ->
+    | RX_empty | RX_literals _ | RX_wildcard ->
         wrap (RE_regexp rx)
     | RX_type id ->
         wrap (RE_non_term (id, None))

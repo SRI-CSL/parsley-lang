@@ -395,6 +395,8 @@ let rec print_literal_set ls =
 
 let rec print_regexp auxp re =
   match re.regexp with
+    | RX_empty ->
+        pp_print_string !ppf "$epsilon"
     | RX_literals ls ->
         pp_print_string !ppf "[";
         print_literal_set ls;

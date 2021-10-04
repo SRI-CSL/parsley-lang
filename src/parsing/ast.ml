@@ -131,6 +131,7 @@ and literal_set =
    literal_set_loc: Location.t}
 
 type ('a, 'b) regexp_desc =
+  | RX_empty  (* for internal use *)
   | RX_literals of literal_set
   | RX_wildcard
   | RX_type of ident

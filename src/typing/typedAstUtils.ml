@@ -183,3 +183,121 @@ let is_non_zero: 't 'v. ('t, 'v) expr -> bool =
   match (const_fold e).expr with
     | E_literal (PL_int i) -> i != 0
     | _                    -> true
+
+
+(* Guesses whether the rule element [rle] is composed of only regexps,
+   such that it can be condensed into a single regexp.
+   Since no environment is provided, it assumes any non-terminals are
+   not regular expressions.  This is more lenient than
+   [is_regexp_elem] since it allows constraints.  It is typically
+   called for the rules of a regexp-nonterminal. *)
+let rec guess_is_regexp_elem rle =
+  match rle.rule_elem with
+    | RE_epsilon
+    | RE_constraint _
+    | RE_regexp _ -> true
+
+    | RE_opt rle'
+    | RE_star (rle', None) -> guess_is_regexp_elem rle'
+
+    | RE_star (rle', Some e) ->
+        (match (const_fold e).expr with
+           | E_literal (PL_int _) -> guess_is_regexp_elem rle'
+           | _ -> false)
+
+    | RE_choice rles
+    | RE_seq rles
+    | RE_seq_flat rles -> List.for_all guess_is_regexp_elem rles
+
+    | RE_named _
+    | RE_action _
+    | RE_non_term _
+    | RE_bitvector _
+    | RE_bitfield _
+    | RE_align _
+    | RE_pad _
+    | RE_at_pos _
+    | RE_at_view _
+    | RE_set_view _
+    | RE_map_views _ -> false
+
+(* Checks whether the rule element [rle] is composed of only regexps,
+   such that it can be condensed into a single regexp.
+   Since an environment is provided, it looks up the types of any
+   non-terminals to check whether they are regular expressions. *)
+let rec is_regexp_elem tenv rle =
+  match rle.rule_elem with
+    | RE_epsilon
+    | RE_regexp _ -> true
+
+    | RE_opt rle'
+    | RE_star (rle', None) -> is_regexp_elem tenv rle'
+
+    | RE_star (rle', Some e) ->
+        (match (const_fold e).expr with
+           | E_literal (PL_int _) -> guess_is_regexp_elem rle'
+           | _ -> false)
+
+    | RE_choice rles
+    | RE_seq rles
+    | RE_seq_flat rles -> List.for_all (is_regexp_elem tenv) rles
+
+    (* TODO: we currently don't support attributed regexp
+       non-terminals. But they should be possible to support as long
+       as the attributes can be constant folded, and there is a
+       statically known regexp expansion for each of the constant
+       attribute combinations used in the spec. *)
+    | RE_non_term (nid, None) ->
+        let n = Location.value nid in
+        (match TEnv.lookup_non_term_type tenv (NName n) with
+           | Some t -> TypeAlgebra.is_regexp_type (TEnv.typcon_variable tenv) t
+           | None -> false)
+
+    | RE_non_term _
+    | RE_named _
+    | RE_action _
+    | RE_constraint _
+    | RE_bitvector _
+    | RE_bitfield _
+    | RE_align _
+    | RE_pad _
+    | RE_at_pos _
+    | RE_at_view _
+    | RE_set_view _
+    | RE_map_views _ -> false
+
+(* Converts a typed regexp rule element into a regexp.  It maintains
+   the aux and location information as best it can.  It assumes that
+   [r] satisfies [is_regexp_elem r].
+ *)
+let rec to_regexp r =
+  let wrap r' = {regexp = r';
+                 regexp_loc = r.rule_elem_loc;
+                 regexp_aux = r.rule_elem_aux} in
+  match r.rule_elem with
+    | RE_epsilon ->
+        wrap RX_empty
+    | RE_regexp r' ->
+        r'
+    | RE_non_term (nid, None) ->
+        wrap (RX_type nid)
+
+    | RE_star (r', None) ->
+        wrap (RX_star (to_regexp r', None))
+    | RE_star (r', Some e) ->
+        let e' = const_fold e in
+        (match e'.expr with
+           | E_literal (PL_int _) -> ()
+           | _ -> assert false);
+        wrap (RX_star (to_regexp r', Some e'))
+
+    | RE_opt r' ->
+        wrap (RX_opt (to_regexp r'))
+    | RE_choice rs ->
+        let rs' = List.map to_regexp rs in
+        wrap (RX_choice rs')
+    | RE_seq rs | RE_seq_flat rs ->
+        let rs' = List.map to_regexp rs in
+        wrap (RX_seq rs')
+    | _ ->
+        assert false

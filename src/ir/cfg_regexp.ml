@@ -167,6 +167,8 @@ let re_of_litset (renv: re_env) new_pos (ls: Ast.literal_set) : unit re =
 let rec simplify (renv: re_env) new_pos (r: regexp) : unit re =
   let mk_re r = {re = r; re_aux = ()} in
   match r.regexp with
+    | RX_empty ->
+        mk_re R_empty
     | RX_literals ls ->
         re_of_litset renv new_pos ls
     | RX_wildcard ->

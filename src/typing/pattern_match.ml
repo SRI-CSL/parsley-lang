@@ -360,6 +360,7 @@ and descend_rule_elem (ctx, acc) re =
 
 and descend_regexp ctx acc re =
   match re.regexp with
+    | RX_empty
     | RX_literals _
     | RX_wildcard
     | RX_type _
