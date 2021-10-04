@@ -202,11 +202,24 @@ let rec lower_rule_elem
         ctx, new_labeled_block lsc
 
     | RE_seq_flat _ ->
-        (* TODO:
-           Each rule element is a regexp.  Concat them into a single
-           regexp, and compile as above.
-         *)
-        assert false
+        assert (TypedAstUtils.is_regexp_elem ctx.ctx_tenv re);
+        let rx = TypedAstUtils.to_regexp re in
+        (* Now do as above *)
+        (* Compile the regexp into a DFA. *)
+        let dfa = Cfg_regexp.build_dfa ctx.ctx_re_env rx in
+        (* Bind a new var for the matched value if we don't have a
+           return binding. *)
+        let v, venv =
+          match ret with
+            | None -> fresh_var ctx.ctx_venv typ loc
+            | Some (v', _) -> v', ctx.ctx_venv in
+        (* The call to execute the DFA closes the current block, and
+           the success continuation begins in a new block (with the
+           same rationale as for RE_non_term). *)
+        let lsc = Label.fresh_label () in
+        let nd = Node.N_exec_dfa (dfa, v, lsc, ctx.ctx_failcont) in
+        let ctx = close_block {ctx with ctx_venv = venv} b nd in
+        ctx, new_labeled_block lsc
 
     | RE_non_term (nt, None) ->
         (* The jump to the CFG for the non-term causes the current
