@@ -184,11 +184,28 @@ let rec lower_rule_elem
 
     (* other basic primitives *)
 
-    | RE_regexp _ ->
-        (* TODO *)
-        assert false
+    | RE_regexp r ->
+        (* Compile the regexp into a DFA. *)
+        let dfa = Cfg_regexp.build_dfa ctx.ctx_re_env r in
+        (* Bind a new var for the matched value if we don't have a
+           return binding. *)
+        let v, venv =
+          match ret with
+            | None -> fresh_var ctx.ctx_venv typ loc
+            | Some (v', _) -> v', ctx.ctx_venv in
+        (* The call to execute the DFA closes the current block, and
+           the success continuation begins in a new block (with the
+           same rationale as for RE_non_term). *)
+        let lsc = Label.fresh_label () in
+        let nd = Node.N_exec_dfa (dfa, v, lsc, ctx.ctx_failcont) in
+        let ctx = close_block {ctx with ctx_venv = venv} b nd in
+        ctx, new_labeled_block lsc
+
     | RE_seq_flat _ ->
-        (* TODO *)
+        (* TODO:
+           Each rule element is a regexp.  Concat them into a single
+           regexp, and compile as above.
+         *)
         assert false
 
     | RE_non_term (nt, None) ->
@@ -853,7 +870,9 @@ let lower_rule (ctx: context) (b: opened) (r: rule)
               fb orig_failcont in
   ctx, b
 
-
+(* a non-terminal requires the set up of its attributes and lowering
+   of the ordered choice of its rules; in addition, it needs an
+   nt_entry so that it can be called from other rules. *)
 let lower_ntd (ctx: context) (ntd: non_term_defn) : context =
   let nt_name = Location.value ntd.non_term_name in
   let typ = get_nt_typ ctx nt_name in
@@ -904,6 +923,10 @@ let lower_ntd (ctx: context) (ntd: non_term_defn) : context =
            the new block is discarded *)
         ctx, new_labeled_block fl
       ) ({ctx with ctx_venv = venv}, b) rls in
+
+  (* TODO: If the non-term was a regexp, then add its re and DFA to
+     the context *)
+
   (* construct the nt_entry *)
   let nte =
     {nt_name = ntd.non_term_name;

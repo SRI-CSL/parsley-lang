@@ -19,6 +19,7 @@ open Parsing
 open Typing
 open Flow
 open Anf
+open Dfa
 
 (* The IR for the grammar language is a control-flow graph (CFG) with
    explicit control flow for the grammar matching.  The most important
@@ -188,10 +189,10 @@ module Node = struct
     (* Constrained jump: the var should have been bound to the value
        of the constraint expression, and the label is the success
        continuation.  If the constraint fails (evaluates to false),
-       this is equivalent to an N_fail to the top-most failcont on the
-       failcont stack, which is specified as the second label (to
-       enable a dynamic check for code-generation errors, and a more
-       accurate successors function). *)
+       rewind to the top-most failcont on the failcont stack, which is
+       specified as the second label (to enable a dynamic check for
+       code-generation errors, and a more accurate successors
+       function). *)
     | N_constraint: var * Label.label * Label.label
                     -> (Block.o, Block.c, unit) node
 
@@ -215,6 +216,14 @@ module Node = struct
     | N_call_nonterm:
         Ast.ident * (Ast.ident * var) list * return * Label.label * Label.label
         -> (Block.o, Block.c, unit) node
+
+    (* Call the DFA for a regular expression.  On a successful match,
+       assign the specified variable to the match, and continue at the
+       first specified label.  A failure rewinds to the top-most
+       failcont on the failcont stack, which is specified as the
+       second label (see N_constraint above). *)
+    | N_exec_dfa: dfa * var * Label.label * Label.label
+                  -> (Block.o, Block.c, unit) node
 
   let entry_label (type x v) (n: (Block.c, x, v) node) =
     match n with
@@ -286,7 +295,11 @@ type context =
    (* the current variable environment *)
    ctx_venv: VEnv.t;
    (* the current failure continuation *)
-   ctx_failcont: Label.label}
+   ctx_failcont: Label.label;
+   (* intermediate re forms for regexp non-terminals *)
+   ctx_re_env: re_env;
+   (* compiled DFAs for regexp non-terminals *)
+   ctx_dfa_env: dfa_env}
 
 (* source-level regexps, rule-elements, rules and non-terminals *)
 type regexp         = (typ, TypeInfer.varid) Ast.regexp

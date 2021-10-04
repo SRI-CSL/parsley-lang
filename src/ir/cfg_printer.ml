@@ -95,5 +95,11 @@ let pr_node (type e x) (n: (e, x, unit) Node.node) =
            ) attrs;
          pp_string (Printf.sprintf ") -> %s // %s"
                       (Label.to_string s) (Label.to_string f))
+     | Node.N_exec_dfa (_, v, s, f) ->
+         (* TODO: a naming scheme for DFAs for printing/debugging *)
+         pp_string (Printf.sprintf "%s := exec-dfa -> %s // %s"
+                      (string_of_var v.v)
+                      (Label.to_string s)
+                      (Label.to_string f))
   );
   pp_close_box ()
