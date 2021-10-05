@@ -297,9 +297,7 @@ type context =
    (* the current failure continuation *)
    ctx_failcont: Label.label;
    (* intermediate re forms for regexp non-terminals *)
-   ctx_re_env: re_env;
-   (* compiled DFAs for regexp non-terminals *)
-   ctx_dfa_env: dfa_env}
+   ctx_re_env: re_env}
 
 (* source-level regexps, rule-elements, rules and non-terminals *)
 type regexp         = (typ, TypeInfer.varid) Ast.regexp

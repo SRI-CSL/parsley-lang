@@ -886,7 +886,7 @@ let lower_rule (ctx: context) (b: opened) (r: rule)
 (* a non-terminal requires the set up of its attributes and lowering
    of the ordered choice of its rules; in addition, it needs an
    nt_entry so that it can be called from other rules. *)
-let lower_ntd (ctx: context) (ntd: non_term_defn) : context =
+let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   let nt_name = Location.value ntd.non_term_name in
   let typ = get_nt_typ ctx nt_name in
   (* ensure the NT var is bound in the rules *)
@@ -937,9 +937,6 @@ let lower_ntd (ctx: context) (ntd: non_term_defn) : context =
         ctx, new_labeled_block fl
       ) ({ctx with ctx_venv = venv}, b) rls in
 
-  (* TODO: If the non-term was a regexp, then add its re and DFA to
-     the context *)
-
   (* construct the nt_entry *)
   let nte =
     {nt_name = ntd.non_term_name;
@@ -952,3 +949,49 @@ let lower_ntd (ctx: context) (ntd: non_term_defn) : context =
   (* add it to the ToC *)
   let toc = FormatToC.add nt_name nte ctx.ctx_toc in
   {ctx with ctx_toc = toc}
+
+(* a wrapper to intercept the special case of a non-terminal without
+   attributes and a single regexp-convertible rule with no
+   temporaries *)
+let lower_ntd (ctx: context) (ntd: non_term_defn) : context =
+  (* detect special case *)
+  let no_synth_attrs =
+    match ntd.non_term_syn_attrs with
+      | ALT_decls [] -> true
+      | _                -> false in
+  let no_inh_attrs = List.length ntd.non_term_inh_attrs = 0 in
+  let is_regexp_rule, rl =
+    match ntd.non_term_rules with
+      | [] ->
+          (* should have had a parse error *)
+          assert false
+      | [r] ->
+          List.length r.rule_temps = 0
+          && List.for_all
+               (TypedAstUtils.is_regexp_elem ctx.ctx_tenv)
+               r.rule_rhs,
+          r
+      | r :: _ ->
+          false, r in
+  (* update re context if needed *)
+  let ctx =
+    if no_synth_attrs && no_inh_attrs && is_regexp_rule
+    then
+      (* construct a regexp from the rule element sequence *)
+      let re = match rl.rule_rhs with
+          | [] -> assert false
+          | h :: _ -> (* copy aux info *)
+              Ast.({rule_elem = RE_seq_flat rl.rule_rhs;
+                    rule_elem_loc = rl.rule_loc;
+                    rule_elem_aux = h.rule_elem_aux}) in
+      let rx = TypedAstUtils.to_regexp re in
+      let rx = Cfg_regexp.build_re ctx.ctx_re_env rx in
+      (* add this to the re environment *)
+      let renv = Dfa.StringMap.add
+                   (Location.value ntd.non_term_name)
+                   (rl.rule_loc, rx)
+                   ctx.ctx_re_env in
+      {ctx with ctx_re_env = renv}
+    else ctx in
+  (* now dispatch to general case *)
+  lower_general_ntd ctx ntd

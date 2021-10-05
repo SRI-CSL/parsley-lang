@@ -292,6 +292,12 @@ let mk_pos_map r : CharSet.t PosMap.t =
           recurse acc r in
   recurse PosMap.empty r
 
+(* exported simplifier api *)
+
+let build_re (renv: re_env) (re: regexp) : unit re =
+  let new_pos = get_pos_generator () in
+  simplify renv new_pos re
+
 (* the core DFA building algorithm. *)
 
 let build_dfa (renv: re_env) (re: regexp) : dfa =
