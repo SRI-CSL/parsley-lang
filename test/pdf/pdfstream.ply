@@ -1,0 +1,314 @@
+use pdfobj
+
+// the names of the pdf filters
+const asciihexdecode: string = String.of_literal("ASCIIHexDecode")
+const ascii85decode: string = String.of_literal("ASCII85Decode")
+const lzwdecode: string = String.of_literal("LZWDecode")
+const flatedecode: string = String.of_literal("FlateDecode")
+const runlengthdecode: string = String.of_literal("RunLengthDecode")
+const ccittfaxdecode: string = String.of_literal("CCITTFaxDecode")
+const jbig2decode: string = String.of_literal("JBIG2Decode")
+const dctdecode: string = String.of_literal("DCTDecode")
+const jpxdecode: string = String.of_literal("JPXDecode")
+const crypt: string = String.of_literal("Crypt")
+
+// dict keys for lzwdecode and flatedecode filters
+const predictor_key: string = String.of_literal("Predictor")
+const colors_key: string = String.of_literal("Colors")
+const bits_per_component_key: string = String.of_literal("BitsPerComponent")
+const columns_key: string = String.of_literal("Columns")
+const early_change_key: string = String.of_literal("EarlyChange")
+
+const len_key: string = String.of_literal("Length")
+const dl_key: string = String.of_literal("DL")
+const filter_key: string = String.of_literal("Filter")
+const decodeparms_key: string = String.of_literal("FDecodeParms")
+const f_key: string = String.of_literal("F")
+const ffilter_key: string = String.of_literal("FFilter")
+const fdecodeparms_key: string = String.of_literal("FFDecodeParms")
+
+// checks whether filter is a permissible filter in accordance with pdf spec
+fun validate_individual_filter_name(filter: basic_obj) -> bool = {
+  (case filter of
+    | basic_obj::Name(filter_name) ->
+       (case filter_name of
+         | asciihexdecode -> bool::True()
+         | ascii85decode -> bool::True()
+         | lzwdecode -> bool::True()
+         | flatedecode -> bool::True()
+         | runlengthdecode -> bool::True()
+         | ccittfaxdecode -> bool::True()
+         | jbig2decode -> bool::True()
+         | dctdecode -> bool::True()
+         | jpxdecode -> bool::True()
+         | crypt -> bool::True()
+         | _ -> bool::False())
+    | _ -> bool::False())
+}
+
+// used in conjunction with validate_filter_names to check whether filters only contains permissible filters
+recfun validate_filter_names_helper(filters: [basic_obj]) -> bool = {
+  (case filters of
+    | [] -> bool::True()
+    | basic_obj::Name(filter_name) :: rem_list -> validate_individual_filter_name(basic_obj::Name(filter_name)) && validate_filter_names_helper(rem_list)
+    | _ -> bool::False())
+}
+
+// used in conjunction with validate_filter_names_helper to check whether filters only contains permissible filters
+fun validate_filter_names(input: basic_obj) -> bool = {
+  (case input of
+    | basic_obj::Name(_) -> validate_individual_filter_name(input)
+    | basic_obj::Array(filter_names) -> validate_filter_names_helper(filter_names)
+    | _ -> bool::False())
+}
+
+// put the filter names in a canonical representation (an array)
+fun extract_filter_names(raw_filter_names: basic_obj) -> basic_obj = {
+  (case raw_filter_names of
+    | basic_obj::Name(_) -> basic_obj::Array([raw_filter_names])
+    | basic_obj::Array(filter_names) -> raw_filter_names
+    | _ -> basic_obj::Null())
+}
+
+// ensure there are no specified filter parameters
+fun check_null_filter_parameters(filter_parameters: basic_obj) -> bool = {
+  (case filter_parameters of
+    | basic_obj::Null() -> bool::True()
+    | _ -> bool::False())
+}
+
+// ensure the filter parameters match those expected for the filter lzw
+fun check_lzw_filter_parameters(filter_parameters: basic_obj) -> bool = {
+  (case filter_parameters of
+    | basic_obj::Dict(dict) ->
+       (case Map.mem(dict, predictor_key) && Map.find_unsafe(dict, predictor_key) ~~ basic_obj::Integer of
+         | bool::True() -> let basic_obj::Integer(predictor_val) = Map.find_unsafe(dict, predictor_key) in
+            (case predictor_val of
+              | 1 -> bool::False()
+              | _ -> bool::True())
+         | bool::False() -> bool::False())
+    | _ -> bool::False())
+}
+
+// ensure the filter parameters match those expected for the filter flate
+fun check_flate_filter_parameters(filter_parameters: basic_obj) -> bool = {
+  bool::True() // PLACEHOLDER
+}
+
+// ensure a specified set of filter parameters match those expected by the specified filter
+fun validate_individual_filter_parameters(filter: basic_obj, filter_parameters: basic_obj) -> bool = {
+  (case filter of
+    | basic_obj::Name(filter_name) ->
+       (case filter_name of
+         | asciihexdecode -> check_null_filter_parameters(filter_parameters)
+         | ascii85decode -> check_null_filter_parameters(filter_parameters)
+         | lzwdecode -> check_lzw_filter_parameters(filter_parameters)
+         | flatedecode -> check_flate_filter_parameters(filter_parameters)
+         | runlengthdecode -> check_null_filter_parameters(filter_parameters)
+         | ccittfaxdecode -> bool::True()
+         | jbig2decode -> bool::True()
+         | dctdecode -> bool::True()
+         | jpxdecode -> check_null_filter_parameters(filter_parameters)
+         | crypt ->  bool::True()
+         | _ -> bool::False())
+    | _ -> bool::False())
+}
+
+// used in conjunction with validate_filter_parameters to check whether the supplied filter parameters match the supplied filters
+recfun validate_filter_parameters_helper(cleaned_filter_names: [basic_obj], raw_filter_parameters: [basic_obj]) -> bool = {
+  (case raw_filter_parameters of
+    | [] -> bool::True()
+    | filter_parameters :: rem_parameter_list ->
+       (case cleaned_filter_names of
+         | filter_name :: rem_name_list -> validate_individual_filter_parameters(filter_name, filter_parameters)
+                                           && validate_filter_parameters_helper(rem_name_list, rem_parameter_list)
+         | _ -> bool::False())
+    | _ -> bool::False())
+}
+
+// used in conjunction with validate_filter_parameters_helper to check whether the supplied filter parameters match the supplied filters
+fun validate_filter_parameters(cleaned_filter_names: basic_obj, raw_filter_parameters: basic_obj) -> bool = {
+  (case raw_filter_parameters of
+    | basic_obj::Dict(filter_dict) ->
+       (case cleaned_filter_names of
+         | basic_obj::Array(filter_names) ->
+            (case filter_names of
+              | basic_obj::Name(filter_name) :: [] -> validate_individual_filter_parameters(basic_obj::Name(filter_name), raw_filter_parameters)
+              | _ -> bool::False())
+         | _ -> bool::False())
+    | basic_obj::Array(filter_parm_dicts) ->
+       (case cleaned_filter_names of
+         | basic_obj::Array(filter_names) ->
+            (case ((List.length(filter_names) = List.length(filter_parm_dicts)) && (List.length(filter_names) > 0)) of
+              | bool::True() -> validate_filter_parameters_helper(filter_names, filter_parm_dicts)
+              | bool::False() -> bool::False())
+         | _ -> bool::False())
+    | _ -> bool::False())
+}
+
+fun extract_filter_parameters (raw_filter_parameters: basic_obj) -> basic_obj = {
+  (case raw_filter_parameters of
+    | basic_obj::Dict(_) -> basic_obj::Array([raw_filter_parameters])
+    | basic_obj::Array(filter_parm_dicts) -> basic_obj::Array(filter_parm_dicts)
+    | _ -> basic_obj::Null())
+}
+
+format {
+
+  #[whitespace(Whitespace:allow_empty=true)]
+  Stream s {dict: dict, stream: [byte]} :=
+
+    d = Dict
+
+    // get length entry len
+    [Map.mem(d.d, len_key) && Map.find_unsafe(d.d, len_key) ~~ basic_obj::Integer ]
+    len = { ;;
+            let basic_obj::Integer(len) = Map.find_unsafe(d.d, len_key) in
+            len
+          }
+
+    // if DL is supplied, ensure it is an integer
+    dl = { ;;
+           Map.find(d.d, dl_key)
+         }
+    [(case dl of
+      | option::Some(dl_type) -> dl_type ~~ basic_obj::Integer
+      | option::None -> bool::True())]
+
+    // parse rest of stream entries based on whether is an external or internal stream
+    // and further subdivide these two high-level cases as needed
+    ( (
+       
+       // case 1: we have an external stream (i.e., f key exists in stream dictionary)     
+       
+       ////////////////////////////////////////
+       //              WARNING               //
+       // case 1 not fully implemented. need //
+       // to add file specification objects  //
+       // and need to update names to file   //
+       // specification.                     //
+       ////////////////////////////////////////
+       
+       [bool::False()] // intentional fail for case 1 branch. see warning above. fix when needed.
+
+       [Map.mem(d.d, f_key)]
+       
+       // process external stream
+       ( (
+
+          // case 1.a: we have an external stream and an ffilter entry
+          [Map.mem(d.d, ffilter_key)]
+
+          ffilter = { ;;
+                      Map.find_unsafe(d.d, ffilter_key)
+                    }
+          [validate_filter_names(ffilter)]
+          ffilter_clean = { ;;
+                            extract_filter_names(ffilter)
+                          }
+
+          ( (
+
+             // case 1.a.i: we have an external stream, an ffilter entry, and an fdecodeparms entry
+           
+             [Map.mem(d.d, fdecodeparms_key)]
+             fdecodeparms = { ;;
+                              Map.find_unsafe(d.d, fdecodeparms_key)
+                            }
+             [validate_filter_parameters(ffilter_clean, fdecodeparms)]
+             fdecodeparms_clean = { ;;
+                                    extract_filter_parameters(fdecodeparms)
+                                  }
+            )
+          | (
+
+             // case 1.a.ii: we have an external stream and an ffilter entry, but no fdecodeparms entry
+                
+             [!Map.mem(d.d, fdecodeparms_key)]
+             fdecodeparms = { ;;
+                              []
+                            }
+            ) 
+          )
+
+          // parse external stream
+
+          // ensure fdecodeparms_clean and ffilter_clean are arrays of same length or fdecode_parms_clean is empty
+           
+          // read the byte stream in the file
+          // if ffilter_clean is an empty array, no need to apply filters
+         )
+       | (
+
+          // case 1.b: we have an external stream and no ffilter entry
+
+          [!Map.mem(d.d, ffilter_key)]
+
+          // read the byte stream in the file
+          // no need to apply filters
+         )
+       )
+      )
+    | (
+
+       // case 2: we have an internal stream (i.e., f key does not exist in stream dictionary)
+
+       [!Map.mem(d.d, f_key)]
+
+       // process internal stream
+       ( (
+
+          // case 2.a: we have an internal stream and a filter entry
+          [Map.mem(d.d, filter_key)]
+          filter = { ;;
+                     Map.find_unsafe(d.d, filter_key)
+                   }
+          [validate_filter_names(filter)]
+          filter_clean = { ;;
+                           extract_filter_names(filter)
+                         }
+
+          ( (
+
+             // case 2.a.i: we have an internal stream, a filter entry, and a decodeparms entry
+             [Map.mem(d.d, decodeparms_key)]
+             decodeparms = { ;;
+                             Map.find_unsafe(d.d, decodeparms_key)
+                           }
+             [validate_filter_parameters(filter_clean, decodeparms)]
+             decodeparms_clean = { ;;
+                                   extract_filter_parameters(decodeparms)
+                                 }
+            )
+          | (
+
+             // case 2.a.ii: we have an internal stream and a filter entry, but no decodeparms entry
+             [!Map.mem(d.d, decodeparms_key)]
+             decodeparms = { ;;
+                             []
+                           }
+            ) 
+          )
+
+          // parse internal stream
+
+          // ensure decodeparms_clean and filter_clean are arrays of same length or decode_parms_clean is empty
+           
+          // read the internal byte stream
+          // if filter_clean is an empty array, no need to apply filters
+         )
+       | (
+
+          // case 2.b: we have an internal stream and no filter entry
+          [!Map.mem(d.d, filter_key)]
+          // read the byte stream in the pdf
+          // no need to apply filters
+         )
+       )
+      )
+    )
+
+    rs=RawStream<len = len>
+    { s.dict   := d.d;
+      s.stream := rs.bytes }
+}

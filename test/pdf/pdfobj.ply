@@ -1,6 +1,7 @@
 // Compound object syntax.
 
 use pdfprim
+use pdfstream
 
 // The expression sublanguage for semantic actions has access to a
 // Parsley standard library, which contains maps, lists, vectors,
@@ -19,6 +20,19 @@ type basic_obj =
  | Name of string
  | Null
 
+// Corresponding object kinds
+type obj_kind = 
+  | Dict
+  | Array
+  | Stream
+  | Reference
+  | Boolean
+  | Real
+  | Integer
+  | String
+  | Name
+  | Null
+
 // The type of the indirect object.
 type indirect_obj =
  { oid: int,
@@ -30,6 +44,22 @@ type parse_ctxt = map<(int, int), basic_obj>
 
 // Type abbreviation for the dictionary type.
 type dict = map<string, basic_obj>
+
+// checks whether obj is of kind obj_kind
+fun check_obj_kind(obj: basic_obj, kind: obj_kind) -> bool = {
+  (case kind of 
+    | obj_kind::Dict -> obj ~~ basic_obj::Dict
+    | obj_kind::Integer -> obj ~~ basic_obj::Integer
+    | obj_kind::Array -> obj ~~ basic_obj::Array
+    | obj_kind::Stream -> obj ~~ basic_obj::Stream
+    | obj_kind::Reference -> obj ~~ basic_obj::Reference
+    | obj_kind::Boolean -> obj ~~ basic_obj::Boolean
+    | obj_kind::Real -> obj ~~ basic_obj::Real
+    | obj_kind::Integer -> obj ~~ basic_obj::Integer
+    | obj_kind::String -> obj ~~ basic_obj::String
+    | obj_kind::Name -> obj ~~ basic_obj::Name
+    | obj_kind::Null  -> obj ~~ basic_obj::Null)
+}
 
 format {
 
@@ -111,21 +141,6 @@ format {
     n=Null
     { p.o := basic_obj::Null() }
 
-  ;;
-
-  #[whitespace(Whitespace:allow_empty=true)]
-  Stream s {dict: dict, stream: [byte]} :=
-    d=Dict
-    [ let key = String.of_bytes_unsafe("Length") in
-      Map.mem(d.d, key)
-      && Map.find_unsafe(d.d, key) ~~ basic_obj::Integer ]
-    len={ ;;
-          let key = String.of_bytes_unsafe("Length") in
-          let basic_obj::Integer(len) = Map.find_unsafe(d.d, key) in
-          len }
-    rs=RawStream<len = len>
-    { s.dict   := d.d;
-      s.stream := rs.bytes }
   ;;
 
   // Indirect object parsers get an inherited attribute of the current
