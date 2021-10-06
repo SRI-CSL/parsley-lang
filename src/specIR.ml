@@ -22,9 +22,9 @@ let handle_exception bt msg =
   Printf.printf "%s\n" bt;
   exit 1
 
-let to_ir init_envs tenv spec =
+let to_ir init_envs tenv (spec: Cfg.program) : Cfg.spec_ir =
   try
-    Anf_lower.lower init_envs tenv spec
+    Cfg_spec.lower_spec init_envs tenv spec
   with
     | Anf.Error e ->
         handle_exception (Printexc.get_backtrace ()) (Anf.error_msg e)

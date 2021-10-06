@@ -21,6 +21,17 @@ open Flow
 open Anf
 open Dfa
 
+(* source-level regexps, rule-elements, rules and non-terminals *)
+type regexp         = (typ, TypeInfer.varid) Ast.regexp
+type rule_elem      = (typ, TypeInfer.varid) Ast.rule_elem
+type rule           = (typ, TypeInfer.varid) Ast.rule
+type non_term_defn  = (typ, TypeInfer.varid) Ast.non_term_defn
+type format_decl    = (typ, TypeInfer.varid) Ast.format_decl
+
+(* source-level spec *)
+type format         = (typ, TypeInfer.varid) Ast.format
+type program        = (typ, TypeInfer.varid) Ast.program
+
 (* The IR for the grammar language is a control-flow graph (CFG) with
    explicit control flow for the grammar matching.  The most important
    aspect that is made explicit is the handling of match failure and
@@ -56,6 +67,11 @@ type gnode_desc =
   (* evaluate the expression and assign it to a possibly fresh
      variable *)
   | N_assign of var * bool * aexp
+
+  (* create an entry for a function and assign it to a fresh
+     variable.  Since there are no first-class functions, this is
+     usually done during initialization. *)
+  | N_assign_fun of var * afun
 
   (* side-effects *)
 
@@ -283,7 +299,17 @@ module FormatIR = Map.Make(struct type t = Label.label
                                   let compare = compare
                            end)
 
-(* The context used to generate a single CFG *)
+(* the IR for the entire specification *)
+type spec_ir =
+  {ir_toc: nt_entry  FormatToC.t;
+   ir_blocks: closed FormatIR.t;
+   (* block containing constants and their normalized value expressions *)
+   ir_consts: opened;
+   (* block containing functions and their normalized definitions *)
+   ir_funcs:  opened;
+   ir_init_failcont: Label.label}
+
+(* The context for IR generation *)
 type context =
   {(* the typing environment *)
    ctx_tenv: TypingEnvironment.environment;
@@ -298,12 +324,6 @@ type context =
    ctx_failcont: Label.label;
    (* intermediate re forms for regexp non-terminals *)
    ctx_re_env: re_env}
-
-(* source-level regexps, rule-elements, rules and non-terminals *)
-type regexp         = (typ, TypeInfer.varid) Ast.regexp
-type rule_elem      = (typ, TypeInfer.varid) Ast.rule_elem
-type rule           = (typ, TypeInfer.varid) Ast.rule
-type non_term_defn  = (typ, TypeInfer.varid) Ast.non_term_defn
 
 type error =
   | Unbound_return_expr of Location.t

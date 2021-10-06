@@ -40,4 +40,4 @@ let () =
   let init_envs, tenv, tspec = SpecTyper.type_check spec in
   SpecTyper.assignment_check init_envs tenv tspec;
   Printf.printf "%s: parsed and typed.\n" spec_file;
-  SpecIR.to_ir init_envs tenv tspec
+  ignore (SpecIR.to_ir init_envs tenv tspec)

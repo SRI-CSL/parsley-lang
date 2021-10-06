@@ -35,6 +35,14 @@ let pr_gnode n =
         pp_open_box 0;
         print_aexp ae;
         pp_close_box ()
+    | N_assign_fun (v, af) ->
+        pp_string (Printf.sprintf "(%s): %s ->"
+                     (string_of_var v.v)
+                     (String.concat " "
+                        (List.map string_of_var af.afun_params)));
+        pp_open_box 0;
+        print_aexp af.afun_body;
+        pp_close_box ()
     | N_action ss ->
         AstPrinter.print_list "; " print_stmt ss
     | N_bits i ->
