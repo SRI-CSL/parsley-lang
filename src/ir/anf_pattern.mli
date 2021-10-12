@@ -42,7 +42,7 @@ type decision_tree =
 
 (* compile pattern matching into a decision tree. *)
 val to_decision_tree:
-  TypingEnvironment.environment -> pmat -> decision_tree
+  TypingEnvironment.environment -> pmat -> Location.t -> decision_tree
 
 (* computes the path occurrences for each pattern variable in a
    pattern *)

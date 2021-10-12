@@ -45,6 +45,66 @@ type decision_tree =
 let specialize = Pattern_utils.specialize_mat
 let default (m: pmat) = Pattern_utils.default_mat m
 
+(* printers *)
+
+let sprint_con = function
+  | Con ((t, c), a) ->
+      Printf.sprintf "%s(#%d)"
+        (AstUtils.canonicalize_dcon (Location.value t) (Location.value c))
+        a
+  | Lit l ->
+      Printf.sprintf "Lit (%s)" (AstPrinter.string_of_literal l)
+  | Default ->
+      "*"
+
+open Format
+let pp_string    = pp_print_string !AstPrinter.ppf
+let pp_open_box  = pp_open_box !AstPrinter.ppf
+let pp_open_vbox = pp_open_vbox !AstPrinter.ppf
+let pp_close_box = pp_close_box !AstPrinter.ppf
+let pp_break     = pp_print_break !AstPrinter.ppf
+let pp_flush     = pp_print_flush !AstPrinter.ppf
+
+let rec print_dectree d =
+  match d with
+    | Leaf d ->
+        pp_string (Printf.sprintf "Leaf %d" d);
+        pp_flush ()
+    | Switch (occ, cases) ->
+        pp_string ("occ:" ^ (sprint_occ occ));
+        pp_string "(";
+        pp_open_box 0;
+        pp_break 0 0;
+        List.iteri print_case cases;
+        pp_close_box ();
+        pp_string ")";
+        pp_flush ()
+
+and print_case idx (c, _, _, d) =
+  let s = Printf.sprintf " %d| %s => (" idx (sprint_con c) in
+  pp_string s;
+  print_dectree d;
+  pp_string ")"
+
+let print_pmat m =
+  let auxp = (fun _ -> "") in
+  let prow (r, d) =
+    pp_string (Printf.sprintf " [%d: " d);
+    List.iter (fun p ->
+        AstPrinter.print_pattern auxp p;
+        pp_string " "
+      ) r;
+    pp_string "] ";
+    pp_break 0 0 in
+  pp_open_vbox 2;
+  pp_break 0 0;
+  List.iter prow m;
+  pp_close_box ();
+  pp_flush ()
+
+
+(* decision tree computation *)
+
 (* checks if a pattern row is effectively a default row *)
 let rec is_default_row = function
   | [] ->
@@ -109,7 +169,7 @@ let rec to_dectree (tenv: TypingEnvironment.environment)
                    Switch (path, ((Default, def_typ, def_loc, dt) :: switches))
         )
 
-let to_decision_tree tenv pmat =
+let to_decision_tree tenv pmat _loc =
   (* seed with an empty list of occurrences *)
   to_dectree tenv pmat [[]]
 
@@ -131,50 +191,3 @@ let pvar_paths (p: pat)
           acc in
   (* start with the occurrence for the root path *)
   helper [] p []
-
-(* printers *)
-
-let sprint_con = function
-  | Con ((t, c), a) ->
-      Printf.sprintf "%s::%s(#%d)" (Location.value t) (Location.value c) a
-  | Lit l ->
-      Printf.sprintf "Lit (%s)" (AstPrinter.string_of_literal l)
-  | Default ->
-      "_"
-
-open Format
-let pp_string    = pp_print_string !AstPrinter.ppf
-let pp_open_box  = pp_open_box !AstPrinter.ppf
-let pp_close_box = pp_close_box !AstPrinter.ppf
-let pp_break     = pp_print_break !AstPrinter.ppf
-let pp_flush     = pp_print_flush !AstPrinter.ppf
-
-let rec print_dectree d =
-  match d with
-    | Leaf d ->
-        pp_string (Printf.sprintf "Leaf %d" d);
-        pp_flush ()
-    | Switch (occ, cases) ->
-        pp_string ("occ:" ^ (sprint_occ occ));
-        pp_string "(";
-        pp_open_box 0;
-        pp_break 0 0;
-        List.iter print_case cases;
-        pp_close_box ();
-        pp_string ")";
-        pp_flush ()
-
-and print_case (c, _, _, d) =
-  pp_string (" |" ^ (sprint_con c) ^ " => (");
-  print_dectree d;
-  pp_string ")"
-
-let print_pmat m =
-  let auxp = (fun _ -> "") in
-  let prow (r, d) =
-    pp_string (Printf.sprintf " [%d: " d);
-    List.iter (AstPrinter.print_pattern auxp) r;
-    pp_string "] ";
-    pp_break 0 0 in
-  List.iter prow m;
-  pp_flush ()

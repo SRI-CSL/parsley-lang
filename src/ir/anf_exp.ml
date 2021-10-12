@@ -208,7 +208,7 @@ and normalize_exp_case (tenv: TypingEnvironment.environment)
       ) ([], [], 0) cases in
   let pmat = List.rev pmat in
   (* construct a decision tree for the pattern-action matrix *)
-  let dt = to_decision_tree tenv pmat in
+  let dt = to_decision_tree tenv pmat loc in
   (* convert a decision tree into an ANF expression *)
   let rec unfold venv dt : aexp * VEnv.t =
     match dt with
@@ -370,7 +370,7 @@ and normalize_stmt_case (tenv: TypingEnvironment.environment)
         (albl, (e, pvar_paths p)) :: act_infos,
         albl + 1
       ) ([], [], 0) cases in
-  let dt = to_decision_tree tenv pmat in
+  let dt = to_decision_tree tenv pmat loc in
   let rec unfold venv dt : astmt * VEnv.t =
     match dt with
       | Leaf a ->
