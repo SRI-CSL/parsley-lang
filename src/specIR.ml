@@ -26,5 +26,7 @@ let to_ir init_envs tenv (spec: Cfg.program) : Cfg.spec_ir =
   try
     Cfg_spec.lower_spec init_envs tenv spec
   with
+    | Cfg_regexp.Error e ->
+        handle_exception (Printexc.get_backtrace ()) (Cfg_regexp.error_msg e)
     | Anf.Error e ->
         handle_exception (Printexc.get_backtrace ()) (Anf.error_msg e)

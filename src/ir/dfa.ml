@@ -77,3 +77,54 @@ type dfa =
 
 (* The DFAs for regexp non-terminals *)
 type dfa_env = (Location.t * unit re) StringMap.t
+
+(* printing utility *)
+open Format
+
+let pp_string    = pp_print_string !AstPrinter.ppf
+let pp_open_box  = pp_open_box !AstPrinter.ppf
+let pp_open_vbox = pp_open_vbox !AstPrinter.ppf
+let pp_close_box = pp_close_box !AstPrinter.ppf
+let pp_break     = pp_print_break !AstPrinter.ppf
+let pp_flush     = pp_print_flush !AstPrinter.ppf
+let pp_newline   = pp_print_newline !AstPrinter.ppf
+let pp_cut       = pp_print_cut !AstPrinter.ppf
+
+let print_re auxp re =
+  let rec printer auxp re =
+    match re.re with
+      | R_empty ->
+          pp_string "eps"
+      | R_end p ->
+          pp_string (Printf.sprintf "end@%d" p)
+      | R_chars (cs, p) ->
+          pp_string (Printf.sprintf "[%s]@%d"
+                       (String.concat "" (List.map Char.escaped
+                                            (CharSet.elements cs)))
+                       p)
+      | R_choice (l, r) ->
+          pp_open_vbox 2;
+          pp_string "(";
+          printer auxp l;
+          pp_string " | ";
+          printer auxp r;
+          pp_string ")";
+          pp_close_box ()
+      | R_seq (l, r) ->
+          pp_open_vbox 2;
+          pp_string "(";
+          printer auxp l;
+          pp_string " ";
+          printer auxp r;
+          pp_string ")";
+          pp_close_box ()
+      | R_star r ->
+          pp_open_vbox 2;
+          pp_string "(";
+          printer auxp r;
+          pp_string ")*";
+          pp_close_box () in
+  pp_string "re:[ ";
+  printer auxp re;
+  pp_string "\n]\n";
+  pp_flush ()
