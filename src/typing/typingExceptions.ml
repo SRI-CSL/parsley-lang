@@ -188,6 +188,10 @@ type typing_error =
   (*Note: p is given as a string to avoid a dependency cycle *)
   | UnmatchedPattern of Location.t * string
 
+  (* [UselessPattern pos] is raised when a pattern match is
+     redundant. *)
+  | UselessPattern of Location.t
+
   (* [UnboundIdentifier] is raised when an identifier is undefined in
      a particular context. *)
   | UnboundIdentifier of Location.t * string
@@ -449,6 +453,11 @@ let error_msg = function
       msg
         "%s:\n Pattern matching is not exhaustive: an example of unmatched value: %s\n"
         loc p
+
+  | UselessPattern loc ->
+      msg
+        "%s:\n This pattern is redundant, and may indicate an error.\n"
+        loc
 
   | UnboundIdentifier (p, t) ->
       msg "%s:\n Unbound identifier `%s'.\n" p t

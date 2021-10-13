@@ -185,10 +185,10 @@ let rec check_matrix tenv (mat: pmat) cols wildcard =
                   else Some (pick_missed_constructor tenv signature :: ps)
           end
 
-(** [check_pattern tenv col] checks the pattern column [col] for
+(** [check_exhaustiveness tenv col] checks the pattern column [col] for
     exhaustiveness, where the column is extracted from a case
     expression or statement *)
-let check_pattern tenv col =
+let check_exhaustiveness tenv col =
   match col with
     | [] ->
         ()
@@ -204,6 +204,24 @@ let check_pattern tenv col =
                raise (Error (UnmatchedPattern (p.pattern_loc, ex)))
         )
 
+(** [check_usefulness tenv col] checks whether each row in the pattern
+   column [col] is useful *)
+let check_usefulness tenv col =
+  ignore (
+    List.fold_left (fun acc c ->
+        let mat = List.map (fun p -> [p], ()) acc in
+        (match check_matrix tenv mat 1 c with
+           | None ->
+               raise (Error (UselessPattern c.pattern_loc))
+           | Some exs ->
+               assert (List.length exs > 0);
+               acc @ [c])
+      ) [] col
+    )
+
+let check_pattern tenv col : unit =
+  check_exhaustiveness tenv col;
+  check_usefulness tenv col
 
 (* The ~~ operator constrains the data constructors for expressions,
    which can cause false exhaustiveness errors for when those
