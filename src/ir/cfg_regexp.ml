@@ -106,11 +106,28 @@ let seq_of_list (res: unit re list) : unit re =
     | [] -> mk_re R_empty
     | h :: t -> folder h t
 
+(* when splicing an re into another, or repeating it, we need to re-position it *)
+let rec relocate new_pos re =
+  let wrap r = {re with re = r} in
+  match re.re with
+    | R_empty ->
+        re
+    | R_end _ ->
+        wrap (R_end (new_pos ()))
+    | R_chars (cs, _) ->
+        wrap (R_chars (cs, new_pos ()))
+    | R_choice (l, r) ->
+        wrap (R_choice (relocate new_pos l, relocate new_pos r))
+    | R_seq (l, r) ->
+        wrap (R_seq (relocate new_pos l, relocate new_pos r))
+    | R_star r' ->
+        wrap (R_star (relocate new_pos r'))
+
 (* a re repeated n times *)
-let bounded_rep re n =
+let bounded_rep re n new_pos =
   let rec loop acc n =
     if n = 0 then acc
-    else loop (re :: acc) (n - 1) in
+    else loop (relocate new_pos re :: acc) (n - 1) in
   seq_of_list (loop [] n)
 
 (* desugar a literal set *)
@@ -163,23 +180,6 @@ let re_of_litset (renv: re_env) new_pos (ls: Ast.literal_set) : unit re =
             ) [] (String.to_seqi ss) in
         seq_of_list rs
 
-(* when splicing an re into another, we need to re-position it *)
-let rec relocate new_pos re =
-  let wrap r = {re with re = r} in
-  match re.re with
-    | R_empty ->
-        re
-    | R_end _ ->
-        wrap (R_end (new_pos ()))
-    | R_chars (cs, _) ->
-        wrap (R_chars (cs, new_pos ()))
-    | R_choice (l, r) ->
-        wrap (R_choice (relocate new_pos l, relocate new_pos r))
-    | R_seq (l, r) ->
-        wrap (R_seq (relocate new_pos l, relocate new_pos r))
-    | R_star r' ->
-        wrap (R_star (relocate new_pos r'))
-
 (* desugar a top-level regexp *)
 let rec simplify (renv: re_env) new_pos (r: regexp) : unit re =
   let mk_re r = {re = r; re_aux = ()} in
@@ -201,7 +201,7 @@ let rec simplify (renv: re_env) new_pos (r: regexp) : unit re =
            | E_literal (PL_int i) when i < 0 ->
                raise (Error (Negative_seq_bound e.expr_loc))
            | E_literal (PL_int i) ->
-               bounded_rep (simplify renv new_pos r') i
+               bounded_rep (simplify renv new_pos r') i new_pos
            | _ ->
                raise (Error (Nonconstant_seq_bound e.expr_loc)))
     | RX_opt r' ->
