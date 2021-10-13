@@ -180,7 +180,7 @@ let rec to_dectree (tenv: TypingEnvironment.environment)
                           Leaf a
                       | _  ->
                           let dt =
-                            to_dectree tenv (default m) rpaths in
+                            to_dectree tenv def rpaths in
                           Switch (path, ((Default, def_typ, def_loc, dt) :: switches)))
         )
 
