@@ -34,6 +34,14 @@ let lower_spec (_, init_venv) tenv (spec: program) =
                  venv
                ) Anf.VEnv.empty init_venv in
 
+  (* Initialize the re (i.e. compiled regexp) environment *)
+  let re_env =
+    let gl = Location.ghost_loc in
+    List.fold_left (fun acc (s, cc) ->
+        let re = Cfg_regexp.re_of_character_class cc in
+        Dfa.StringMap.add s (gl, re) acc
+      ) Dfa.StringMap.empty TypeAlgebra.character_classes in
+
   (* initialize the context with a dummy failure label *)
   let init_failcont = Label.fresh_label () in
   let ctx = {ctx_tenv       = tenv;
@@ -41,7 +49,7 @@ let lower_spec (_, init_venv) tenv (spec: program) =
              ctx_ir         = FormatIR.empty;
              ctx_venv       = venv;
              ctx_failcont   = init_failcont;
-             ctx_re_env     = Dfa.StringMap.empty} in
+             ctx_re_env     = re_env} in
 
   (* create the first block for constant evaluation. its label will be
      the start label for the spec *)
