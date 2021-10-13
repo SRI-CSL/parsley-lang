@@ -328,18 +328,21 @@ let rec normalize_stmt tenv venv (s: stmt) : astmt * VEnv.t =
     | S_assign (l, r) ->
         let ln, venv = normalize_exp tenv venv l in
         let rn, venv = normalize_exp tenv venv r in
-        (* the left hand side should be a variable or a record field *)
-        let sn =
-          match ln.aexp with
+        (* the left hand side can be a possibly empty sequence of
+           lets terminated by a variable or a record field *)
+        let rec rewrite ae =
+          match ae.aexp with
             | AE_val {av = AV_var v; _} ->
                 let v = make_var v ln.aexp_typ ln.aexp_loc in
-                AS_set_var (v, rn)
+                wrap (AS_set_var (v, rn))
             | AE_field ({av = AV_var v; _}, f) ->
                 let v = make_var v ln.aexp_typ ln.aexp_loc in
-                AS_set_field (v, f, rn)
+                wrap (AS_set_field (v, f, rn))
+            | AE_let (v, ae', ae'') ->
+                wrap (AS_let (v, ae', rewrite ae''))
             | _ ->
                 raise (Error (Unassignable_expression ln.aexp_loc)) in
-        wrap sn, venv
+        rewrite ln, venv
     | S_let (p, e, ss) ->
         (* handle this similar to E_let *)
         let se, venv  = subnorm tenv venv e in
