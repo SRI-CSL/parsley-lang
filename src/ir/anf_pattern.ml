@@ -145,7 +145,16 @@ let rec to_dectree (tenv: TypingEnvironment.environment)
            let rpaths = List.tl paths in
            match heads with
              | [] ->
-                 to_dectree tenv (default m) rpaths
+                 (* We could get empty pattern matrices, since we skip
+                    the exhaustiveness check for expressions
+                    constrained by the ~~ operator.  We cannot recurse
+                    with an empty matrix since we would lose the leaf
+                    label.  Instead, handle this case before
+                    recursing. *)
+                 let def = default m in
+                 (match def with
+                    | [] -> Leaf a
+                    | _  -> to_dectree tenv def rpaths)
              | ({pattern_aux = def_typ; pattern_loc = def_loc; _}, _) :: _ ->
                  let switches =
                    List.map (fun (h, ar) ->
@@ -164,9 +173,15 @@ let rec to_dectree (tenv: TypingEnvironment.environment)
                  if Pattern_utils.is_complete_sig tenv (fst (List.split heads))
                  then Switch (path, switches)
                  else (* add the default case *)
-                   let dt =
-                     to_dectree tenv (default m) rpaths in
-                   Switch (path, ((Default, def_typ, def_loc, dt) :: switches))
+                   let def = default m in
+                   (* see above explanation for handling the ~~ operator *)
+                   (match def with
+                      | [] ->
+                          Leaf a
+                      | _  ->
+                          let dt =
+                            to_dectree tenv (default m) rpaths in
+                          Switch (path, ((Default, def_typ, def_loc, dt) :: switches)))
         )
 
 let to_decision_tree tenv pmat _loc =
