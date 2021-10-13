@@ -163,6 +163,23 @@ let re_of_litset (renv: re_env) new_pos (ls: Ast.literal_set) : unit re =
             ) [] (String.to_seqi ss) in
         seq_of_list rs
 
+(* when splicing an re into another, we need to re-position it *)
+let rec relocate new_pos re =
+  let wrap r = {re with re = r} in
+  match re.re with
+    | R_empty ->
+        re
+    | R_end _ ->
+        wrap (R_end (new_pos ()))
+    | R_chars (cs, _) ->
+        wrap (R_chars (cs, new_pos ()))
+    | R_choice (l, r) ->
+        wrap (R_choice (relocate new_pos l, relocate new_pos r))
+    | R_seq (l, r) ->
+        wrap (R_seq (relocate new_pos l, relocate new_pos r))
+    | R_star r' ->
+        wrap (R_star (relocate new_pos r'))
+
 (* desugar a top-level regexp *)
 let rec simplify (renv: re_env) new_pos (r: regexp) : unit re =
   let mk_re r = {re = r; re_aux = ()} in
@@ -176,7 +193,7 @@ let rec simplify (renv: re_env) new_pos (r: regexp) : unit re =
     | RX_type id ->
         (match StringMap.find_opt (Location.value id) renv with
            | None -> raise (Error (Unknown_regexp_nonterm id))
-           | Some (_, re) -> re)
+           | Some (_, re) -> relocate new_pos re)
     | RX_star (r', None) ->
         mk_re (R_star (simplify renv new_pos r'))
     | RX_star (r', Some e) ->
