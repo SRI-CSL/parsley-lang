@@ -2223,19 +2223,18 @@ let has_type_abbrevs tds =
         )
     ) None tds
 
-(* helpers to check format decorators *)
-let get_whitespace_nonterm deco =
-  match Format_decorators.lookup_decorator_value "whitespace" deco with
-     | None ->
-         None
-     | Some a ->
-         Some (Format_decorators.non_term_of_decorator_value a)
 
-let check_deco deco =
-  Format_decorators.check_format_decorator deco;
+let process_decorator _tenv _venv (fd: (unit, unit) format_decl)
+    : (unit, unit) format_decl =
   (* Currently, the only supported decorator is 'whitespace'.  If
      specified, it should name a valid non-terminal. *)
-  ignore (get_whitespace_nonterm deco)
+  match Format_decorators.get_whitespace_nonterm fd.format_deco with
+    | None ->
+        fd
+    | Some ws ->
+        let ntd = fd.format_decl in
+        {fd with
+          format_decl = Format_decorators.fixup_for_whitespace ntd ws}
 
 let infer_spec tenv venv spec =
   (* First pass: process the expression language, and the
@@ -2287,7 +2286,7 @@ let infer_spec tenv venv spec =
           | Decl_format f ->
               let tenv, ctxt =
                 List.fold_left (fun (te, c) fd ->
-                    check_deco fd.format_deco;
+                    Format_decorators.check_decorator fd.format_deco;
                     let ntd = fd.format_decl in
                     infer_non_term_type te c ntd
                   ) (tenv, ctxt) f.format_decls in
@@ -2296,13 +2295,22 @@ let infer_spec tenv venv spec =
       ) (tenv, (fun c -> c), WC_true, [], venv) spec.decls in
 
   (* Second pass: process the grammar spec comprising the rules for
-     each non-terminal. *)
+     each non-terminal.  If any decorators need processing, those are
+     handled here.
+   *)
   let c', wc', decls =
     List.fold_left (fun (c, wc, decls) d ->
         match d with
           | Decl_format f ->
               let c, wc, fds' =
                 List.fold_left (fun (c, wc, fds') fd ->
+                    (* Since non-terminals can be specified within
+                       decorators, it is important to type-check their
+                       use in decorators.  A decorator can potentially
+                       transform the untyped rules for a non-terminal,
+                       resulting in new or different type-constraints
+                       being generated. *)
+                    let fd = process_decorator tenv venv fd in
                     let ntd = fd.format_decl in
                     let c', wc', ntd' = infer_non_term tenv venv ntd in
                     let fd' = {format_decl     = ntd';
