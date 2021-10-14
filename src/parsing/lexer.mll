@@ -94,7 +94,7 @@ rule token = parse
 | "|_b"  { BAR_B }
 | "&_b"  { AND_B }
 | "+_s"  { PLUS_S }
-| "#[" { ATTR }
+| "#[" { DECO }
 | "(#" { SYN_BEGIN }
 | "#)" { SYN_END }
 | "@(" { AT_POS }

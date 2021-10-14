@@ -23,7 +23,7 @@ open AstUtils
 
 %token EOF
 %token FORMAT TYPE BITFIELD AND FUN RECFUN USE OF CASE LET IN CONST
-%token ATTR
+%token DECO
 %token EPSILON PAD ALIGN USE_BITFIELD
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LLBRACK RRBRACK LBRACKRBRACK
@@ -195,14 +195,14 @@ let make_use m b e =
 
 let make_format_decl d a b e =
   {format_decl = d;
-   format_attr = a;
+   format_deco = a;
    format_decl_loc = Location.mk_loc b e}
 
-let make_attr t v a b e =
-  {attr_type = t;
-   attr_value = v;
-   attr_args = a;
-   attr_loc = Location.mk_loc b e}
+let make_deco t v a b e =
+  {deco_type = t;
+   deco_value = v;
+   deco_args = a;
+   deco_loc = Location.mk_loc b e}
 
 let make_format decls b e =
   {format_decls = decls;
@@ -693,20 +693,24 @@ nt_defn:
   r=separated_nonempty_list(SEMICOLON, rule)
   { make_nt_defn n (make_opt_var v) inh syn r $startpos $endpos }
 
-attr_arg:
+deco_arg:
 | k=ident EQ v=ident
-  { Attr_keyvalue (k, v) }
+  { Deco_keyvalue (k, v) }
 | k=ident
-  { Attr_key k }
+  { Deco_key k }
 
-attr_decl:
-| ATTR a=ident LPAREN v=def COLON args=separated_list(COMMA, attr_arg) RPAREN RBRACK
-  { make_attr a v args $startpos $endpos }
-| ATTR a=ident LPAREN v=def RPAREN RBRACK
-  { make_attr a v [] $startpos $endpos }
+deco_spec:
+| a=ident LPAREN v=def COLON args=separated_list(COMMA, deco_arg) RPAREN
+  { make_deco a v args $startpos $endpos }
+| a=ident LPAREN v=def RPAREN RBRACK
+  { make_deco a v [] $startpos $endpos }
+
+deco_decl:
+| DECO l=separated_list(SEMICOLON, deco_spec) RBRACK
+  { l }
 
 format_decl:
-| a=option(attr_decl) d=nt_defn
+| a=option(deco_decl) d=nt_defn
   { make_format_decl d a $startpos $endpos }
 
 /* TODO: add kind specs */

@@ -288,6 +288,29 @@ type typing_error =
      valid character. *)
   | Not_a_character of Ast.literal
 
+  (* [RepeatedDecorator d] is raised when multiple uses of a
+     decorator type [d] appear in a decorator specification of a
+     non-terminal. *)
+  | RepeatedDecoratorType of Ast.ident
+
+  (* [RepeatedDecoratorKey d k] is raised when multiple uses of an
+     decorator key [k] appear in a decorator type [d]. *)
+  | RepeatedDecoratorKey of Ast.ident * Ast.ident
+
+  (* [InvalidDecoratorName d] is raised when name of decorator
+     [d] is invalid as a non-terminal name. *)
+  | InvalidDecoratorName of Ast.ident
+
+  (* [UnvaluedDecoratorKey d k] is raised when a key [k] of an
+     decorator [d] does not specify a value. *)
+  | UnvaluedDecoratorKey of Ast.ident * Ast.ident
+
+  (* [InvalidDecoratorKeyValue d k v] is raised when an
+     invalid value [v] is specified for a key [k] of a
+     decorator [d]. *)
+  | InvalidDecoratorKeyValue of Ast.ident * Ast.ident * Ast.ident
+
+
 exception Error of typing_error
 
 let str_of_rule_pos = function
@@ -519,20 +542,16 @@ let error_msg = function
         loc (Location.value m) (Location.value i)
 
   | Not_character_class loc ->
-      msg
-        "%s:\n A character class was expected.\n"
+      msg "%s:\n A character class was expected.\n"
         loc
   | Unknown_character_class id ->
-      msg
-        "%s:\n Unknown character class `%s'.\n"
+      msg "%s:\n Unknown character class `%s'.\n"
         (Location.loc id) (Location.value id)
   | Not_literal_set loc ->
-      msg
-        "%s:\n A literal set was expected.\n"
+      msg "%s:\n A literal set was expected.\n"
         loc
   | Not_in_character_set (id, l) ->
-      msg
-        "%s:\n Literal `%s' is not in character class `%s'."
+      msg "%s:\n Literal `%s' is not in character class `%s'."
         (Location.loc l) (Location.value l) (Location.value id)
   | Inconsistent_range_literals (loc, s, e, sl, el) ->
       let ss, se = Location.value s, Location.value e in
@@ -545,6 +564,26 @@ let error_msg = function
         loc (Location.value s) idx (Location.value e)
 
   | Not_a_character l ->
-      msg
-        "%s:\n Not a valid character `%s'."
+      msg "%s:\n Not a valid character `%s'."
         (Location.loc l) (Location.value l)
+
+  | RepeatedDecoratorType a ->
+      msg "%s\n: Decorator `%s' cannot be repeated."
+        (Location.loc a) (Location.value a)
+
+  | InvalidDecoratorName a ->
+      msg "%s\n: Decorator `%s' is invalid as a non-terminal name."
+        (Location.loc a) (Location.value a)
+
+  | RepeatedDecoratorKey (a, k) ->
+      msg "%s\n: Key `%s' of decorator `%s' cannot be repeated."
+        (Location.loc k) (Location.value k) (Location.value a)
+
+  | UnvaluedDecoratorKey (a, k) ->
+      msg "%s\n: Key `%s' of decorator `%s' does not have a value."
+        (Location.loc k) (Location.value k) (Location.value a)
+
+  | InvalidDecoratorKeyValue (a, k, v) ->
+      msg "%s\n: Key `%s' of decorator `%s' has non-boolean value `%s'."
+        (Location.loc v)
+        (Location.value k) (Location.value a) (Location.value v)

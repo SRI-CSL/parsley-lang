@@ -145,6 +145,8 @@ and ('a, 'b) regexp =
    regexp_loc: Location.t;
    regexp_aux: 'a}
 
+type ('a, 'b) non_term_instance = ident * (ident * ('a, 'b) expr) list option
+
 type ('a, 'b) rule_elem_desc =
   (* bit-level support *)
   | RE_bitvector of bitint
@@ -154,7 +156,7 @@ type ('a, 'b) rule_elem_desc =
 
   (* other basic primitives *)
   | RE_regexp of ('a, 'b) regexp
-  | RE_non_term of ident * (ident * ('a, 'b) expr) list option
+  | RE_non_term of ('a, 'b) non_term_instance
 
   (* binding for return values *)
   | RE_named of 'b var * ('a, 'b) rule_elem
@@ -229,19 +231,19 @@ type ('a, 'b) const_defn =
    const_defn_loc: Location.t;
    const_defn_aux: 'a}
 
-type attribute_arg =
-  | Attr_key of ident
-  | Attr_keyvalue of ident * ident
+type deco_arg =
+  | Deco_key of ident
+  | Deco_keyvalue of ident * ident
 
-type attribute =
-  {attr_type: ident;
-   attr_value: ident;
-   attr_args: attribute_arg list;
-   attr_loc: Location.t}
+type decorator =
+  {deco_type: ident;
+   deco_value: ident;
+   deco_args: deco_arg list;
+   deco_loc: Location.t}
 
 type ('a, 'b) format_decl =
   {format_decl: ('a, 'b) non_term_defn;
-   format_attr: attribute option;
+   format_deco: decorator list option;
    format_decl_loc: Location.t}
 
 type ('a, 'b) format =

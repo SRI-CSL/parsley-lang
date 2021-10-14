@@ -2223,6 +2223,20 @@ let has_type_abbrevs tds =
         )
     ) None tds
 
+(* helpers to check format decorators *)
+let get_whitespace_nonterm deco =
+  match Format_decorators.lookup_decorator_value "whitespace" deco with
+     | None ->
+         None
+     | Some a ->
+         Some (Format_decorators.non_term_of_decorator_value a)
+
+let check_deco deco =
+  Format_decorators.check_format_decorator deco;
+  (* Currently, the only supported decorator is 'whitespace'.  If
+     specified, it should name a valid non-terminal. *)
+  ignore (get_whitespace_nonterm deco)
+
 let infer_spec tenv venv spec =
   (* First pass: process the expression language, and the
      type-definitions for the non-terminals, and collect their
@@ -2273,6 +2287,7 @@ let infer_spec tenv venv spec =
           | Decl_format f ->
               let tenv, ctxt =
                 List.fold_left (fun (te, c) fd ->
+                    check_deco fd.format_deco;
                     let ntd = fd.format_decl in
                     infer_non_term_type te c ntd
                   ) (tenv, ctxt) f.format_decls in
@@ -2291,7 +2306,7 @@ let infer_spec tenv venv spec =
                     let ntd = fd.format_decl in
                     let c', wc', ntd' = infer_non_term tenv venv ntd in
                     let fd' = {format_decl     = ntd';
-                               format_attr     = fd.format_attr;
+                               format_deco     = fd.format_deco;
                                format_decl_loc = fd.format_decl_loc} in
                     c ^ c', wc @^ wc', fd' :: fds'
                   ) (c, wc, []) f.format_decls in

@@ -157,3 +157,8 @@ let rec unwrap_exp exp =
     data constructor [constr] of type [typ]. *)
 let canonicalize_dcon typ constr =
   Printf.sprintf "%s::%s" typ constr
+
+(** [is_valid_nonterm_name n] checks whether [n] is valid as the
+    name of a non-terminal, i.e. it is capitalized *)
+let is_valid_nonterm_name n =
+  (String.length n > 0) && Char.uppercase_ascii n.[0] = n.[0]
