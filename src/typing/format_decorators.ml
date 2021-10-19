@@ -15,13 +15,15 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* processing of format decorators *)
+
 open Parsing
 open Ast
 open TypingExceptions
 
 module StringSet = Set.Make(String)
 
-(* processing of format decorators *)
+let display_decorated = ref StringSet.empty
 
 type deco_value = ident * deco_arg list
 
@@ -346,4 +348,12 @@ let fixup_for_whitespace (ntd: (unit, unit) non_term_defn)
     let loc = mk_start_loc r.rule_loc in
     {r with rule_rhs =
               process_elems true loc [] r.rule_rhs} in
-  {ntd with non_term_rules = List.map process_rule ntd.non_term_rules}
+  let ntd =
+    {ntd with non_term_rules =
+                List.map process_rule ntd.non_term_rules} in
+  let n = Location.value ntd.non_term_name in
+  if StringSet.mem n !display_decorated
+  then (AstPrinter.print_nterm_defn (fun _ -> "") ntd;
+        AstPrinter.print_flush ();
+        Printf.printf "\n");
+  ntd

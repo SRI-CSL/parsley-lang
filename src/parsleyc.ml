@@ -15,6 +15,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module FD = Typing.Format_decorators
+module StringSet = FD.StringSet
+
 let opt_print_ast = ref false
 let input_file = ref []
 
@@ -24,7 +27,12 @@ let options =
   Arg.align ([
         ( "-p",
           Arg.Set opt_print_ast,
-          " print the parsed AST" )
+          " print the parsed AST" );
+        ( "-dd",
+          Arg.String (fun s ->
+              FD.display_decorated := StringSet.add s !FD.display_decorated
+            ),
+          " print decorated non-terminal" )
       ])
 
 let () =
@@ -35,8 +43,8 @@ let () =
         exit 1);
   let spec_file = List.hd !input_file in
   let spec = SpecParser.parse_spec spec_file in
-  if !opt_print_ast then
-    Parsing.AstPrinter.print_parsed_spec spec;
+  if !opt_print_ast
+  then Parsing.AstPrinter.print_parsed_spec spec;
   let init_envs, tenv, tspec = SpecTyper.type_check spec in
   SpecTyper.assignment_check init_envs tenv tspec;
   Printf.printf "%s: parsed and typed.\n" spec_file;
