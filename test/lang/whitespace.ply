@@ -1,0 +1,17 @@
+format {
+  WS (allow_empty: bool) :=
+    [allow_empty]
+    (# [" " | "\t" | "\r" | "\n"]* #)
+  ; [!allow_empty]
+    (# [" " | "\t" | "\r" | "\n"]+ #)
+  ;;
+
+  A := !"["! ;;
+  B := !"]"! ;;
+  C := !"+"! ;;
+  D := !"-"! ;;
+
+  #[whitespace(WS:allow_empty=true)]
+  NT n {a: unit} :=  A B              {n.a := ()}
+                 ;  ((A C) | (B D))*  {n.a := ()}
+}

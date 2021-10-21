@@ -495,3 +495,119 @@ next 9 bits converted into a bitfield `bf` and stored in attribute
         n.f := f }
   }
 ....
+
+== Annotations
+
+Parsley provides an annotation scheme that can be used to provide
+auxiliary information for non-terminals.  Each non-terminal can be
+annotated via a *decorator*, using the syntax below:
+....
+#[deco_type1(deco_val1:key1=val1,key2,key3=val3);deco_type2(deco_val2: ...)]
+NT ... := ...
+....
+The decorator is specified immediately before the non-terminal it
+applies to, and consists of a sequence of *decorator specifiers*
+separated by `;`.  Each specifier has a *decorator type* and its
+*decorator value*, with the value enclosed within a pair of
+parentheses `(` `)` The value can be optionally be parameterized by a
+list of keys with optional values that are separated by `,`.  If this
+parameter list is present, it is separated from the value by a `:`,
+and a parameter `key` with a `value` is denoted simply with
+`key=value`.
+
+All the entities in the decorator are simple _identifiers_;
+i.e. expression syntax cannot be used as types, keys or values.
+
+A decorator cannot have two specifiers with the same decorator type,
+and a decorator value cannot have two keys with the same name.
+
+Parsley only interprets decorators that it supports; other decorators
+are silently ignored.
+
+Note: The decorator "type" identifier is unrelated any identifier in
+the Parsley type system.
+
+==== Whitespace decorations
+
+Unlike parsers for programming languages that are designed to be
+readable by humans, Parsley is normally used for specify data formats
+that are often optimized for machine processing rather than human
+readability.  As a result, it does not have any implicit notion of
+whitespace.  However, one often needs to specify data formats that can
+have fragments that use a notion of whitespace, and the grammar
+elements in these formats can be tedious to specify when every
+occurence of whitespace needs to be explicitly specified.
+
+To help with this use case, Parsley supports annotating a non-terminal
+(say `NT`) with a `whitespace` decorator that names another
+non-terminal (say `WS`) that can be considered to separate the rule
+elements in each rule of `NT`.  The goal here is to recover the
+convenience of an implicit notion of whitespace when specifying the
+rules of the non-terminal `NT`, and making explicit this notion of
+whitespace just once in the decorator.
+
+As an example, suppose the following definition was used to define the
+`WS` non-terminal to match possibly empty whitespace:
+....
+  WS (allow_empty: bool) :=
+    [allow_empty]
+    (# [" " | "\t" | "\r" | "\n"]* #)
+  ; [!allow_empty]
+    (# [" " | "\t" | "\r" | "\n"]+ #)
+  ;;
+....
+The inherited attribute `allow_empty` controls whether `WS` can
+match empty whitespace.
+
+Then it can be used to specify the whitespace separating the rule
+elements for a non-terminal `NT` as follows:
+....
+  #[whitespace(WS:allow_empty=true)]
+  NT := A B
+      ; ((A C) | (B D))*
+      ;;
+....
+This is equivalent to the following definition of `NT` without a
+whitespace decorator, which is quite verbose.
+....
+  NT := // first rule after decoration
+        WS<allow_empty=bool::True()> A WS<allow_empty=bool::True()> B WS<allow_empty=bool::True()>
+
+        // second rule after decoration
+      ; WS<allow_empty=bool::True()>
+        (  (A WS<allow_empty=bool::True()> C WS<allow_empty=bool::True>())
+        | (B WS<allow_empty=bool::True()> D WS<allow_empty=bool::True>())
+        )*
+        WS<allow_empty = bool::True>
+      ;;
+....
+
+Parsley uses some heuristics to insert the specified whitespace
+non-terminal into the decorated rules, which in most cases should give
+the same result as a parser with an implicit notion of whitespace.
+
+[CAUTION]
+====
+There are some situations where the decorator should only be used with
+considerable caution, if at all:
+
+* the whitespace non-terminal cannot match empty whitespace,
+* the non-terminal that is a candidate for decoration has rules that
+  use constraints that involve cursor locations, or bit-level
+  constructions that are typically quite dependent on appropriate
+  byte-alignment, or view constructions that rely crucially on cursor
+  offset locations.
+
+In these situations, it is likely that the automatically inserted
+whitespace might violate assumptions about byte-alignment or cursor
+locations in views and constraints, or about matching optional whitespace.
+====
+
+Parsley uses some heuristics when inserting whitespace in such rules.
+For example, it does not introduce whitespace immediately before
+constraints or any view mapping combinator, and before or after any
+construct dealing with bitvectors.
+
+NOTE: One can use the `-dd` option to print the rules of a
+non-terminal after whitespace decoration to ensure they align with
+expectations.

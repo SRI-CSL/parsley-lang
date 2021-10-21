@@ -163,3 +163,6 @@ other functions whose definitions are in scope.
 `type`, `const` and `fun`/`recfun` definitions are processed before
 any format block, so all type, constant and function definitions are
 in scope in every format block.
+
+Comments are marked with a leading `//` and continue until the end of
+the line.

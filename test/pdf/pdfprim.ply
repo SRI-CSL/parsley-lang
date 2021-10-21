@@ -34,7 +34,7 @@ format {
   //
   // The ';' is an ordered choice combinator that combines a sequence
   // of rules.
-  Whitespace w (allow_empty: bool) :=
+  Whitespace (allow_empty: bool) :=
     [allow_empty]
     (# ( [" " | "\000" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
   ; [!allow_empty]
