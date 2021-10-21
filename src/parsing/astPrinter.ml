@@ -219,11 +219,9 @@ and print_expr auxp e =
         pp_print_string !ppf (auxp e.expr_aux)
     | E_constr (c, args) ->
         pp_print_string !ppf (string_of_constructor c);
-        if List.length args > 0 then begin
-            pp_print_string !ppf "(";
-            print_list ", " (print_expr auxp) args;
-            pp_print_string !ppf ")";
-          end
+        pp_print_string !ppf "(";
+        print_list ", " (print_expr auxp) args;
+        pp_print_string !ppf ")"
     | E_record fields ->
         pp_print_string !ppf "{";
         print_list ", " (fun (f, e) ->
