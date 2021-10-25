@@ -3,6 +3,7 @@
 ## Documents
 
 * iccMax [LINK](https://color.org/specification/ICC.2-2019.pdf)
+* icc [LINK](https://color.org/specification/ICC1v43_2010-12.pdf)
 
 ## Team (ordered alphabetically)
 
