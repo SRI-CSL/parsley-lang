@@ -1,0 +1,22 @@
+// Table 86 of iccMAX documentation, page 101 of the specification
+
+const cef_type_signature : string = String.of_literal("func")
+const cef_zero_int : int = 0
+
+type cef_type = {
+    // number of operations, N
+    n: int,
+    // todo: function operations
+}
+
+format {
+    CalculatorElementFunctionEncoding cef {cef_type} :=
+        !"cef_type_signature"!
+        zero_uint32 = UInt32<endian=endian::Big()>
+        [zero_uint32 = cef_zero_int]
+        n = UInt32<endian=endian::Big()>
+
+        {
+            cef.n := n;
+        };;
+}
