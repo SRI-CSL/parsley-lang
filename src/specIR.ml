@@ -17,6 +17,8 @@
 
 open Ir
 
+let print_ir = ref false
+
 let handle_exception bt msg =
   Printf.fprintf stderr "%s\n" msg;
   Printf.printf "%s\n" bt;
@@ -24,7 +26,10 @@ let handle_exception bt msg =
 
 let to_ir init_envs tenv (spec: Cfg.program) : Cfg.spec_ir =
   try
-    Cfg_spec.lower_spec init_envs tenv spec
+    let spec = Cfg_spec.lower_spec init_envs tenv spec in
+    if !print_ir
+    then Ir_printer.print_spec spec;
+    spec
   with
     | Cfg_regexp.Error e ->
         handle_exception (Printexc.get_backtrace ()) (Cfg_regexp.error_msg e)

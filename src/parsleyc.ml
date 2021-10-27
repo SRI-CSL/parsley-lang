@@ -25,14 +25,17 @@ let usage = Printf.sprintf
               "Usage: %s <options> <file.ply> " (Sys.argv.(0))
 let options =
   Arg.align ([
-        ( "-p",
+        ( "-pa",
           Arg.Set opt_print_ast,
           " print the parsed AST" );
         ( "-dd",
           Arg.String (fun s ->
               FD.display_decorated := StringSet.add s !FD.display_decorated
             ),
-          " print decorated non-terminal" )
+          " display the decorated non-terminal" );
+        ( "-ir",
+          Arg.Set SpecIR.print_ir,
+          " print the IR" )
       ])
 
 let () =
