@@ -152,6 +152,8 @@ let builtin_types, builtin_consts, builtin_vars,
                            (Ast.KArrow (Ast.KStar, Ast.KStar)))),
                        []);
     |] in
+  (* When adding new builtins, please also add their implementations
+     to builtins.ml *)
   let builtin_consts : builtin_dataconstructor array = [|
       (Ast.DName "1-", [], arrow_type (gen_tvar "int") (gen_tvar "int"));
       (Ast.DName "!",  [], arrow_type (gen_tvar "bool") (gen_tvar "bool"));
@@ -208,6 +210,9 @@ let builtin_types, builtin_consts, builtin_vars,
                                          (arrow_type (gen_tvar "view")
                                             (parse_result_type (gen_tvar "a"))));
     |] in
+
+  (* When adding modules or functions below, please also add their
+     implementations to parsleylib.ml *)
   let builtin_modules : builtin_module list = [
       {mod_name   = Ast.MName "Int";
        mod_values = [
@@ -271,6 +276,58 @@ let builtin_types, builtin_consts, builtin_vars,
               (arrow_type (gen_tvar "int") (list_type (gen_tvar "a"))));
          ];
       };
+      {mod_name   = Ast.MName "String";
+       mod_values = [
+           (Ast.DName "empty", [], gen_tvar "string");
+           (Ast.DName "concat", [],
+            arrow_type (gen_tvar "string")
+              (arrow_type (gen_tvar "string")
+                 (gen_tvar "string")));
+           (Ast.DName "to_int", [],
+            arrow_type (gen_tvar "string")
+              (opt_type (gen_tvar "int")));
+           (Ast.DName "to_bytes", [],
+            arrow_type (gen_tvar "string")
+              (list_type (gen_tvar "byte")));
+           (Ast.DName "of_bytes", [],
+            arrow_type (list_type (gen_tvar "byte"))
+              (opt_type (gen_tvar "string")));
+           (Ast.DName "of_bytes_unsafe", [],
+            arrow_type (list_type (gen_tvar "byte"))
+              (gen_tvar "string"));
+           (Ast.DName "of_literal", [],
+            arrow_type (gen_tvar "string")
+              (gen_tvar "string"))
+         ];
+      };
+      {mod_name   = Ast.MName "Bits";
+       mod_values = [
+           (Ast.DName "to_int", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a"))
+              (gen_tvar "int"));
+           (Ast.DName "to_uint", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a"))
+              (gen_tvar "int"));
+           (Ast.DName "to_bool", [],
+            arrow_type (gen_tvar "bit")
+              (gen_tvar "bool"));
+           (Ast.DName "of_bool", [],
+            arrow_type (gen_tvar "bool")
+              (gen_tvar "bit"));
+           (Ast.DName "to_bit", [],
+            arrow_type (bitvector_type (gen_tvar "1"))
+              (gen_tvar "bit"));
+           (Ast.DName "of_bit", [],
+            arrow_type (gen_tvar "bit")
+              (bitvector_type (gen_tvar "1")));
+           (Ast.DName "ones", [ TName "a" ],
+            arrow_type (gen_tvar "int")
+              (bitvector_type (gen_tvar "a")));
+           (Ast.DName "zeros", [ TName "a" ],
+            arrow_type (gen_tvar "int")
+              (bitvector_type (gen_tvar "a")));
+         ];
+      };
       {mod_name   = Ast.MName "Set";
        mod_values = [
            (Ast.DName "empty", [ TName "a" ],
@@ -307,30 +364,6 @@ let builtin_types, builtin_consts, builtin_vars,
               (arrow_type (gen_tvar "a") (gen_tvar "b")));
          ];
       };
-      {mod_name   = Ast.MName "String";
-       mod_values = [
-           (Ast.DName "empty", [], gen_tvar "string");
-           (Ast.DName "concat", [],
-            arrow_type (gen_tvar "string")
-              (arrow_type (gen_tvar "string")
-                 (gen_tvar "string")));
-           (Ast.DName "to_int", [],
-            arrow_type (gen_tvar "string")
-              (opt_type (gen_tvar "int")));
-           (Ast.DName "to_bytes", [],
-            arrow_type (gen_tvar "string")
-              (list_type (gen_tvar "byte")));
-           (Ast.DName "of_bytes", [],
-            arrow_type (list_type (gen_tvar "byte"))
-              (opt_type (gen_tvar "string")));
-           (Ast.DName "of_bytes_unsafe", [],
-            arrow_type (list_type (gen_tvar "byte"))
-              (gen_tvar "string"));
-           (Ast.DName "of_literal", [],
-            arrow_type (gen_tvar "string")
-              (gen_tvar "string"))
-         ];
-      };
       {mod_name   = Ast.MName "View";
        mod_values = [
            (Ast.DName "get_base", [],
@@ -354,34 +387,6 @@ let builtin_types, builtin_consts, builtin_vars,
            (Ast.DName "clone", [],
             (arrow_type (gen_tvar "view")
                (gen_tvar "view")));
-         ];
-      };
-      {mod_name   = Ast.MName "Bits";
-       mod_values = [
-           (Ast.DName "to_int", [ TName "a" ],
-            arrow_type (bitvector_type (gen_tvar "a"))
-              (gen_tvar "int"));
-           (Ast.DName "to_uint", [ TName "a" ],
-            arrow_type (bitvector_type (gen_tvar "a"))
-              (gen_tvar "int"));
-           (Ast.DName "to_bool", [],
-            arrow_type (gen_tvar "bit")
-              (gen_tvar "bool"));
-           (Ast.DName "of_bool", [],
-            arrow_type (gen_tvar "bool")
-              (gen_tvar "bit"));
-           (Ast.DName "to_bit", [],
-            arrow_type (bitvector_type (gen_tvar "1"))
-              (gen_tvar "bit"));
-           (Ast.DName "of_bit", [],
-            arrow_type (gen_tvar "bit")
-              (bitvector_type (gen_tvar "1")));
-           (Ast.DName "ones", [ TName "a" ],
-            arrow_type (gen_tvar "int")
-              (bitvector_type (gen_tvar "a")));
-           (Ast.DName "zeros", [ TName "a" ],
-            arrow_type (gen_tvar "int")
-              (bitvector_type (gen_tvar "a")));
          ];
       };
     ] in
