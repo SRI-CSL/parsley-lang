@@ -1,6 +1,8 @@
 // Table 88 of iccMAX documentation, Channel Vector Operation Encoding
 // page 101 of the specification
 
+
+// clarify with Prashanth
 type cvoe_type = {
     // operation signature
     operation_signature: string,
@@ -13,7 +15,7 @@ type cvoe_type = {
 format {
     ChannelVectorOperationEncoding cvoe {c: cvoe_type} :=
         // todo: operation_signature
-        
+
         s = UInt16<endian=endian::Big()>
         t = UInt16<endian=endian::Big()>
 
