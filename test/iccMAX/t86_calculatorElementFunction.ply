@@ -3,20 +3,25 @@
 const cefe_type_signature : string = String.of_literal("func")
 const cefe_zero_int : int = 0
 
+type function_operations = {
+    // add the operations from the spec
+}
+
 type cefe_type = {
     // number of operations, N
     n: int,
     // todo: function operations
+    f: function_operations
 }
 
 format {
-    CalculatorElementFunctionEncoding cefe {cefe_type} :=
+    CalculatorElementFunctionEncoding cefe {c: cefe_type} :=
         !"cefe_type_signature"!
         zero_uint32 = UInt32<endian=endian::Big()>
         [zero_uint32 = cefe_zero_int]
         n = UInt32<endian=endian::Big()>
 
         {
-            cefe.n := n;
+            cefe.c.n := n;
         };;
 }
