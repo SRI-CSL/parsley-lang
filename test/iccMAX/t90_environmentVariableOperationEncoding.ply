@@ -1,0 +1,14 @@
+const evoe_type_signature: string = String.of_literal("env ")
+
+type evoe_type = {
+  byte: env_var_sig
+}
+
+format {
+  EnvironmentVariableOperationEncoding evoe {evoe_type} :=
+    !"fpoe_type_signature"!
+    env_var_sig = Byte
+    {
+      evoe_var_sig.env_var_sig := env_var_sig
+    }  
+}
