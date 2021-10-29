@@ -1,0 +1,53 @@
+// This file corresponds to the general profile structure
+// It captures Figure 5 on page 16 of the 2019 iccMAX spec.
+
+// This also serves as the entry point to the parsing
+
+const header_len: int = 128
+const four : int = 4
+
+type tag_entry = {
+  tag_entry_signature : [byte],
+  tag_entry_offset : int,
+  tag_entry_size : int
+}
+
+type tag_table_type = {
+  tag_table_count : int,
+  tag_table_entries : [tag_entry] 
+}
+
+type general_profile_type = {
+  header : [byte],
+  table : tag_table_type
+}
+
+format {
+
+  ParseFile gpt {general_profile_type} :=
+    header = (Byte^header_len)
+    tag_table_count = UInt32<endian=endian::Big()>
+    tag_table_entries = (TagEntry^tag_table_count)
+    {
+      gpt.header := header;
+      gpt.table.tag_table_count := tag_table_count;
+      gpt.table.tag_table_entries := tag_table_entries
+    }
+
+    // rest of parse
+    // go through each tag entry
+    // check whether it corresponds to a mpet
+    // if it corresponds to a mpet, check whether it correspodns to a calculatorElement
+    // if both checks are met, process the element; else, ignore
+    ;;
+  
+  TagEntry te {tag_entry} :=
+    one_tag_entry_signature = (Byte^four)
+    one_tag_entry_offset = UInt32<endian=endian::Big()>
+    one_tag_entry_size = UInt32<endian=endian::Big()>
+    {
+      te.tag_entry_signature := one_tag_entry_signature;
+      te.tag_entry_offset := one_tag_entry_offset;
+      te.tag_entry_size := one_tag_entry_size
+    }
+}
