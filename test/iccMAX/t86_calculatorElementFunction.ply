@@ -1,8 +1,5 @@
 // Table 86 of iccMAX documentation, page 101 of the specification
 
-const cefe_type_signature : string = String.of_literal("func")
-const cefe_zero_int : int = 0
-
 type function_operations = {
     // add the operations from the spec
 }
@@ -16,9 +13,8 @@ type cefe_type = {
 
 format {
     CalculatorElementFunctionEncoding cefe {c: cefe_type} :=
-        !"cefe_type_signature"!
-        zero_uint32 = UInt32<endian=endian::Big()>
-        [zero_uint32 = cefe_zero_int]
+        !"func"!
+        !"0000"! 
         n = UInt32<endian=endian::Big()>
 
         {

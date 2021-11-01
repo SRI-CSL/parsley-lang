@@ -1,4 +1,4 @@
-const evoe_type_signature: string = String.of_literal("env ")
+// this file corresponds to Table 90 of the iccMAX specification
 
 type evoe_type = {
   byte: env_var_sig
@@ -6,7 +6,7 @@ type evoe_type = {
 
 format {
   EnvironmentVariableOperationEncoding evoe {evoe_type} :=
-    !"fpoe_type_signature"!
+    !"env "!
     env_var_sig = Byte
     {
       evoe_var_sig.env_var_sig := env_var_sig

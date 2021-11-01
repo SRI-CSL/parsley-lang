@@ -1,7 +1,5 @@
 // this file corresponds to Table 85 of the iccMAX specification
-
-const cee_type_signature : string = String.of_literal("calc")
-const zero_int : int = 0
+// also see Table 24
 
 type position_number = {
   offset: int,
@@ -18,24 +16,19 @@ type cee_type = {
 
 format {
   CalculatorElementEncoding cee {cee_type} :=
-    !"cee_type_signature"!
-    zero_uint32 = UInt32<endian=endian::Big()>
-    [zero_uint32 = zero_int]  
+    !"calc"!
+    !"0000"!
     p = UInt16<endian=endian::Big()>
     q = UInt16<endian=endian::Big()>
     e = UInt32<endian=endian::Big()>
     position_number = PositionNumber
     subelement_positions = (PositionNumber^e)
-    //position_number_offset = UInt32<endian=endian::Big()>
-    //position_number_size = UInt32<endian=endian::Big()>
     { 
       cee.p := p;
       cee.q := q;
       cee.e := e;
       cee.main_function_position := position_number;
       cee.subelement_positions := subelement_positions
-      //cee.main_function_position.offset := position_number_offset;
-      //cee.main_function_position.size := position_number_size
     };;
 
     // to do: sub-element positions

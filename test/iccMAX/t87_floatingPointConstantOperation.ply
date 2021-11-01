@@ -1,14 +1,12 @@
 // this file corresponds to Table 87 of the iccMAX specification
 
-const fpcoe_type_signature : string = String.of_literal("data")
-
 type fpcoe_type = {
   float32_number: [byte]
 }
 
 format {
  FloatingPointConstantOperationEncoding fpcoe {fpcoe_type} :=
-    !"fpoe_type_signature"!
+    !"data"!
     f32_num = (Byte^4)
     {
       fpcoe.float32_number := f32_num
