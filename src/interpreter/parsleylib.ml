@@ -407,7 +407,7 @@ module PView = struct
           else begin
               assert (0 <= v.vu_start && v.vu_start <= v.vu_ofs);
               assert (v.vu_ofs <= v.vu_end);
-              assert (v.vu_end <= Bytes.length v.vu_buf);
+              assert (v.vu_end <= ViewBuf.size v.vu_buf);
               let o, l = Int64.to_int o, Int64.to_int l in
               if v.vu_ofs + o + l >= v.vu_end
               then fault (Out_of_bounds (lc, "View.restrict", "end bound exceeded"))
@@ -431,7 +431,7 @@ module PView = struct
           else begin
               assert (0 <= v.vu_start && v.vu_start <= v.vu_ofs);
               assert (v.vu_ofs <= v.vu_end);
-              assert (v.vu_end <= Bytes.length v.vu_buf);
+              assert (v.vu_end <= ViewBuf.size v.vu_buf);
               let o = Int64.to_int o in
               if v.vu_ofs + o >= v.vu_end
               then fault (Out_of_bounds (lc, "View.restrict_from", "end bound exceeded"))

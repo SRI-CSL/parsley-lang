@@ -20,10 +20,20 @@ type source =
   | Src_file of string (* unmodified data from file *)
   | Src_transform      (* transformed by user program *)
 
+(* internal representation of a buffer *)
+module ViewBuf = struct
+  type t =
+    (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+
+  let size (b: t) : int =
+    Bigarray.Array1.size_in_bytes b
+end
+
 (* a view is a subrange of a buffer, currently represented by a
    possibly shared fixed-length byte sequence. *)
+
 type view =
-  {vu_buf:    bytes;
+  {vu_buf:    ViewBuf.t;
    vu_source: source;
    vu_id:     Int64.t; (* unique identifier per view *)
 
