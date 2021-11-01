@@ -136,9 +136,9 @@ let rec eq lc op l r =
         then false
         else eqs lc op true ls rs
 
-    | V_view _, V_view _ ->
-        (* Views cannot be meaningfully compared. *)
-        false
+    | V_view {vu_id = l;_}, V_view {vu_id = r;_} ->
+        (* only compare their ids *)
+        l = r
 
     | V_set [], V_set [] | V_map [], V_map [] ->
         true
@@ -176,12 +176,7 @@ let equals lc (l: value) (r: value) : value =
   V_bool (eq lc "=" l r)
 
 let not_equals lc (l: value) (r: value) : value =
-  (* Views cannot be meaningfully compared, so special case them *)
-  match l, r with
-    | V_view _, V_view _ ->
-        V_bool false
-    | _, _ ->
-        V_bool (not (eq lc "!=" l r))
+  V_bool (not (eq lc "!=" l r))
 
 let list_index lc (l: value) (i: value) : value =
   match l, i with

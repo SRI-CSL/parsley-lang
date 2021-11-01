@@ -389,6 +389,14 @@ module PMap = struct
 end
 
 module PView = struct
+  (* incremented and used as id for every new view value created *)
+  let view_id = ref Int64.zero
+
+  let next_id () =
+    let id = !view_id in
+    view_id := Int64.succ !view_id;
+    id
+
   let restrict lc (v: value) (o: value) (l: value) : value =
     match v, o, l with
       | V_view v, V_int o, V_int l ->
@@ -403,9 +411,10 @@ module PView = struct
               let o, l = Int64.to_int o, Int64.to_int l in
               if v.vu_ofs + o + l >= v.vu_end
               then fault (Out_of_bounds (lc, "View.restrict", "end bound exceeded"))
-              else V_view {v with vu_start = v.vu_ofs + o;
-                                  vu_ofs = 0;
-                                  vu_end = v.vu_ofs + o + l}
+              else V_view {v with vu_id    = next_id ();
+                                  vu_start = v.vu_ofs + o;
+                                  vu_ofs   = 0;
+                                  vu_end   = v.vu_ofs + o + l}
             end
       | V_view _, V_int _, _ ->
           fault (Type_error (lc, "View.restrict", 3, vtype_of l, T_int))
@@ -426,8 +435,9 @@ module PView = struct
               let o = Int64.to_int o in
               if v.vu_ofs + o >= v.vu_end
               then fault (Out_of_bounds (lc, "View.restrict_from", "end bound exceeded"))
-              else V_view {v with vu_start = v.vu_ofs;
-                                  vu_ofs = 0}
+              else V_view {v with vu_id    = next_id ();
+                                  vu_start = v.vu_ofs;
+                                  vu_ofs   = 0}
             end
       | V_view _, _ ->
           fault (Type_error (lc, "View.restrict_from", 2, vtype_of o, T_int))
@@ -439,6 +449,7 @@ module PView = struct
       | V_view v ->
           V_view {vu_buf    = v.vu_buf;
                   vu_source = v.vu_source;
+                  vu_id     = next_id ();
                   vu_start  = v.vu_start;
                   vu_ofs    = v.vu_ofs;
                   vu_end    = v.vu_end}

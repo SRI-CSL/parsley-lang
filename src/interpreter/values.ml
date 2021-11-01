@@ -25,9 +25,11 @@ type source =
 type view =
   {vu_buf:    bytes;
    vu_source: source;
+   vu_id:     Int64.t; (* unique identifier per view *)
+
    (* all locations below are maintained wrt to the start of vu_buf *)
    vu_start:  int;
-   vu_ofs:    int; (* cursor *)
+   vu_ofs:    int;     (* cursor *)
    vu_end:    int}
 
 (* the values of the expression language.  sets and maps have an

@@ -372,9 +372,8 @@ Similarly, if the parsing rule fails after a partial match, the cursor
 location is rewound to its original location at the start of that
 parsing rule, before the next rule in any ordered choice is applied.
 
-Values of type `view` are opaque, and they cannot be meaningfully
-compared for equality and inequality using the generic `=` and `!=`
-operators.  Both operators will return false for view arguments.
+Although values of type `view` are opaque, they can be compared for
+equality and inequality using the generic `=` and `!=` operators.
 
 Different values of type `view` have independent state.  View values
 created or cloned from originating parent views do not affect the
