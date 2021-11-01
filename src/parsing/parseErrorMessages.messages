@@ -1965,7 +1965,7 @@ toplevel: FORMAT LBRACE UID COLONEQ LBRACK UID USE
 ## UID
 ##
 
-Ill-formed record field expression: perhaps you forgot a '.' before the field identifier?
+Ill-formed module expression: expected a '.' after the module name.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK USE
 ##

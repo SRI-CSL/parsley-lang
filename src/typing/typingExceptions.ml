@@ -575,22 +575,22 @@ let error_msg = function
         (Location.loc l) (Location.value l)
 
   | RepeatedDecoratorType a ->
-      msg "%s\n: Decorator `%s' cannot be repeated."
+      msg "%s:\n Decorator `%s' cannot be repeated."
         (Location.loc a) (Location.value a)
 
   | InvalidDecoratorName a ->
-      msg "%s\n: Decorator `%s' is invalid as a non-terminal name."
+      msg "%s:\n Decorator `%s' is invalid as a non-terminal name."
         (Location.loc a) (Location.value a)
 
   | RepeatedDecoratorKey (a, k) ->
-      msg "%s\n: Key `%s' of decorator `%s' cannot be repeated."
+      msg "%s:\n Key `%s' of decorator `%s' cannot be repeated."
         (Location.loc k) (Location.value k) (Location.value a)
 
   | UnvaluedDecoratorKey (a, k) ->
-      msg "%s\n: Key `%s' of decorator `%s' does not have a value."
+      msg "%s:\n Key `%s' of decorator `%s' does not have a value."
         (Location.loc k) (Location.value k) (Location.value a)
 
   | InvalidDecoratorKeyValue (a, k, v) ->
-      msg "%s\n: Key `%s' of decorator `%s' has non-boolean value `%s'."
+      msg "%s:\n Key `%s' of decorator `%s' has non-boolean value `%s'."
         (Location.loc v)
         (Location.value k) (Location.value a) (Location.value v)
