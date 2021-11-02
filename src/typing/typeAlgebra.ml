@@ -416,6 +416,20 @@ let builtin_types, builtin_consts, builtin_vars,
   builtin_types, builtin_consts, builtin_vars,
   builtin_modules, builtin_non_terms
 
+module ModuleMembers = Set.Make(struct type t = string * string
+                                       let compare = compare
+                                end)
+(* module members that are macro-expanded cannot be bound to variables *)
+let unbindables =
+  ModuleMembers.of_list [
+      ("List", "map");
+      ("List", "map2");
+      (* add similar functions for Set and Map *)
+    ]
+let is_unbindable (m, i) =
+  let mm = Location.value m, Location.value i in
+  ModuleMembers.mem mm unbindables
+
 (* Types that are character classes and their membership *)
 
 let character_classes =

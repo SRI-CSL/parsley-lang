@@ -605,6 +605,25 @@ let lookup_record_adt tenv fields =
      | None -> ());
   rec_info
 
+(* Disallow rebindings of standard-library support for higher-order
+   functions. This ensures that we catch all calls to such
+   standard-library supports during macro-expansion. *)
+let rec check_let_binding def =
+  (* Since def is the rhs for a pattern, we need to check any
+     sub-expressions that could bind to a pattern variable *)
+  match def.expr with
+    | E_mod_member (m, i) ->
+        if is_unbindable (m, i)
+        then raise (Error (IllegalBinding (m, i)))
+    | E_constr (_, args) ->
+        ignore (List.map check_let_binding args)
+      (* Remember to also look under records if we add support for
+         record patterns *)
+    | E_cast (e, _) ->
+        check_let_binding e
+    | _ ->
+        ()
+
 (** [infer_expr tenv venv e t] generates a constraint that guarantees that
     [e] has type [t] in the typing environment [tenv]. *)
 let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
@@ -795,6 +814,9 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
         (WC_true,
          mk_auxexpr (E_literal prim_lit))
     | E_case (exp, clauses) ->
+        (* Since [exp] gets bound in the [clauses], we need to check
+           for forbidden bindings. *)
+        check_let_binding exp;
         (* The constraint of a [case] makes equal the type of the
            scrutinee and the type of every branch pattern. The body
            of each branch must be equal to [t]. *)
@@ -819,6 +841,8 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
              mk_auxexpr (E_case (exp', clauses')))
           )
     | E_let (p, def, body) ->
+        (* check let binding for unbindable expressions *)
+        check_let_binding def;
         (* The constraint of this non-generalizing [let] makes equal
            the type of the pattern and the definiens, and requires
            the type of the let body to be equal to [t]. *)
@@ -1430,6 +1454,7 @@ let rec infer_stmt tenv venv s =
             cl ^ cr,(wcl @^ wcr,  make_stmt (S_assign (l', r'))))
     | S_let (p, def, ss) ->
         (* Similar to E_let. *)
+        check_let_binding def;
         exists_aux (fun t' ->
             let fragment, p', venv' = infer_pat_fragment tenv venv p t' in
             let cdef, (wcdef, def') = infer_expr tenv venv def t' in

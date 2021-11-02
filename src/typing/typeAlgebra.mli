@@ -123,3 +123,6 @@ val builtin_non_terms: builtin_non_term array
 (** names of builtin operator constants *)
 val unop_const_name: Ast.unop -> string
 val binop_const_name: Ast.binop -> string
+
+(** checks if a standard library component cannot be bound to a variable *)
+val is_unbindable: Ast.modident * Ast.ident -> bool

@@ -36,3 +36,20 @@ recfun all_square (l: [shape]) -> bool = {
        | shape::Square() -> all_square (tl)
        | _               -> bool::False()))
 }
+
+fun is_square (s: shape) -> bool = {
+ (case s of
+  | shape::Square() -> bool::True()
+  | _               -> bool::False())
+}
+
+fun do_map (l: [shape]) -> [bool] = {
+  List.map(is_square, l)
+}
+
+//fun do_map_case (l: [shape]) -> [bool] = {
+//  let (i, j) = (List.map, List.map) in   // illegal let
+//  (case (List.map, List.map) of          // illegal pattern
+//  | (i, _) -> i(is_square, l)
+//  )
+//}

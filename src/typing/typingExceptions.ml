@@ -314,6 +314,10 @@ type typing_error =
      decorator [d]. *)
   | InvalidDecoratorKeyValue of Ast.ident * Ast.ident * Ast.ident
 
+  (* [IllegalBinding b] is raised when a special value cannot be
+     bound to a variable.  The value is typically related to
+     standard-library support for higher-order functions. *)
+  | IllegalBinding of Ast.modident * Ast.ident
 
 exception Error of typing_error
 
@@ -594,3 +598,7 @@ let error_msg = function
       msg "%s:\n Key `%s' of decorator `%s' has non-boolean value `%s'."
         (Location.loc v)
         (Location.value k) (Location.value a) (Location.value v)
+
+  | IllegalBinding (m, i) ->
+      msg "%s:\n `%s.%s' cannot be bound to a variable."
+        (Location.loc m) (Location.value m) (Location.value i)
