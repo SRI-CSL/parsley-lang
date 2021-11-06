@@ -31,4 +31,4 @@ val reset: unit -> unit
     share the same variable naming conventions, unless [reset] is
     called in between. *)
 val print_variable: bool -> MultiEquation.variable -> string
-val print_term: bool -> MultiEquation.crterm -> string
+val print_term:     bool -> MultiEquation.crterm   -> string

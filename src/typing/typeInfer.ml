@@ -2108,7 +2108,7 @@ let infer_non_term tenv venv ntd =
     constants. *)
 let init_env () =
   let mk_variable = (fun ?name () -> variable Rigid ?name:name ()) in
-  let mk_type_ent (o, (arity, ds)) =
+  let mk_type_ent (o, (arity, _, ds)) =
     o, (arity,
         CoreAlgebra.TVariable (mk_variable ?name:(Some o) ()),
         ds) in

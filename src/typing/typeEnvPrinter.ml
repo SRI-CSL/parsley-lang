@@ -30,32 +30,21 @@
     (non-quantified) type variables are considered part of a global namespace.
 *)
 
-open Misc
 open TypeAlgebra
 open CoreAlgebra
 open MultiEquation
 
-(** Associativity of a symbol. *)
-(* This should go in the initial typing environment, but is here for now. *)
-type associativity =
-  AssocLeft
-| NonAssoc
-| AssocRight
-
 (** [name_from_int i] turns the integer [i] into a type variable name. *)
 let rec name_from_int i =
-  if i < 26 then
-    String.make 1 (Char.chr (0x61 + i))
-  else
-    name_from_int (i / 26 - 1) ^ name_from_int (i mod 26)
+  if i < 26
+  then String.make 1 (Char.chr (0x61 + i))
+  else name_from_int (i / 26 - 1) ^ name_from_int (i mod 26)
 
 (** [gi] is the last consumed number. *)
-let gi =
-   ref (-1)
+let gi = ref (-1)
 
 (** [ghistory] is a mapping from variables to variable names. *)
-let ghistory =
-  ref []
+let ghistory = ref []
 
 (** [reset()] clears the global namespace, which is implemented
     by [gi] and [ghistory]. *)
@@ -63,11 +52,16 @@ let reset () =
   gi := -1;
   ghistory := []
 
+(** printing syntax for a type or type operator *)
 type arg =
-    Arg of (MultiEquation.variable * string * arg list
-            * bool * associativity * bool)
+  Arg of (MultiEquation.variable  (* type or type operator *)
+          * string                (* print name *)
+          * arg list              (* syntax for type arguments *)
+          * bool                  (* whether type operator is infix *)
+          * associativity
+          * bool)                 (* parentheses for disambiguation *)
 
-let paren b e = if b then "("^^e^^")" else e
+let paren b e = if b then "(" ^ e ^ ")" else e
 
 (** [print is_type_scheme v] returns a printable representation of
     the type or type scheme whose entry point is [v]. The parameter
@@ -85,31 +79,27 @@ let printer is_type_scheme =
   let i = ref (-1)
   and history = ref [] in
 
-  (* [name v] looks up or assigns a name to the variable [v]. When
+  (* [var_name v] looks up or assigns a name to the variable [v]. When
      dealing with a type scheme, then the local or global namespace
      is used, depending on whether [v] is universally quantified or
      not. When dealing with a type, only the global namespace is
      used. *)
 
-  (* FIXME: necessite du prefixe ? *)
   let var_name v =
     let desc = UnionFind.find v in
     let autoname () =
       let prefix, c, h =
         if is_type_scheme && IntRank.compare desc.rank IntRank.none = 0
-        then
-          "''", i, history
-        else
-          "'", gi, ghistory in
+        then "'", i, history
+        else "''", gi, ghistory in
       try
-        Misc.assocp (UnionFind.equivalent v) !h
+        snd (List.find (fun (v', _) -> UnionFind.equivalent v v') !h)
       with Not_found ->
         incr c;
         let result = prefix ^ name_from_int !c in
         desc.name <- Some (TName result);
         h := (v, result) :: !h;
         result in
-
     (match desc.name with
        | Some (TName name) ->
            if desc.kind <> Constant then
@@ -120,13 +110,12 @@ let printer is_type_scheme =
                name
            else name
        | _ -> autoname ())
-(*        ^ ("["^string_of_int desc.rank^"]")*)
-(*        ^ (match desc.kind with Constant -> "#" | Rigid -> "!" | _ -> "?") *)
+    (* ^ ("["^string_of_int desc.rank^"]") *)
+    (* ^ (match desc.kind with Constant -> "#" | Rigid -> "!" | Flexible -> "?") *)
   in
 
   (* Term traversal. *)
-  let rec print_variable hits visited v =
-
+  let rec print_variable v =
     let is_hit v =
       Mark.same (UnionFind.find v).mark hit
     and is_visited v =
@@ -137,19 +126,16 @@ let printer is_type_scheme =
              (* If this is a builtin symbol, use the given name, else
                 generate a possibly decorated name. *)
              (match as_symbol (TName name) with
-                | Some _sym ->
-                    (* hardcode infix and associativity of sym for now *)
-                    (v, name, [], false, NonAssoc, false)
+                | Some sym ->
+                    (v, name, [], infix sym, associativity sym, false)
                 | None ->
-                    (v, var_name v, [], false, NonAssoc, false))
+                    (v, var_name v, [], false, Assoc_none, false))
          | None ->
-             (v, var_name v, [], false, NonAssoc, false)) in
+             (v, var_name v, [], false, Assoc_none, false)) in
     let desc = UnionFind.find v in
-
     (* If this variable was visited already, we mark it as ``hit
        again'', so as to record the fact that we need to print an
        equation at that node when going back up. *)
-
     if is_hit v || is_visited v then
       begin
         desc.mark <- hit;
@@ -161,84 +147,84 @@ let printer is_type_scheme =
        If, when we are done with this variable, its mark has
        changed to ``hit again'', then it must be part of a cycle,
        and we annotate it with an inline equation. *)
-
     else begin
-
       desc.mark <- visiting;
       match desc.structure with
-        | None -> var_or_sym v
+        | None ->
+            var_or_sym v
         | Some t ->
             let (v', name, args, infix, assoc, p) as r =
-              print_term hits visited t in
-            if is_hit v then
-              let vname = var_name v in
-              (v, vname^" =",
-               [ Arg (v', name, args, infix, assoc, p) ],
-               false, assoc, true)
+              print_term t in
+            if is_hit v
+            then let vname = var_name v in
+                 (v, vname ^ " =",
+                  [ Arg (v', name, args, infix, assoc, p) ],
+                  false, assoc, true)
             else (desc.mark <- Mark.none; r)
     end
 
-  and print_term hits visited t =
+  and print_term t =
     let at_left  = function [] -> true | [ _x ] -> false | _ -> assert false
-    and at_right = function [] -> true | [ _x ] -> false | _ -> assert false in
-
+    and at_right = function [] -> true | [ _x ] -> false | _ -> assert false
+    and is_enclosed = function Assoc_enclosed _ -> true  | _ -> false in
     let print = function
-
       | App (t1, t2) ->
-
           let (op1, name1, args1, infix1, assoc1, force_paren1) =
-            print_variable hits visited t1
+            print_variable t1
           and (op2, name2, args2, infix2, assoc2, force_paren2) =
-            print_variable hits visited t2 in
+            print_variable t2 in
           let priority name =
             match as_symbol name with
-              | Some _sym -> -1 (* hardcode priority of sym for now *)
+              | Some sym -> priority sym
               | None     -> -1 in
           let paren_t2 =
             force_paren2 ||
-              if are_equivalent op1 op2 then
-                (assoc2 = AssocLeft && at_right args1)
-                || (assoc2 = AssocRight && at_left args1)
-              else
-                (priority (TName name2) > priority (TName name1)) in
+              if are_equivalent op1 op2
+              then let _ = assert (assoc1 = assoc2) in
+                   (assoc2 = Assoc_left && at_right args2)
+                   || (assoc2 = Assoc_right && at_left args1)
+              else (not (is_enclosed assoc2))
+                   && (priority (TName name2) > priority (TName name1)) in
           (op1, name1,
            (args1 @ [ Arg (op2, name2, args2, infix2, assoc2, paren_t2)]),
            infix1, assoc1, force_paren1)
-
-      | Var v -> print_variable hits visited v
-
-    in print t
-  in
+      | Var v ->
+          print_variable v
+    in print t in
 
   let prefix () =
-    if is_type_scheme then
-      match !history with
-        | [] ->
-            ""
-        | history ->
-            List.fold_left
-              (fun quantifiers (v, _) ->
-                quantifiers ^ " " ^ (var_name v))
-              "forall" (List.rev history) ^ ". "
+    if is_type_scheme
+    then match !history with
+           | [] ->
+               ""
+           | history ->
+               List.fold_left
+                 (fun quantifiers (v, _) -> quantifiers ^ " " ^ (var_name v))
+                 "forall" (List.rev history)
+               ^ ". "
     else "" in
 
   let as_string f r =
-    let rec loop (Arg (_, name, args, infix, _assoc, is_paren)) =
-         if args = [] then name
-         else
-           paren is_paren
-             (if infix then
-                print_separated_list (" "^^name^^" ") loop args
-              else
-                name
-                ^^ (if args <> [] then " " else "")
-                ^^ (print_separated_list " " loop args)
-             ) in
-    let hits, visited = ref [], ref [] in
-    let (op, name, args, infix, assoc, _) = f hits visited r in
-    prefix ()
-    ^ loop (Arg (op, name, args, infix, assoc, false))
-  in
+    let rec loop (Arg (_, name, args, infix, assoc, is_paren)) =
+      if args = []
+      then name
+      else paren is_paren
+             (if infix
+              then Misc.print_separated_list (" " ^ name ^ " ") loop args
+              else let pref, sep, suff =
+                     match assoc with
+                       | Assoc_enclosed (b, e) ->
+                           b, ", ", " " ^ e
+                       | _ ->
+                           if List.length args > 0
+                           then (name ^ "<"), ", ", " >"
+                           else name, " ", "" in
+                   pref
+                   ^ (if args <> [] then " " else "")
+                   ^ (Misc.print_separated_list sep loop args)
+                   ^ suff) in
+    let (op, name, args, infix, assoc, _) = f r in
+    prefix () ^ loop (Arg (op, name, args, infix, assoc, false)) in
 
   (as_string print_variable, as_string print_term)
 

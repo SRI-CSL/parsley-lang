@@ -25,9 +25,9 @@ let handle_exception bt msg =
   Printf.printf "%s\n" bt;
   exit 1
 
-let trace_solver = false
-let print_types  = false
-let print_typed_ast = ref false
+let trace_solver    = false
+let print_types     = false
+let print_typed_ast = false
 
 let get_tracer () =
   if trace_solver
@@ -48,7 +48,7 @@ let check spec =
     end
   else
     ();
-  if !print_typed_ast then
+  if print_typed_ast then
     AstPrinter.print_typed_spec TypeConstraintPrinter.print_crterm spec';
   (init_tenv, init_venv), tenv, spec'
 

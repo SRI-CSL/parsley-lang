@@ -37,21 +37,63 @@ type 'a environment = Ast.tname -> 'a CoreAlgebra.arterm
 (** Head symbols. *)
 type symbol
 
-(** [as_symbol s] maps the string [s] to a symbol if [s] is a valid
-    symbol name. *)
+(** Associativity of a symbol. *)
+type associativity =
+  | Assoc_left
+  | Assoc_none
+  | Assoc_right
+  | Assoc_enclosed of string * string
+
+(** Syntactic information for types *)
+type syntax =
+  (* infix *) bool * associativity * (* priority *) int
+
+(** [as_symbol s] maps the string [s] to a symbol if [s] is a
+    valid symbol name. *)
 val as_symbol: Ast.tname -> symbol option
 
+(** [associativity s] returns the associativity of [s]. *)
+val associativity: symbol -> associativity
+
+(** [priority s] returns the priority of [s]. *)
+val priority: symbol -> int
+
+(** [infix s] tests if [s] is infix. *)
+val infix: symbol -> bool
+
+(** Type representation *)
+
+(** The type of predefined data constructors. *)
+type builtin_dataconstructor =
+  Ast.dname * Ast.tname list * Ast.type_expr
+
+(** The representation of predefined types. *)
+type builtin_type =
+  Ast.tname * (Ast.kind * syntax * builtin_dataconstructor list)
+
+(** The type information for a builtin module. *)
+type builtin_module =
+  {mod_name:   Ast.mname;
+   mod_values: builtin_dataconstructor list}
+
+(** The representation of predefined non-terminals, with their
+ ** inherited attributes and their types. *)
+type builtin_non_term =
+  Ast.nname * (unit Ast.var * Ast.type_expr) list * Ast.type_expr
+
+(** Operators on the type representation *)
+
 (** [option env t] returns the type [option t] *)
-val option : 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
+val option: 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
 
 (** [list env t] returns the type [list t] *)
-val list : 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
+val list: 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
 
 (** [tuple env ts] returns [t0 * ... * tn]. *)
-val tuple : 'a environment -> 'a CoreAlgebra.arterm list -> 'a CoreAlgebra.arterm
+val tuple: 'a environment -> 'a CoreAlgebra.arterm list -> 'a CoreAlgebra.arterm
 
 (** [arrow env t1 t2] returns the type [t1 -> t2]. *)
-val arrow : 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
+val arrow: 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
 
 (** [concrete_bitvector env n] returns the bitvector type for an integer width [n] *)
 val concrete_bitvector: 'a environment -> int -> 'a CoreAlgebra.arterm
@@ -64,44 +106,20 @@ val n_arrows: 'a environment -> 'a CoreAlgebra.arterm list -> 'a CoreAlgebra.art
 
 (** [result_type env t] returns the result type of the type [t] if
     [t] is an arrow type. *)
-val result_type :  'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
+val result_type:  'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
 
 (** [arg_types env t] returns the argument types of the type [t] if
     [t] is an arrow type. *)
-val arg_types : 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm list
+val arg_types: 'a environment -> 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm list
 
-val tycon_args : 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm list
-val tycon_name : 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
+val tycon_args: 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm list
+val tycon_name: 'a CoreAlgebra.arterm -> 'a CoreAlgebra.arterm
 
 (** [type_of_primitive p] returns the type of a source language primitive. *)
-val type_of_primitive : 'a environment -> Ast.primitive_literal -> 'a CoreAlgebra.arterm
+val type_of_primitive: 'a environment -> Ast.primitive_literal -> 'a CoreAlgebra.arterm
 
-
-(** [is_regexp_type env t] checks if [t] is the byte list type used
- ** for regular expressions *)
-val is_regexp_type : 'a environment -> 'a CoreAlgebra.arterm -> bool
-
-(** [is_character_class t] checks if [t] is the name of a pre-defined
- ** character class *)
-val is_character_class : Ast.ident -> bool
-
-val character_classes : (string * char array) list
-
-(** The type of predefined data constructors. *)
-type builtin_dataconstructor = Ast.dname * Ast.tname list * Ast.type_expr
-
-(** The representation of predefined types. *)
-type builtin_type = Ast.tname * (Ast.kind * builtin_dataconstructor list)
-
-(** The type information for a builtin module. *)
-type builtin_module =
-  {mod_name:   Ast.mname;
-   mod_values: builtin_dataconstructor list}
-
-(** The representation of predefined non-terminals, with their
- ** inherited attributes and their types. *)
-type builtin_non_term =
-  Ast.nname * (unit Ast.var * Ast.type_expr) list * Ast.type_expr
+(** [character_classes] is an array of the builtin character classes. *)
+val character_classes: (string * char array) list
 
 (** [builtin_consts] is an array of the builtin types. *)
 val builtin_types: builtin_type array
@@ -123,6 +141,14 @@ val builtin_non_terms: builtin_non_term array
 (** names of builtin operator constants *)
 val unop_const_name: Ast.unop -> string
 val binop_const_name: Ast.binop -> string
+
+(** [is_regexp_type env t] checks if [t] is the byte list type used
+ ** for regular expressions *)
+val is_regexp_type: 'a environment -> 'a CoreAlgebra.arterm -> bool
+
+(** [is_character_class t] checks if [t] is the name of a pre-defined
+ ** character class *)
+val is_character_class: Ast.ident -> bool
 
 (** checks if a standard library component cannot be bound to a variable *)
 val is_unbindable: Ast.modident * Ast.ident -> bool

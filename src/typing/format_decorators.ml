@@ -354,6 +354,6 @@ let fixup_for_whitespace (ntd: (unit, unit) non_term_defn)
   let n = Location.value ntd.non_term_name in
   if StringSet.mem n !display_decorated
   then (AstPrinter.print_nterm_defn (fun _ -> "") ntd;
-        AstPrinter.print_flush ();
+        AstPrinter.pp_flush ();
         Printf.printf "\n");
   ntd

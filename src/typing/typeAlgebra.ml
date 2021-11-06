@@ -24,11 +24,24 @@ open Parsing
 open MultiEquation
 open CoreAlgebra
 
+(** Concrete syntax of a type symbol. *)
+
+type symbol = int
+
+type associativity =
+  | Assoc_left
+  | Assoc_none
+  | Assoc_right
+  | Assoc_enclosed of string * string
+
+type syntax =
+  (* infix *) bool * associativity * (* priority *) int
+
 type builtin_dataconstructor =
   Ast.dname * Ast.tname list * Ast.type_expr
 
 type builtin_type =
-  Ast.tname * (Ast.kind * builtin_dataconstructor list)
+  Ast.tname * (Ast.kind * syntax * builtin_dataconstructor list)
 
 type builtin_non_term =
   Ast.nname * (unit Ast.var * Ast.type_expr) list * Ast.type_expr
@@ -86,11 +99,16 @@ let builtin_types, builtin_consts, builtin_vars,
     make_builtin_type (Ast.TE_tvar tvar) in
   let builtin_types : builtin_type array = [|
       (* core primitive type *)
-      TName "->",     (Ast.KArrow (Ast.KStar, Ast.KArrow (Ast.KStar, Ast.KStar)), []);
+      TName "->",     (Ast.KArrow (Ast.KStar, Ast.KArrow (Ast.KStar, Ast.KStar)),
+                       (true, Assoc_right, 0),
+                       []);
 
       (* opaque types *)
-      TName "parser",       (Ast.KArrow (Ast.KStar, Ast.KStar), []);
+      TName "parser",       (Ast.KArrow (Ast.KStar, Ast.KStar),
+                             (false, Assoc_enclosed ("parser<", ">"), 2),
+                             []);
       TName "parse_error",  (Ast.KStar,
+                             (false, Assoc_none, 2),
                              (* this needs to be extended as needed *)
                              [ (Ast.DName "EndOfBuffer", [],
                                 (gen_tvar "parse_error"));
@@ -98,6 +116,7 @@ let builtin_types, builtin_consts, builtin_vars,
                                 (gen_tvar "parse_error"))
                              ]);
       TName "parse_result", (Ast.KArrow (Ast.KStar, Ast.KStar),
+                             (false, Assoc_enclosed ("parse_result<", ">"), 2),
                              [ (Ast.DName "Value", [ TName "a" ],
                                 (arrow_type (gen_tvar "a")
                                    (parse_result_type (gen_tvar "a"))));
@@ -107,6 +126,7 @@ let builtin_types, builtin_consts, builtin_vars,
 
       (* value types *)
       TName "*",      (Ast.KArrow (Ast.KStar, Ast.KArrow (Ast.KStar, Ast.KStar)),
+                       (true, Assoc_right, 1),
                        [ (Ast.DName "_Tuple", [ TName "a"; TName "b" ],
                           arrow_type (gen_tvar "a")
                             (arrow_type (gen_tvar "b")
@@ -114,6 +134,7 @@ let builtin_types, builtin_consts, builtin_vars,
                                   (gen_tvar "b")))) ]);
 
       TName "[]",     (Ast.KArrow (Ast.KStar, Ast.KStar),
+                       (false, Assoc_enclosed ("[", "]"), -1),
                        [ (Ast.DName "::", [ TName "a" ],
                           arrow_type (gen_tvar "a")
                             (arrow_type (list_type (gen_tvar "a"))
@@ -121,35 +142,45 @@ let builtin_types, builtin_consts, builtin_vars,
                          (Ast.DName "[]", [ TName "a" ],
                           list_type (gen_tvar "a")) ]);
       TName "option", (Ast.KArrow (Ast.KStar, Ast.KStar),
+                       (false, Assoc_enclosed ("option<", ">"), 1),
                        [ (Ast.DName "None", [ TName "a" ],
                           opt_type (gen_tvar "a"));
                          (Ast.DName "Some", [ TName "a" ],
                           arrow_type (gen_tvar "a")
                             (opt_type (gen_tvar "a"))) ]);
 
-      TName "int",    (Ast.KStar, []);
-      TName "double", (Ast.KStar, []);
-      TName "char",   (Ast.KStar, []);
-      TName "byte",   (Ast.KStar, []);
-      TName "string", (Ast.KStar, []);
+      TName "int",    (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "double", (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "char",   (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "byte",   (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "string", (Ast.KStar, (false, Assoc_none, 2), []);
       TName "unit",   (Ast.KStar,
+                       (false, Assoc_none, 2),
                        [ (Ast.DName "_Unit", [], gen_tvar "unit") ]);
       TName "bool",   (Ast.KStar,
+                       (false, Assoc_none, 2),
                        [ (Ast.DName "True", [], gen_tvar "bool");
                          (Ast.DName "False", [], gen_tvar "bool") ]);
       TName "endian", (Ast.KStar,
+                       (false, Assoc_none, 2),
                        [ (Ast.DName "Big", [], gen_tvar "endian");
                          (Ast.DName "Little", [], gen_tvar "endian") ]);
       TName "bit",    (Ast.KStar,
+                       (false, Assoc_none, 2),
                        [ (Ast.DName "One",  [], gen_tvar "bit");
                          (Ast.DName "Zero", [], gen_tvar "bit") ]);
-      TName "bitvector", (Ast.KArrow (Ast.KNat, Ast.KStar), []);
+      TName "bitvector", (Ast.KArrow (Ast.KNat, Ast.KStar),
+                          (false, Assoc_enclosed ("bitvector<", ">"), 2),
+                          []);
       (* module types *)
-      TName "view",   (Ast.KStar, []);
-      TName "set",    ((Ast.KArrow (Ast.KStar, Ast.KStar)), []);
+      TName "view",   (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "set",    ((Ast.KArrow (Ast.KStar, Ast.KStar)),
+                       (false, Assoc_enclosed ("set<", ">"), 2),
+                       []);
       TName "map",    ((Ast.KArrow
                           (Ast.KStar,
                            (Ast.KArrow (Ast.KStar, Ast.KStar)))),
+                       (false, Assoc_enclosed ("map<", ">"), 2),
                        []);
     |] in
   (* When adding new builtins, please also add their implementations
@@ -461,12 +492,41 @@ let is_character_class t =
 let mk_builtin_bitwidth i =
   assert(i >= 0);
   let n = string_of_int i in
-  Ast.TName n, (Ast.KNat, [])
+  let syn = (false, Assoc_none, 1) in
+  Ast.TName n, (Ast.KNat, syn, [])
 
-type symbol = int
+(* helpers for printing *)
 
 let as_symbol name =
   Misc.just_try (fun () -> Misc.array_associ name builtin_types)
+
+let infix, priority, associativity =
+  let is_builtin op =
+    0 <= op && op < Array.length builtin_types in
+  let get_syntax (_, s, _) = s in
+  let get_infix t =
+    let (i, _, _) = get_syntax t in
+    i in
+  let get_assoc t =
+    let (_, a, _) = get_syntax t in
+    a in
+  let get_priority t =
+    let (_, _, p) = get_syntax t in
+    p in
+
+  let infix op =
+    if is_builtin op
+    then get_infix (snd builtin_types.(op))
+    else false in
+  let priority op =
+    if is_builtin op
+    then get_priority (snd builtin_types.(op))
+    else max_int in
+  let associativity op =
+    if is_builtin op
+    then get_assoc (snd builtin_types.(op))
+    else Assoc_none in
+  infix, priority, associativity
 
 (** These names are used in the constraints and need to correspond to
     the type::constructor encoding of the builtin definitions. *)
