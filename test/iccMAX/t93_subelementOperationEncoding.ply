@@ -1,6 +1,21 @@
 // Parsley specification corresponding to Table 93 of iccMAX spec, page 103
-// bh. todo
 
-// operation signature
+// sub-element operation encoding Parsley type definition
+type seoe_type = {
+    // operation signature
+    op_signature: [byte],
 
-// element index S, UInt32
+    // element index S, UInt32
+    s: int
+}
+
+format {
+    SubElementOperationEncoding seoe {seoe_type} :=
+        seoe_op_signature = (Byte^4)
+        seoe_s = UInt32<endian=endian::Big()>
+
+        {
+            seoe.op_signature := seoe_op_signature;
+            seoe.s := seoe_s
+        }
+}
