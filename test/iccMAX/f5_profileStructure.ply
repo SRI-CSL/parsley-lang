@@ -3,6 +3,8 @@
 
 // This also serves as the entry point to the parsing
 
+use aux
+
 const header_len: int = 128
 const four : int = 4
 
@@ -22,25 +24,63 @@ type general_profile_type = {
   table : tag_table_type
 }
 
+type void_type = {}
+
 format {
 
+  // this non-terminal corresponds to processing Figure 5
   ParseFile gpt {general_profile_type} :=
+    
+    // parse header and tag table
     header = (Byte^header_len)
     tag_table_count = UInt32<endian=endian::Big()>
     tag_table_entries = (TagEntry^tag_table_count)
+    tag_table = TagTable
     {
       gpt.header := header;
-      gpt.table.tag_table_count := tag_table_count;
-      gpt.table.tag_table_entries := tag_table_entries
+      gpt.table := tag_table
+      // gpt.table.tag_table_count := tag_table_count;
+      // gpt.table.tag_table_entries := tag_table_entries
     }
 
-    // rest of parse
-    // go through each tag entry
-    // check whether it corresponds to a mpet
-    // if it corresponds to a mpet, check whether it correspodns to a calculatorElement
-    // if both checks are met, process the element; else, ignore
+    // process each entry in tagged element data
+    ProcessEntries<entry_number = 0, tag_table_info = gpt.table>
     ;;
-  
+
+
+  // this non-terminal goes through all elements in the tagged element data
+  // searching for mpets that have calculator elements
+  // if we can determine no calculator elements are present, we ignore it at the highest level of
+  // parsing depth that this determination can be made
+  ProcessEntries (entry_number: int, tag_table_info: tag_table_type) {void_type} := 
+    [entry_number < tag_table_info.tag_table_count]
+    process_tag_view = {;; View.restrict(View.get_current(),
+                                         tag_table_info.tag_table_entries[entry_number].tag_entry_offset,
+                                         tag_table_info.tag_table_entries[entry_number].tag_entry_size)}
+    @[process_tag_view, !"mpet"! ]
+
+    // 
+    // how should we go about processing the rest from here?
+    //
+    // approach 1: pass the view
+    // MultiProcessElements<process_tag_view>
+    //
+    // approach 2: temporarily change current view
+    // initial_view = View.get_current_view()
+    // @^[process_tag_view]
+    // MultiProcessElements
+    // @^[initial_view]
+
+    ProcessEntries<entry_number = entry_number + 1, tag_table_info = tag_table_info>;;
+
+  TagTable tt {tag_table_type} :=
+    tt_count = UInt32<endian=endian::Big()>
+    tt_entries = (TagEntry^tt_count)
+    {
+      tt.tag_table_count := tt_count;
+      tt.tag_table_entries := tt_entries
+    };;
+    
   TagEntry te {tag_entry} :=
     one_tag_entry_signature = (Byte^four)
     one_tag_entry_offset = UInt32<endian=endian::Big()>
