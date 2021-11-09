@@ -14,12 +14,12 @@ type soe_type = {
 format {
     StackOperationEncoding soe {soe_type} :=
         soe_op_signature = (Byte^4)
-        seo_s = UInt16<endian=endian::Big()>
-        seo_t = UInt16<endian=endian::Big()>
+        soe_s = UInt16<endian=endian::Big()>
+        soe_t = UInt16<endian=endian::Big()>
 
         {
             soe.op_signature := soe_op_signature;
-            seo.s := seo_s;
-            seo.t := seo_t
+            soe.s := soe_s;
+            soe.t := soe_t
         }
 }
