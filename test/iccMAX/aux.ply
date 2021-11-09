@@ -1,0 +1,14 @@
+type position_number = {
+  offset: int,
+  size: int
+}
+
+format {
+  PositionNumber pn {position_number} :=
+    position_number_offset = UInt32<endian=endian::Big()>
+    position_number_size = UInt32<endian=endian::Big()>      
+    {
+      pn.offset := position_number_offset;
+      pn.size := position_number_size
+    }
+}
