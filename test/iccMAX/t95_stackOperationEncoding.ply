@@ -1,0 +1,25 @@
+// Table 95: Stack Operation Encoding, page 104 iccMAX spec
+
+type soe_type = {
+    // operation signature
+    op_signature: [byte],
+
+    // number of extra elements selector S
+    s: int,
+
+    // number of extra times selector T
+    t: int
+}
+
+format {
+    StackOperationEncoding soe {soe_type} :=
+        soe_op_signature = (Byte^4)
+        seo_s = UInt16<endian=endian::Big()>
+        seo_t = UInt16<endian=endian::Big()>
+
+        {
+            soe.op_signature := soe_op_signature;
+            seo.s := seo_s;
+            seo.t := seo_t
+        }
+}
