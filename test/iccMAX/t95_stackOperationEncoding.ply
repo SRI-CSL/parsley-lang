@@ -1,13 +1,16 @@
 // Table 95: Stack Operation Encoding, page 104 iccMAX spec
+// Valid for Table 97: Matrix Stack Operation Encoding, page 104 iccMAX spec
 
 type soe_type = {
     // operation signature
     op_signature: [byte],
 
-    // number of extra elements selector S
+    // Table 95: number of extra elements selector S
+    // Table 97: index of last matrix row S
     s: int,
 
-    // number of extra times selector T
+    // Table 95: number of extra times selector T
+    // Table 97: index of last matrix column T
     t: int
 }
 
