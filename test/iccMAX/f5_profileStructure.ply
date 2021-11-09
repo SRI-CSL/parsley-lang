@@ -26,6 +26,17 @@ type general_profile_type = {
 
 type void_type = {}
 
+recfun extract_views (tag_entries: [tag_entry]) -> [view] = {
+  (case tag_entries of 
+    | [] ->  []
+    | first :: rest ->
+        View.restrict(View.get_current(),
+                      first.tag_entry_offset,
+                      first.tag_entry_size) 
+        :: extract_views(rest)
+  )
+}
+
 format {
 
   // this non-terminal corresponds to processing Figure 5
@@ -39,39 +50,14 @@ format {
     {
       gpt.header := header;
       gpt.table := tag_table
-      // gpt.table.tag_table_count := tag_table_count;
-      // gpt.table.tag_table_entries := tag_table_entries
     }
-
-    // process each entry in tagged element data
-    ProcessEntries<entry_number = 0, tag_table_info = gpt.table>
+    views = {;; extract_views(gpt.table.tag_table_entries)}
+    tag_table_elements = @#[views, ProcessEntry]
+    [validate_signatures(tag_table_entries, tag_table_elements)]
     ;;
 
-
-  // this non-terminal goes through all elements in the tagged element data
-  // searching for mpets that have calculator elements
-  // if we can determine no calculator elements are present, we ignore it at the highest level of
-  // parsing depth that this determination can be made
-  ProcessEntries (entry_number: int, tag_table_info: tag_table_type) {void_type} := 
-    [entry_number < tag_table_info.tag_table_count]
-    process_tag_view = {;; View.restrict(View.get_current(),
-                                         tag_table_info.tag_table_entries[entry_number].tag_entry_offset,
-                                         tag_table_info.tag_table_entries[entry_number].tag_entry_size)}
-    @[process_tag_view, !"mpet"! ]
-
-    // 
-    // how should we go about processing the rest from here?
-    //
-    // approach 1: pass the view
-    // MultiProcessElements<process_tag_view>
-    //
-    // approach 2: temporarily change current view
-    // initial_view = View.get_current_view()
-    // @^[process_tag_view]
-    // MultiProcessElements
-    // @^[initial_view]
-
-    ProcessEntries<entry_number = entry_number + 1, tag_table_info = tag_table_info>;;
+  ProcessEntry := 
+    !"mpet"!;;
 
   TagTable tt {tag_table_type} :=
     tt_count = UInt32<endian=endian::Big()>
@@ -82,7 +68,7 @@ format {
     };;
     
   TagEntry te {tag_entry} :=
-    one_tag_entry_signature = (Byte^four)
+    one_tag_entry_signature = (Byte^four) // something like: \x05\x03
     one_tag_entry_offset = UInt32<endian=endian::Big()>
     one_tag_entry_size = UInt32<endian=endian::Big()>
     {
