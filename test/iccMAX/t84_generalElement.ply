@@ -1,0 +1,26 @@
+type ge_type = {
+  sig: [byte],
+  p: int,
+  q: int,
+  data: [byte]
+}
+
+format {
+  GeneralElement ge (length: int) {ge_type} := 
+    [length >= 12]
+    sig = (Byte^4)
+    !"0000"!
+    p = UInt16<endian=endian::Big()>
+    q = UInt16<endian=endian::Big()>
+    data_length = { 
+     ;;
+     length - 12
+    }
+    data = (Byte^data_length)
+    {
+      ge.sig := sig;
+      ge.p := p;
+      ge.q := q; 
+      ge.data := data
+    }
+}

@@ -1,0 +1,22 @@
+type mpet_type = {
+  f: int,
+  t: int,
+  n: int,
+  process_element_positions_table: [position_number]
+}
+
+format {
+  MultiProcessElements mpet {mpet_type} :=
+    !"mpet"!
+    !"0000"!
+    f = UInt16<endian=endian::Big()>
+    t = UInt16<endian=endian::Big()>
+    n = UInt32<endian=endian::Big()>
+    process_element_positions_table = (PositionNumber^n)
+    {
+      mpet.f := f;
+      mpet.t := t;
+      mpet.n := n;
+      mpet.process_element_positions_table := process_element_positions_table
+    }
+}
