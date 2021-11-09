@@ -1,0 +1,15 @@
+// Table 103: Conditional if Operation Encoding, page 111
+
+type cifoe_type = {
+    // number of operations, T
+    t: int
+}
+
+format {
+    ConditionalIFoperationEncoding cifoe {cifoe_type} :=
+        !"if  "!
+        cifoe_T = UInt32<endian=endian::Big()>
+        {
+            cifoe.t := cifoe_T
+        }
+}
