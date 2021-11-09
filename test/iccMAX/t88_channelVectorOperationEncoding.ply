@@ -1,11 +1,9 @@
 // Table 88 of iccMAX documentation, Channel Vector Operation Encoding
 // page 101 of the specification
 
-
-// clarify with Prashanth
 type cvoe_type = {
     // operation signature
-    operation_signature: string,
+    op_signature: [byte],
     // starting index
     s: int,
     // additional count from the start
@@ -14,13 +12,13 @@ type cvoe_type = {
 
 format {
     ChannelVectorOperationEncoding cvoe {c: cvoe_type} :=
-        // todo: operation_signature
-
-        s = UInt16<endian=endian::Big()>
-        t = UInt16<endian=endian::Big()>
+        cvoe_op_signature = (Byte^4)
+        cvoe_s = UInt16<endian=endian::Big()>
+        cvoe_t = UInt16<endian=endian::Big()>
 
         {
-            cvoe.c.s := s;
-            cvoe.c.t := t;
+            cvoe.c.op_signature := cvoe_op_signature;
+            cvoe.c.s := cvoe_s;
+            cvoe.c.t := cvoe_t
         }
 }
