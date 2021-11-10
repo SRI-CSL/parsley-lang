@@ -1,13 +1,18 @@
+// this resource signature currently only models the stack
+type resource =
+{ consume: int,
+  produce: int }
+
 type operation =
- | If of [operation]
- | If_else of [operation] * [operation]
+ | If of resource * [operation]
+ | If_else of resource * [operation] * [operation]
  // ... other ops
 
 fun num_ops (o: operation) -> int = {
   (case o of
-   | operation::If(s) ->
+   | operation::If(_, s) ->
        1 + List.length(s)
-   | operation::If_else(s, t) ->
+   | operation::If_else(_, s, t) ->
        2 + List.length(s) + List.length(t)
    // other ops
    )
@@ -26,13 +31,17 @@ format {
                View.restrict(v, 0, 8*u) }
       ifops  = @[tv, OpStream<nops = t>]
       elsops = @[uv, OpStream<nops = u>]
-      { o.op := operation::If_else(ifops, elsops) }
+      { let r = { consume: 1,
+                  produce: 0 } in
+        o.op := operation::If_else(r, ifops, elsops) }
    ;
       !"if  "! t=U32
       tv = {;; let v = View.get_current() in
                View.restrict(v, 0, 8*t) }
       ifops  = @[tv, OpStream<nops = t>]
-      { o.op := operation::If(ifops) }
+      { let r = { consume: 1,
+                  produce: 0 } in
+        o.op := operation::If(r, ifops) }
 
    // ... other ops
 
