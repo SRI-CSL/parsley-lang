@@ -1,11 +1,17 @@
-type op_stream =
- | Ops of [operation]
+type operation =
+ | If of [operation]
+ | If_else of [operation] * [operation]
+ // ... other ops
 
-and operation =
- | If of op_stream
- | If_else of op_stream * op_stream
-
-// ... other ops
+fun num_ops (o: operation) -> int = {
+  (case o of
+   | operation::If(s) ->
+       1 + List.length(s)
+   | operation::If_else(s, t) ->
+       2 + List.length(s) + List.length(t)
+   // other ops
+   )
+}
 
 format {
   U32 := UInt32<endian=endian::Big()> ;;
@@ -32,8 +38,15 @@ format {
 
    ;;
 
-  OpStream os (nops: int) {ops: op_stream} :=
-      (| l : [operation] := [] |)
-      (o=Operation { l := o.op :: l }) ^ nops
-      { os.ops := op_stream::Ops(List.rev(l)) }
+  OpStream os (nops: int) {ops: [operation]} :=
+      (| l : [operation] := [], cnt : int := 0 |)
+
+      ( [cnt < nops]
+        o=Operation
+        { l := o.op :: l;
+          cnt := cnt + num_ops(o.op) }
+      ) *
+      [ cnt = nops ]
+
+      { os.ops := List.rev(l) }
 }
