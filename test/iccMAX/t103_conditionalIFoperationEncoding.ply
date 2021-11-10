@@ -1,15 +1,65 @@
 // Table 103: Conditional if Operation Encoding, page 111
 
+type operator_type = { 
+    op: [byte]
+}
+
 type cifoe_type = {
-    // number of operations, T
-    t: int
+    else_exists: bool,
+    t: int,
+    u: int,
+    if_operators: [operator_type],
+    else_operators: [operator_type]
+}
+
+fun bytes_eval_to_else (bytes: [byte]) -> bool = {
+   bytes = "else"
 }
 
 format {
-    ConditionalIFoperationEncoding cifoe {cifoe_type} :=
+    ConditionalIfElseOperationEncoding cifoe {cifoe_type} :=
+        // if and else
         !"if  "!
         cifoe_T = UInt32<endian=endian::Big()>
         {
+            cifoe.else_exists := bool::False();
             cifoe.t := cifoe_T
         }
+        
+        // v = {;; View.clone(View.get_current())}
+        //potential_sig = @[v, Byte^4]
+        potential_sig = (Byte^4)
+
+        // if and else
+        [potential_sig = "else"]
+        cifoe_U = UInt32<endian=endian::Big()>
+        cifoe_if_operators = (Operator^cifoe_T)
+        cifoe_else_operators = (Operator^cifoe_U)
+        {
+            cifoe.u := cifoe_U;
+            cifoe.if_operators := cifoe_if_operators;
+            cifoe.else_operators := cifoe_else_operators
+        }
+        ;
+        // if (and no else)
+        !"if  "!
+        cifoe_T = UInt32<endian=endian::Big()>
+        {   
+            cifoe.else_exists := bool::True();
+            cifoe.t := cifoe_T;
+            cifoe.u := 0
+        }        
+        cifoe_if_operators = (Operator^cifoe_T)
+        {
+            cifoe.if_operators := cifoe_if_operators;
+            cifoe.else_operators := []
+        };;
+
+    Operator op {operator_type} :=
+        eight_bytes = Byte^8
+        {
+          op.op := eight_bytes
+
+        }
 }
+
