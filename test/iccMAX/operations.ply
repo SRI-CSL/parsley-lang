@@ -1,0 +1,39 @@
+type op_stream =
+ | Ops of [operation]
+
+and operation =
+ | If of op_stream
+ | If_else of op_stream * op_stream
+
+// ... other ops
+
+format {
+  U32 := UInt32<endian=endian::Big()> ;;
+
+  Operation o {op: operation} :=
+      !"if  "! t=U32
+      !"else"! u=U32
+      tv = {;; let v = View.get_current() in
+               View.restrict(v, 0, 8*t) }
+      uv = {;; let v = View.get_current() in
+               let v = View.restrict_from(v, 8*t) in
+               View.restrict(v, 0, 8*u) }
+      ifops  = @[tv, OpStream<nops = t>]
+      elsops = @[uv, OpStream<nops = u>]
+      { o.op := operation::If_else(ifops, elsops) }
+   ;
+      !"if  "! t=U32
+      tv = {;; let v = View.get_current() in
+               View.restrict(v, 0, 8*t) }
+      ifops  = @[tv, OpStream<nops = t>]
+      { o.op := operation::If(ifops) }
+
+   // ... other ops
+
+   ;;
+
+  OpStream os (nops: int) {ops: op_stream} :=
+      (| l : [operation] := [] |)
+      (o=Operation { l := o.op :: l }) ^ nops
+      { os.ops := op_stream::Ops(List.rev(l)) }
+}
