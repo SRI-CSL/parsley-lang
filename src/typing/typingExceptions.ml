@@ -460,7 +460,7 @@ let error_msg = function
   | NTInheritedUnspecified (ntid, id) ->
       msg
         "%s:\n Inherited attribute `%s' of non-terminal `%s' is unspecified.\n"
-        (Location.loc ntid) (Location.value ntid) id
+        (Location.loc ntid) id (Location.value ntid)
 
   | NTUnknownInheritedAttribute (ntid, id) ->
       msg
