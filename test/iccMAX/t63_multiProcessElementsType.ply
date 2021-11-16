@@ -1,5 +1,3 @@
-use aux
-
 type mpet_type = {
   f: int,
   t: int,
