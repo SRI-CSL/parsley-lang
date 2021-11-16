@@ -283,8 +283,12 @@ and print_expr auxp e =
         pp_string ".";
         pp_string (Location.value f)
     | E_mod_member (m, i) ->
+        pp_string "(";
         pp_string
-          (Printf.sprintf "%s.%s" (Location.value m) (Location.value i))
+          (Printf.sprintf "%s.%s" (Location.value m) (Location.value i));
+        pp_string ": ";
+        pp_string (auxp e.expr_aux);
+        pp_string ") "
     | E_match (e, c) ->
         pp_string "(";
         print_expr auxp e;
