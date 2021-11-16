@@ -9,7 +9,7 @@ const header_len: int = 128
 const four : int = 4
 
 type sig_type = {
-  byte_sig : [byte]
+  sig : [byte]
 }
 
 type tag_entry = {
@@ -41,14 +41,17 @@ recfun extract_views (tag_entries: [tag_entry]) -> [view] = {
   )
 }
 
-recfun validate_signatures (tag_entries: [tag_entry], sigs: [sig_type]) -> bool = {
-  bool::True()
-
-//  (case tag_entries of 
-//    | first_entry :: rest_entries -> (case sigs of
-//                                       | first_seg ::rest_sigs -> 
-//                                           
-
+recfun validate_signatures (tag_entries: [tag_entry], signatures: [sig_type]) -> bool = {
+  (case tag_entries of 
+    | first_tag_entry :: rest_tag_entries -> 
+       (case signatures of
+        | first_sig :: rest_sigs -> 
+           first_tag_entry.tag_entry_signature = first_sig.sig && validate_signatures(rest_tag_entries, rest_sigs)
+        | [] -> bool::False())
+    | [] ->
+       (case signatures of
+        | [] -> bool::True()
+        | _ -> bool::False()))
 }
 
 format {
@@ -64,14 +67,14 @@ format {
       gpt.table := tag_table
     }
     views = {;; extract_views(gpt.table.tag_table_entries)}
-    tag_table_elements = @#[views, ProcessEntry]
-    [validate_signatures(gpt.table.tag_table_entries, tag_table_elements)]
+    sigs = @#[views, ProcessEntry]
+    [validate_signatures(gpt.table.tag_table_entries, sigs)]
     ;;
 
-  ProcessEntry pe {sig: sig_type}:=
+  ProcessEntry pe {sig_type}:=
     sig = (Byte^4)
     {
-      pe.sig.byte_sig := sig
+      pe.sig := sig
     };;
 
   TagTable tt {tag_table_type} :=
