@@ -1,0 +1,94 @@
+// This file corresponds to the general profile structure
+// It captures Figure 5 on page 16 of the 2019 iccMAX spec.
+
+// This also serves as the entry point to the parsing
+
+use aux
+
+const header_len: int = 128
+const four : int = 4
+
+type sig_type = {
+  byte_sig : [byte]
+}
+
+type tag_entry = {
+  tag_entry_signature : [byte],
+  tag_entry_offset : int,
+  tag_entry_size : int
+}
+
+type tag_table_type = {
+  tag_table_count : int,
+  tag_table_entries : [tag_entry]
+}
+
+type general_profile_type = {
+  header : [byte],
+  table : tag_table_type
+}
+
+type void_type = {}
+
+recfun extract_views (tag_entries: [tag_entry]) -> [view] = {
+  (case tag_entries of
+    | [] ->  []
+    | first :: rest ->
+        View.restrict(View.get_current(),
+                      first.tag_entry_offset,
+                      first.tag_entry_size)
+        :: extract_views(rest)
+  )
+}
+
+recfun validate_signatures (tag_entries: [tag_entry], sigs: [sig_type]) -> bool = {
+  bool::True()
+
+//  (case tag_entries of 
+//    | first_entry :: rest_entries -> (case sigs of
+//                                       | first_seg ::rest_sigs -> 
+//                                           
+
+}
+
+format {
+
+  // this non-terminal corresponds to processing Figure 5
+  ParseFile gpt {general_profile_type} :=
+
+    // parse header and tag table
+    header = (Byte^header_len)
+    tag_table = TagTable
+    {
+      gpt.header := header;
+      gpt.table := tag_table
+    }
+    views = {;; extract_views(gpt.table.tag_table_entries)}
+    tag_table_elements = @#[views, ProcessEntry]
+    [validate_signatures(gpt.table.tag_table_entries, tag_table_elements)]
+    ;;
+
+  ProcessEntry pe {sig: sig_type}:=
+    sig = (Byte^4)
+    {
+      pe.sig.byte_sig := sig
+    };;
+
+  TagTable tt {tag_table_type} :=
+    tt_count = UInt32<endian=endian::Big()>
+    tt_entries = (TagEntry^tt_count)
+    {
+      tt.tag_table_count := tt_count;
+      tt.tag_table_entries := tt_entries
+    };;
+
+  TagEntry te {tag_entry} :=
+    one_tag_entry_signature = (Byte^four) // something like: \x05\x03
+    one_tag_entry_offset = UInt32<endian=endian::Big()>
+    one_tag_entry_size = UInt32<endian=endian::Big()>
+    {
+      te.tag_entry_signature := one_tag_entry_signature;
+      te.tag_entry_offset := one_tag_entry_offset;
+      te.tag_entry_size := one_tag_entry_size
+    }
+}
