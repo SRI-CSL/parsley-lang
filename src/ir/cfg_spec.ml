@@ -87,7 +87,6 @@ let lower_spec (_, init_venv) tenv (spec: program) =
           | Ast.Decl_format f ->
               (* generate the CFG blocks for the non-terminals *)
               List.fold_left (fun (ctx, cb, fb) (fd: format_decl) ->
-                  (* TODO: handle attributes (e.g. whitespace *)
                   let ntd = fd.format_decl in
                   let ctx = Cfg_rule.lower_ntd ctx ntd in
                   ctx, cb, fb
