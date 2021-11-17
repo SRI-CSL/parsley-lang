@@ -343,7 +343,9 @@ let print_temp_decl auxp (pm, ty, e) =
 let print_fun_defn auxp fd =
   pp_open_vbox  0;
   pp_open_box  0;
-  pp_string "fun ";
+  pp_string (if fd.fun_defn_recursive
+             then "recfun "
+             else "fun ");
   pp_string (var_name fd.fun_defn_ident);
   if List.length fd.fun_defn_tvars > 0 then begin
       pp_string " <";

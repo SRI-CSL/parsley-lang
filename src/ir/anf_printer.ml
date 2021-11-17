@@ -184,7 +184,9 @@ let print_const c =
 let print_fun f =
   pp_open_vbox 0;
   pp_open_box 0;
-  pp_string "fun ";
+  pp_string (if f.afun_recursive
+             then "recfun "
+             else "fun ");
   pp_string (string_of_var f.afun_ident);
   pp_string "(";
   AstPrinter.print_list ", "
