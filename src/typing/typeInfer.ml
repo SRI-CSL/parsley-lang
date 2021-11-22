@@ -994,6 +994,20 @@ let infer_fun_defn tenv venv ctxt fd =
   let fv = variable Flexible () in
   let ftyp = CoreAlgebra.TVariable fv in
 
+  (* Prevent duplicate definitions.  The functional sublanguage is
+     processed before the grammar sublanguage; as a result, functions
+     have global scope in the grammar sublanguage as opposed to
+     lexical scope.  This creates a problem with duplicate function
+     definitions: only the last definition of 'f' will be used at all
+     calls to 'f', even though an earlier definition of 'f' may be in
+     lexical scope at a call.  This can result in very confusing error
+     messages.  Address this problem by forbidding duplicate
+     definitions. *)
+  (match VEnv.lookup venv fd.fun_defn_ident with
+     | None -> ()
+     | Some v -> let loc' = Location.loc v in
+                 raise (Error (DuplicateFunctionDefinition (loc, fdn, loc'))));
+
   (* for recursive functions, make sure the function name is bound *)
   let fdn', venv' = VEnv.add venv fd.fun_defn_ident in
   let venv', ids =

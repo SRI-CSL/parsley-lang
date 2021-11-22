@@ -122,6 +122,10 @@ type typing_error =
      number [u] of arguments. *)
   | PartialDataConstructorApplication of Ast.ident * int * int
 
+  (* [DuplicateFunctionDefinition id loc] is raised when a function
+     [id] is redefined with a previous definition at [loc]. *)
+  | DuplicateFunctionDefinition of Location.t * string * Location.t
+
   (* [RepeatedFunctionParameter id idrep] is raised when a parameter
      with the same name [id] is repeated in a function definition. *)
   | RepeatedFunctionParameter of Ast.ident * Ast.ident
@@ -406,6 +410,9 @@ let error_msg = function
         (Location.loc dc) (Location.value dc) d
         (if d > 1 then "s" else "")
         u
+  | DuplicateFunctionDefinition (p, f, p') ->
+      msg "%s:\n Redefinition of function `%s' at %s.\n"
+        p f (Location.str_of_file_loc p')
 
   | RepeatedFunctionParameter (p, p') ->
       msg "%s:\n Parameter `%s' is repeated at %s.\n"
