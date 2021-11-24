@@ -25,9 +25,10 @@ let handle_exception bt msg =
   Printf.printf "%s\n" bt;
   exit 1
 
-let trace_solver    = false
-let print_types     = false
-let print_typed_ast = false
+let print_post_macro = false
+let trace_solver     = false
+let print_types      = false
+let print_typed_ast  = false
 
 let get_tracer () =
   if trace_solver
@@ -35,6 +36,9 @@ let get_tracer () =
   else None
 
 let check spec =
+  let spec = Macros.expand_spec spec in
+  if print_post_macro
+  then AstPrinter.print_parsed_spec spec;
   let init_tenv, init_venv, c = TypeInfer.init_env () in
   let c, wc, tenv, spec' =
     TypeInfer.generate_constraint (init_tenv, init_venv, c) spec in

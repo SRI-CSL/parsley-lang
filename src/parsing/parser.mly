@@ -179,6 +179,7 @@ let make_fun_defn n r tvs p t bd b e =
    fun_defn_res_type = t;
    fun_defn_body = bd;
    fun_defn_recursive = r;
+   fun_defn_synth = false;
    fun_defn_loc = Location.mk_loc b e;
    fun_defn_aux = ()}
 

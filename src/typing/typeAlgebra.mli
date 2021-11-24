@@ -150,5 +150,5 @@ val is_regexp_type: 'a environment -> 'a CoreAlgebra.arterm -> bool
  ** character class *)
 val is_character_class: Ast.ident -> bool
 
-(** checks if a standard library component cannot be bound to a variable *)
-val is_unbindable: Ast.modident * Ast.ident -> bool
+(** checks if a standard library component is a higher-order construct *)
+val is_higher_order: Ast.modident * Ast.ident -> bool

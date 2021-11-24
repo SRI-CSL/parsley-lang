@@ -319,6 +319,22 @@ type typing_error =
      standard-library support for higher-order functions. *)
   | IllegalBinding of Ast.modident * Ast.ident
 
+  (* [IllegalFunctionArgument (m, f)] is raised when the argument
+     in function position for a call to the higher-order standard
+     library function [m.f] is not a symbol.
+   *)
+  | IllegalFunctionArgument of Ast.modident * Ast.ident
+
+  (* [FunctionCallArity f d u] is raised when the number of arguments
+     [d] defined for function [f] does not match the provided
+     number [u] of arguments. *)
+  | FunctionCallArity of Location.t * string * int * int
+
+  (* [IncompatibleArityFunctionArgument [ho hoa f fa ] is raised when
+   * the arity [fa] of function [f] is incompatible with arity [hoa]
+   * expected by higher-order construct [ho]. *)
+  | IncompatibleArityFunctionArgument of Location.t * string * int * string * int
+
 exception Error of typing_error
 
 let str_of_rule_pos = function
@@ -348,7 +364,7 @@ let error_msg = function
 
   | PartialTypeConstructorApplication (p, (TName t), d, u) ->
       msg
-        "%s:\n Type constructor `%s' needs %d argument%s not %d.\n"
+        "%s:\n Type constructor `%s' needs %d argument%s but %d are provided.\n"
         p  t d
         (if d > 1 then "s" else "")
         u
@@ -602,3 +618,17 @@ let error_msg = function
   | IllegalBinding (m, i) ->
       msg "%s:\n `%s.%s' cannot be bound to a variable."
         (Location.loc m) (Location.value m) (Location.value i)
+
+  | IllegalFunctionArgument (m, f) ->
+      msg "%s:\n The function argument in the call to `%s.%s' is illegal."
+        (Location.extent (Location.loc m) (Location.loc f))
+        (Location.value m) (Location.value f)
+
+  | FunctionCallArity (l, f, d, u) ->
+      msg "%s:\n Function `%s' expects %d arguments but %d are provided."
+        l f d u
+
+  | IncompatibleArityFunctionArgument (loc, ho, hoa, f, fa) ->
+      msg
+        "%s:\n The function `%s' takes %d arguments, but %s expects a function argument that takes %d args."
+        loc f fa ho hoa

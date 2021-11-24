@@ -447,19 +447,19 @@ let builtin_types, builtin_consts, builtin_vars,
   builtin_types, builtin_consts, builtin_vars,
   builtin_modules, builtin_non_terms
 
+(* module members that are higher-order *)
 module ModuleMembers = Set.Make(struct type t = string * string
                                        let compare = compare
                                 end)
-(* module members that are macro-expanded cannot be bound to variables *)
-let unbindables =
+let higher_order =
   ModuleMembers.of_list [
       ("List", "map");
       ("List", "map2");
       (* add similar functions for Set and Map *)
     ]
-let is_unbindable (m, i) =
+let is_higher_order (m, i) =
   let mm = Location.value m, Location.value i in
-  ModuleMembers.mem mm unbindables
+  ModuleMembers.mem mm higher_order
 
 (* Types that are character classes and their membership *)
 

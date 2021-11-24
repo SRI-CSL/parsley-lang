@@ -222,6 +222,7 @@ type ('a, 'b) fun_defn =
    fun_defn_res_type: type_expr;
    fun_defn_body: ('a, 'b) expr;
    fun_defn_recursive: bool;
+   fun_defn_synth: bool;  (* whether this was synthesized *)
    fun_defn_loc: Location.t;
    fun_defn_aux: 'a}
 
