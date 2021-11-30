@@ -18,6 +18,8 @@
 open Ast
 open Format
 
+let print_module_member_types = false
+
 let ppf = ref std_formatter
 
 let pp_string    = pp_print_string !ppf
@@ -28,7 +30,6 @@ let pp_break     = pp_print_break !ppf
 let pp_flush     = pp_print_flush !ppf
 let pp_newline   = pp_print_newline !ppf
 let pp_cut       = pp_print_cut !ppf
-
 
 let rec print_list sep printer = function
   | [] -> ()
@@ -237,11 +238,17 @@ and print_expr auxp e =
             print_expr auxp e;
           ) fields;
         pp_string "}"
+    | E_apply ({expr = E_var _;_} as f, args)
+    | E_apply({expr = E_mod_member _; _} as f, args) ->
+        print_expr auxp f;
+        pp_string "(";
+        print_list ", " (print_expr auxp) args;
+        pp_string ")"
     | E_apply (f, args) ->
         pp_string "(";
         print_expr auxp f;
-        pp_string " ";
-        print_list " " (print_expr auxp) args;
+        pp_string ")(";
+        print_list "," (print_expr auxp) args;
         pp_string ")"
     | E_unop (u, e) ->
         pp_string (str_of_unop u);
@@ -283,12 +290,15 @@ and print_expr auxp e =
         pp_string ".";
         pp_string (Location.value f)
     | E_mod_member (m, i) ->
-        pp_string "(";
-        pp_string
-          (Printf.sprintf "%s.%s" (Location.value m) (Location.value i));
-        pp_string ": ";
-        pp_string (auxp e.expr_aux);
-        pp_string ") "
+        if print_module_member_types
+        then (pp_string "(";
+              pp_string (Printf.sprintf "%s.%s"
+                           (Location.value m) (Location.value i));
+              pp_string ": ";
+              pp_string (auxp e.expr_aux);
+              pp_string ") ")
+        else pp_string (Printf.sprintf "%s.%s"
+                          (Location.value m) (Location.value i))
     | E_match (e, c) ->
         pp_string "(";
         print_expr auxp e;
