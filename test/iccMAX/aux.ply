@@ -1,3 +1,5 @@
+type void_type = {}
+
 type position_number = {
   offset: int,
   size: int
