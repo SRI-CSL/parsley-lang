@@ -8,17 +8,27 @@ type mpet_type = {
 }
 
 format {
-  MultiProcessElements mpet {mpet_type} :=
+  MultiProcessElements mpet (len: int) {mpet_type} :=
     !"mpet"!
     !"0000"!
     f = UInt16<endian=endian::Big()>
     t = UInt16<endian=endian::Big()>
     n = UInt32<endian=endian::Big()>
     process_element_positions_table = (PositionNumber^n)
-    {
+    data_start = {
       mpet.f := f;
       mpet.t := t;
       mpet.n := n;
-      mpet.process_element_positions_table := process_element_positions_table
+      mpet.process_element_positions_table := process_element_positions_table;;
+      16 + 8*n
     }
+    ProcessMPETElements<pos = 1, table = mpet.process_element_positions_table>
+    ;; 
+  
+  ProcessMPETElements (pos: int, table: [position_number]) {void_type} :=
+    [table = []]
+    ;
+    [table != []]
+    
+
 }
