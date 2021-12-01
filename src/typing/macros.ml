@@ -780,9 +780,9 @@ let rec expand_rule_elem ctx re : context * (unit, unit) rule_elem =
                 ctx, None
             | Some ias ->
                 let ctx, ias =
-                  List.fold_left (fun (ctx, ias) (i, e) ->
+                  List.fold_left (fun (ctx, ias) (i, a, e) ->
                       let ctx, e = expand_expr ctx e in
-                      ctx, (i, e) :: ias
+                      ctx, (i, a, e) :: ias
                     ) (ctx, []) ias in
                 ctx, Some (List.rev ias) in
         ctx, {re with rule_elem = RE_non_term (n, oa)}

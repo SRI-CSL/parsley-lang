@@ -122,6 +122,7 @@ rule token = parse
 | ";;" { SEMISEMI }
 | ";"  { SEMICOLON}
 | "+"  { PLUS }
+| "<-" { LARROW }
 | "->" { ARROW }
 | "~"  { TILDE }
 | "-"  { MINUS }

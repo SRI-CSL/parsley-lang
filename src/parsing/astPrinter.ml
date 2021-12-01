@@ -534,10 +534,13 @@ let rec print_rule_elem auxp rl =
         pp_string (Location.value nt);
         (match attr_opt with
            | Some attrs ->
-               pp_string "<";
-               print_list ", " (fun (k, v) ->
-                   pp_string (Location.value k);
-                   pp_string " = ";
+               pp_print_string !ppf "<";
+               print_list ", " (fun (k, a, v) ->
+                   pp_print_string !ppf (Location.value k);
+                   let s = match a with
+                       | A_eq -> " = "
+                       | A_in -> " <- " in
+                   pp_print_string !ppf s;
                    print_expr auxp v
                  ) attrs;
                pp_string ">";

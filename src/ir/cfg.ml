@@ -327,7 +327,7 @@ type context =
 
 type error =
   | Unbound_return_expr of Location.t
-
+  | Unsupported_construct of Location.t * string
 exception Error of error
 
 let msg m loc =
@@ -338,3 +338,7 @@ let error_msg = function
       msg
         "%s:\n the return expression in this action block is not used"
         l
+  | Unsupported_construct (l, s) ->
+      msg
+        "%s:\n IR generation for `%s' is currently unsupported"
+        l s

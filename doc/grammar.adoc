@@ -321,6 +321,43 @@ Hence, if a match of `RE` has type `t`, then the type of the match
 returned by this combinator is `[t]`.  The map-views combinator fails
 if `RE` fails at any view in `views`.
 
+When a map-view combinator is used with a non-terminal with inherited
+attributes, it is often convenient to provide different values for one
+or more inherited attributes for the different views in the map.  This
+can be done using the `<-` assignment operator.  The right hand side
+of the `<-` operator should be an expression _in parentheses_ that
+evaluates to a list of values that is of the same length as the number
+of views in the map.  For each view in the map, the corresponding
+value in the list is provided to the inherited attribute.
+....
+  NT n (v: view, i: int, j: int) {n: unit} := ... ;;
+
+  T t (vs: [view], is: [int]) {t: unit} :=
+      @#[vs, NT<v <- (vs), i <- (is), j = 0 >]
+      ...
+....
+In the fragment above, when `NT` is mapped over the list of views `vs`
+in the production rule for `T`, its `v` and `i` attributes are
+provided values at the same index in the `vs` and `is` lists
+respectively.
+
+NOTE: An internal constraint is generated to ensure that any lists
+used with the `<-` operator have the same length as the number of
+views in the map-view.  In the example above, this internal constraint
+ensures that `vs` and `is` have the same lengths.  That is, the above
+fragment is equivalent to:
+....
+  NT n (v: view, i: int, j: int) {n: unit} := ... ;;
+
+  T t (vs: [view], is: [int]) {t: unit} :=
+      [List.length(vs) = List.length(is)]
+      @#[vs, NT<v <- (vs), i <- (is), j = 0 >]
+      ...
+....
+NOTE: The `<-` assignment operator can only be used with a
+non-terminal directly under a map-views combinator; i.e. it can only
+be used in `@#[views, RE]` when `RE` is a non-terminal.
+
 The *set-view* operator `@^[v]` sets the current view to `v`.
 Subsequent matching will be performed in this view until the current
 view is altered.

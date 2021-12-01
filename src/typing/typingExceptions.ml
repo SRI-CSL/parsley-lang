@@ -182,6 +182,11 @@ type typing_error =
      not defined to be part of the definition of non-terminal [nt] *)
   | NTUnknownInheritedAttribute of Ast.ident * Ast.ident
 
+  (* [NTIllegalMapAttributeAssignment nt id] is raised when a 'vector'
+     assignment is used for inherited attribute [id] for non-terminal
+     [nt] when not directly under a 'map_views' construct *)
+  | NTIllegalMapAttributeAssignment of Ast.ident * Ast.ident
+
   (* Type abbreviations are currently not supported in (potentially) mutually
      recursive type declarations. *)
   | PotentiallyRecursiveTypeAbbreviation of Ast.ident
@@ -492,6 +497,11 @@ let error_msg = function
   | NTUnknownInheritedAttribute (ntid, id) ->
       msg
         "%s:\n Non-terminal `%s' does not define inherited attribute `%s'.\n"
+        (Location.loc id) (Location.value ntid) (Location.value id)
+
+  | NTIllegalMapAttributeAssignment (ntid, id) ->
+      msg
+        "%s:\n A map-assignment is being used for inherited attribute `%s' when non-terminal `%s' is not directly in the scope of a map-views.\n"
         (Location.loc id) (Location.value ntid) (Location.value id)
 
   | PotentiallyRecursiveTypeAbbreviation id ->

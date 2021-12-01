@@ -120,9 +120,9 @@ let non_term_of_decorator_value (deco: deco_value)
                       let loc = Location.loc v in
                       let av = match vs with
                           | "true" ->
-                              k, mk_bool "True" loc
+                              k, A_eq, mk_bool "True" loc
                           | "false" ->
-                              k, mk_bool "False" loc
+                              k, A_eq, mk_bool "False" loc
                           | _ ->
                               let err =
                                 InvalidDecoratorKeyValue (n, k, v) in

@@ -241,7 +241,12 @@ let rec lower_rule_elem
 
     | RE_non_term (nt, Some args) ->
         let venv, args =
-          List.fold_left (fun (venv, args) (i, e) ->
+          List.fold_left (fun (venv, args) (i, a, e) ->
+              (if a != Ast.A_eq
+               then let err =
+                      Unsupported_construct
+                        (re.rule_elem_loc, "map-view assignment") in
+                    raise (Error err));
               let ae, venv =
                 Anf_exp.normalize_exp ctx.ctx_tenv venv e in
               (* allocate a variable to assign this to *)

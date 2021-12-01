@@ -360,7 +360,7 @@ and descend_rule_elem (ctx, acc) re =
         descend_expr (ctx, acc) e
     | RE_non_term (_, Some ias) ->
         ctx,
-        List.fold_left (fun acc (_, e) ->
+        List.fold_left (fun acc (_, _, e) ->
             snd (descend_expr (ctx, acc) e)
         ) acc ias
     | RE_named (_, re)

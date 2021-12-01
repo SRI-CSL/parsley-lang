@@ -540,7 +540,7 @@ let rec add_rule_elem
         let b = match oias with
             | None -> b
             | Some ias ->
-                List.fold_left (fun b (_, e) ->
+                List.fold_left (fun b (_, _, e) ->
                     add_expr env b e
                   ) b ias in
         pack (add_gnode b (GN_type id) r.rule_elem_loc)

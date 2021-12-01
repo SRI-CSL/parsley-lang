@@ -145,8 +145,12 @@ and ('a, 'b) regexp =
    regexp_loc: Location.t;
    regexp_aux: 'a}
 
+type assign =
+  | A_eq
+  | A_in
+
 type ('a, 'b) non_term_instance =
-  ident * (ident * ('a, 'b) expr) list option
+  ident * (ident * assign * ('a, 'b) expr) list option
 
 type ('a, 'b) rule_elem_desc =
   (* bit-level support *)

@@ -1502,6 +1502,11 @@ let check_aligned cursor alignment loc pos =
   then let err = NotByteAligned (loc, offset, alignment, pos) in
        raise (Error err)
 
+(* local intra-rule inter-rule-element inference context *)
+type ictx =
+  {bound:        bool;
+   in_map_views: bool}
+
 (* [bound] tracks whether this rule_elem is under a binding.
     This affects the typing of the '|' choice operator:
       a=( ... (re | re') ... )
@@ -1509,6 +1514,11 @@ let check_aligned cursor alignment loc pos =
     apply to an unbound choice
       ... (re | re') ...
     where re and re' can receive different types.
+ *)
+(* [in_map_view] tracks whether this rule_elem is directly under a
+    map_views construct.  This affects the typing of the A_in 'vector'
+    assignment, which is legal only if it occurs in a non-terminal
+    directly under map_views.
  *)
 (* Since RE_named is a binding construct that is processed before the
    rule elements it scopes over in any sequence it occurs in, we
@@ -1523,7 +1533,7 @@ let check_aligned cursor alignment loc pos =
    rule-element, and the alignment at the end is returned.
  *)
 
-let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
+let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
         : context
         * width_constraint
         * (crterm, varid) rule_elem
@@ -1574,20 +1584,26 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
             | None -> raise (Error (UnknownNonTerminal cntid))
             | Some ((inh_typ, _), _, _) -> inh_typ in
         let pids, cs, wcs, attrs' =
-          List.fold_left (fun (pids, cs, wcs, attrs') (pid, e) ->
+          List.fold_left (fun (pids, cs, wcs, attrs') (pid, assign, e) ->
               let pn = Location.value pid in
               let pids = match StringMap.find_opt pn pids with
                   | Some repid ->
                       raise (Error (NTRepeatedBinding (cntid, pid, repid)))
                   | None ->
                       StringMap.add pn pid pids in
-              let typ = match StringMap.find_opt pn cnti with
-                  | Some (typ, _) ->
+              let typ = match assign, StringMap.find_opt pn cnti with
+                  | A_eq, Some (typ, _) ->
                       typ
-                  | None ->
+                  | A_in, Some (typ, _) ->
+                      if ictx.in_map_views
+                      then list (typcon_variable tenv) typ
+                      else let err =
+                             NTIllegalMapAttributeAssignment (cntid, pid) in
+                           raise (Error err)
+                  | _, None ->
                       raise (Error (NTUnknownInheritedAttribute (cntid, pid))) in
               let c, (wc, e') = infer_expr tenv venv e typ in
-              pids, c :: cs, wc :: wcs, (pid, e') :: attrs'
+              pids, c :: cs, wc :: wcs, (pid, assign, e') :: attrs'
             ) (StringMap.empty, [], [], []) attrs in
         StringMap.iter (fun pn _ ->
             if not (StringMap.mem pn pids)
@@ -1690,8 +1706,9 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         let id' = var_name id in
         let v, venv' = VEnv.add venv id in
         (* re' needs to be typed under a binding *)
+        let ictx = {bound = true; in_map_views = false} in
         let ctx', wc, re'', _, cursor' =
-          infer_rule_elem tenv venv ntd (fun c -> c) cursor re' t true in
+          infer_rule_elem tenv venv ntd (fun c -> c) cursor re' t ictx in
         (fun c ->
           ctx (CLet ([Scheme (re.rule_elem_loc, [], [],
                               CTrue re.rule_elem_loc,
@@ -1709,10 +1726,11 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         let is_regexp =
           List.for_all (TypedAstUtils.is_regexp_elem tenv) rels in
         let qs, m = variable_list Flexible rels in
+        let ictx = {ictx with in_map_views = false} in
         let ctx', wcs', rels', _, cursor' =
           List.fold_left (fun (ctx', wcs', rels', venv', cursor') (re, t') ->
               let ctx', wc', re', venv', cursor' =
-                infer_rule_elem tenv venv' ntd ctx' cursor' re t' bound in
+                infer_rule_elem tenv venv' ntd ctx' cursor' re t' ictx in
               ctx', wc' :: wcs', re' :: rels', venv', cursor'
             ) ((fun c -> c), [], [], venv, cursor) m in
         let typ =
@@ -1737,10 +1755,11 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
            a single byte list, after ensuring each element is
            well-typed. *)
         let qs, m = variable_list Flexible rels in
+        let ictx = {ictx with in_map_views = false} in
         let ctx', wcs', rels', _ =
           List.fold_left (fun (ctx', wcs', rels', venv') (re, t') ->
               let ctx', wc', re', venv', cursor' =
-                infer_rule_elem tenv venv' ntd ctx' 0 re t' bound in
+                infer_rule_elem tenv venv' ntd ctx' 0 re t' ictx in
               check_aligned cursor' 8 re.rule_elem_loc At_end;
               ctx', wc' :: wcs', re' :: rels', venv'
             ) ((fun c -> c), [], [], venv) m in
@@ -1758,12 +1777,13 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         (* Non-sequence combinators can only start and end at
            bit-aligned positions. *)
         check_aligned cursor 8 re.rule_elem_loc At_begin;
-        if bound then
+        let ictx = {ictx with in_map_views = false} in
+        if ictx.bound then
           (* Each choice should have the same type [t]. *)
           let ctx', wcs', rels', _ =
             List.fold_left (fun (ctx', wcs', rels', venv') re ->
                 let ctx', wc', re', venv', cursor' =
-                  infer_rule_elem tenv venv' ntd ctx' 0 re t bound in
+                  infer_rule_elem tenv venv' ntd ctx' 0 re t ictx in
                 check_aligned cursor' 8 re.rule_elem_loc At_end;
                 ctx', wc' :: wcs', re' :: rels', venv'
               ) ((fun c -> c), [], [], venv) rels in
@@ -1778,7 +1798,7 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
           let ctx', wcs', rels', _ =
             List.fold_left (fun (ctx', wcs', rels', venv') (re, t') ->
                 let ctx', wc', re', venv', cursor' =
-                  infer_rule_elem tenv venv' ntd ctx' 0 re t' bound in
+                  infer_rule_elem tenv venv' ntd ctx' 0 re t' ictx in
                 check_aligned cursor' 8 re.rule_elem_loc At_end;
                 ctx', wc' :: wcs', re' :: rels', venv'
               ) ((fun c -> c), [], [], venv) m in
@@ -1799,8 +1819,9 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         let is_regexp = TypedAstUtils.is_regexp_elem tenv re' in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
+        let ictx = {ictx with in_map_views = false} in
         let ctx', wc', re'', _, cursor' =
-          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' bound in
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' ictx in
         check_aligned cursor' 8 re.rule_elem_loc At_end;
         let typ = if is_regexp
                   then mk_regexp_type ()
@@ -1823,8 +1844,9 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         let int = typcon_variable tenv (TName "int") in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
+        let ictx = {ictx with in_map_views = false} in
         let ctx', wc'', re'', _, cursor' =
-          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' bound in
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' ictx in
         check_aligned cursor' 8 re.rule_elem_loc At_end;
         let typ = if is_regexp
                   then mk_regexp_type ()
@@ -1848,8 +1870,9 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         let is_regexp = TypedAstUtils.is_regexp_elem tenv re' in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
+        let ictx = {ictx with in_map_views = false} in
         let ctx', wc', re'', _, cursor' =
-          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' bound in
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' ictx in
         check_aligned cursor' 8 re.rule_elem_loc At_end;
         let typ = if is_regexp
                   then mk_regexp_type ()
@@ -1891,8 +1914,9 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         (* [pos] needs to be an integer and [re'] should have type [t] *)
         let int = typcon_variable tenv (TName "int") in
         let ce, (wce, e') = infer_expr tenv venv e int in
+        let ictx = {ictx with in_map_views = false} in
         let ctx', wc, re'', _, cursor' =
-          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t bound in
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t ictx in
         check_aligned cursor' 8 re.rule_elem_loc At_end;
         pack_constraint (ce ^ ctx' unit),
         wce @^ wc,
@@ -1906,8 +1930,9 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         (* [vu] should have type [view] and [re'] should have type [t] *)
         let view = typcon_variable tenv (TName "view") in
         let cb, (wcb, vu') = infer_expr tenv venv vu view in
+        let ictx = {ictx with in_map_views = false} in
         let ctx', wc', re'', _, cursor' =
-          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t bound in
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t ictx in
         check_aligned cursor' 8 re.rule_elem_loc At_end;
         pack_constraint (cb ^ ctx' unit),
         wcb @^ wc',
@@ -1925,8 +1950,9 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t bound
         let cb, (wcb, vus') = infer_expr tenv venv vus views in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
+        let ictx = {ictx with in_map_views = true} in
         let ctx', wc', re'', _, cursor' =
-          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' bound in
+          infer_rule_elem tenv venv ntd (fun c -> c) 0 re' t' ictx in
         check_aligned cursor' 8 re.rule_elem_loc At_end;
         let result = list (typcon_variable tenv) t' in
         let c =
@@ -1966,12 +1992,13 @@ let infer_non_term_rule tenv venv ntd rule pids =
         temp :: temps,
         venv'
       ) (pids, empty_fragment, [], [], venv) rule.rule_temps in
+  let init_ictx = {bound = false; in_map_views = false} in
   let qs, ctx, wcs, rhs', _, cursor' =
     List.fold_left (fun (qs, ctx, wcs, rhs', venv', cursor) re ->
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
         let ctx', wc', re', venv', cursor' =
-          infer_rule_elem tenv venv' ntd ctx cursor re t' false in
+          infer_rule_elem tenv venv' ntd ctx cursor re t' init_ictx in
         q :: qs, ctx', wc' :: wcs, re' :: rhs', venv', cursor'
       ) ([], (fun c -> c), wcs, [], venv', 0) rule.rule_rhs in
   (* Ensure that there is at least one rule element in the rule. *)
