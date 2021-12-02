@@ -728,6 +728,175 @@ let rec lower_rule_elem
         (* proceed with the current block *)
         ctx, b
 
+    (* handle the multi-assignment map-view case before the more
+       general map-view case below *)
+    | RE_map_views (e, ({rule_elem = RE_non_term (nt, Some args);_} as re'))
+         when List.exists (fun (_, a, _) -> a = Ast.A_in) args ->
+        let ae, venv =
+          Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
+        let vl, venv = fresh_var venv e.expr_aux e.expr_loc in
+        let nd = N_assign (vl, true, ae) in
+        let b = add_gnode b nd e.expr_aux e.expr_loc in
+        (* Split args into their types: iters are the variables
+           holding the lists to be looped over (i.e. the condition
+           variables), while consts are the variables holding values
+           that don't change in the loop.  Note that `vl` holding the
+           list of views is also a condition variable. *)
+        let b, venv, iters, consts =
+          List.fold_left (fun (b, venv, is, cs) (i, a, e) ->
+              let ae, venv =
+                Anf_exp.normalize_exp ctx.ctx_tenv venv e in
+              (* allocate a variable for this value *)
+              let v, venv = fresh_var venv e.expr_aux e.expr_loc in
+              let nd = N_assign (v, true, ae) in
+              let b = add_gnode b nd e.expr_aux e.expr_loc in
+              let is, cs = match a with
+                  | Ast.A_in -> (i, v) :: is, cs
+                  | Ast.A_eq -> is, (i, v) :: cs in
+              b, venv, is, cs
+            ) (b, venv, [], []) args in
+        (* initialize the return value if any *)
+        let null = constr_av "[]" "[]" [] typ loc in
+        let vr, b = match ret with
+            | None ->
+                None, b
+            | Some (vr, fresh) ->
+                let nd = N_assign (vr, fresh, ae_of_av null) in
+                let b = add_gnode b nd typ loc in
+                Some vr, b in
+        (* save the current view: we will need to restore this in the
+           success and failure paths. *)
+        let unit = get_typ ctx "unit" in
+        let b = add_gnode b N_push_view unit e.expr_loc in
+        (* Create a sequence of condition blocks starting with `lc`
+           that check if any of the looped-over lists are null.  If
+           any is, go to the exit block `lx`, otherwise go to the next
+           condition block.  The last condition block goes to the loop
+           body block `lp`. *)
+        let lc = Label.fresh_label () in
+        let lx = Label.fresh_label () in
+        (* jump to the starting condition block *)
+        let ctx = close_with_jump {ctx with ctx_venv = venv} b lc in
+        (* collect the list variables *)
+        let vs = vl :: List.map snd iters in
+        let ctx, lp =
+          List.fold_left (fun (ctx, l) v ->
+              (* create the condition block for `v` with label `l` *)
+              let b = new_labeled_block l in
+              let null = constr_av "[]" "[]" [] v.v_typ v.v_loc in
+              let bool = get_typ ctx "bool" in
+              let ae = AE_binop (Ast.Eq, (av_of_var v), null) in
+              let ae = make_ae ae bool v.v_loc in
+              let vc, venv = fresh_var ctx.ctx_venv bool v.v_loc in
+              let nd = N_assign (vc, true, ae) in
+              let b = add_gnode b nd bool v.v_loc in
+              (* create a label for the next condition block *)
+              let ln = Label.fresh_label () in
+              let nd = Node.N_cond_branch (vc, lx, ln) in
+              let ctx = close_block {ctx with ctx_venv = venv} b nd in
+              ctx, ln
+            ) (ctx, lc) vs in
+        (* create the loop body block *)
+        let b = new_labeled_block lp in
+        (* Extract the heads of the various lists, and update the
+           lists in the condition variables to their tails.  Collect
+           the variables storing the heads in the same order as `vs`
+           to make the call to the non-terminal *)
+        let ctx, b, vvs =
+          List.fold_left (fun (ctx, b, vvs) v ->
+              (* get the head: vv = List.head(v) *)
+              (* todo: use the _element type_ of the list type in
+                 v.v_typ where appropriate below *)
+              let ftyp = mk_func_type ctx v.v_typ v.v_typ in
+              let f  = mk_mod_member "List" "head" ftyp v.v_loc in
+              let hd =
+                make_ae (AE_apply (f, [av_of_var v])) v.v_typ v.v_loc in
+              let vv, venv = fresh_var ctx.ctx_venv v.v_typ v.v_loc in
+              let nd = N_assign (vv, true, hd) in
+              let b  = add_gnode b nd v.v_typ v.v_loc in
+              (* update the list: v := List.tail(v) *)
+              let f  = mk_mod_member "List" "tail" ftyp v.v_loc in
+              let tl =
+                make_ae (AE_apply (f, [av_of_var vl])) v.v_typ v.v_loc in
+              let nd = N_assign (v, true, tl) in
+              let b  = add_gnode b nd v.v_typ v.v_loc in
+              {ctx with ctx_venv = venv}, b, vv :: vvs
+            ) (ctx, b, []) vs in
+        let vvs = List.rev vvs in (* the order should now match `vs` *)
+        let vvl, vvis = List.hd vvs, List.tl vvs in
+        (* `vvl` now holds the view to set, and `vvis` holds the
+           view-specific values of the attributes in `iters` *)
+        let viters = List.combine iters vvis in
+        (* set the view: set_view(vvl) *)
+        let nd = N_set_view vvl in
+        let b  = add_gnode b nd unit vvl.v_loc in
+        (* The view needs to be restored on both the success and
+           failure paths.  Create a new failcont which will first
+           restore the view, and then return the original failcont. *)
+        let lf = Label.fresh_label () in
+        (* push the failcont *)
+        let b = add_node b (Node.N_push_failcont lf) in
+        (* construct the inherited attr argument list for the call *)
+        let iters' = List.map (fun ((i, _), vv) -> (i, vv)) viters in
+        let args' = iters' @ consts in
+        (* Construct a return value for non-terminal parse if needed,
+           and the success continuation block for the call.
+           Since the call terminates the current block, there needs to
+           be an epilog block in the body to process any return
+           value.  This epilog is not present if the return value is
+           not needed.
+         *)
+        let ctx = match vr with
+            | None ->
+                (* there is no return value to process. after the
+                   non-terminal call, the success continuation will be
+                   the condition block, since all the condition
+                   variables were updated at the beginning of this
+                   body block. *)
+                let nd = Node.N_call_nonterm (nt, args', None, lc, lf) in
+                close_block ctx b nd
+            | Some vr ->
+                (* construct the variable to hold the return value *)
+                let typ' = re'.rule_elem_aux in
+                let loc' = re'.rule_elem_loc in
+                let v, venv = fresh_var ctx.ctx_venv typ' loc' in
+                let ret' = Some (v, true) in
+                (* create a label for the epilog block in which to
+                   accumulate the return value; this epilog will form
+                   the success continuation for the call *)
+                let le = Label.fresh_label () in
+                let nd = Node.N_call_nonterm (nt, args', ret', le, lf) in
+                let ctx = close_block {ctx with ctx_venv = venv} b nd in
+                (* now accumulate the return value *)
+                let b = new_labeled_block le in
+                (* update the return value:
+                   vr := v :: vr , and reverse it when done *)
+                let l =
+                  constr_av "[]" "::" [av_of_var v;
+                                       av_of_var vr] typ loc in
+                let nd = N_assign (vr, false, ae_of_av l) in
+                let b = add_gnode b nd typ loc in
+                (* continue to the condition block for the loop *)
+                close_with_jump ctx b lc in
+        (* create the trampoline failcont block that restores the view *)
+        let tfb = new_labeled_block lf in
+        let tfb = add_gnode tfb N_pop_view unit loc in
+        let ctx = close_with_jump ctx tfb ctx.ctx_failcont in
+        (* restore the view in the exit block *)
+        let b = new_labeled_block lx in
+        let b = add_gnode b N_pop_view unit e.expr_loc in
+        (* reverse the return value since we're done *)
+        let b = match vr with
+            | None ->
+                b
+            | Some vr ->
+                (* vr := List.rev vr *)
+                let ftyp = mk_func_type ctx typ typ in
+                let f = mk_mod_member "List" "rev" ftyp loc in
+                let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
+                add_gnode b (N_assign (vr, false, l)) typ loc in
+        ctx, b
+
     | RE_map_views (e, re') ->
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
@@ -743,7 +912,8 @@ let rec lower_rule_elem
                 let nd = N_assign (vr, fresh, ae_of_av null) in
                 let b = add_gnode b nd typ loc in
                 Some vr, b in
-        (* save the current view *)
+        (* save the current view: we will need to restore this in the
+           success and failure paths *)
         let unit = get_typ ctx "unit" in
         let b = add_gnode b N_push_view unit e.expr_loc in
         (* create a block for the loop condition and jump to it *)
@@ -758,19 +928,19 @@ let rec lower_rule_elem
         let vc, venv = fresh_var ctx.ctx_venv bool e.expr_loc in
         let nd = N_assign (vc, true, ae) in
         let b = add_gnode b nd bool e.expr_loc in
-        (* create a label for the loop block and its exit block *)
+        (* create a label for the loop body block and its exit block *)
         let lp = Label.fresh_label () in
         let lx = Label.fresh_label () in
         (* if vc, we exit the loop, else we enter it *)
         let nd = Node.N_cond_branch (vc, lx, lp) in
         let ctx = close_block {ctx with ctx_venv = venv} b nd in
-        (* create the loop block *)
+        (* create the loop body block *)
         let b = new_labeled_block lp in
         (* get the view to set: vv = List.head(vl) *)
+        (* todo: use the _element type_ of the list type in e.expr_aux
+           where appropriate below *)
         let ftyp = mk_func_type ctx e.expr_aux e.expr_aux in
         let f = mk_mod_member "List" "head" ftyp e.expr_loc in
-        (* todo: use the _element type_ of the list type in e.expr_aux
-           below *)
         let hd =
           make_ae (AE_apply (f, [av_of_var vl])) e.expr_aux e.expr_loc in
         let vv, venv = fresh_var venv e.expr_aux e.expr_loc in
@@ -829,7 +999,8 @@ let rec lower_rule_elem
         let b = add_gnode b N_pop_view unit e.expr_loc in
         (* reverse the return value since we're done *)
         let b = match vr with
-            | None -> b
+            | None ->
+                b
             | Some vr ->
                 (* vr := List.rev vr *)
                 let ftyp = mk_func_type ctx typ typ in
