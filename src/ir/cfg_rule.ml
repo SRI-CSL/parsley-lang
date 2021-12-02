@@ -66,8 +66,6 @@ let constr_av t c args typ loc =
 
 let new_labeled_block (l: Label.label) : opened =
   let h = Node.N_label l in
-  (*  Printf.eprintf "\tStarting new labeled block: %s\n" (Node.print
-   *  h);*)
   B.join_head h B.empty
 
 let new_block () : Label.label * opened =
@@ -338,7 +336,7 @@ let rec lower_rule_elem
 
     (* since the case when there is no return value is especially
        simple, handle it separately *)
-    | RE_seq res when ret == None ->
+    | RE_seq res when ret = None ->
         List.fold_left (fun (ctx, b) re ->
             lower_rule_elem ctx b ret re
           ) (ctx, b) res
@@ -411,11 +409,23 @@ let rec lower_rule_elem
         let b = new_labeled_block lsc in
         {ctx with ctx_failcont = orig_failcont}, b
 
-    (* since the case when there is no bound and no return value is
-       especially simple, handle it separately *)
-    | RE_star (re', None) when ret == None ->
-        (* since re'* can never fail, we need to create a label
-           which will be the failcont for re' *)
+    | RE_star (re', None) ->
+        (* initialize the return value if any *)
+        let vr, b = match ret with
+            | None ->
+                None, b
+            | Some (vr, fresh) ->
+                (* initialize vr to [] *)
+                let null = constr_av "[]" "[]" [] typ loc in
+                let nd = N_assign (vr, fresh, ae_of_av null) in
+                let b = add_gnode b nd typ loc in
+                Some vr, b in
+        (* since (re')* can never fail, create a new label for the
+           success cont (re')* which will be the failcont of re'.  the
+           failcont needs to be pushed _after_ the assignment above,
+           so that the assignment is remembered in case re' fails the
+           first time.
+         *)
         let lsc = Label.fresh_label () in
         let b = add_node b (Node.N_push_failcont lsc) in
         (* create a label for a new block for re' since it will be a
@@ -424,140 +434,72 @@ let rec lower_rule_elem
         let lp = Label.fresh_label () in
         let ctx = close_with_jump ctx b lp in
         let b = new_labeled_block lp in
-        (* update the context with the new failcont and lower re' *)
+        (* lower re' into this block with the new failcont, adjusting
+           for any return value *)
         let orig_failcont = ctx.ctx_failcont in
         let ctx = {ctx with ctx_failcont = lsc} in
-        let ctx, b = lower_rule_elem ctx b ret re' in
-        (* on success, this block jumps back to lp *)
-        let ctx = close_with_jump ctx b lp in
-        (* continue with the success block, which will be entered only
-           if re' failed, i.e. via a popped failcont.  so there is no
-           need to pop it here. *)
-        let b = new_labeled_block lsc in
-        {ctx with ctx_failcont = orig_failcont}, b
-
-    (* the next simpler case is one with a bound but no return
-       variable *)
-    | RE_star (re', Some e) when ret == None ->
-        (* Assign the bound to a variable, and then decrement this
-           variable in a loop as re is matched.  The loop terminates
-           when the variable fails the constraint that it is
-           positive. *)
-        let bnd, venv =
-          Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
-        let v, venv = fresh_var venv e.expr_aux e.expr_loc in
-        let nd = N_assign (v, true, bnd) in
-        let b = add_gnode b nd e.expr_aux e.expr_loc in
-        (* close the block with a jump to block containing the loop
-           comparison *)
-        let lc = Label.fresh_label () in
-        let ctx = close_with_jump {ctx with ctx_venv = venv} b lc in
-        (* the loop exit will be the success continuation *)
-        let lx = Label.fresh_label () in
-        (* the loop comparison block evaluates the bound constraint *)
-        let b = new_labeled_block lc in
-        (* build the boolean comparison variable: c := v > 0 *)
-        let bool = get_typ ctx "bool" in
-        let z = av_of_int ctx 0 e.expr_loc in
-        let ae = AE_binop (Ast.Gt, av_of_var v, z) in
-        let ae = make_ae ae bool e.expr_loc in
-        let c, venv = fresh_var venv bool re'.rule_elem_loc in
-        let b = add_gnode b (N_assign (c, true, ae)) bool e.expr_loc in
-        (* branch on c: true -> do re, false -> jump to exit *)
-        let lre = Label.fresh_label () in
-        let nd = Node.N_cond_branch (c, lre, lx) in
-        let ctx = close_block {ctx with ctx_venv = venv} b nd in
-        (* build the block for re', failing to the current failcont *)
-        let b = new_labeled_block lre in
-        let ctx, b = lower_rule_elem ctx b ret re' in
-        (* v := v - 1 *)
-        let int = get_typ ctx "int" in
-        let o = av_of_int ctx 1 e.expr_loc in
-        let ae = AE_binop (Ast.Minus, av_of_var v, o) in
-        let ae = make_ae ae int e.expr_loc in
-        let b = add_gnode b (N_assign (v, true, ae)) int e.expr_loc in
-        (* close with a jump to the comparison *)
-        let ctx = close_with_jump ctx b lc in
-        (* continue with the exit block as success continuation *)
-        let b = new_labeled_block lx in
-        ctx, b
-
-    (* the unbounded Star with a return value *)
-    | RE_star (re', None) ->
-        let v, fresh = match ret with
-            | None -> assert false (* handled above *)
-            | Some (v, fresh) -> v, fresh in
-        (* initialize v to [] *)
-        let l = ae_of_av (constr_av "[]" "[]" [] typ loc) in
-        let b = add_gnode b (N_assign (v, fresh, l)) typ loc in
-        (* since re* can never fail, create a new label for the
-           success cont re* which will be the failcont of re.  the
-           failcont needs to be pushed _after_ the assignment above,
-           so that the assignment is remembered in case re fails the
-           first time.
-         *)
-        let lsc = Label.fresh_label () in
-        let b = add_node b (Node.N_push_failcont lsc) in
-        (* create a new block for the loop and jump to it *)
-        let lp = Label.fresh_label () in
-        let ctx = close_with_jump ctx b lp in
-        let b = new_labeled_block lp in
-        (* create a new variable to hold a matched value *)
-        let v', venv =
-          fresh_var ctx.ctx_venv re'.rule_elem_aux re'.rule_elem_loc in
-        (* Note: v' is fresh here, but inside a loop, which means the
-           freshness is only valid the first time around.  This will
-           be true in general, for variables that are inside non-local
-           loops. *)
-        let ret' = Some (v', true) in
-        (* update the context with the new failcont and lower the re
-           with the return variable *)
-        let orig_failcont = ctx.ctx_failcont in
-        let ctx = {ctx with ctx_failcont = lsc; ctx_venv = venv} in
-        let ctx, b = lower_rule_elem ctx b ret' re' in
-        (* on the success path, pop the failcont *)
-        let b = add_node b (Node.N_pop_failcont lsc) in
-        (* update v:
-             v := v' :: v
-           we will need to list.rev at the end *)
-        let l = ae_of_av (constr_av "[]" "::" [av_of_var v'; av_of_var v]
-                            typ loc) in
-        let b = add_gnode b (N_assign (v, false, l)) typ loc in
-        (* set the failcont again before looping back to the re *)
-        let b = add_node b (Node.N_push_failcont lsc) in
-        (* close with loop back *)
+        let ctx, b = match vr with
+            | None ->
+                lower_rule_elem ctx b None re'
+            | Some vr ->
+                (* create a variable for the matched value for re' *)
+                let typ' = re'.rule_elem_aux in
+                let loc' = re'.rule_elem_loc in
+                let v, venv = fresh_var ctx.ctx_venv typ' loc' in
+                (* Note: v' is fresh here, but inside a loop, which
+                   means the freshness is only valid the first time
+                   around.  This will be true in general, for
+                   variables that are inside non-local loops. *)
+                let ret' = Some (v, true) in
+                let ctx = {ctx with ctx_venv = venv} in
+                let ctx, b = lower_rule_elem ctx b ret' re' in
+                (* update the return value:
+                     vr := v :: vr , and reverse it when done *)
+                let l =
+                  constr_av "[]" "::" [av_of_var v;
+                                       av_of_var vr] typ loc in
+                let nd = N_assign (vr, false, ae_of_av l) in
+                let b = add_gnode b nd typ loc in
+                ctx, b in
+        (* on success, this block loops back to lp *)
         let ctx = close_with_jump ctx b lp in
         (* continue with the success block, which will be entered only
            if re failed, i.e. via a popped failcont.  so there is no
            need to pop it here. *)
-        (* ensure the list is reversed *)
         let b = new_labeled_block lsc in
-        (* v := List.rev v *)
-        let ftyp =
-          TypeAlgebra.arrow (TypingEnvironment.as_fun ctx.ctx_tenv)
-            typ typ in
-        let f = mk_mod_member "List" "rev" ftyp loc in
-        let l = make_ae (AE_apply (f, [av_of_var v])) typ loc in
-        let b = add_gnode b (N_assign (v, false, l)) typ loc in
-        {ctx with ctx_failcont = orig_failcont}, b
+        (* continue with the original failcont *)
+        let ctx = {ctx with ctx_failcont = orig_failcont} in
+        (* adjust any return value *)
+        let b = match vr with
+            | None ->
+                b
+            | Some vr ->
+                (* ensure the list is reversed:
+                   vr := List.rev vr *)
+                let ftyp = mk_func_type ctx typ typ in
+                let f = mk_mod_member "List" "rev" ftyp loc in
+                let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
+                add_gnode b (N_assign (vr, false, l)) typ loc in
+        ctx, b
 
-    (* the bounded Star with a return value *)
     | RE_star (re', Some e) ->
-        (* This combines the above two cases: the loop bound is
-           tracked in a variable, and the return value is accumulated
-           in a list that is reversed at the end.  Note a big
-           difference: re* can never fail, but re^n can fail.
+        (* The loop bound is tracked in a variable, and the return
+           value is accumulated in a list that is reversed at the end.
+           Note a big difference wrt RE_star (_, None): re* can never
+           fail, but re^n can fail.
          *)
-        let v, fresh = match ret with
-            | None -> assert false (* handled above *)
-            | Some (v, fresh) -> v, fresh in
-        (* initialize v to [] *)
-        let l = ae_of_av (constr_av "[]" "[]" [] typ loc) in
-        let b = add_gnode b (N_assign (v, fresh, l)) typ loc in
+        let vr, b = match ret with
+            | None ->
+                None, b
+            | Some (vr, fresh) ->
+                (* initialize vr to [] *)
+                let null = constr_av "[]" "[]" [] typ loc in
+                let nd = N_assign (vr, fresh, ae_of_av null) in
+                let b = add_gnode b nd typ loc in
+                Some vr, b in
         (* Assign the bound to a variable bv, and then decrement this
            variable in a loop as re' is matched.  The loop terminates
-           when the variable fails the constraint that it is
-           positive. *)
+           when the bv fails the constraint that it is positive. *)
         let bnd, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let bv, venv = fresh_var venv e.expr_aux e.expr_loc in
@@ -582,42 +524,60 @@ let rec lower_rule_elem
         let lre = Label.fresh_label () in
         let nd = Node.N_cond_branch (c, lre, lx) in
         let ctx = close_block {ctx with ctx_venv = venv} b nd in
-        (* build the block for re, failing to the current failcont *)
+        (* build the block for re', failing to the current failcont *)
         let b = new_labeled_block lre in
-        (* create a new variable to hold a matched value *)
-        let v', venv =
-          fresh_var ctx.ctx_venv re'.rule_elem_aux re'.rule_elem_loc in
-        (* Note: v' is fresh here, but inside a loop, which means the
-           freshness is only valid the first time around.  This will
-           be true in general, for variables that are inside non-local
-           loops. *)
-        let ret' = Some (v', true) in
-        let ctx, b =
-          lower_rule_elem {ctx with ctx_venv = venv} b ret' re' in
-        (* v := v' :: v
-           we will need to list.rev at the end *)
-        let l = ae_of_av (constr_av "[]" "::" [av_of_var v'; av_of_var v]
-                            typ loc) in
-        let b = add_gnode b (N_assign (v, false, l)) typ loc in
+        (* lower re' into this block, adjusting for any return
+           value *)
+        let ctx, b = match vr with
+            | None ->
+                lower_rule_elem ctx b None re'
+            | Some vr ->
+                (* create a variable for the matched value for re' *)
+                let typ' = re'.rule_elem_aux in
+                let loc' = re'.rule_elem_loc in
+                let v, venv = fresh_var ctx.ctx_venv typ' loc'  in
+                (* Note: v' is fresh here, but inside a loop, which
+                   means the freshness is only valid the first time
+                   around.  This will be true in general, for
+                   variables that are inside non-local loops. *)
+                let ret' = Some (v, true) in
+                let ctx = {ctx with ctx_venv = venv} in
+                let ctx, b = lower_rule_elem ctx b ret' re' in
+                (* update the return value:
+                   vr := v :: vr , and reverse it when done *)
+                let l =
+                  constr_av "[]" "::" [av_of_var v;
+                                       av_of_var vr] typ loc in
+                let nd = N_assign (vr, false, ae_of_av l) in
+                let b = add_gnode b nd typ loc in
+                ctx, b in
         (* bv := bv - 1 *)
         let int = get_typ ctx "int" in
         let o = av_of_int ctx 1 e.expr_loc in
         let ae = AE_binop (Ast.Minus, av_of_var bv, o) in
         let ae = make_ae ae int e.expr_loc in
-        let b = add_gnode b (N_assign (bv, true, ae)) int e.expr_loc in
+        let nd = N_assign (bv, true, ae) in
+        let b = add_gnode b nd int e.expr_loc in
         (* close with a jump to the comparison *)
         let ctx = close_with_jump ctx b lc in
         (* continue with the exit block as success continuation *)
         let b = new_labeled_block lx in
-        (* v := List.rev v *)
-        let ftyp = mk_func_type ctx typ typ in
-        let f = mk_mod_member "List" "rev" ftyp loc in
-        let l = make_ae (AE_apply (f, [av_of_var v])) typ loc in
-        let b = add_gnode b (N_assign (v, false, l)) typ loc in
+        (* adjust any return value *)
+        let b = match vr with
+            | None ->
+                b
+            | Some vr ->
+                (* ensure the list is reversed:
+                   vr := List.rev vr *)
+                let ftyp = mk_func_type ctx typ typ in
+                let f = mk_mod_member "List" "rev" ftyp loc in
+                let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
+                add_gnode b (N_assign (vr, false, l)) typ loc in
         ctx, b
 
-    (* since the case when there is no return value is especially
-       simple, handle it separately *)
+    (* Since the RE_opt case differs a fair amount depending on
+       whether there is a return variable to be bound, we keep the two
+       cases separate. *)
     | RE_opt re' when ret == None ->
         (* re'? cannot fail, so create a new label that can be used
            for both the success and failure case, and save the
@@ -647,7 +607,9 @@ let rec lower_rule_elem
         let lsc = Label.fresh_label () in
         let lfl = Label.fresh_label () in
         let vsc, venv =
-          fresh_var ctx.ctx_venv re'.rule_elem_aux re'.rule_elem_loc in
+          let typ' = re'.rule_elem_aux in
+          let loc' = re'.rule_elem_loc in
+          fresh_var ctx.ctx_venv typ' loc' in
         let ret' = Some (vsc, true) in
         (* save the original failure continuation, and prepare an
            updated context *)
@@ -660,20 +622,22 @@ let rec lower_rule_elem
            assignment below holds *)
         let b = add_node b (Node.N_pop_failcont lfl) in
         (* extract the current return value *)
-        let v, fresh = match ret with
+        let vr, fresh = match ret with
             | None -> assert false (* handled above *)
-            | Some (v, fresh) -> v, fresh in
+            | Some (vr, fresh) -> vr, fresh in
         (* use the return value from re' in vsc, construct
-           'option::Some(vsc)' and bind it to v *)
+           'option::Some(vsc)' and bind it to vr *)
         let av = constr_av "option" "Some" [av_of_var vsc] typ loc in
-        let b = add_gnode b (N_assign (v, fresh, ae_of_av av)) typ loc in
+        let nd = N_assign (vr, fresh, ae_of_av av) in
+        let b = add_gnode b nd typ loc in
         (* close the current block by jumping to lsc *)
         let ctx = close_with_jump ctx b lsc in
-        (* construct the failure block for lfl, in which v gets
+        (* construct the failure block for lfl, in which vr gets
            assigned 'option::None' and then control jumps to lsc. *)
         let b = new_labeled_block lfl in
-        let ae = ae_of_av (constr_av "option" "None" [] typ loc) in
-        let b = add_gnode b (N_assign (v, fresh, ae)) typ loc in
+        let none = constr_av "option" "None" [] typ loc in
+        let nd = N_assign (vr, fresh, ae_of_av none) in
+        let b = add_gnode b nd typ loc in
         let ctx = close_with_jump ctx b lsc in
         (* construct the lsc continuation block, and continue with it
            as the current block, in a context where the original
@@ -764,54 +728,24 @@ let rec lower_rule_elem
         (* proceed with the current block *)
         ctx, b
 
-    (* handle the simpler case of no return value *)
-    | RE_map_views (e, re') when ret == None ->
-        let ae, venv =
-          Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
-        let v, venv = fresh_var venv e.expr_aux e.expr_loc in
-        let nd = N_assign (v, true, ae) in
-        let b = add_gnode b nd e.expr_aux e.expr_loc in
-        (* create a block for the loop condition and jump to it *)
-        let lc = Label.fresh_label () in
-        let ctx =
-          close_with_jump {ctx with ctx_venv = venv} b lc in
-        let b = new_labeled_block lc in
-        (* vc := v == [] *)
-        let bool = get_typ ctx "bool" in
-        let null = constr_av "[]" "[]" [] e.expr_aux e.expr_loc in
-        let ae = AE_binop (Ast.Eq, (av_of_var v), null) in
-        let ae = make_ae ae bool e.expr_loc in
-        let vc, venv = fresh_var ctx.ctx_venv bool e.expr_loc in
-        let nd = N_assign (vc, true, ae) in
-        let b = add_gnode b nd bool e.expr_loc in
-        (* create a label for the loop block and its exit block *)
-        let lp = Label.fresh_label () in
-        let lx = Label.fresh_label () in
-        (* if vc, we exit the loop, else we enter it *)
-        let nd = Node.N_cond_branch (vc, lx, lp) in
-        let ctx = close_block {ctx with ctx_venv = venv} b nd in
-        (* create the loop block *)
-        let b = new_labeled_block lp in
-        let ctx, b = lower_rule_elem ctx b ret re' in
-        (* loop back to the condition *)
-        let ctx = close_with_jump ctx b lc in
-        (* continue with the exit block *)
-        ctx, new_labeled_block lx
-
-    (* handle the case with the return value *)
     | RE_map_views (e, re') ->
-        let vr, fresh = match ret with
-            | None -> assert false (* handled above *)
-            | Some (v, fresh) -> v, fresh in
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let vl, venv = fresh_var venv e.expr_aux e.expr_loc in
         let nd = N_assign (vl, true, ae) in
         let b = add_gnode b nd e.expr_aux e.expr_loc in
-        (* initialize the return value *)
-        let null = constr_av "[]" "[]" [] e.expr_aux e.expr_loc in
-        let nd = N_assign (vr, fresh, ae_of_av null) in
-        let b = add_gnode b nd e.expr_aux e.expr_loc in
+        (* initialize the return value if any *)
+        let null = constr_av "[]" "[]" [] typ loc in
+        let vr, b = match ret with
+            | None ->
+                None, b
+            | Some (vr, fresh) ->
+                let nd = N_assign (vr, fresh, ae_of_av null) in
+                let b = add_gnode b nd typ loc in
+                Some vr, b in
+        (* save the current view *)
+        let unit = get_typ ctx "unit" in
+        let b = add_gnode b N_push_view unit e.expr_loc in
         (* create a block for the loop condition and jump to it *)
         let lc = Label.fresh_label () in
         let ctx =
@@ -832,28 +766,76 @@ let rec lower_rule_elem
         let ctx = close_block {ctx with ctx_venv = venv} b nd in
         (* create the loop block *)
         let b = new_labeled_block lp in
-        (* create a return value for re' *)
-        let v, venv =
-          fresh_var ctx.ctx_venv re'.rule_elem_aux re'.rule_elem_loc in
-        let ret' = Some (v, true) in
-        let ctx, b =
-          lower_rule_elem {ctx with ctx_venv = venv} b ret' re' in
-        (* vr := v :: vr , and reverse it when done *)
-        let av =
-          constr_av "[]" "::" [av_of_var v; av_of_var vr] typ loc in
-        let nd = N_assign (vr, false, ae_of_av av) in
-        let b = add_gnode b nd typ loc in
+        (* get the view to set: vv = List.head(vl) *)
+        let ftyp = mk_func_type ctx e.expr_aux e.expr_aux in
+        let f = mk_mod_member "List" "head" ftyp e.expr_loc in
+        (* todo: use the _element type_ of the list type in e.expr_aux
+           below *)
+        let hd =
+          make_ae (AE_apply (f, [av_of_var vl])) e.expr_aux e.expr_loc in
+        let vv, venv = fresh_var venv e.expr_aux e.expr_loc in
+        let nd = N_assign (vv, true, hd) in
+        let b  = add_gnode b nd e.expr_aux e.expr_loc in
+        (* update the remaining views: vl = List.tail(vl) *)
+        let f = mk_mod_member "List" "tail" ftyp e.expr_loc in
+        let tl =
+          make_ae (AE_apply (f, [av_of_var vl])) e.expr_aux e.expr_loc in
+        let nd = N_assign (vl, true, tl) in
+        let b  = add_gnode b nd e.expr_aux e.expr_loc in
+        (* set the view: set_view(vv) *)
+        let nd = N_set_view vv in
+        let b  = add_gnode b nd unit e.expr_loc in
+        (* The view needs to be restored on both the success and
+           failure paths.  Create a new failcont which will first
+           restore the view, and then return the original failcont. *)
+        let lf = Label.fresh_label () in
+        let orig_failcont = ctx.ctx_failcont in
+        (* push the failcont *)
+        let b = add_node b (Node.N_push_failcont lf) in
+        (* lower the rule element with this failcont, adjusting for
+           any return value *)
+        let ctx, b = match vr with
+            | None ->
+                lower_rule_elem {ctx with ctx_venv = venv;
+                                          ctx_failcont = lf} b None re'
+            | Some vr ->
+                (* create a new variable to hold a matched value for re' *)
+                let typ' = re'.rule_elem_aux in
+                let loc' = re'.rule_elem_loc in
+                let v, venv = fresh_var venv typ' loc' in
+                let ret' = Some (v, true) in
+                let ctx =
+                  {ctx with ctx_venv = venv; ctx_failcont = lf} in
+                let ctx, b = lower_rule_elem ctx b ret' re' in
+                (* update the return value:
+                   vr := v :: vr , and reverse it when done *)
+                let l =
+                  constr_av "[]" "::" [av_of_var v;
+                                       av_of_var vr] typ loc in
+                let nd = N_assign (vr, false, ae_of_av l) in
+                let b = add_gnode b nd typ loc in
+                ctx, b in
+        (* on the success path, restore the failcont *)
+        let b = add_node b (Node.N_pop_failcont lf) in
+        let ctx = {ctx with ctx_failcont = orig_failcont} in
         (* loop back to the condition *)
         let ctx = close_with_jump ctx b lc in
-        (* continue with the exit block *)
+        (* create the trampoline failcont block that restores the view *)
+        let tfb = new_labeled_block lf in
+        let tfb = add_gnode tfb N_pop_view unit e.expr_loc in
+        let ctx = close_with_jump ctx tfb orig_failcont in
+        (* restore the view in the exit block *)
         let b = new_labeled_block lx in
-        (* vr := List.rev vr *)
-        let ftyp =
-          TypeAlgebra.arrow (TypingEnvironment.as_fun ctx.ctx_tenv)
-            typ typ in
-        let f = mk_mod_member "List" "rev" ftyp loc in
-        let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
-        let b = add_gnode b (N_assign (vr, false, l)) typ loc in
+        let b = add_gnode b N_pop_view unit e.expr_loc in
+        (* reverse the return value since we're done *)
+        let b = match vr with
+            | None -> b
+            | Some vr ->
+                (* vr := List.rev vr *)
+                let ftyp = mk_func_type ctx typ typ in
+                let f = mk_mod_member "List" "rev" ftyp loc in
+                let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
+                add_gnode b (N_assign (vr, false, l)) typ loc in
         ctx, b
 
 (* unlike a rule element, a rule has no explicit return value, since

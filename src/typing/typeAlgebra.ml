@@ -279,6 +279,12 @@ let builtin_types, builtin_consts, builtin_vars,
       };
       {mod_name   = Ast.MName "List";
        mod_values = [
+           (Ast.DName "head", [ TName "a" ],
+            arrow_type (list_type (gen_tvar "a"))
+              (gen_tvar "a"));
+           (Ast.DName "tail", [ TName "a" ],
+            arrow_type (list_type (gen_tvar "a"))
+              (list_type (gen_tvar "a")));
            (Ast.DName "length", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (gen_tvar "int"));
