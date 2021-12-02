@@ -238,7 +238,7 @@ and print_expr auxp e =
             print_expr auxp e;
           ) fields;
         pp_string "}"
-    | E_apply ({expr = E_var _;_} as f, args)
+    | E_apply ({expr = E_var _; _} as f, args)
     | E_apply({expr = E_mod_member _; _} as f, args) ->
         print_expr auxp f;
         pp_string "(";

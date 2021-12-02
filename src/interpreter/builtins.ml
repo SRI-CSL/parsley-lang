@@ -136,7 +136,7 @@ let rec eq lc op l r =
         then false
         else eqs lc op true ls rs
 
-    | V_view {vu_id = l;_}, V_view {vu_id = r;_} ->
+    | V_view {vu_id = l; _}, V_view {vu_id = r; _} ->
         (* only compare their ids *)
         l = r
 

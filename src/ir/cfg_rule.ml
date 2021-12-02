@@ -730,7 +730,8 @@ let rec lower_rule_elem
 
     (* handle the multi-assignment map-view case before the more
        general map-view case below *)
-    | RE_map_views (e, ({rule_elem = RE_non_term (nt, Some args);_} as re'))
+    | RE_map_views (e, ({rule_elem = RE_non_term (nt, Some args); _}
+                        as re'))
          when List.exists (fun (_, a, _) -> a = Ast.A_in) args ->
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in

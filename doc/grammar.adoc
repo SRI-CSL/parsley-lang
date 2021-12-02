@@ -330,33 +330,64 @@ evaluates to a list of values that is of the same length as the number
 of views in the map.  For each view in the map, the corresponding
 value in the list is provided to the inherited attribute.
 ....
-  NT n (v: view, i: int, j: int) {n: unit} := ... ;;
+  NT n (i: int, j: int) {n: unit} := ... ;;
 
   T t (vs: [view], is: [int]) {t: unit} :=
-      @#[vs, NT<v <- (vs), i <- (is), j = 0 >]
+      @#[vs, NT<i <- (is), j = 0>]
       ...
 ....
 In the fragment above, when `NT` is mapped over the list of views `vs`
-in the production rule for `T`, its `v` and `i` attributes are
-provided values at the same index in the `vs` and `is` lists
-respectively.
+in the production rule for `T`, its `i` attribute is provided a value
+in `is` at the index corresponding to the index of the view in `vs` in
+which `NT` is being applied.
 
-NOTE: An internal constraint is generated to ensure that any lists
+
+NOTE: The `<-` assignment operator can only be used with a
+non-terminal directly under a map-views combinator; i.e. it can only
+be used in `@#[views, RE]` when `RE` is a non-terminal.
+
+[NOTE]
+====
+An internal constraint is generated to ensure that any lists
 used with the `<-` operator have the same length as the number of
 views in the map-view.  In the example above, this internal constraint
 ensures that `vs` and `is` have the same lengths.  That is, the above
 fragment is equivalent to:
 ....
-  NT n (v: view, i: int, j: int) {n: unit} := ... ;;
+  NT n (i: int, j: int) {n: unit} := ... ;;
 
   T t (vs: [view], is: [int]) {t: unit} :=
       [List.length(vs) = List.length(is)]
-      @#[vs, NT<v <- (vs), i <- (is), j = 0 >]
+      @#[vs, NT<i <- (is), j = 0>]
       ...
 ....
-NOTE: The `<-` assignment operator can only be used with a
-non-terminal directly under a map-views combinator; i.e. it can only
-be used in `@#[views, RE]` when `RE` is a non-terminal.
+The insertion of an internal constraint may result in unexpected types
+for named rule elements when complex constructs are bound. To avoid
+this, this construct should follow the most common use-case for
+binding names to rule elements, where the result of the map-view is
+bound directly.
+
+For example, the below named binding may result in the type of `a`
+being a 3-tuple instead of a 2-tuple, due to the internal list length
+constraint being including in the `a` binding.
+....
+  T t (vs: [view], is: [int]) {t: unit} :=
+      a=(Byte
+         @#[vs, NT<i <- (is), j = 0>]
+        )
+      ...
+....
+To avoid this, named bindings should be as specific as possible, and
+should bind the map-view directly.  The naming below will result in
+`a` and `b` getting their expected types, and will not be affected by
+the internal list-length constraint.
+....
+  T t (vs: [view], is: [int]) {t: unit} :=
+      a=Byte
+      b=@#[vs, NT<i <- (is), j = 0>]
+      ...
+....
+====
 
 The *set-view* operator `@^[v]` sets the current view to `v`.
 Subsequent matching will be performed in this view until the current
