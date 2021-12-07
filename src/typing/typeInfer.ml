@@ -1021,13 +1021,13 @@ let infer_fun_defn tenv venv ctxt fd =
      for the body.  Handle the arguments as a simple case of lambda
      patterns; this will allow us to extend this later to proper
      pattern matching if needed.*)
-  let restyp = TypedAstUtils.expand_type_abbrevs tenv fd.fun_defn_res_type in
+  let restyp = TypedAstUtils.expand_type_abbrevs tenv' fd.fun_defn_res_type in
   let irestyp = TypeConv.intern tenv' restyp in
   let _, params', venv', argbinders, signature =
     if List.length fd.fun_defn_params = 0 then
       (* functions without args have a signature of unit -> result_type *)
-      let unit = typcon_variable tenv (TName "unit") in
-      let signature = TypeConv.arrow tenv unit irestyp in
+      let unit = typcon_variable tenv' (TName "unit") in
+      let signature = TypeConv.arrow tenv' unit irestyp in
       ids, [], venv', empty_fragment, signature
     else
       List.fold_left (fun (acu_ids, params', venv', bindings, signature) (pid, typ) ->
@@ -1040,7 +1040,7 @@ let infer_fun_defn tenv venv ctxt fd =
               | None ->
                   StringMap.add pn (ident_of_var pid) acu_ids in
           let pid', venv' = VEnv.add venv' pid in
-          let typ = TypedAstUtils.expand_type_abbrevs tenv typ in
+          let typ = TypedAstUtils.expand_type_abbrevs tenv' typ in
           let ityp = TypeConv.intern tenv' typ in
           let v = variable Flexible () in
           acu_ids,
@@ -1051,7 +1051,7 @@ let infer_fun_defn tenv venv ctxt fd =
            tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
                          ^ bindings.tconstraint;
            vars = v :: bindings.vars},
-          TypeConv.arrow tenv ityp signature)
+          TypeConv.arrow tenv' ityp signature)
         (ids, [], venv', empty_fragment, irestyp)
         (List.rev fd.fun_defn_params) in
 
@@ -1089,6 +1089,149 @@ let infer_fun_defn tenv venv ctxt fd =
    fun_defn_synth     = fd.fun_defn_synth;
    fun_defn_loc       = fd.fun_defn_loc;
    fun_defn_aux       = signature}
+
+(* [infer_recfun_defns tenv venv ctxt fds] examines the mutually
+   recursive function definitions [fds] and constraint context [ctxt]
+   in the type environment [tenv] and value environment [venv] and
+   generates an updated constraint context for [ctxt] and a type
+   signature for each function in [fds]. *)
+
+let infer_recfun_defns tenv venv ctxt r =
+  (* Do a first pass over the function signatures, collecting variable
+     and binding environments in which only the function names and
+     their signatures are bound.  These will be the common base from
+     which the environments to type each function body will be built.
+
+     This differs from the handling for a single function, which can
+     be processed in a single pass.  *)
+  let tenv', venv', fdns', rqs, fvs, sigs, binds, eqns =
+    List.fold_left (fun (tenv, venv, fdns', rqs, fvs, sigs, binds, eqns) fd ->
+        let loc = Location.loc fd.fun_defn_ident
+        and fdn = var_name fd.fun_defn_ident
+        and qs = fd.fun_defn_tvars in
+        (* Prevent duplicate definitions *)
+        (match VEnv.lookup venv fd.fun_defn_ident with
+           | None ->
+               ()
+           | Some v ->
+               let lc' = Location.loc v in
+               let err = DuplicateFunctionDefinition (loc, fdn, lc') in
+               raise (Error err));
+        (* Bind the function name *)
+        let fdn', venv' = VEnv.add venv fd.fun_defn_ident in
+        (* Collect the type variables to quantify over, and register
+           them in the type environment *)
+        let qs = List.map (fun q -> TName (Location.value q)) qs in
+        let rqs', rtenv' =
+          fresh_unnamed_rigid_vars fd.fun_defn_loc tenv qs in
+        let tenv' = add_type_variables rtenv' tenv in
+        (* Construct the function signature.  Check for duplicate
+           parameter names here, but ignore creating their variable
+           bindings: those will need to be added to a per-function
+           body venv that does not contain parameter information from
+           other function bodies, but does include all the function
+           names, and we haven't seen all the function names yet. *)
+        let restyp =
+          TypedAstUtils.expand_type_abbrevs tenv' fd.fun_defn_res_type in
+        let irestyp = TypeConv.intern tenv' restyp in
+        let signature, _ =
+          if List.length fd.fun_defn_params = 0 then
+            (* functions without args have a signature of unit -> result_type *)
+            let unit = typcon_variable tenv' (TName "unit") in
+            let signature = TypeConv.arrow tenv' unit irestyp in
+            signature, StringMap.empty
+          else
+            List.fold_left (fun (signature, ids) (pid, typ) ->
+                let pn = var_name pid in
+                let ids =
+                  match StringMap.find_opt pn ids with
+                    | Some rid ->
+                        let pid = ident_of_var pid in
+                        let e = RepeatedFunctionParameter (pid, rid) in
+                        raise (Error e)
+                    | None ->
+                        StringMap.add pn (ident_of_var pid) ids in
+                let typ  = TypedAstUtils.expand_type_abbrevs tenv' typ in
+                let ityp = TypeConv.intern tenv' typ in
+                let signature = TypeConv.arrow tenv' ityp signature in
+                signature, ids
+              ) (irestyp, StringMap.empty) (List.rev fd.fun_defn_params) in
+        (* Create a type variable for this signature, and add it to
+           the top-level bindings *)
+        let fv = variable Flexible () in
+        let ftv = CoreAlgebra.TVariable fv in
+        let binds = StringMap.add fdn (ftv, loc) binds in
+        let eqn = (ftv =?= signature) loc in
+        tenv', venv', fdn' :: fdns', rqs' @ rqs, fv :: fvs,
+        signature :: sigs,
+        binds, eqn :: eqns
+      )
+      (tenv, venv, [], [], [], [], StringMap.empty, [])
+      (List.rev r.recfuns) in
+
+  (* Now that we have the base environments that include the function
+     names and signatures, make a second pass to process the function
+     bodies.  This differs from the handling of non-recursive
+     functions, whose bodies need environments that do not include the
+     function. *)
+  let fdinfos = List.combine fdns' (List.combine sigs r.recfuns) in
+  let cs, wc, fds' =
+    List.fold_left (fun (cs, wc, fds') (fdn', (sgn, fd)) ->
+        let params', venv', argbinders =
+          List.fold_left
+            (fun (params', venv', argbinders) (pid, typ) ->
+              let pn, ploc = var_name pid, Location.loc pid in
+              (* We've already checked for param duplicates above *)
+              let pid', venv' = VEnv.add venv' pid in
+              let v = variable Flexible () in
+              let typ = TypedAstUtils.expand_type_abbrevs tenv' typ in
+              let ityp = TypeConv.intern tenv' typ in
+              (pid', typ) :: params',
+              venv',
+              {gamma =
+                 StringMap.add pn (CoreAlgebra.TVariable v, ploc)
+                   argbinders.gamma;
+               tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
+                             ^ argbinders.tconstraint;
+               vars = v :: argbinders.vars}
+            )
+            (* venv' and binds already contain the function bindings *)
+            ([], venv', {empty_fragment with gamma = binds})
+            (List.rev fd.fun_defn_params) in
+        (* Construct the binding context for the body type constraint *)
+        let arg_schm =
+          Scheme (fd.fun_defn_loc, [], argbinders.vars,
+                  argbinders.tconstraint, argbinders.gamma) in
+        (* Generate the body type constraint *)
+        let rtyp =
+          TypedAstUtils.expand_type_abbrevs tenv' fd.fun_defn_res_type in
+        let irtyp = TypeConv.intern tenv' rtyp in
+        let cbody, (wcbody, body') =
+          infer_expr tenv' venv' fd.fun_defn_body irtyp in
+        let c = CLet ([arg_schm],
+                      conj eqns ^ cbody) in
+        let fd' =
+          {fun_defn_ident     = fdn';
+           fun_defn_tvars     = fd.fun_defn_tvars;
+           fun_defn_params    = params';
+           fun_defn_res_type  = fd.fun_defn_res_type;
+           fun_defn_body      = body';
+           fun_defn_recursive = fd.fun_defn_recursive;
+           fun_defn_synth     = fd.fun_defn_synth;
+           fun_defn_loc       = fd.fun_defn_loc;
+           fun_defn_aux       = sgn} in
+        c :: cs,
+        wcbody @^ wc,
+        fd' :: fds'
+      ) ([], WC_true, []) (List.rev fdinfos) in
+  (* Now combine the constraints *)
+  let scheme =
+    let rc = conj cs in
+    Scheme (r.recfuns_loc, rqs, fvs, rc, binds) in
+  (fun c -> ctxt (CLet ([scheme], c))),
+  wc,
+  {r with recfuns = fds'}
+
 
 (** [guess_nt_rhs_type tenv ntd] tries to guess a type for the
     right-hand side of the definition of [ntd]. This is done
@@ -2318,12 +2461,18 @@ let infer_spec tenv venv spec =
               let venv' = VEnv.extend venv (var_name cid) cid in
               tenv, c, wc @^ wc', Decl_const const' :: decls, venv'
           | Decl_fun f ->
-              (* TODO: solve eagerly? *)
               let c, wc', f' = infer_fun_defn tenv venv ctxt f in
               (* bind the function names *)
               let fid = f'.fun_defn_ident in
               let venv' = VEnv.extend venv (var_name fid) fid in
               tenv, c, wc @^ wc', Decl_fun f' :: decls, venv'
+          | Decl_recfuns r ->
+              let c, wc', r' = infer_recfun_defns tenv venv ctxt r in
+              let venv' = List.fold_left (fun venv f' ->
+                              let fid = f'.fun_defn_ident in
+                              VEnv.extend venv (var_name fid) fid
+                            ) venv r'.recfuns in
+              tenv, c, wc @^ wc', Decl_recfuns r' :: decls, venv'
           | Decl_format f ->
               let tenv, ctxt =
                 List.fold_left (fun (te, c) fd ->

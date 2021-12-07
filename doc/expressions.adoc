@@ -194,7 +194,8 @@ within `<` and `>`.
  }
 ....
 
-Functions can also be *self-recursive*, and are declared using the `recfun` keyword:
+Functions can be *self-recursive*; such functions are declared using
+the `recfun` keyword:
 
 ....
  recfun len <'a> (l: my_list<'a>) -> int = {
@@ -203,6 +204,29 @@ Functions can also be *self-recursive*, and are declared using the `recfun` keyw
    | my_list::Cons(_, t) -> 1 + len(t)
    )
  }
+....
+
+Functions can also be *mutually-recursive*; a set of such functions
+are declared with an initial `recfun` keyword, and separated by `and`:
+
+....
+type op =
+ | Single
+ | Multiple of [op]
+
+recfun num_ops (o: op) -> int = {
+  (case o of
+   | op::Single() -> 1
+   | op::Multiple(s) -> 1 + num_seq_ops(s, 0)
+   )
+}
+
+and num_seq_ops (os: [op], acc: int) -> int = {
+  (case os of
+   | [] -> acc
+   | hd :: tl -> num_ops(hd) + num_seq_ops(tl, acc)
+  )
+}
 ....
 
 Functions are applied using the syntax `f(arg1, arg2, ...)`, as in the

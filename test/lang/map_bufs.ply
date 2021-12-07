@@ -1,0 +1,35 @@
+recfun map_bufs<'a>(re: parser<'a>, views: [view], acc: ['a])
+         -> parse_result<['a]> = {
+    (case views of
+     | []        -> parse_result::Value([])
+     | v :: tail ->
+          (case parse (re, v) of
+           | parse_result::Value(a) -> map_bufs(re, tail, a :: acc)
+           | parse_result::Error(e) -> parse_result::Error(e)
+          )
+    )
+  }
+
+format {
+  NT n (v: view, i: int) {n: unit} :=
+    { n.n := () }
+  ;;
+
+  NTT n (i: int) {ntt: unit} :=
+    { n.ntt := () }
+
+  ;;
+
+  T1 t (vs: [view], is: [int]) {t1: unit} :=
+     a=(Byte
+        @#[vs, NT<v <- (vs), i <- (is)>]
+       )
+     { t.t1 := () }
+  ;;
+
+  T2 t (vs: [view], is: [int]) {t2: unit} :=
+     a=Byte
+     b=@#[vs, NT<v <- (vs), i <- (is)>]
+     { t.t2 := () }
+
+}

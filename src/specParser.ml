@@ -101,6 +101,8 @@ let rec flatten accum includes pending =
                flatten (Decl_const c :: accum) includes rest
            | PDecl_fun f ->
                flatten (Decl_fun f :: accum) includes rest
+           | PDecl_recfuns r ->
+               flatten (Decl_recfuns r :: accum) includes rest
            | PDecl_format f ->
                flatten (Decl_format f :: accum) includes rest
            | PDecl_use u ->

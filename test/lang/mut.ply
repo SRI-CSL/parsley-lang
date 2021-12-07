@@ -1,0 +1,17 @@
+type op =
+ | Single
+ | Multiple of [op]
+
+recfun num_ops (o: op) -> int = {
+  (case o of
+   | op::Single() -> 1
+   | op::Multiple(s) -> 1 + num_seq_ops(s, 0)
+   )
+}
+
+and num_seq_ops (os: [op], acc: int) -> int = {
+  (case os of
+   | [] -> acc
+   | hd :: tl -> num_ops(hd) + num_seq_ops(tl, acc)
+  )
+}

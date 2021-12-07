@@ -1028,7 +1028,7 @@ let init_ctx () =
 let expand_spec (spec: (unit, unit) program)
     : (unit, unit) program =
   let ctx = init_ctx () in
-    let splice ctx d ds =
+  let splice ctx d ds =
     (* `ds` is in reverse order, and the synthesized functions
        in`ctx_synths` are in reverse order to their calls in the
        expanded component.  We need to ensure that the synthesized
@@ -1037,7 +1037,13 @@ let expand_spec (spec: (unit, unit) program)
     let ds =
       d :: ((List.map (fun f -> Decl_fun f) ctx.ctx_synths) @ ds) in
     {ctx with ctx_synths = []}, ds in
-
+  let expand_recfuns ctx r =
+    let ctx, efs =
+      List.fold_left (fun (ctx, fs) f ->
+          let ctx, ef = expand_func ctx f in
+          ctx, ef :: fs
+        ) (ctx, []) r.recfuns in
+    ctx, {r with recfuns = List.rev efs} in
   let _, decls =
     List.fold_left (fun (ctx, ds) d ->
         (* ensure all synthesized functions have been incorporated *)
@@ -1053,6 +1059,9 @@ let expand_spec (spec: (unit, unit) program)
               assert (not f.fun_defn_synth);
               let ctx, f = expand_func ctx f in
               splice ctx (Decl_fun f) ds
+          | Decl_recfuns r ->
+              let ctx, er = expand_recfuns ctx r in
+              splice ctx (Decl_recfuns er) ds
           | Decl_format f ->
               let ctx, f = expand_format ctx f in
               splice ctx (Decl_format f) ds

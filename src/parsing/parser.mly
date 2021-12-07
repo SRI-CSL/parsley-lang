@@ -183,6 +183,10 @@ let make_fun_defn n r tvs p t bd b e =
    fun_defn_loc = Location.mk_loc b e;
    fun_defn_aux = ()}
 
+let make_recfuns fs b e =
+  {recfuns = fs;
+   recfuns_loc = Location.mk_loc b e}
+
 let make_const_defn n t v b e =
   {const_defn_ident = n;
    const_defn_type = t;
@@ -751,6 +755,20 @@ type_decls:
 | TYPE t=type_decl AND l=separated_list(AND, type_decl)
   { t :: l }
 
+fun_decl:
+| f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
+  { make_fun_defn (make_var f) false [] p r e $startpos $endpos }
+| f=ident LT tvs=separated_list(COMMA, TVAR) GT
+    LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
+  { make_fun_defn (make_var f) false tvs p r e $startpos $endpos }
+
+recfun_decl:
+| f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
+  { make_fun_defn (make_var f) true [] p r e $startpos $endpos }
+| f=ident LT tvs=separated_list(COMMA, TVAR) GT
+    LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
+  { make_fun_defn (make_var f) true tvs p r e $startpos $endpos }
+
 pre_decl:
 | USE m=ident
   { PDecl_use (make_use [m] $startpos $endpos) }
@@ -760,16 +778,10 @@ pre_decl:
   { PDecl_types (l, Location.mk_loc $startpos $endpos) }
 | CONST c=ident COLON t=type_expr EQ e=expr
   { PDecl_const (make_const_defn (make_var c) t e $startpos $endpos) }
-| FUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
-  { PDecl_fun (make_fun_defn (make_var f) false [] p r e $startpos $endpos) }
-| FUN f=ident LT tvs=separated_list(COMMA, TVAR) GT
-    LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
-  { PDecl_fun (make_fun_defn (make_var f) false tvs p r e $startpos $endpos) }
-| RECFUN f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
-  { PDecl_fun (make_fun_defn (make_var f) true [] p r e $startpos $endpos) }
-| RECFUN f=ident LT tvs=separated_list(COMMA, TVAR) GT
-    LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
-  { PDecl_fun (make_fun_defn (make_var f) true tvs p r e $startpos $endpos) }
+| FUN f=fun_decl
+  { PDecl_fun f }
+| RECFUN fs=separated_nonempty_list(AND, recfun_decl)
+  { PDecl_recfuns (make_recfuns fs $startpos $endpos) }
 | FORMAT LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
   { PDecl_format (make_format d $startpos $endpos) }
 

@@ -31,7 +31,6 @@ open Misc
     constraints and referred to by [CInstance] constraints. *)
 type sname = SName of string
 
-(* TEMPORARY renommer en formula *)
 (** [type_constraint] defines a syntax for the constraints between
     types. *)
 type ('crterm, 'variable) type_constraint =

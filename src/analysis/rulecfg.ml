@@ -813,6 +813,10 @@ let build_init_bindings (init_venv: VEnv.t) (tspec: (typ, varid) program) =
             Bindings.add (mk_elem c.const_defn_ident) init
         | Decl_fun f ->
             Bindings.add (mk_elem f.fun_defn_ident) init
+        | Decl_recfuns r ->
+            List.fold_left (fun e f ->
+                Bindings.add (mk_elem f.fun_defn_ident) e
+              ) init r.recfuns
     ) init tspec.decls
 
 (* check whether an attribute or record field is initialized *)
@@ -926,7 +930,7 @@ let check_spec init_envs (tenv: TE.environment) (tspec: (typ, varid) program) =
   let init = build_init_bindings init_venv tspec in
   List.iter (fun d ->
       match d with
-        | Decl_types _ | Decl_fun _ | Decl_const _ -> ()
+        | Decl_types _ | Decl_fun _ | Decl_recfuns _ | Decl_const _ -> ()
         | Decl_format f ->
             List.iter (fun fd ->
                 check_non_term tenv init fd.format_decl

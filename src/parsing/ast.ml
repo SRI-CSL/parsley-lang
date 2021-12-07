@@ -230,6 +230,10 @@ type ('a, 'b) fun_defn =
    fun_defn_loc: Location.t;
    fun_defn_aux: 'a}
 
+type ('a, 'b) rec_funs_defn =
+  {recfuns: ('a, 'b) fun_defn list; (* mutually recursive *)
+   recfuns_loc: Location.t}
+
 type ('a, 'b) const_defn =
   {const_defn_ident: 'b var;
    const_defn_type: type_expr;
@@ -261,6 +265,7 @@ type ('a, 'b) pre_decl =
   | PDecl_types of type_decl list * Location.t (* possibly mutually recursive *)
   | PDecl_const of ('a, 'b) const_defn
   | PDecl_fun of ('a, 'b) fun_defn
+  | PDecl_recfuns of ('a, 'b) rec_funs_defn
   | PDecl_format of ('a, 'b) format
 
 type ('a, 'b) pre_top_level =
@@ -271,6 +276,7 @@ type ('a, 'b) top_decl =
   | Decl_types of type_decl list * Location.t (* possibly mutually recursive *)
   | Decl_const of ('a, 'b) const_defn
   | Decl_fun of ('a, 'b) fun_defn
+  | Decl_recfuns of ('a, 'b) rec_funs_defn
   | Decl_format of ('a, 'b) format
 
 type ('a, 'b) program =

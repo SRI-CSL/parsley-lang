@@ -56,6 +56,15 @@ let lower_spec (_, init_venv) tenv (spec: program) =
   let _, cb = Cfg_rule.new_block () in
   let _, fb = Cfg_rule.new_block () in
 
+  (* add a function to the function block *)
+  let add_fun fb af =
+    let Anf.{afun_ident = f';
+             afun_body = afb;
+             afun_loc = loc; _} = af in
+    let v = Anf.make_var f' afb.aexp_typ loc in
+    let nd = N_assign_fun (v, af) in
+    Cfg_rule.add_gnode fb nd afb.aexp_typ loc in
+
   (* process the spec in lexical order *)
   let ctx, cb, fb =
     List.fold_left (fun (ctx, cb, fb) d ->
@@ -77,12 +86,13 @@ let lower_spec (_, init_venv) tenv (spec: program) =
               (* populate the funcs block *)
               let af, venv =
                 Anf_exp.normalize_fun ctx.ctx_tenv ctx.ctx_venv f in
-              let Anf.{afun_ident = f';
-                       afun_body = afb;
-                       afun_loc = loc; _} = af in
-              let v = Anf.make_var f' afb.aexp_typ loc in
-              let nd = N_assign_fun (v, af) in
-              let fb = Cfg_rule.add_gnode fb nd afb.aexp_typ loc in
+              let fb = add_fun fb af in
+              {ctx with ctx_venv = venv}, cb, fb
+          | Ast.Decl_recfuns r ->
+              (* populate the funcs block *)
+              let afs, venv = Anf_exp.normalize_recfuns ctx.ctx_tenv
+                                ctx.ctx_venv r.recfuns in
+              let fb = List.fold_left add_fun fb afs in
               {ctx with ctx_venv = venv}, cb, fb
           | Ast.Decl_format f ->
               (* generate the CFG blocks for the non-terminals *)

@@ -294,20 +294,43 @@ let normalize_const tenv venv (c: const) : aconst * VEnv.t =
 let normalize_fun tenv venv (f: func) : afun * VEnv.t =
   let fident, venv = VEnv.bind venv f.fun_defn_ident in
   let params, venv =
-    (* fold_right ensures params are in the correct order in the
-       struct, but causes them to be bound in reverse order in the
-       VEnv. *)
-    List.fold_right (fun (v, _) (ps, venv) ->
+    List.fold_left (fun (ps, venv) (v, _) ->
         let p, venv = VEnv.bind venv v in
         p :: ps, venv
-      ) f.fun_defn_params ([], venv) in
-  let body, venv = normalize_exp tenv venv f.fun_defn_body in
+      ) ([], venv) f.fun_defn_params in
+  let body, venv  = normalize_exp tenv venv f.fun_defn_body in
   {afun_ident     = fident;
-   afun_params    = params;
+   afun_params    = List.rev params;
    afun_body      = body;
    afun_recursive = f.fun_defn_recursive;
-   afun_loc       = f.fun_defn_loc },
+   afun_loc       = f.fun_defn_loc},
   venv
+
+let normalize_recfuns tenv venv (fs: func list)
+        : afun list * VEnv.t =
+  (* bind all the function names before normalize the first body *)
+  let fids, venv =
+    List.fold_left (fun (fids, venv) (f: func) ->
+        let fid, venv = VEnv.bind venv f.fun_defn_ident in
+        fid :: fids, venv
+      ) ([], venv) (List.rev fs) in
+  (* now do the function bodies *)
+  let fs, venv =
+    List.fold_left (fun (fs, venv) (fid, (f: func)) ->
+        let params, venv =
+          List.fold_left (fun (ps, venv) (v, _) ->
+              let p, venv = VEnv.bind venv v in
+              p :: ps, venv
+            ) ([], venv) f.fun_defn_params in
+        let body, venv = normalize_exp tenv venv f.fun_defn_body in
+        let f' = {afun_ident     = fid;
+                  afun_params    = List.rev params;
+                  afun_body      = body;
+                  afun_recursive = f.fun_defn_recursive;
+                  afun_loc       = f.fun_defn_loc} in
+        f' :: fs, venv
+      ) ([], venv) (List.combine fids fs) in
+  List.rev fs, venv
 
 let rec normalize_stmt tenv venv (s: stmt) : astmt * VEnv.t =
   let loc = s.stmt_loc in

@@ -32,6 +32,11 @@ let lower (_, init_venv) tenv spec =
                  let _, venv = Anf.VEnv.bind venv v in
                  venv
                ) Anf.VEnv.empty init_venv in
+  let do_fun venv f =
+    let nf, venv = Anf_exp.normalize_fun tenv venv f in
+    if print_anf then
+      Anf_printer.print_fun nf;
+    venv in
   let _venv =
     List.fold_left (fun venv d ->
         match d with
@@ -43,9 +48,8 @@ let lower (_, init_venv) tenv spec =
                 Anf_printer.print_const nc;
               venv
           | Decl_fun f ->
-              let nf, venv = Anf_exp.normalize_fun tenv venv f in
-              if print_anf then
-                Anf_printer.print_fun nf;
-              venv
+              do_fun venv f
+          | Decl_recfuns r ->
+              List.fold_left do_fun venv r.recfuns
       ) venv spec.decls in
   ()

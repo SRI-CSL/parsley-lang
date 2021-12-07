@@ -350,12 +350,10 @@ let print_temp_decl auxp (pm, ty, e) =
   pp_string " := ";
   print_expr auxp e
 
-let print_fun_defn auxp fd =
-  pp_open_vbox  0;
+let print_fun_defn prefix auxp fd =
+  pp_open_vbox 0;
   pp_open_box  0;
-  pp_string (if fd.fun_defn_recursive
-             then "recfun "
-             else "fun ");
+  pp_string prefix;
   pp_string (var_name fd.fun_defn_ident);
   if List.length fd.fun_defn_tvars > 0 then begin
       pp_string " <";
@@ -377,7 +375,17 @@ let print_fun_defn auxp fd =
   print_expr auxp fd.fun_defn_body;
   pp_close_box ();
   pp_newline ();
-  pp_string "}"
+  pp_string "}";
+  pp_close_box ()
+
+let print_recfun_defns auxp fds =
+  pp_open_box  0;
+  let first = ref true in
+  List.iter (fun fd ->
+      let prefix = if !first then "recfun " else "and " in
+      print_fun_defn prefix auxp fd;
+      first := false
+    ) fds
 
 let print_attributes auxp at op cl =
   match at with
@@ -704,7 +712,9 @@ let print_decl auxp d =
     | Decl_types (typs, _) ->
         List.iter print_type_decl typs
     | Decl_fun fd ->
-        print_fun_defn auxp fd
+        print_fun_defn "fun " auxp fd
+    | Decl_recfuns rd ->
+        print_recfun_defns auxp rd.recfuns
     | Decl_format f ->
         print_format auxp f
 
