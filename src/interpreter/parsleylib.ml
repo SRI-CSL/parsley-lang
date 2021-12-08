@@ -64,6 +64,18 @@ module PInt = struct
 end
 
 module PList = struct
+  let head lc (v: value) : value =
+    match v with
+      | V_list [] -> fault (Invalid_argument (lc, "List.head", "0-length list"))
+      | V_list (h :: _) -> h
+      | _ -> fault (Type_error (lc, "List.head", 1, vtype_of v, T_list T_empty))
+
+  let tail lc (v: value) : value =
+    match v with
+      | V_list [] -> fault (Invalid_argument (lc, "List.tail", "0-length list"))
+      | V_list (h :: _) -> h
+      | _ -> fault (Type_error (lc, "List.tail", 1, vtype_of v, T_list T_empty))
+
   let length lc (v: value) : value =
     match v with
       | V_list l -> V_int (Int64.of_int (List.length l))

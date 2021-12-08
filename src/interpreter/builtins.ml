@@ -48,6 +48,13 @@ let int_mul lc (l: value) (r: value) : value =
     | V_int _, _       -> fault (Type_error (lc, "*", 2, vtype_of r, T_int))
     | _, _             -> fault (Type_error (lc, "*", 1, vtype_of l, T_int))
 
+let int_mod lc (l: value) (r: value) : value =
+  match l, r with
+    | V_int _, V_int r when r = Int64.zero -> fault (Division_by_zero lc)
+    | V_int l, V_int r -> V_int (Int64.rem l r)
+    | V_int _, _       -> fault (Type_error (lc, "/", 2, vtype_of r, T_int))
+    | _, _             -> fault (Type_error (lc, "/", 1, vtype_of l, T_int))
+
 let int_div lc (l: value) (r: value) : value =
   match l, r with
     | V_int _, V_int r when r = Int64.zero -> fault (Division_by_zero lc)

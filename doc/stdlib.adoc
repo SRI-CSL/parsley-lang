@@ -140,6 +140,16 @@ Double module omitted for now
 |===
 | Value | Signature | Description
 
+| `head`
+| `['a] -> 'a`
+| head element of list;
+throws an exception if list is empty
+
+| `tail`
+| `['a] -> ['a]`
+| tail of list;
+throws an exception if list is empty
+
 | `length`
 | `['a] -> int`
 | list length
