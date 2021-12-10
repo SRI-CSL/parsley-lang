@@ -64,6 +64,14 @@ let rec print_av av =
         pp_string
           (Printf.sprintf "%s.%s" (Location.value m) (Location.value i))
 
+let print_fv fv =
+  match fv.fv with
+  | FV_var v ->
+      pp_string (string_of_var v)
+  | FV_mod_member (m, i) ->
+      pp_string
+        (Printf.sprintf "%s.%s" (Location.value m) (Location.value i))
+
 let print_pat p =
   match p.apat with
     | AP_wildcard ->
@@ -93,7 +101,7 @@ and print_aexp e =
         print_av v
     | AE_apply (f, vs) ->
         pp_string "(";
-        print_av f;
+        print_fv f;
         pp_string " ";
         AstPrinter.print_list " " print_av vs;
         pp_string ")"

@@ -31,6 +31,11 @@ let mk_mod_member (m: string) (v: string) t l =
   let v = Location.mk_loc_val v l in
   make_av (AV_mod_member (m, v)) t l
 
+let mk_mod_func (m: string) (v: string) t l =
+  let m = Location.mk_loc_val m l in
+  let v = Location.mk_loc_val v l in
+  make_fv (FV_mod_member (m, v)) t l
+
 let get_typ ctx name =
   let typ = Ast.TName name in
   TypingEnvironment.typcon_variable ctx.ctx_tenv typ
@@ -477,7 +482,7 @@ let rec lower_rule_elem
                 (* ensure the list is reversed:
                    vr := List.rev vr *)
                 let ftyp = mk_func_type ctx typ typ in
-                let f = mk_mod_member "List" "rev" ftyp loc in
+                let f = mk_mod_func "List" "rev" ftyp loc in
                 let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
                 add_gnode b (N_assign (vr, false, l)) typ loc in
         ctx, b
@@ -570,7 +575,7 @@ let rec lower_rule_elem
                 (* ensure the list is reversed:
                    vr := List.rev vr *)
                 let ftyp = mk_func_type ctx typ typ in
-                let f = mk_mod_member "List" "rev" ftyp loc in
+                let f = mk_mod_func "List" "rev" ftyp loc in
                 let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
                 add_gnode b (N_assign (vr, false, l)) typ loc in
         ctx, b
@@ -809,14 +814,14 @@ let rec lower_rule_elem
               (* todo: use the _element type_ of the list type in
                  v.v_typ where appropriate below *)
               let ftyp = mk_func_type ctx v.v_typ v.v_typ in
-              let f  = mk_mod_member "List" "head" ftyp v.v_loc in
+              let f  = mk_mod_func "List" "head" ftyp v.v_loc in
               let hd =
                 make_ae (AE_apply (f, [av_of_var v])) v.v_typ v.v_loc in
               let vv, venv = fresh_var ctx.ctx_venv v.v_typ v.v_loc in
               let nd = N_assign (vv, true, hd) in
               let b  = add_gnode b nd v.v_typ v.v_loc in
               (* update the list: v := List.tail(v) *)
-              let f  = mk_mod_member "List" "tail" ftyp v.v_loc in
+              let f  = mk_mod_func "List" "tail" ftyp v.v_loc in
               let tl =
                 make_ae (AE_apply (f, [av_of_var vl])) v.v_typ v.v_loc in
               let nd = N_assign (v, true, tl) in
@@ -893,7 +898,7 @@ let rec lower_rule_elem
             | Some vr ->
                 (* vr := List.rev vr *)
                 let ftyp = mk_func_type ctx typ typ in
-                let f = mk_mod_member "List" "rev" ftyp loc in
+                let f = mk_mod_func "List" "rev" ftyp loc in
                 let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
                 add_gnode b (N_assign (vr, false, l)) typ loc in
         ctx, b
@@ -941,14 +946,14 @@ let rec lower_rule_elem
         (* todo: use the _element type_ of the list type in e.expr_aux
            where appropriate below *)
         let ftyp = mk_func_type ctx e.expr_aux e.expr_aux in
-        let f = mk_mod_member "List" "head" ftyp e.expr_loc in
+        let f = mk_mod_func "List" "head" ftyp e.expr_loc in
         let hd =
           make_ae (AE_apply (f, [av_of_var vl])) e.expr_aux e.expr_loc in
         let vv, venv = fresh_var venv e.expr_aux e.expr_loc in
         let nd = N_assign (vv, true, hd) in
         let b  = add_gnode b nd e.expr_aux e.expr_loc in
         (* update the remaining views: vl = List.tail(vl) *)
-        let f = mk_mod_member "List" "tail" ftyp e.expr_loc in
+        let f = mk_mod_func "List" "tail" ftyp e.expr_loc in
         let tl =
           make_ae (AE_apply (f, [av_of_var vl])) e.expr_aux e.expr_loc in
         let nd = N_assign (vl, true, tl) in
@@ -1005,7 +1010,7 @@ let rec lower_rule_elem
             | Some vr ->
                 (* vr := List.rev vr *)
                 let ftyp = mk_func_type ctx typ typ in
-                let f = mk_mod_member "List" "rev" ftyp loc in
+                let f = mk_mod_func "List" "rev" ftyp loc in
                 let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
                 add_gnode b (N_assign (vr, false, l)) typ loc in
         ctx, b

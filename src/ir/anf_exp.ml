@@ -107,6 +107,14 @@ and normalize_exp tenv venv (e: exp) : aexp * VEnv.t =
                  | S_let (v, ae, av) -> (v, ae) :: binds, av :: vs
               ), venv
             ) ((binds, []), venv) es in
+        let fv =
+          let wrap f =
+            {fv = f; fv_typ = fv.av_typ; fv_loc = fv.av_loc} in
+          (* narrow the value to the possible function values *)
+          match fv.av with
+            | AV_var v -> wrap (FV_var v)
+            | AV_mod_member (m, c) -> wrap (FV_mod_member (m, c))
+            | _ -> assert false in
         let ae = wrap (AE_apply (fv, List.rev vs)) in
         let ae = make_lets binds ae in
         ae, venv

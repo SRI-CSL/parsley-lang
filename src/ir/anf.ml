@@ -59,6 +59,16 @@ and av =
    av_typ: typ;
    av_loc: Location.t}
 
+(* values in function position of an application *)
+type fv_desc =
+  | FV_var of varid
+  | FV_mod_member of Ast.modident * Ast.ident
+
+and fv =
+  {fv: fv_desc;
+   fv_typ: typ;
+   fv_loc: Location.t}
+
 (* constructors for variables and values *)
 
 let make_var v t l =
@@ -72,9 +82,19 @@ let make_av v t l =
    av_loc = l}
 
 let av_of_var (v: var) : av =
-  {av = AV_var v.v;
+  {av     = AV_var v.v;
    av_typ = v.v_typ;
    av_loc = v.v_loc}
+
+let make_fv v t l =
+  {fv     = v;
+   fv_typ = t;
+   fv_loc = l}
+
+let fv_of_var (v: var) : fv =
+  {fv     = FV_var v.v;
+   fv_typ = v.v_typ;
+   fv_loc = v.v_loc}
 
 (* pattern tags for switches *)
 type apat_desc =
@@ -105,7 +125,7 @@ let sprint_occ occ =
  *)
 type aexp_desc =
   | AE_val of av
-  | AE_apply of av * av list
+  | AE_apply of fv * av list
   | AE_unop of Ast.unop * av
   | AE_binop of Ast.binop * av * av
   | AE_recop of Ast.ident * Ast.ident * av
