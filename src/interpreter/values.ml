@@ -59,6 +59,7 @@ type value =
   | V_list of value list
   | V_tuple of value list
   | V_constr of (string * string) * value list
+  | V_record of (string * value) list
   (* module types *)
   | V_view of view
   | V_set of value list
@@ -80,11 +81,14 @@ type vtype =
   | T_list of vtype
   | T_tuple of vtype list
   | T_adt of (string * string) * vtype list
+  | T_record of (string * vtype) list
   | T_view
   | T_set of vtype
   | T_map of vtype * vtype
 
 let rec string_of_vtype t =
+  let string_of_field (f, ft) =
+    Printf.sprintf "%s: %s" f (string_of_vtype ft) in
   match t with
     | T_empty     -> "unknown"  (* should never get here; assert? *)
     | T_unit      -> "unit"
@@ -108,6 +112,8 @@ let rec string_of_vtype t =
                        ^ ")"
     | T_adt ((t', c), ts) -> Printf.sprintf "%s::%s(%s)" t' c
                                (String.concat ", " (List.map string_of_vtype ts))
+    | T_record fs   -> Printf.sprintf "{%s}"
+                         (String.concat ", " (List.map string_of_field fs))
     | T_view        -> "view"
 
     | T_set T_empty -> "set<>"
@@ -120,6 +126,7 @@ let rec string_of_vtype t =
 
 (* the runtime type of a value *)
 let rec vtype_of v =
+  let ftype_of (f, fv) = f, vtype_of fv in
   match v with
     | V_unit           -> T_unit
     | V_bool _         -> T_bool
@@ -135,6 +142,7 @@ let rec vtype_of v =
     | V_list (e :: _)  -> T_list (vtype_of e)
     | V_tuple vs       -> T_tuple (List.map vtype_of vs)
     | V_constr (c, vs) -> T_adt (c, List.map vtype_of vs)
+    | V_record fs      -> T_record (List.map ftype_of fs)
     | V_view _         -> T_view
     | V_set []         -> T_set T_empty
     | V_set (e :: _)   -> T_set (vtype_of e)
