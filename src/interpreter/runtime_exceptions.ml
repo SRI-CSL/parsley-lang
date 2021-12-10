@@ -18,8 +18,24 @@
 open Parsing
 open Values
 
+let msg m loc =
+  Printf.sprintf m (Location.str_of_loc loc)
+
+module Internal_errors = struct
+  (* These errors indicate internal bugs. *)
+  type error =
+    | Type_error of Location.t * string * int * vtype * vtype
+    | Not_implemented of Location.t * string
+
+  let error_msg = function
+    | Type_error (l, op, arg, r, e) ->
+        msg "%s:\n Invalid type for '%s': found %s for argument %d, expected %s."
+          l op (string_of_vtype r) arg (string_of_vtype e)
+    | Not_implemented (l, s) ->
+        msg "%s:\n Not implemented error: '%s'." l s
+end
+
 type error =
-  | Type_error of Location.t * string * int * vtype * vtype
   | Division_by_zero of Location.t
   | Length_mismatch of Location.t * string * int * int
   | Index_error of Location.t * int * int
@@ -27,21 +43,17 @@ type error =
   | Invalid_argument of Location.t * string * string
   | Overflow of Location.t * string
   | Out_of_bounds of Location.t * string * string
-  | Internal_error of Location.t * string
-
+  | Internal of Internal_errors.error
 
 exception Runtime_exception of error
 
 let fault e =
   raise (Runtime_exception e)
 
-let msg m loc =
-  Printf.sprintf m (Location.str_of_loc loc)
+let internal_error e =
+  raise (Runtime_exception (Internal e))
 
 let error_msg = function
-  | Type_error (l, op, arg, r, e) ->
-      msg "%s:\n Invalid type for '%s': found %s for argument %d, expected %s."
-        l op (string_of_vtype r) arg (string_of_vtype e)
   | Division_by_zero l ->
       msg "%s:\n Division by zero." l
   | Length_mismatch (l, op, ll, lr) ->
@@ -58,5 +70,5 @@ let error_msg = function
       msg "%s:\n Operation '%s' overflowed." l op
   | Out_of_bounds (l, op, m) ->
       msg "%s:\n Operation '%s' went out of bounds: %s." l op m
-  | Internal_error (l, s) ->
-      msg "%s:\n Internal error: '%s'." l s
+  | Internal e ->
+      Internal_errors.error_msg e

@@ -17,107 +17,114 @@
 
 open Values
 open Runtime_exceptions
+open Internal_errors
 
 (* builtin operators *)
 
 let int_uminus lc (v: value) : value =
   match v with
     | V_int i -> V_int (Int64.neg i)
-    | _ -> fault (Type_error (lc, "uminus", 1, vtype_of v, T_int))
+    | _ -> internal_error (Type_error (lc, "uminus", 1, vtype_of v, T_int))
 
 let bool_not lc (v: value) : value =
   match v with
     | V_bool b -> V_bool (not b)
-    | _ -> fault (Type_error (lc, "not", 1, vtype_of v, T_bool))
+    | _ -> internal_error (Type_error (lc, "not", 1, vtype_of v, T_bool))
 
 let int_plus lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_int (Int64.add l r)
-    | V_int _, _       -> fault (Type_error (lc, "+", 2, vtype_of r, T_int))
-    | _, _             -> fault (Type_error (lc, "+", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error (Type_error (lc, "+", 2, vtype_of r, T_int))
+    | _, _             -> internal_error (Type_error (lc, "+", 1, vtype_of l, T_int))
 
 let int_minus lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_int (Int64.sub l r)
-    | V_int _, _       -> fault (Type_error (lc, "-", 2, vtype_of r, T_int))
-    | _, _             -> fault (Type_error (lc, "-", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error (Type_error (lc, "-", 2, vtype_of r, T_int))
+    | _, _             -> internal_error (Type_error (lc, "-", 1, vtype_of l, T_int))
 
 let int_mul lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_int (Int64.mul l r)
-    | V_int _, _       -> fault (Type_error (lc, "*", 2, vtype_of r, T_int))
-    | _, _             -> fault (Type_error (lc, "*", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error (Type_error (lc, "*", 2, vtype_of r, T_int))
+    | _, _             -> internal_error (Type_error (lc, "*", 1, vtype_of l, T_int))
 
 let int_mod lc (l: value) (r: value) : value =
   match l, r with
     | V_int _, V_int r when r = Int64.zero -> fault (Division_by_zero lc)
     | V_int l, V_int r -> V_int (Int64.rem l r)
-    | V_int _, _       -> fault (Type_error (lc, "/", 2, vtype_of r, T_int))
-    | _, _             -> fault (Type_error (lc, "/", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error (Type_error (lc, "%", 2, vtype_of r, T_int))
+    | _, _             -> internal_error (Type_error (lc, "%", 1, vtype_of l, T_int))
 
 let int_div lc (l: value) (r: value) : value =
   match l, r with
     | V_int _, V_int r when r = Int64.zero -> fault (Division_by_zero lc)
     | V_int l, V_int r -> V_int (Int64.div l r)
-    | V_int _, _       -> fault (Type_error (lc, "/", 2, vtype_of r, T_int))
-    | _, _             -> fault (Type_error (lc, "/", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error (Type_error (lc, "/", 2, vtype_of r, T_int))
+    | _, _             -> internal_error (Type_error (lc, "/", 1, vtype_of l, T_int))
 
 let less_than lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_bool (Int64.compare l r < 0)
-    | V_int _, _       -> fault (Type_error (lc, "<", 2, vtype_of r, T_int))
-    | _, _             -> fault (Type_error (lc, "<", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error (Type_error (lc, "<", 2, vtype_of r, T_int))
+    | _, _             -> internal_error (Type_error (lc, "<", 1, vtype_of l, T_int))
 
 let greater_than lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_bool (Int64.compare l r > 0)
-    | V_int _, _       -> fault (Type_error (lc, ">", 2, vtype_of r, T_int))
-    | _, _             -> fault (Type_error (lc, ">", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error (Type_error (lc, ">", 2, vtype_of r, T_int))
+    | _, _             -> internal_error (Type_error (lc, ">", 1, vtype_of l, T_int))
 
 let le_than lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_bool (Int64.compare l r <= 0)
-    | V_int _, _       -> fault (Type_error (lc, "<=", 2, vtype_of r, T_int))
-    | _, _             -> fault (Type_error (lc, "<=", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error (Type_error (lc, "<=", 2, vtype_of r, T_int))
+    | _, _             -> internal_error (Type_error (lc, "<=", 1, vtype_of l, T_int))
 
 let ge_than lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_bool (Int64.compare l r >= 0)
-    | V_int _, _       -> fault (Type_error (lc, ">=", 2, vtype_of r, T_int))
-    | _, _             -> fault (Type_error (lc, ">=", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error (Type_error (lc, ">=", 2, vtype_of r, T_int))
+    | _, _             -> internal_error (Type_error (lc, ">=", 1, vtype_of l, T_int))
 
 let bool_and lc (l: value) (r: value) : value =
   match l, r with
     | V_bool l, V_bool r -> V_bool (l && r)
-    | V_bool _, _        -> fault (Type_error (lc, "&&", 2, vtype_of r, T_bool))
-    | _, _               -> fault (Type_error (lc, "&&", 1, vtype_of l, T_bool))
+    | V_bool _, _        -> internal_error (Type_error (lc, "&&", 2, vtype_of r, T_bool))
+    | _, _               -> internal_error (Type_error (lc, "&&", 1, vtype_of l, T_bool))
 
 let bool_or lc (l: value) (r: value) : value =
   match l, r with
     | V_bool l, V_bool r -> V_bool (l || r)
-    | V_bool _, _        -> fault (Type_error (lc, "||", 2, vtype_of r, T_bool))
-    | _, _               -> fault (Type_error (lc, "||", 1, vtype_of l, T_bool))
+    | V_bool _, _        -> internal_error (Type_error (lc, "||", 2, vtype_of r, T_bool))
+    | _, _               -> internal_error (Type_error (lc, "||", 1, vtype_of l, T_bool))
 
 let bv_not lc (v: value) : value =
   match v with
     | V_bitvector bv -> V_bitvector (List.map not bv)
-    | _              -> fault (Type_error (lc, "~", 1, vtype_of v, T_bitvector))
+    | _              -> internal_error (Type_error (lc, "~", 1, vtype_of v, T_bitvector))
 
 let bv_or lc (l: value) (r: value) : value =
   match l, r with
     | V_bitvector l, V_bitvector r when List.length l != List.length r ->
         fault (Length_mismatch (lc, "|_b", List.length l, List.length r))
-    | V_bitvector l, V_bitvector r -> V_bitvector (List.map2 (||) l r)
-    | V_bitvector _, _             -> fault (Type_error (lc, "|_b", 2, vtype_of r, T_bitvector))
-    | _, _                         -> fault (Type_error (lc, "|_b", 1, vtype_of l, T_bitvector))
+    | V_bitvector l, V_bitvector r ->
+        V_bitvector (List.map2 (||) l r)
+    | V_bitvector _, _ ->
+        internal_error (Type_error (lc, "|_b", 2, vtype_of r, T_bitvector))
+    | _, _ ->
+        internal_error (Type_error (lc, "|_b", 1, vtype_of l, T_bitvector))
 
 let bv_and lc (l: value) (r: value) : value =
   match l, r with
     | V_bitvector l, V_bitvector r when List.length l != List.length r ->
         fault (Length_mismatch (lc, "&_b", List.length l, List.length r))
-    | V_bitvector l, V_bitvector r -> V_bitvector (List.map2 (&&) l r)
-    | V_bitvector _, _             -> fault (Type_error (lc, "&_b", 2, vtype_of r, T_bitvector))
-    | _, _                         -> fault (Type_error (lc, "&_b", 1, vtype_of l, T_bitvector))
+    | V_bitvector l, V_bitvector r ->
+        V_bitvector (List.map2 (&&) l r)
+    | V_bitvector _, _ ->
+        internal_error (Type_error (lc, "&_b", 2, vtype_of r, T_bitvector))
+    | _, _ ->
+        internal_error (Type_error (lc, "&_b", 1, vtype_of l, T_bitvector))
 
 (* pure boolean helpers for equality and inequality *)
 let rec eq lc op l r =
@@ -138,7 +145,7 @@ let rec eq lc op l r =
 
     | V_constr ((tl, cl), ls), V_constr ((tr, cr), rs) ->
         if tl != tr
-        then fault (Type_error (lc, op, 2, vtype_of l, vtype_of r))
+        then internal_error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
         else if cl != cr
         then false
         else eqs lc op true ls rs
@@ -159,7 +166,7 @@ let rec eq lc op l r =
         let sls, srs = srt ls, srt rs in
         eqm lc op true sls srs
     | _, _  ->
-        fault (Type_error (lc, op, 2, vtype_of l, vtype_of r))
+        internal_error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
 
 and eqs lc op acc ls rs =
   (* we don't short circuit to catch type errors, though this won't
@@ -200,6 +207,6 @@ let list_index lc (l: value) (i: value) : value =
         then List.nth ls i
         else fault (Index_error (lc, i, len))
     | V_list _, _ ->
-        fault (Type_error (lc, "[]", 2, vtype_of i, T_int))
+        internal_error (Type_error (lc, "[]", 2, vtype_of i, T_int))
     | _, _ ->
-        fault (Type_error (lc, "[]", 1, vtype_of l, T_list T_empty))
+        internal_error (Type_error (lc, "[]", 1, vtype_of l, T_list T_empty))

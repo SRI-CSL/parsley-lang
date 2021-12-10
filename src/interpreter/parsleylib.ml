@@ -19,6 +19,7 @@
 
 open Values
 open Runtime_exceptions
+open Internal_errors
 
 (* Please ensure that the modules and functions below follow the order
    in typeAlgebra.ml.  The modules use the 'P' prefix to avoid
@@ -28,14 +29,14 @@ module PInt = struct
   let of_byte lc (v: value) : value =
     match v with
       | V_char c -> V_int (Int64.of_int (Char.code c))
-      | _ -> fault (Type_error (lc, "Int.of_byte", 1, vtype_of v, T_byte))
+      | _ -> internal_error (Type_error (lc, "Int.of_byte", 1, vtype_of v, T_byte))
 
   let of_string lc (v: value) : value =
     match v with
       | V_string s -> (match int_of_string_opt s with
                          | Some i -> V_option (Some (V_int (Int64.of_int i)))
                          | None   -> V_option None)
-      | _ -> fault (Type_error (lc, "Int.of_string", 1, vtype_of v, T_string))
+      | _ -> internal_error (Type_error (lc, "Int.of_string", 1, vtype_of v, T_string))
 
   let of_bytes lc (v: value) : value =
     let err =
@@ -43,7 +44,7 @@ module PInt = struct
     let conv v =
       match v with
         | V_char c -> c
-        | _ -> fault err in
+        | _ -> internal_error err in
     match v with
       | V_list l ->
           let cs = List.map conv l in
@@ -51,7 +52,7 @@ module PInt = struct
           List.iter (Buffer.add_char buf) cs;
           of_string lc (V_string (Buffer.contents buf))
       | _ ->
-          fault err
+          internal_error err
 
   let of_bytes_unsafe lc (v: value) : value =
     match of_bytes lc v with
@@ -68,43 +69,43 @@ module PList = struct
     match v with
       | V_list [] -> fault (Invalid_argument (lc, "List.head", "0-length list"))
       | V_list (h :: _) -> h
-      | _ -> fault (Type_error (lc, "List.head", 1, vtype_of v, T_list T_empty))
+      | _ -> internal_error (Type_error (lc, "List.head", 1, vtype_of v, T_list T_empty))
 
   let tail lc (v: value) : value =
     match v with
       | V_list [] -> fault (Invalid_argument (lc, "List.tail", "0-length list"))
       | V_list (h :: _) -> h
-      | _ -> fault (Type_error (lc, "List.tail", 1, vtype_of v, T_list T_empty))
+      | _ -> internal_error (Type_error (lc, "List.tail", 1, vtype_of v, T_list T_empty))
 
   let length lc (v: value) : value =
     match v with
       | V_list l -> V_int (Int64.of_int (List.length l))
-      | _ -> fault (Type_error (lc, "List.length", 1, vtype_of v, T_list T_empty))
+      | _ -> internal_error (Type_error (lc, "List.length", 1, vtype_of v, T_list T_empty))
 
   let concat lc (l: value) (r: value) : value =
     match l, r with
       | V_list l, V_list r ->
           V_list (l @ r)
       | V_list _, _ ->
-          fault (Type_error (lc, "List.concat", 2, vtype_of r, T_list T_empty))
+          internal_error (Type_error (lc, "List.concat", 2, vtype_of r, T_list T_empty))
       | _, _ ->
-          fault (Type_error (lc, "List.concat", 1, vtype_of l, T_list T_empty))
+          internal_error (Type_error (lc, "List.concat", 1, vtype_of l, T_list T_empty))
 
   let flatten lc (v: value) : value =
     let exp_t = T_list (T_list T_empty) in
     let err = Type_error (lc, "List.flatten", 1, vtype_of v, exp_t) in
     let conv e = match e with
         | V_list e -> e
-        | _ -> fault err in
+        | _ -> internal_error err in
     match v with
       | V_list l -> let l' = List.map conv l in
                     V_list (List.concat l')
-      | _ -> fault err
+      | _ -> internal_error err
 
   let rev lc (v: value) : value =
     match v with
       | V_list l -> V_list (List.rev l)
-      | _ -> fault (Type_error (lc, "List.rev", 1, vtype_of v, T_list T_empty))
+      | _ -> internal_error (Type_error (lc, "List.rev", 1, vtype_of v, T_list T_empty))
 
   let repl lc (v: value) (i: value) : value =
     match i with
@@ -115,14 +116,10 @@ module PList = struct
           let l = List.init (Int64.to_int i) (fun _ -> v) in
           V_list l
       | _ ->
-          fault (Type_error (lc, "List.repl", 2, vtype_of i, T_int))
+          internal_error (Type_error (lc, "List.repl", 2, vtype_of i, T_int))
 
-  (* Higher order functions need to be handled directly by the interpreter. *)
-  let map lc _ : value =
-    fault (Internal_error (lc, "List.map"))
-
-  let map2 lc _ : value =
-    fault (Internal_error (lc, "List.map2"))
+  (* Higher order functions (e.g. `map` and `map2`) are implemented
+     via macro-like code-generation. *)
 end
 
 module PString = struct
@@ -134,16 +131,16 @@ module PString = struct
       | V_string l, V_string r ->
           V_string (l ^ r)
       | V_string _, _ ->
-          fault (Type_error (lc, "String.concat", 2, vtype_of r, T_string))
+          internal_error (Type_error (lc, "String.concat", 2, vtype_of r, T_string))
       | _, _ ->
-          fault (Type_error (lc, "String.concat", 1, vtype_of l, T_string))
+          internal_error (Type_error (lc, "String.concat", 1, vtype_of l, T_string))
 
   let to_int lc (v: value) : value =
     match v with
       | V_string s -> (match int_of_string_opt s with
                          | Some i -> V_option (Some (V_int (Int64.of_int i)))
                          | None   -> V_option None)
-      | _ -> fault (Type_error (lc, "String.to_int", 1, vtype_of v, T_string))
+      | _ -> internal_error (Type_error (lc, "String.to_int", 1, vtype_of v, T_string))
 
   let to_bytes lc (v: value) : value =
     match v with
@@ -153,7 +150,7 @@ module PString = struct
             if i < 0 then acc else mk (V_char s.[i] :: acc) (i - 1) in
           V_list (mk [] (len - 1))
       | _ ->
-          fault (Type_error (lc, "String.to_bytes", 1, vtype_of v, T_string))
+          internal_error (Type_error (lc, "String.to_bytes", 1, vtype_of v, T_string))
 
   (* no character set support yet, so bytes and characters are currently equivalent *)
 
@@ -163,7 +160,7 @@ module PString = struct
     let conv v =
       match v with
         | V_char c -> c
-        | _ -> fault err in
+        | _ -> internal_error err in
     match v with
       | V_list l ->
           let l = List.map conv l in
@@ -171,7 +168,7 @@ module PString = struct
           List.iter (Buffer.add_char buf) l;
           V_option (Some (V_string (Buffer.contents buf)))
       | _ ->
-          fault err
+          internal_error err
 
   let of_bytes_unsafe lc (v: value) : value =
     match of_bytes lc v with
@@ -187,7 +184,7 @@ module PString = struct
       | V_string _ ->
           v
       | _ ->
-          fault (Type_error (lc, "String.of_literal", 1, vtype_of v, T_string))
+          internal_error (Type_error (lc, "String.of_literal", 1, vtype_of v, T_string))
 end
 
 module PBits = struct
@@ -206,7 +203,7 @@ module PBits = struct
               ) (Int64.zero, 0) (List.rev bs) in
           V_int i
       | _ ->
-          fault (Type_error (lc, "Bits.to_uint", 1, vtype_of v, T_bitvector))
+          internal_error (Type_error (lc, "Bits.to_uint", 1, vtype_of v, T_bitvector))
 
   let to_int lc (v: value) : value =
     match v with
@@ -227,17 +224,17 @@ module PBits = struct
           V_int (if s then Int64.neg i else i)
 
       | _ ->
-          fault (Type_error (lc, "Bits.to_int", 1, vtype_of v, T_bitvector))
+          internal_error (Type_error (lc, "Bits.to_int", 1, vtype_of v, T_bitvector))
 
   let to_bool lc (v: value) : value =
     match v with
       | V_bit b -> V_bool b
-      | _ -> fault (Type_error (lc, "Bits.to_bool", 1, vtype_of v, T_bit))
+      | _ -> internal_error (Type_error (lc, "Bits.to_bool", 1, vtype_of v, T_bit))
 
   let of_bool lc (v: value) : value =
     match v with
       | V_bool b -> V_bit b
-      | _ -> fault (Type_error (lc, "Bits.of_bool", 1, vtype_of v, T_bool))
+      | _ -> internal_error (Type_error (lc, "Bits.of_bool", 1, vtype_of v, T_bool))
 
   let to_bit lc (v: value) : value =
     match v with
@@ -247,12 +244,12 @@ module PBits = struct
           let m = Printf.sprintf "%d-length bitvector" (List.length bs) in
           fault (Invalid_argument (lc, "Bits.to_bit", m))
       | _ ->
-          fault (Type_error (lc, "Bits.to_bit", 1, vtype_of v, T_bitvector))
+          internal_error (Type_error (lc, "Bits.to_bit", 1, vtype_of v, T_bitvector))
 
   let of_bit lc (v: value) : value =
     match v with
       | V_bit b -> V_bitvector [b]
-      | _ -> fault (Type_error (lc, "Bits.of_bit", 1, vtype_of v, T_bit))
+      | _ -> internal_error (Type_error (lc, "Bits.of_bit", 1, vtype_of v, T_bit))
 
   let mk_bv lc op len v =
     (* TODO: resource bound check on len *)
@@ -265,14 +262,14 @@ module PBits = struct
       | V_int i ->
           mk_bv lc "Bits.ones" i true
       | _ ->
-          fault (Type_error (lc, "Bits.ones", 1, vtype_of v, T_int))
+          internal_error (Type_error (lc, "Bits.ones", 1, vtype_of v, T_int))
 
   let zeros lc (v: value) : value =
     match v with
       | V_int i ->
           mk_bv lc "Bits.zeros" i false
       | _ ->
-          fault (Type_error (lc, "Bits.zeros", 1, vtype_of v, T_int))
+          internal_error (Type_error (lc, "Bits.zeros", 1, vtype_of v, T_int))
 end
 
 module VSet = Set.Make(struct type t = value
@@ -293,11 +290,11 @@ module PSet = struct
           if List.exists (fun se -> vtype_of se != setyp) vs
           then assert false;
           if setyp != etyp
-          then fault (Type_error (lc, "Set.add", 2, etyp, setyp));
+          then internal_error (Type_error (lc, "Set.add", 2, etyp, setyp));
           let set = VSet.of_list vs in
           V_set (VSet.elements (VSet.add e set))
       | _ ->
-          fault (Type_error (lc, "Set.add", 1, vtype_of v, T_set T_empty))
+          internal_error (Type_error (lc, "Set.add", 1, vtype_of v, T_set T_empty))
 
   let mem lc (v: value) (e: value) : value =
     match v with
@@ -310,11 +307,11 @@ module PSet = struct
           if List.exists (fun se -> vtype_of se != setyp) vs
           then assert false;
           if setyp != etyp
-          then fault (Type_error (lc, "Set.mem", 2, etyp, setyp));
+          then internal_error (Type_error (lc, "Set.mem", 2, etyp, setyp));
           let set = VSet.of_list vs in
           V_bool (VSet.mem e set)
       | _ ->
-          fault (Type_error (lc, "Set.mem", 1, vtype_of v, T_set T_empty))
+          internal_error (Type_error (lc, "Set.mem", 1, vtype_of v, T_set T_empty))
 end
 
 module VMap = Map.Make(struct type t = value
@@ -338,15 +335,15 @@ module PMap = struct
           if List.exists (fun ve -> vtype_of ve != mvtyp) vs
           then assert false;
           if mktyp != ktyp
-          then fault (Type_error (lc, "Map.add", 2, ktyp, mktyp));
+          then internal_error (Type_error (lc, "Map.add", 2, ktyp, mktyp));
           if mvtyp != vtyp
-          then fault (Type_error (lc, "Map.add", 3, vtyp, mvtyp));
+          then internal_error (Type_error (lc, "Map.add", 3, vtyp, mvtyp));
           let map = VMap.of_seq (List.to_seq kvs) in
           let map = VMap.add k v map in
           V_map (List.of_seq (VMap.to_seq map))
       | _ ->
           let exp_t = T_map (vtype_of k, vtype_of v) in
-          fault (Type_error (lc, "Map.add", 1, vtype_of m, exp_t))
+          internal_error (Type_error (lc, "Map.add", 1, vtype_of m, exp_t))
 
   let mem lc (m: value) (k: value) : value =
     match m with
@@ -362,12 +359,12 @@ module PMap = struct
           if List.exists (fun ve -> vtype_of ve != mvtyp) vs
           then assert false;
           if mktyp != ktyp
-          then fault (Type_error (lc, "Map.mem", 2, ktyp, mktyp));
+          then internal_error (Type_error (lc, "Map.mem", 2, ktyp, mktyp));
           let map = VMap.of_seq (List.to_seq kvs) in
           V_bool (VMap.mem k map)
       | _ ->
           let exp_t = T_map (vtype_of k, T_empty) in
-          fault (Type_error (lc, "Map.mem", 1, vtype_of m, exp_t))
+          internal_error (Type_error (lc, "Map.mem", 1, vtype_of m, exp_t))
 
   let find lc (m: value) (k: value) : value =
     match m with
@@ -383,12 +380,12 @@ module PMap = struct
           if List.exists (fun ve -> vtype_of ve != mvtyp) vs
           then assert false;
           if mktyp != ktyp
-          then fault (Type_error (lc, "Map.find", 2, ktyp, mktyp));
+          then internal_error (Type_error (lc, "Map.find", 2, ktyp, mktyp));
           let map = VMap.of_seq (List.to_seq kvs) in
           V_option (VMap.find_opt k map)
       | _ ->
           let exp_t = T_map (vtype_of k, T_empty) in
-          fault (Type_error (lc, "Map.find", 1, vtype_of m, exp_t))
+          internal_error (Type_error (lc, "Map.find", 1, vtype_of m, exp_t))
 
   let find_unsafe lc (m: value) (k: value) : value =
     match find lc m k with
@@ -429,11 +426,11 @@ module PView = struct
                                   vu_end   = v.vu_ofs + o + l}
             end
       | V_view _, V_int _, _ ->
-          fault (Type_error (lc, "View.restrict", 3, vtype_of l, T_int))
+          internal_error (Type_error (lc, "View.restrict", 3, vtype_of l, T_int))
       | V_view _, _, _ ->
-          fault (Type_error (lc, "View.restrict", 2, vtype_of o, T_int))
+          internal_error (Type_error (lc, "View.restrict", 2, vtype_of o, T_int))
       | _, _, _ ->
-          fault (Type_error (lc, "View.restrict", 1, vtype_of v, T_view))
+          internal_error (Type_error (lc, "View.restrict", 1, vtype_of v, T_view))
 
   let restrict_from lc (v: value) (o: value) : value =
     match v, o with
@@ -452,9 +449,9 @@ module PView = struct
                                   vu_ofs   = 0}
             end
       | V_view _, _ ->
-          fault (Type_error (lc, "View.restrict_from", 2, vtype_of o, T_int))
+          internal_error (Type_error (lc, "View.restrict_from", 2, vtype_of o, T_int))
       | _, _ ->
-          fault (Type_error (lc, "View.restrict_from", 1, vtype_of v, T_view))
+          internal_error (Type_error (lc, "View.restrict_from", 1, vtype_of v, T_view))
 
   let clone lc (v: value) : value =
     match v with
@@ -466,16 +463,16 @@ module PView = struct
                   vu_ofs    = v.vu_ofs;
                   vu_end    = v.vu_end}
       | _ ->
-          fault (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
+          internal_error (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
 
   (* Functions that access interpreter state need to be handled
      directly by the interpreter *)
   let get_base lc _ : value =
-    fault (Internal_error (lc, "View.get_base"))
+    internal_error (Not_implemented (lc, "View.get_base"))
 
   let get_current lc _ : value =
-    fault (Internal_error (lc, "View.get_current"))
+    internal_error (Not_implemented (lc, "View.get_current"))
 
   let get_current_cursor lc _ : value =
-    fault (Internal_error (lc, "View.get_current_cursor"))
+    internal_error (Not_implemented (lc, "View.get_current_cursor"))
 end
