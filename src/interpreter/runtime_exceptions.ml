@@ -32,6 +32,7 @@ module Internal_errors = struct
     | No_mod_value of Ast.modident * Ast.ident
     | Bitrange_index of Location.t * int * int
     | No_field of Location.t * string
+    | Bitfield_length_mismatch of Location.t * string * string * int * int
 
   let error_msg = function
     | Type_error (l, op, arg, r, e) ->
@@ -51,8 +52,10 @@ module Internal_errors = struct
         msg "%s:\n INTERNAL ERROR: bitrange index %d is out of range for list of length %d."
           l idx len
     | No_field (l, f) ->
-        msg "%s:\n INTERNAL ERROR: record does not have field `%s'."
-          l f
+        msg "%s:\n INTERNAL ERROR: record does not have field `%s'." l f
+    | Bitfield_length_mismatch (lc, bf, f, ex, fd) ->
+        msg "%s:\n INTERNAL ERROR: field `%s' of bitfield `%s' has %d bits instead of %d"
+          lc f bf fd ex
 end
 
 type error =

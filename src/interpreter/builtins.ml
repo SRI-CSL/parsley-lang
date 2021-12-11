@@ -15,6 +15,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Typing
 open Values
 open Runtime_exceptions
 open Internal_errors
@@ -131,22 +132,71 @@ let bv_and lc (l: value) (r: value) : value =
     | _, _ ->
         internal_error (Type_error (lc, "&_b", 1, vtype_of l, T_bitvector))
 
-let bv_bitrange lc (l: value) (hi: int) (lo: int) : value =
+let bit_extract lc (l: bool list) (hi: int) (lo: int) =
   let rec rextract l acc idx =
     if   idx > hi
-    then V_bitvector acc
+    then acc
     else let b = List.nth l idx in
          rextract l (b :: acc) (idx + 1) in
+  let len = List.length l in
+  if hi >= len
+  then internal_error (Bitrange_index (lc, hi, len))
+  else if lo >= len
+  then internal_error (Bitrange_index (lc, lo, len))
+  else rextract l [] lo
+
+let bv_bitrange lc (l: value) (hi: int) (lo: int) : value =
   match l with
     | V_bitvector l ->
-        let len = List.length l in
-        if hi >= len
-        then internal_error (Bitrange_index (lc, hi, len))
-        else if lo >= len
-        then internal_error (Bitrange_index (lc, lo, len))
-        else rextract l [] lo
+        V_bitvector (bit_extract lc l hi lo)
     | _ ->
         internal_error (Type_error (lc, "bitrange", 1, vtype_of l, T_bitvector))
+
+let mk_bitfield_type (bfi: TypingEnvironment.bitfield_info) =
+  let rcd = List.map (fun (f, _, _) -> f, T_bitvector) bfi.bf_fields in
+  T_record rcd
+
+let rec_of_bits lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
+    : value =
+  match l with
+    | V_bitvector l ->
+        let fs = List.fold_left (fun acc (f, hi, lo) ->
+                     (f, V_bitvector (bit_extract lc l hi lo)) :: acc
+                   ) [] bfi.bf_fields in
+        V_record fs
+    | _ ->
+        let op = Printf.sprintf "%s->record" r in
+        let ty = mk_bitfield_type bfi in
+        internal_error (Type_error (lc, op, 1, vtype_of l, ty))
+
+let bits_of_rec lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
+    : value =
+  let op = Printf.sprintf "%s->bits" r in
+  match l with
+    | V_record rv ->
+        (* Note that we assume the fields are in increasing order,
+           since they are sorted before registered into the type
+           environment. *)
+        let l =
+          List.fold_left (fun acc (f, hi, lo) ->
+              match List.assoc_opt f rv with
+                  | None ->
+                      internal_error (No_field (lc, f))
+                  | Some (V_bitvector l) ->
+                      let ex = List.length l in
+                      let fd = hi - lo + 1 in
+                      if   ex = fd
+                      then l @ acc
+                      else let err = Bitfield_length_mismatch (lc, r, f, ex, fd) in
+                           internal_error err
+                  | Some v ->
+                      internal_error (Type_error (lc, op, 1, vtype_of v, T_bitvector))
+            ) [] bfi.bf_fields in
+        assert (List.length l = bfi.bf_length);
+        V_bitvector l
+    | _ ->
+        let ty = mk_bitfield_type bfi in
+        internal_error (Type_error (lc, op, 1, vtype_of l, ty))
 
 (* pure boolean helpers for equality and inequality *)
 let rec eq lc op l r =
