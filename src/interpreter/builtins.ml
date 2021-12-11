@@ -192,21 +192,3 @@ let equals lc (l: value) (r: value) : value =
 let not_equals lc (l: value) (r: value) : value =
   V_bool (not (eq lc "!=" l r))
 
-let list_index lc (l: value) (i: value) : value =
-  match l, i with
-    | V_list ls, V_int i ->
-        let len = List.length ls in
-        (* FIXME: this conversion is lossy on 32-bit platforms and
-           hence a source of bugs.  This should be addressed via a
-           resource bound mechanism, that ensures that list sizes
-           don't exceed platform-specific representable bounds.
-           Indices should be compared against these bounds before
-           conversion. *)
-        let i = Int64.to_int i in
-        if 0 <= i && i < len
-        then List.nth ls i
-        else fault (Index_error (lc, i, len))
-    | V_list _, _ ->
-        internal_error (Type_error (lc, "[]", 2, vtype_of i, T_int))
-    | _, _ ->
-        internal_error (Type_error (lc, "[]", 1, vtype_of l, T_list T_empty))

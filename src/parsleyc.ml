@@ -20,7 +20,7 @@ module StringSet = FD.StringSet
 
 let print_ast   = ref false
 let input_file  = ref []
-let debug_build = true
+let debug_build = false
 
 let usage = Printf.sprintf
               "Usage: %s <options> <file.ply> " (Sys.argv.(0))

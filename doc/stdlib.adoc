@@ -63,9 +63,8 @@ NOTE: The standard library is under rapid evolution.
 | Operators to check equality
 
 | `[]`
-| `list<'a> -> int -> 'a`
-| `l[n]` extracts the `n` th element of list `l`;
-throws an exception if the index is out-of-range
+| `list<'a> -> int -> option<'a`>
+| `l[n]` extracts the `n` th element of list `l` if present
 
 |===
 

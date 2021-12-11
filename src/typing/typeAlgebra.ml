@@ -232,7 +232,7 @@ let builtin_types, builtin_consts, builtin_vars,
 
       (Ast.DName ".[]", [ TName "a" ], arrow_type (list_type (gen_tvar "a"))
                                         (arrow_type (gen_tvar "int")
-                                           (gen_tvar "a")));
+                                           (opt_type (gen_tvar "a"))));
     |] in
   let builtin_vars : builtin_dataconstructor array = [|
       (* utility convertors *)
@@ -313,6 +313,9 @@ let builtin_types, builtin_consts, builtin_vars,
            (Ast.DName "repl", [ TName "a" ],
             arrow_type (gen_tvar "a")
               (arrow_type (gen_tvar "int") (list_type (gen_tvar "a"))));
+           (Ast.DName "index_unsafe", [ TName "a" ],
+            arrow_type (list_type (gen_tvar "a"))
+              (arrow_type (gen_tvar "int") (gen_tvar "a")));
          ];
       };
       {mod_name   = Ast.MName "String";

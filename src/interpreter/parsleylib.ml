@@ -91,6 +91,24 @@ module PList = struct
       | _, _ ->
           internal_error (Type_error (lc, "List.concat", 1, vtype_of l, T_list T_empty))
 
+  let index lc (l: value) (r: value) : value =
+    match l, r with
+      | V_list l, V_int r ->
+        (* FIXME: this conversion is lossy on 32-bit platforms and
+           hence a source of bugs.  This should be addressed via a
+           resource bound mechanism, that ensures that list sizes
+           don't exceed platform-specific representable bounds.
+           Indices should be compared against these bounds before
+           conversion. *)
+          let idx = Int64.to_int r in
+          (match List.nth_opt l idx with
+             | None   -> V_option None
+             | Some v -> V_option (Some v))
+      | V_list _, _ ->
+          internal_error (Type_error (lc, "List.index", 2, vtype_of r, T_int))
+      | _, _ ->
+          internal_error (Type_error (lc, "List.index", 1, vtype_of l, T_list T_empty))
+
   let flatten lc (v: value) : value =
     let exp_t = T_list (T_list T_empty) in
     let err = Type_error (lc, "List.flatten", 1, vtype_of v, exp_t) in
