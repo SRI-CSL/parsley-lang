@@ -31,6 +31,11 @@ let bool_not lc (v: value) : value =
     | V_bool b -> V_bool (not b)
     | _ -> internal_error (Type_error (lc, "not", 1, vtype_of v, T_bool))
 
+let bitvector_negate lc (v: value) : value =
+  match v with
+    | V_bitvector bl -> V_bitvector (List.map not bl)
+    | _ -> internal_error (Type_error (lc, "negate", 1, vtype_of v, T_bitvector))
+
 let int_plus lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_int (Int64.add l r)
@@ -126,6 +131,23 @@ let bv_and lc (l: value) (r: value) : value =
     | _, _ ->
         internal_error (Type_error (lc, "&_b", 1, vtype_of l, T_bitvector))
 
+let bv_bitrange lc (l: value) (hi: int) (lo: int) : value =
+  let rec rextract l acc idx =
+    if   idx > hi
+    then V_bitvector acc
+    else let b = List.nth l idx in
+         rextract l (b :: acc) (idx + 1) in
+  match l with
+    | V_bitvector l ->
+        let len = List.length l in
+        if hi >= len
+        then internal_error (Bitrange_index (lc, hi, len))
+        else if lo >= len
+        then internal_error (Bitrange_index (lc, lo, len))
+        else rextract l [] lo
+    | _ ->
+        internal_error (Type_error (lc, "bitrange", 1, vtype_of l, T_bitvector))
+
 (* pure boolean helpers for equality and inequality *)
 let rec eq lc op l r =
   match l, r with
@@ -192,3 +214,18 @@ let equals lc (l: value) (r: value) : value =
 let not_equals lc (l: value) (r: value) : value =
   V_bool (not (eq lc "!=" l r))
 
+let record_field lc (l: value) (f: string) : value =
+  match l with
+    | V_record fs ->
+        (match List.assoc_opt f fs with
+           | Some v -> v
+           | None -> internal_error (No_field (lc, f)))
+    | _ ->
+        internal_error (Type_error (lc, "." ^ f, 1, vtype_of l, T_record [f, T_empty]))
+
+let constr_match lc (l: value) (c: string * string) : value =
+  match l with
+    | V_constr (c', _) ->
+        V_bool (c = c')
+    | _ ->
+        internal_error (Type_error (lc, "~~", 1, vtype_of l, T_adt (c, [])))

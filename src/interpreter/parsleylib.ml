@@ -82,6 +82,13 @@ module PList = struct
       | V_list l -> V_int (Int64.of_int (List.length l))
       | _ -> internal_error (Type_error (lc, "List.length", 1, vtype_of v, T_list T_empty))
 
+  let cons lc (l: value) (r: value) : value =
+    match r with
+      | V_list r ->
+          V_list (l :: r)
+      | _ ->
+          internal_error (Type_error (lc, "List.cons", 2, vtype_of r, T_list T_empty))
+
   let concat lc (l: value) (r: value) : value =
     match l, r with
       | V_list l, V_list r ->
