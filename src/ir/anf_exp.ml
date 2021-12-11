@@ -141,11 +141,15 @@ and normalize_exp tenv venv (e: exp) : aexp * VEnv.t =
         let ae = make_lets binds ae in
         ae, venv
     | E_recop (r, op, e) ->
+        let bfi = TypedAstUtils.lookup_bitfield_info tenv r in
         let se, venv  = subnorm tenv venv e in
         let binds, av = match se with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
-        let ae = wrap (AE_recop (r, op, av)) in
+        let ae = match Location.value op with
+            | "bits"   -> wrap (AE_bits_of_rec (r, av, bfi))
+            | "record" -> wrap (AE_rec_of_bits (r, av, bfi))
+            | _        -> assert false in
         let ae = make_lets binds ae in
         ae, venv
     | E_bitrange (e, f, l) ->

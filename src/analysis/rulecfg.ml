@@ -896,7 +896,7 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
                 | None -> assert false
                 | Some f -> f in
             (* ensure all synthesized attributes are initialized at exit *)
-            List.iter (fun (f, (t, _)) ->
+            List.iter (fun (f, t) ->
                 let f = Location.value f in
                 let attr = v, Some f, (vn, loc) in
 (*                Printf.eprintf " init-check for %s:\n" (binding_to_string attr);*)

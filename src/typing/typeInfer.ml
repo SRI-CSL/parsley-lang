@@ -281,7 +281,7 @@ let make_field_signature adt tvars f typ =
 let intern_field_destructor adt_id qs env_info f_info =
   let adt_name = Location.value adt_id in
   let tenv, acu, lrqs, let_env = env_info
-  and fname, (typ, _) = f_info in
+  and fname, typ = f_info in
   let destructor = make_field_signature adt_id qs fname typ in
   let qs = List.map (fun q -> TName (Location.value q)) qs in
   let rqs, rtenv = fresh_unnamed_rigid_vars (Location.loc adt_id) tenv qs in
@@ -311,7 +311,7 @@ let make_record_signature adt tvars fields =
            (Location.loc adt) in
   let fields = AstUtils.sort_fields fields in
   let signature =
-    List.fold_left (fun acc (f, (t, _)) ->
+    List.fold_left (fun acc (f, t) ->
         AstUtils.make_arrow_type [t; acc] (Location.loc f)
       ) res (List.rev fields) in
     signature, fields
@@ -486,7 +486,7 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
         (* First expand any type abbreviations in the signatures *)
         let fields =
           List.map (fun (f, te) ->
-              f, (TypedAstUtils.expand_type_abbrevs tenv te, None)
+              f, TypedAstUtils.expand_type_abbrevs tenv te
             ) fields in
         let dids, drqs, (tenv, cid, crqs, let_env) =
           process_record_fields fields in
@@ -495,26 +495,32 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
                                        fields;
                                        record_constructor = cid;
                                        field_destructors  = dids;
-                                       bitfield_length    = None};
+                                       bitfield_info      = None};
                          loc};
         tenv, crqs @ drqs, let_env
     | TR_bitfield fields ->
         let len = check_fields ident fields in
         let fields =
-          List.map (fun (f, (s, e)) ->
-              let s, e = Location.value s, Location.value e in
-              assert (s >= e);
+          List.map (fun (f, (hi, lo)) ->
+              let hi, lo = Location.value hi, Location.value lo in
+              assert (hi >= lo);
               let loc = Location.loc f in
-              f, (AstUtils.make_bitvector_type (1 + s - e) loc, Some (s, e))
+              (f, (AstUtils.make_bitvector_type (1 + hi - lo) loc)),
+              (Location.value f, hi, lo)
             ) fields in
+        let fields, finfos = List.split fields in
         let dids, drqs, (tenv, cid, crqs, let_env) =
           process_record_fields fields in
+        (* Sort the fields into increasing index order *)
+        let finfos =
+          List.sort (fun (_, l, _) (_, r, _) -> compare l r) finfos in
         (* Fill in the adt_info *)
+        let bf_info = {bf_fields = finfos; bf_length = len} in
         adt_ref := Some {adt = Record {adt = ident;
                                        fields;
                                        record_constructor = cid;
                                        field_destructors  = dids;
-                                       bitfield_length    = Some len};
+                                       bitfield_info      = Some bf_info};
                          loc};
         tenv, crqs @ drqs, let_env
     | TR_defn _ ->
@@ -888,22 +894,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
          * . e' should be of type bitvector<n>
          * . result should be of type rtyp
          *)
-        let rtn = TName (Location.value rtyp) in
-        let adt = match lookup_adt tenv rtn with
-            | None ->
-                let err = UnboundRecord (Location.loc rtyp, rtn) in
-                raise (Error err)
-            | Some adt ->
-                adt in
-        let bf_len = match adt with
-            | {adt = Variant _; _} ->
-                let err = NotRecordType rtyp in
-                raise (Error err)
-            | {adt = Record {bitfield_length = None; _}; _} ->
-                let err = NotBitfieldType rtyp in
-                raise (Error err)
-            | {adt = Record {bitfield_length = Some len; _}; _} ->
-                len in
+        let bf_len = TypedAstUtils.lookup_bitfield_length tenv rtyp in
         let v = TypeConv.bitvector_n tenv bf_len in
         let rt =
           TypeConv.intern tenv (AstUtils.make_tvar_ident rtyp) in
@@ -1359,8 +1350,7 @@ let infer_non_term_type tenv ctxt ntd =
                         CTrue loc))
           ) in
         let attrs = List.map (fun (id, te, _) ->
-                        id,
-                        (TypedAstUtils.expand_type_abbrevs tenv te, None)
+                        id, TypedAstUtils.expand_type_abbrevs tenv te
                       ) attrs in
         let tenv', dids, drqs, let_env =
           List.fold_left
@@ -1374,7 +1364,7 @@ let infer_non_term_type tenv ctxt ntd =
                         fields = attrs;
                         record_constructor = cid;
                         field_destructors  = dids;
-                        bitfield_length    = None} in
+                        bitfield_info      = None} in
         rcd := Some rec_info;
         adt := Some {adt = Record rec_info; loc};
         let ctxt' = (fun c ->

@@ -77,7 +77,7 @@ let expand_type_abbrevs env te =
 
   in expand te
 
-let lookup_bitfield_length tenv t =
+let lookup_bitfield_info tenv t =
   let tn = Location.value t in
   let l  = Location.loc t in
   let tt = TName tn in
@@ -91,11 +91,19 @@ let lookup_bitfield_length tenv t =
     | {adt = Variant _; _} ->
         let err = TExc.NotRecordType t in
         raise (TExc.Error err)
-    | {adt = Record {bitfield_length = None; _}; _} ->
+    | {adt = Record {bitfield_info = None; _}; _} ->
         let err = TExc.NotBitfieldType t in
         raise (TExc.Error err)
-    | {adt = Record {bitfield_length = Some len; _}; _} ->
-        len
+    | {adt = Record {bitfield_info = Some bfi; _}; _} ->
+        bfi
+
+let lookup_bitfield_length tenv t =
+  let bfi = lookup_bitfield_info tenv t in
+  bfi.bf_length
+
+let lookup_bitfield_fields tenv t =
+  let bfi = lookup_bitfield_info tenv t in
+  bfi.bf_fields
 
 (* A helper to check if a bound for the repeat combinator is
  * non-zero. It uses a primitive constant-folder that does not access

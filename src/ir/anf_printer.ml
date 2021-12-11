@@ -122,9 +122,14 @@ and print_aexp e =
         pp_string op;
         print_av r;
         pp_string ")"
-    | AE_recop (r, rop, v) ->
-        let r = Printf.sprintf "%s->%s"
-                  (Location.value r) (Location.value rop) in
+    | AE_bits_of_rec (r, v, _) ->
+        let r = Printf.sprintf "%s->bits" (Location.value r) in
+        pp_string r;
+        pp_string "(";
+        print_av v;
+        pp_string ")"
+    | AE_rec_of_bits (r, v, _) ->
+        let r = Printf.sprintf "%s->record" (Location.value r) in
         pp_string r;
         pp_string "(";
         print_av v;

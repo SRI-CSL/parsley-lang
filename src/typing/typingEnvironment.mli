@@ -28,14 +28,20 @@
 
 open Parsing
 
+(** [bitfield_info] tracks the fields and their bit index ranges of a
+    bitfield.  The range for field `f` is represented as (f, hi, lo). *)
+type bitfield_info =
+  {bf_fields: (string * int * int) list;
+   bf_length: int}
+
 (** [record_info] tracks the field names, and the variables associated
     with their destructors and constructors *)
 type record_info =
   {adt: Ast.ident;
-   fields: (Ast.ident * (Ast.type_expr * (int * int) option)) list;
+   fields:             (Ast.ident * Ast.type_expr) list;
    record_constructor: Ast.tname * MultiEquation.variable;
-   field_destructors: (Ast.lname * MultiEquation.variable) list;
-   bitfield_length: int option}
+   field_destructors:  (Ast.lname * MultiEquation.variable) list;
+   bitfield_info:      bitfield_info option}
 
 (** An algebraic datatype is characterized by a list of data
     constructors for variant types and field destructors for record types. *)

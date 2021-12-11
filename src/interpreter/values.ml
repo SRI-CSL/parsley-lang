@@ -54,7 +54,7 @@ type value =
   | V_int of Int64.t
   | V_float of float
   | V_string of string
-  | V_bitvector of bool list
+  | V_bitvector of bool list  (* big-endian *)
   | V_option of value option
   | V_list of value list
   | V_tuple of value list

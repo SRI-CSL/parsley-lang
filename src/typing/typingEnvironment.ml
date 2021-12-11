@@ -34,12 +34,16 @@ open MultiEquation
 (** [type_info] denotes information collected during the user-defined
     type constructor analysis. *)
 
+type bitfield_info =
+  {bf_fields: (string * int * int) list;
+   bf_length: int}
+
 type record_info =
   {adt: ident;
-   fields: (ident * (type_expr * (int * int) option)) list;
+   fields:             (ident * type_expr) list;
    record_constructor: tname * variable; (* named "<adt>" *)
-   field_destructors: (lname * variable) list;
-   bitfield_length: int option}
+   field_destructors:  (lname * variable) list;
+   bitfield_info:      bitfield_info option}
 
 (* The following information is stored for each type constructor:
    - its kind ;
