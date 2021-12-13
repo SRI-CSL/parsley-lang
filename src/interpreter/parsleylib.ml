@@ -17,6 +17,7 @@
 
 (* The standard library for Parsley *)
 
+open Parsing
 open Values
 open Runtime_exceptions
 open Internal_errors
@@ -77,6 +78,44 @@ module PList = struct
       | V_list (h :: _) -> h
       | _ -> internal_error (Type_error (lc, "List.tail", 1, vtype_of v, T_list T_empty))
 
+  let index lc (l: value) (r: value) : value =
+    match l, r with
+      | V_list l, V_int r ->
+          (* FIXME: this conversion is lossy on 32-bit platforms and
+             hence a source of bugs.  This should be addressed via a
+             resource bound mechanism, that ensures that list sizes
+             don't exceed platform-specific representable bounds.
+             Indices should be compared against these bounds before
+             conversion. *)
+          let idx = Int64.to_int r in
+          (match List.nth_opt l idx with
+             | None   -> V_option None
+             | Some v -> V_option (Some v))
+      | V_list _, _ ->
+          internal_error (Type_error (lc, "List.index", 2, vtype_of r, T_int))
+      | _, _ ->
+          internal_error (Type_error (lc, "List.index", 1, vtype_of l, T_list T_empty))
+
+  let index_unsafe lc (l: value) (r: value) : value =
+    match l, r with
+      | V_list l, V_int r ->
+          (* FIXME: this conversion is lossy on 32-bit platforms and
+             hence a source of bugs.  This should be addressed via a
+             resource bound mechanism, that ensures that list sizes
+             don't exceed platform-specific representable bounds.
+             Indices should be compared against these bounds before
+             conversion. *)
+          let idx = Int64.to_int r in
+          (match List.nth_opt l idx with
+             | None   ->
+                 let err = Unsafe_operation_failure(lc, "List.index_unsafe") in
+                 fault err
+             | Some v -> v)
+      | V_list _, _ ->
+          internal_error (Type_error (lc, "List.index", 2, vtype_of r, T_int))
+      | _, _ ->
+          internal_error (Type_error (lc, "List.index", 1, vtype_of l, T_list T_empty))
+
   let length lc (v: value) : value =
     match v with
       | V_list l -> V_int (Int64.of_int (List.length l))
@@ -97,24 +136,6 @@ module PList = struct
           internal_error (Type_error (lc, "List.concat", 2, vtype_of r, T_list T_empty))
       | _, _ ->
           internal_error (Type_error (lc, "List.concat", 1, vtype_of l, T_list T_empty))
-
-  let index lc (l: value) (r: value) : value =
-    match l, r with
-      | V_list l, V_int r ->
-        (* FIXME: this conversion is lossy on 32-bit platforms and
-           hence a source of bugs.  This should be addressed via a
-           resource bound mechanism, that ensures that list sizes
-           don't exceed platform-specific representable bounds.
-           Indices should be compared against these bounds before
-           conversion. *)
-          let idx = Int64.to_int r in
-          (match List.nth_opt l idx with
-             | None   -> V_option None
-             | Some v -> V_option (Some v))
-      | V_list _, _ ->
-          internal_error (Type_error (lc, "List.index", 2, vtype_of r, T_int))
-      | _, _ ->
-          internal_error (Type_error (lc, "List.index", 1, vtype_of l, T_list T_empty))
 
   let flatten lc (v: value) : value =
     let exp_t = T_list (T_list T_empty) in
@@ -302,7 +323,7 @@ module VSet = Set.Make(struct type t = value
                        end)
 module PSet = struct
   let empty _lc : value =
-    V_list []
+    V_set []
 
   let add lc (v: value) (e: value) : value =
     match v with
@@ -501,3 +522,95 @@ module PView = struct
   let get_current_cursor lc _ : value =
     internal_error (Not_implemented (lc, "View.get_current_cursor"))
 end
+
+module DTable = Map.Make (struct type t = string * string
+                                 let compare = compare
+                          end)
+type arg0 = Location.t -> value
+type arg1 = Location.t -> value -> value
+type arg2 = Location.t -> value -> value -> value
+type arg3 = Location.t -> value -> value -> value -> value
+
+type dtable =
+  {dt_0arg: arg0 DTable.t;
+   dt_1arg: arg1 DTable.t;
+   dt_2arg: arg2 DTable.t;
+   dt_3arg: arg3 DTable.t}
+
+let mk_dtable () : dtable =
+  let arg0s = [
+      ("String", "empty"),            PString.empty;
+      ("Set", "empty"),               PSet.empty;
+      ("Map", "empty"),               PMap.empty;
+    ] in
+  let arg1s = [
+      ("Int", "of_byte"),             PInt.of_byte;
+      ("Int", "of_string"),           PInt.of_string;
+      ("Int", "of_bytes"),            PInt.of_bytes;
+      ("Int", "of_bytes_unsafe"),     PInt.of_bytes_unsafe;
+      ("List", "head"),               PList.head;
+      ("List", "tail"),               PList.tail;
+      ("List", "length"),             PList.length;
+      ("List", "flatten"),            PList.flatten;
+      ("List", "rev"),                PList.rev;
+      ("String", "to_int"),           PString.to_int;
+      ("String", "to_bytes"),         PString.to_bytes;
+      ("String", "of_bytes"),         PString.of_bytes;
+      ("String", "of_bytes_unsafe"),  PString.of_bytes_unsafe;
+      ("String", "of_literal"),       PString.of_literal;
+      ("Bits", "to_uint"),            PBits.to_uint;
+      ("Bits", "to_int"),             PBits.to_int;
+      ("Bits", "to_bool"),            PBits.to_bool;
+      ("Bits", "of_bool"),            PBits.of_bool;
+      ("Bits", "to_bit"),             PBits.to_bit;
+      ("Bits", "of_bit"),             PBits.of_bit;
+      ("Bits", "ones"),               PBits.ones;
+      ("Bits", "zeros"),              PBits.zeros;
+      ("View", "clone"),              PView.clone;
+    ] in
+  let arg2s = [
+      ("List", "cons"),               PList.cons;
+      ("List", "concat"),             PList.concat;
+      ("List", "index"),              PList.index;
+      ("List", "index_unsafe"),       PList.index_unsafe;
+      ("List", "repl"),               PList.repl;
+      ("String", "concat"),           PString.concat;
+      ("Set", "add"),                 PSet.add;
+      ("Set", "mem"),                 PSet.mem;
+      ("Map", "mem"),                 PMap.mem;
+      ("Map", "find"),                PMap.find;
+      ("Map", "find_unsafe"),         PMap.find_unsafe;
+      ("View", "restrict_from"),      PView.restrict_from;
+    ] in
+  let arg3s = [
+      ("Map", "add"),                 PMap.add;
+      ("View", "restrict"),           PView.restrict;
+    ] in
+  {dt_0arg = DTable.of_seq (List.to_seq arg0s);
+   dt_1arg = DTable.of_seq (List.to_seq arg1s);
+   dt_2arg = DTable.of_seq (List.to_seq arg2s);
+   dt_3arg = DTable.of_seq (List.to_seq arg3s)}
+
+let dtable: dtable = mk_dtable ()
+
+let dispatch_stdlib lc (m: string) (f: string) (vs: value list)
+    : value =
+  let nvs = List.length vs in
+  let key = m, f in
+  if   nvs = 1 && DTable.mem  key dtable.dt_1arg
+  then let fn = DTable.find key dtable.dt_1arg in
+       let a0 = List.nth vs 0 in
+       fn lc a0
+  else if nvs = 2 && DTable.mem  key dtable.dt_2arg
+  then let fn = DTable.find key dtable.dt_2arg in
+       let a0 = List.nth vs 0 in
+       let a1 = List.nth vs 1 in
+       fn lc a0 a1
+  else if nvs = 3 && DTable.mem  key dtable.dt_3arg
+  then let fn = DTable.find key dtable.dt_3arg in
+       let a0 = List.nth vs 0 in
+       let a1 = List.nth vs 1 in
+       let a2 = List.nth vs 2 in
+       fn lc a0 a1 a2
+  else let err = Internal_errors.Unknown_stdlib (lc, m, f, nvs) in
+       internal_error err

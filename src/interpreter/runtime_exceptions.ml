@@ -29,10 +29,12 @@ module Internal_errors = struct
     | Not_implemented of Location.t * string
     | No_binding_for_read of Location.t * Anf.varid
     | No_binding_for_write of Anf.var
-    | No_mod_value of Ast.modident * Ast.ident
     | Bitrange_index of Location.t * int * int
     | No_field of Location.t * string
     | Bitfield_length_mismatch of Location.t * string * string * int * int
+    | Duplicate_function_binding of Location.t * string
+    | Function_arity of Location.t * string * int * int
+    | Unknown_stdlib of Location.t * string * string * int
 
   let error_msg = function
     | Type_error (l, op, arg, r, e) ->
@@ -45,9 +47,6 @@ module Internal_errors = struct
     | No_binding_for_write v ->
         msg "%s:\n INTERNAL ERROR: Cannot assign to unbound variable '%s:%d'."
           Anf.(v.v_loc) (fst Anf.(v.v)) (snd Anf.(v.v))
-    | No_mod_value (m, c) ->
-        msg "%s:\n INTERNAL ERROR: `%s.%s' is not a value."
-          (Location.loc c) (Location.value m) (Location.value c)
     | Bitrange_index (l, idx, len) ->
         msg "%s:\n INTERNAL ERROR: bitrange index %d is out of range for list of length %d."
           l idx len
@@ -56,6 +55,15 @@ module Internal_errors = struct
     | Bitfield_length_mismatch (lc, bf, f, ex, fd) ->
         msg "%s:\n INTERNAL ERROR: field `%s' of bitfield `%s' has %d bits instead of %d"
           lc f bf fd ex
+    | Duplicate_function_binding (lc, f) ->
+        msg "%s:\n INTERNAL ERROR: function `%s' is already bound."
+          lc f
+    | Function_arity (lc, f, nps, npvs) ->
+        msg "%s:\n INTERNAL ERROR: function `%s' expected %d args, got %d instead."
+          lc f nps npvs
+    | Unknown_stdlib (lc, m, f, nargs) ->
+        msg "%s:\n INTERNAL ERROR: unknown stdlib call `%s.%s' (with %d args)."
+          lc m f nargs
 end
 
 type error =

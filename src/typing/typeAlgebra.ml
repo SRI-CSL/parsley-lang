@@ -287,6 +287,13 @@ let builtin_types, builtin_consts, builtin_vars,
            (Ast.DName "tail", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (list_type (gen_tvar "a")));
+           (Ast.DName "index", [ TName "a" ],
+            arrow_type (list_type (gen_tvar "a"))
+              (arrow_type (gen_tvar "int")
+                 (opt_type (gen_tvar "a"))));
+           (Ast.DName "index_unsafe", [ TName "a" ],
+            arrow_type (list_type (gen_tvar "a"))
+              (arrow_type (gen_tvar "int") (gen_tvar "a")));
            (Ast.DName "length", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (gen_tvar "int"));
@@ -313,9 +320,6 @@ let builtin_types, builtin_consts, builtin_vars,
            (Ast.DName "repl", [ TName "a" ],
             arrow_type (gen_tvar "a")
               (arrow_type (gen_tvar "int") (list_type (gen_tvar "a"))));
-           (Ast.DName "index_unsafe", [ TName "a" ],
-            arrow_type (list_type (gen_tvar "a"))
-              (arrow_type (gen_tvar "int") (gen_tvar "a")));
          ];
       };
       {mod_name   = Ast.MName "String";
