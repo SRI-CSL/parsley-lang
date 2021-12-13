@@ -658,7 +658,7 @@ let rule_to_cfg
   let entry_lbl = Label.fresh_label () in
   let b = new_labeled_block entry_lbl in
   (* add inherited attributes *)
-  let b = List.fold_left (fun b (ia, _) ->
+  let b = List.fold_left (fun b (ia, _, _) ->
               let ian, _ = Location.value ia in
               let iloc = Location.loc ia in
               (* we could loop over [nti] itself instead of looking up,
@@ -688,7 +688,7 @@ let rule_to_cfg
           let v  = Location.value v in
           let vn = fst v in
           let v  = snd v in
-          List.fold_left (fun b (f, _, oe) ->
+          List.fold_left (fun b (f, _, _, oe) ->
               match oe with
                 | None   -> b
                 | Some e ->

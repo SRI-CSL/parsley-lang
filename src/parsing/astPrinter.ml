@@ -329,12 +329,12 @@ and print_expr auxp e =
         print_type_expr t;
         pp_string ")"
 
-let print_param_decl (pm, ty) =
+let print_param_decl (pm, ty, _) =
   pp_string (var_name pm);
   pp_string ": ";
   print_type_expr ty
 
-let print_attr_decl auxp (pm, ty, ex) =
+let print_attr_decl auxp (pm, ty, _, ex) =
   pp_string (Location.value pm);
   pp_string ": ";
   print_type_expr ty;

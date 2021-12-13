@@ -198,12 +198,12 @@ type ('a, 'b) rule =
 
 type ('a, 'b) attr_list_type =
   | ALT_type of ident
-  | ALT_decls of (ident * type_expr * ('a, 'b) expr option) list
+  | ALT_decls of (ident * type_expr * 'a * ('a, 'b) expr option) list
 
 type ('a, 'b) non_term_defn =
   {non_term_name: ident;
    non_term_varname: 'b var option;
-   non_term_inh_attrs: ('b var * type_expr) list; (* inherited *)
+   non_term_inh_attrs: ('b var * type_expr * 'a) list; (* inherited *)
    non_term_syn_attrs: ('a, 'b) attr_list_type; (* synthesized *)
    non_term_rules: ('a, 'b) rule list;
    non_term_loc: Location.t}
@@ -222,7 +222,7 @@ type type_decl =
 type ('a, 'b) fun_defn =
   {fun_defn_ident: 'b var;
    fun_defn_tvars: tvar list;
-   fun_defn_params: ('b var * type_expr) list;
+   fun_defn_params: ('b var * type_expr * 'a) list;
    fun_defn_res_type: type_expr;
    fun_defn_body: ('a, 'b) expr;
    fun_defn_recursive: bool;

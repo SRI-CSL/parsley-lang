@@ -340,7 +340,7 @@ let synth_list_map hoi =
   let fun_ident = Location.mk_loc_val hoi.hoi_synthname accloc in
   {fun_defn_ident     = var_of_ident fun_ident;
    fun_defn_tvars     = stvs;
-   fun_defn_params    = [lstv, lstt; accv, lttt];
+   fun_defn_params    = [lstv, lstt, (); accv, lttt, ()];
    fun_defn_res_type  = stret;
    fun_defn_body      = case;
    fun_defn_recursive = true;
@@ -438,7 +438,7 @@ let synth_list_map2 hoi =
   let fun_ident = Location.mk_loc_val hoi.hoi_synthname lloc in
   {fun_defn_ident     = var_of_ident fun_ident;
    fun_defn_tvars     = stvs;
-   fun_defn_params    = [alv, lst; blv, ltt; lv, lut];
+   fun_defn_params    = [alv, lst, (); blv, ltt, (); lv, lut, ()];
    fun_defn_res_type  = stret;
    fun_defn_body      = case;
    fun_defn_recursive = true;
@@ -488,7 +488,7 @@ type context =
 
 let fsig_of_fun_defn d : fsig =
   (d.fun_defn_tvars,
-   List.map snd d.fun_defn_params,
+   List.map (fun (_, te, _) -> te) d.fun_defn_params,
    d.fun_defn_res_type)
 
 let fsig_of_builtin (_, tvars, sg) : fsig =
@@ -967,12 +967,12 @@ let expand_alt ctx alt =
         ctx, alt
     | ALT_decls ds ->
         let ctx, ds =
-          List.fold_left (fun (ctx, ds) (i, t, oe) ->
+          List.fold_left (fun (ctx, ds) (i, t, ax, oe) ->
               let ctx, oe = match oe with
                   | None   -> ctx, None
                   | Some e -> let ctx, e = expand_expr ctx e in
                               ctx, Some e in
-              ctx, (i, t, oe) :: ds
+              ctx, (i, t, ax, oe) :: ds
             ) (ctx, []) ds in
         ctx, ALT_decls (List.rev ds)
 

@@ -44,7 +44,7 @@ type builtin_type =
   Ast.tname * (Ast.kind * syntax * builtin_dataconstructor list)
 
 type builtin_non_term =
-  Ast.nname * (unit Ast.var * Ast.type_expr) list * Ast.type_expr
+  Ast.nname * (unit Ast.var * Ast.type_expr * unit) list * Ast.type_expr
 
 type builtin_module =
   {mod_name:   Ast.mname;
@@ -448,12 +448,12 @@ let builtin_types, builtin_consts, builtin_vars,
       (* binary integer types *)
       NName "Int8",   [], gen_tvar "int";
       NName "UInt8",  [], gen_tvar "int";
-      NName "Int16",  [make_var "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "UInt16", [make_var "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "Int32",  [make_var "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "UInt32", [make_var "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "Int64",  [make_var "endian", gen_tvar "endian"], gen_tvar "int";
-      NName "UInt64", [make_var "endian", gen_tvar "endian"], gen_tvar "int";
+      NName "Int16",  [make_var "endian", gen_tvar "endian", ()], gen_tvar "int";
+      NName "UInt16", [make_var "endian", gen_tvar "endian", ()], gen_tvar "int";
+      NName "Int32",  [make_var "endian", gen_tvar "endian", ()], gen_tvar "int";
+      NName "UInt32", [make_var "endian", gen_tvar "endian", ()], gen_tvar "int";
+      NName "Int64",  [make_var "endian", gen_tvar "endian", ()], gen_tvar "int";
+      NName "UInt64", [make_var "endian", gen_tvar "endian", ()], gen_tvar "int";
     |] in
   builtin_types, builtin_consts, builtin_vars,
   builtin_modules, builtin_non_terms

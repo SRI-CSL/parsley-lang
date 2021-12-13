@@ -79,7 +79,7 @@ type builtin_module =
 (** The representation of predefined non-terminals, with their
  ** inherited attributes and their types. *)
 type builtin_non_term =
-  Ast.nname * (unit Ast.var * Ast.type_expr) list * Ast.type_expr
+  Ast.nname * (unit Ast.var * Ast.type_expr * unit) list * Ast.type_expr
 
 (** Operators on the type representation *)
 

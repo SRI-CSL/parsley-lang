@@ -315,7 +315,7 @@ let rec extract_nt_pats ntd =
       | ALT_type _ ->
           []
       | ALT_decls dl ->
-          List.fold_left (fun acc (_, _, eo) ->
+          List.fold_left (fun acc (_, _, _, eo) ->
               match eo with
                 | None ->
                     acc

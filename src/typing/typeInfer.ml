@@ -611,6 +611,13 @@ let lookup_record_adt tenv fields =
      | None -> ());
   rec_info
 
+(* In the top-level code for non-terminals and functions (and hence
+   their embedded expressions), we need to expand type abbreviations
+   in type expressions before interning any types. *)
+let intern_expanded_type tenv typ =
+  let typ  = TypedAstUtils.expand_type_abbrevs tenv typ in
+  TypeConv.intern tenv typ
+
 (** [infer_expr tenv venv e t] generates a constraint that guarantees that
     [e] has type [t] in the typing environment [tenv]. *)
 let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
@@ -846,8 +853,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
     | E_cast (exp, typ) ->
         (* A type constraint inserts a type equality into the
            generated constraint. *)
-        let typ  = TypedAstUtils.expand_type_abbrevs tenv typ in
-        let ityp = TypeConv.intern tenv typ in
+        let ityp = intern_expanded_type tenv typ in
         let c, (wc, exp') = infer_expr tenv venv exp ityp in
         (t =?= ityp) e.expr_loc ^ c,
         (wc,
@@ -948,8 +954,7 @@ let infer_const_defn tenv venv ctxt cd =
   (* Create a value variable for the constant *)
   let cn', _ = VEnv.add venv cd.const_defn_ident in
   (* Expand and intern the specified type *)
-  let typ = TypedAstUtils.expand_type_abbrevs tenv cd.const_defn_type in
-  let ityp = TypeConv.intern tenv typ in
+  let ityp = intern_expanded_type tenv cd.const_defn_type in
   (* Generate the typing constraint for the value expression *)
   let cval, (wcval, val') =
     infer_expr tenv venv cd.const_defn_val ityp in
@@ -1012,8 +1017,7 @@ let infer_fun_defn tenv venv ctxt fd =
      for the body.  Handle the arguments as a simple case of lambda
      patterns; this will allow us to extend this later to proper
      pattern matching if needed.*)
-  let restyp = TypedAstUtils.expand_type_abbrevs tenv' fd.fun_defn_res_type in
-  let irestyp = TypeConv.intern tenv' restyp in
+  let irestyp = intern_expanded_type tenv' fd.fun_defn_res_type in
   let _, params', venv', argbinders, signature =
     if List.length fd.fun_defn_params = 0 then
       (* functions without args have a signature of unit -> result_type *)
@@ -1021,7 +1025,8 @@ let infer_fun_defn tenv venv ctxt fd =
       let signature = TypeConv.arrow tenv' unit irestyp in
       ids, [], venv', empty_fragment, signature
     else
-      List.fold_left (fun (acu_ids, params', venv', bindings, signature) (pid, typ) ->
+      List.fold_left (fun (acu_ids, params', venv', bindings, signature)
+                          (pid, typ, _) ->
           let pn, ploc = var_name pid, Location.loc pid in
           let acu_ids =
             match StringMap.find_opt pn acu_ids with
@@ -1031,11 +1036,10 @@ let infer_fun_defn tenv venv ctxt fd =
               | None ->
                   StringMap.add pn (ident_of_var pid) acu_ids in
           let pid', venv' = VEnv.add venv' pid in
-          let typ = TypedAstUtils.expand_type_abbrevs tenv' typ in
-          let ityp = TypeConv.intern tenv' typ in
+          let ityp = intern_expanded_type tenv' typ in
           let v = variable Flexible () in
           acu_ids,
-          (pid', typ) :: params',
+          (pid', typ, ityp) :: params',
           venv',
           {gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
                      bindings.gamma;
@@ -1122,9 +1126,7 @@ let infer_recfun_defns tenv venv ctxt r =
            body venv that does not contain parameter information from
            other function bodies, but does include all the function
            names, and we haven't seen all the function names yet. *)
-        let restyp =
-          TypedAstUtils.expand_type_abbrevs tenv' fd.fun_defn_res_type in
-        let irestyp = TypeConv.intern tenv' restyp in
+        let irestyp = intern_expanded_type tenv' fd.fun_defn_res_type in
         let signature, _ =
           if List.length fd.fun_defn_params = 0 then
             (* functions without args have a signature of unit -> result_type *)
@@ -1132,7 +1134,7 @@ let infer_recfun_defns tenv venv ctxt r =
             let signature = TypeConv.arrow tenv' unit irestyp in
             signature, StringMap.empty
           else
-            List.fold_left (fun (signature, ids) (pid, typ) ->
+            List.fold_left (fun (signature, ids) (pid, typ, _) ->
                 let pn = var_name pid in
                 let ids =
                   match StringMap.find_opt pn ids with
@@ -1142,8 +1144,7 @@ let infer_recfun_defns tenv venv ctxt r =
                         raise (Error e)
                     | None ->
                         StringMap.add pn (ident_of_var pid) ids in
-                let typ  = TypedAstUtils.expand_type_abbrevs tenv' typ in
-                let ityp = TypeConv.intern tenv' typ in
+                let ityp = intern_expanded_type tenv' typ in
                 let signature = TypeConv.arrow tenv' ityp signature in
                 signature, ids
               ) (irestyp, StringMap.empty) (List.rev fd.fun_defn_params) in
@@ -1170,14 +1171,13 @@ let infer_recfun_defns tenv venv ctxt r =
     List.fold_left (fun (cs, wc, fds') (fdn', (sgn, fd)) ->
         let params', venv', argbinders =
           List.fold_left
-            (fun (params', venv', argbinders) (pid, typ) ->
+            (fun (params', venv', argbinders) (pid, typ, _) ->
               let pn, ploc = var_name pid, Location.loc pid in
               (* We've already checked for param duplicates above *)
               let pid', venv' = VEnv.add venv' pid in
               let v = variable Flexible () in
-              let typ = TypedAstUtils.expand_type_abbrevs tenv' typ in
-              let ityp = TypeConv.intern tenv' typ in
-              (pid', typ) :: params',
+              let ityp = intern_expanded_type tenv' typ in
+              (pid', typ, ityp) :: params',
               venv',
               {gamma =
                  StringMap.add pn (CoreAlgebra.TVariable v, ploc)
@@ -1194,9 +1194,7 @@ let infer_recfun_defns tenv venv ctxt r =
           Scheme (fd.fun_defn_loc, [], argbinders.vars,
                   argbinders.tconstraint, argbinders.gamma) in
         (* Generate the body type constraint *)
-        let rtyp =
-          TypedAstUtils.expand_type_abbrevs tenv' fd.fun_defn_res_type in
-        let irtyp = TypeConv.intern tenv' rtyp in
+        let irtyp = intern_expanded_type tenv' fd.fun_defn_res_type in
         let cbody, (wcbody, body') =
           infer_expr tenv' venv' fd.fun_defn_body irtyp in
         let c = CLet ([arg_schm],
@@ -1261,10 +1259,9 @@ let guess_nt_rhs_type tenv ntd =
 
 let infer_non_term_attrs tenv nid attrs =
   let map, attrs', _ =
-    List.fold_left (fun (ats, attrs', venv') (pid, te) ->
+    List.fold_left (fun (ats, attrs', venv') (pid, te, _) ->
         let p  = var_name pid in
-        let te = TypedAstUtils.expand_type_abbrevs tenv te in
-        let t  = TypeConv.intern tenv te in
+        let t  = intern_expanded_type tenv te in
         match StringMap.find_opt p ats with
           | Some (_, l) ->
               let repid = Location.mk_loc_val p l in
@@ -1273,7 +1270,7 @@ let infer_non_term_attrs tenv nid attrs =
           | None ->
               let pid', venv' = VEnv.add venv' pid in
               StringMap.add p (t, Location.loc pid) ats,
-              (pid', te) :: attrs',
+              (pid', te, t) :: attrs',
               venv'
       )
       (StringMap.empty, [], VEnv.empty)
@@ -1349,7 +1346,7 @@ let infer_non_term_type tenv ctxt ntd =
             ctxt (CLet ([Scheme (loc, [ivar], [], c, StringMap.empty)],
                         CTrue loc))
           ) in
-        let attrs = List.map (fun (id, te, _) ->
+        let attrs = List.map (fun (id, te, _, _) ->
                         id, TypedAstUtils.expand_type_abbrevs tenv te
                       ) attrs in
         let tenv', dids, drqs, let_env =
@@ -2109,7 +2106,7 @@ let infer_non_term_rule tenv venv ntd rule pids =
                 raise (Error (NTRepeatedBinding (ntd.non_term_name, pid, repid)))
             | None ->
                 StringMap.add pn pid pids in
-        let ityp = TypeConv.intern tenv typ in
+        let ityp = intern_expanded_type tenv typ in
         let v = variable Flexible () in
         let cexp, (wce, exp') = infer_expr tenv venv' exp ityp in
         let pid', venv' = VEnv.add venv' pid in
@@ -2164,14 +2161,14 @@ let infer_non_term tenv venv ntd =
           [], [], ALT_type t
       | ALT_decls d ->
           let c, wc, d' =
-            List.fold_left (fun (cs, wcs, ds) (pid, typ, exp) ->
+            List.fold_left (fun (cs, wcs, ds) (pid, typ, _, exp) ->
+                let ityp = intern_expanded_type tenv typ in
                 match exp with
                   | None ->
-                      cs, wcs, (pid, typ, None) :: ds
+                      cs, wcs, (pid, typ, ityp, None) :: ds
                   | Some e ->
-                      let ityp = TypeConv.intern tenv typ in
                       let c, (wc, e') = infer_expr tenv venv e ityp in
-                      c :: cs, wc :: wcs, (pid, typ, Some e') :: ds
+                      c :: cs, wc :: wcs, (pid, typ, ityp, Some e') :: ds
               ) ([], [], []) d in
           c, wc, ALT_decls (List.rev d') in
   (* compute the local bindings for each rule: this includes any
@@ -2213,7 +2210,7 @@ let infer_non_term tenv venv ntd =
          vars = v :: fragment.vars}
       ) (pids, bindings) (StringMap.bindings inh_attr_map) in
   let venv' =
-    List.fold_left (fun venv' (v', _) ->
+    List.fold_left (fun venv' (v', _, _) ->
         VEnv.extend venv' (var_name v') v'
       ) venv' inh_attrs in
   let crules' = List.map
@@ -2283,7 +2280,7 @@ let init_env () =
   let intern_const tenv qs typ =
     let rqs, rtenv = fresh_unnamed_rigid_vars Location.ghost_loc tenv qs in
     let tenv' = add_type_variables rtenv tenv in
-    let ityp = TypeConv.intern tenv' typ in
+    let ityp = intern_expanded_type tenv' typ in
     rqs, ityp in
 
   (* For each builtin datatype, add a type constructor and any
@@ -2357,7 +2354,7 @@ let init_env () =
     Array.fold_left (fun tenv ((NName n) as nt, inh_attrs, typ) ->
         let gloc = Location.ghost_loc in
         let nid = Location.mk_ghost n in
-        let typ = TypeConv.intern tenv typ in
+        let typ = intern_expanded_type tenv typ in
         (* builtin non-terminals are non-record types *)
         let syn_typ = NTT_type (typ, None) in
         let inh_typ = infer_non_term_attrs tenv nid inh_attrs in

@@ -1063,7 +1063,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   (* and similarly for the inherited attributes *)
   let tenv = ctx.ctx_tenv in
   let nt_inh_attrs, venv =
-    List.fold_left (fun (attrs, venv) (v, te) ->
+    List.fold_left (fun (attrs, venv) (v, te, _) ->
         let ia = Ast.var_name v in
         (* todo: move this into a convenient util *)
         let te = TypedAstUtils.expand_type_abbrevs tenv te in

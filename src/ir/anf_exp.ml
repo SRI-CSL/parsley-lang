@@ -306,7 +306,7 @@ let normalize_const tenv venv (c: const) : aconst * VEnv.t =
 let normalize_fun tenv venv (f: func) : afun * VEnv.t =
   let fident, venv = VEnv.bind venv f.fun_defn_ident in
   let params, venv =
-    List.fold_left (fun (ps, venv) (v, _) ->
+    List.fold_left (fun (ps, venv) (v, _, _) ->
         let p, venv = VEnv.bind venv v in
         p :: ps, venv
       ) ([], venv) f.fun_defn_params in
@@ -330,7 +330,7 @@ let normalize_recfuns tenv venv (fs: func list)
   let fs, venv =
     List.fold_left (fun (fs, venv) (fid, (f: func)) ->
         let params, venv =
-          List.fold_left (fun (ps, venv) (v, _) ->
+          List.fold_left (fun (ps, venv) (v, _, _) ->
               let p, venv = VEnv.bind venv v in
               p :: ps, venv
             ) ([], venv) f.fun_defn_params in

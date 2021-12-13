@@ -319,7 +319,7 @@ variants:
 
 param_decl:
 | i=ident COLON t=type_expr
-  { (make_var i, t) }
+  { (make_var i, t, ()) }
 
 param_decls:
 | l=separated_list(COMMA, param_decl)
@@ -670,9 +670,9 @@ rule:
 
 nt_attr_decl:
 | i=ident COLON t=type_expr
-  { (i, t, None) }
+  { (i, t, (), None) }
 | i=ident COLON t=type_expr COLONEQ e=expr
-  { (i, t, Some e) }
+  { (i, t, (), Some e) }
 
 nt_attr_decls:
 | l=separated_list(COMMA, nt_attr_decl)

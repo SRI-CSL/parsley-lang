@@ -73,7 +73,7 @@ type field_destructor =
 (** A non-terminal's type definition *)
 type non_term_inh_type =
   (MultiEquation.crterm * Location.t) Misc.StringMap.t
-  * (int Ast.var * Ast.type_expr) list
+  * (int Ast.var * Ast.type_expr * MultiEquation.crterm) list
 type non_term_syn_type =
   (* aliased to another type, either declared or inferred *)
   | NTT_type of MultiEquation.crterm * record_info option
