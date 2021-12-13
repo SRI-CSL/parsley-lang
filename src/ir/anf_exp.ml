@@ -304,14 +304,16 @@ let normalize_const tenv venv (c: const) : aconst * VEnv.t =
   venv
 
 let normalize_fun tenv venv (f: func) : afun * VEnv.t =
-  let fident, venv = VEnv.bind venv f.fun_defn_ident in
+  let fv, venv = VEnv.bind venv f.fun_defn_ident in
+  let fv = make_var fv f.fun_defn_aux f.fun_defn_loc in
   let params, venv =
-    List.fold_left (fun (ps, venv) (v, _, _) ->
+    List.fold_left (fun (ps, venv) (v, te, t) ->
         let p, venv = VEnv.bind venv v in
+        let p = make_var p t Ast.(te.type_expr_loc) in
         p :: ps, venv
       ) ([], venv) f.fun_defn_params in
   let body, venv  = normalize_exp tenv venv f.fun_defn_body in
-  {afun_ident     = fident;
+  {afun_ident     = fv;
    afun_params    = List.rev params;
    afun_body      = body;
    afun_recursive = f.fun_defn_recursive;
@@ -324,14 +326,16 @@ let normalize_recfuns tenv venv (fs: func list)
   let fids, venv =
     List.fold_left (fun (fids, venv) (f: func) ->
         let fid, venv = VEnv.bind venv f.fun_defn_ident in
+        let fid = make_var fid f.fun_defn_aux f.fun_defn_loc in
         fid :: fids, venv
       ) ([], venv) (List.rev fs) in
   (* now do the function bodies *)
   let fs, venv =
     List.fold_left (fun (fs, venv) (fid, (f: func)) ->
         let params, venv =
-          List.fold_left (fun (ps, venv) (v, _, _) ->
+          List.fold_left (fun (ps, venv) (v, te, t) ->
               let p, venv = VEnv.bind venv v in
+              let p = make_var p t Ast.(te.type_expr_loc) in
               p :: ps, venv
             ) ([], venv) f.fun_defn_params in
         let body, venv = normalize_exp tenv venv f.fun_defn_body in

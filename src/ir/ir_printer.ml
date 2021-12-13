@@ -55,10 +55,15 @@ let print_gnode g =
                      (Anf_printer.string_of_var v.v)
                      (string_of_fresh f));
         Anf_printer.print_aexp ae
-    | N_assign_fun (v, f) ->
-        pp_string (Printf.sprintf "%s() = "
-                     (Anf_printer.string_of_var v.v));
-        Anf_printer.print_fun f
+    | N_assign_fun (v, vs, bd) ->
+        let args = List.map (fun v ->
+                       Anf_printer.string_of_var Anf.(v.v)
+                     ) vs in
+        pp_string (Printf.sprintf "%s(%s) = "
+                     (Anf_printer.string_of_var v.v)
+                     (String.concat "," args)
+          );
+        Anf_printer.print_aexp bd
     | N_action ss ->
         pp_open_vbox 0;
         pp_string "{ ";
@@ -176,13 +181,13 @@ let string_of_nt_entry e =
     (Label.to_string e.nt_succcont)
     (Label.to_string e.nt_failcont)
 
-let print_toc toc =
-  pp_string "TOC:"; pp_newline ();
+let print_gtoc toc =
+  pp_string "GTOC:"; pp_newline ();
   pp_open_hbox ();
   Seq.iter (fun (_, e) ->
       pp_string (string_of_nt_entry e);
       pp_newline ()
-    ) (FormatToC.to_seq toc);
+    ) (FormatGToC.to_seq toc);
   pp_close_box ()
 
 let print_ir_blocks blocks =
@@ -196,25 +201,18 @@ let print_ir_blocks blocks =
       pp_close_box ()
     ) (FormatIR.to_seq blocks)
 
-let print_consts blocks =
-  pp_string "Consts:"; pp_newline ();
-  print_opened blocks;
-  pp_newline ()
-
-let print_funcs blocks =
-  pp_string "Funcs:"; pp_newline ();
+let print_statics blocks =
+  pp_string "Statics:"; pp_newline ();
   print_opened blocks;
   pp_newline ()
 
 let print_spec ir =
   pp_open_vbox 0;
-  print_toc ir.ir_toc;
+  print_gtoc ir.ir_gtoc;
   pp_newline ();
   print_ir_blocks ir.ir_blocks;
   pp_newline ();
-  print_consts ir.ir_consts;
-  pp_newline ();
-  print_funcs ir.ir_funcs;
+  print_statics ir.ir_statics;
   pp_newline ();
   pp_string (Printf.sprintf "InitFailCont: %s"
                (Label.to_string ir.ir_init_failcont));

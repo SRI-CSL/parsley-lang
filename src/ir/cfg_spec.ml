@@ -45,32 +45,32 @@ let lower_spec (_, init_venv) tenv (spec: program) =
   (* initialize the context with a dummy failure label *)
   let init_failcont = Label.fresh_label () in
   let ctx = {ctx_tenv       = tenv;
-             ctx_toc        = FormatToC.empty;
+             ctx_gtoc       = FormatGToC.empty;
              ctx_ir         = FormatIR.empty;
              ctx_venv       = venv;
              ctx_failcont   = init_failcont;
              ctx_re_env     = re_env} in
 
-  (* create the first block for constant evaluation. its label will be
+  (* create a block for evaluating the statics, i.e. constants and
+     function definitions.  its label will be
      the start label for the spec *)
-  let _, cb = Cfg_rule.new_block () in
-  let _, fb = Cfg_rule.new_block () in
+  let _, sts = Cfg_rule.new_block () in
 
   (* add a function to the function block *)
   let add_fun fb af =
-    let Anf.{afun_ident = f';
-             afun_body = afb;
-             afun_loc = loc; _} = af in
-    let v = Anf.make_var f' afb.aexp_typ loc in
-    let nd = N_assign_fun (v, af) in
+    let Anf.{afun_ident  = fv;
+             afun_params = params;
+             afun_body   = afb;
+             afun_loc    = loc; _} = af in
+    let nd = N_assign_fun (fv, params, afb) in
     Cfg_rule.add_gnode fb nd afb.aexp_typ loc in
 
   (* process the spec in lexical order *)
-  let ctx, cb, fb =
-    List.fold_left (fun (ctx, cb, fb) d ->
+  let ctx, sts =
+    List.fold_left (fun (ctx, sts) d ->
         match d with
           | Ast.Decl_types _ ->
-              ctx, cb, fb
+              ctx, sts
           | Ast.Decl_const c ->
               (* populate the consts block *)
               let c', venv =
@@ -80,30 +80,29 @@ let lower_spec (_, init_venv) tenv (spec: program) =
                        aconst_loc = loc; _} = c' in
               let v = Anf.make_var v' ae.aexp_typ loc in
               let nd = N_assign (v, true, ae) in
-              let cb = Cfg_rule.add_gnode cb nd ae.aexp_typ loc in
-              {ctx with ctx_venv = venv}, cb, fb
+              let sts = Cfg_rule.add_gnode sts nd ae.aexp_typ loc in
+              {ctx with ctx_venv = venv}, sts
           | Ast.Decl_fun f ->
               (* populate the funcs block *)
               let af, venv =
                 Anf_exp.normalize_fun ctx.ctx_tenv ctx.ctx_venv f in
-              let fb = add_fun fb af in
-              {ctx with ctx_venv = venv}, cb, fb
+              let sts = add_fun sts af in
+              {ctx with ctx_venv = venv}, sts
           | Ast.Decl_recfuns r ->
               (* populate the funcs block *)
               let afs, venv = Anf_exp.normalize_recfuns ctx.ctx_tenv
                                 ctx.ctx_venv r.recfuns in
-              let fb = List.fold_left add_fun fb afs in
-              {ctx with ctx_venv = venv}, cb, fb
+              let sts = List.fold_left add_fun sts afs in
+              {ctx with ctx_venv = venv}, sts
           | Ast.Decl_format f ->
               (* generate the CFG blocks for the non-terminals *)
-              List.fold_left (fun (ctx, cb, fb) (fd: format_decl) ->
+              List.fold_left (fun (ctx, sts) (fd: format_decl) ->
                   let ntd = fd.format_decl in
                   let ctx = Cfg_rule.lower_ntd ctx ntd in
-                  ctx, cb, fb
-                ) (ctx, cb, fb) f.format_decls
-      ) (ctx, cb, fb) spec.decls in
-  {ir_toc    = ctx.ctx_toc;
-   ir_blocks = ctx.ctx_ir;
-   ir_consts = cb;
-   ir_funcs  = fb;
+                  ctx, sts
+                ) (ctx, sts) f.format_decls
+      ) (ctx, sts) spec.decls in
+  {ir_gtoc          = ctx.ctx_gtoc;
+   ir_blocks        = ctx.ctx_ir;
+   ir_statics       = sts;
    ir_init_failcont = init_failcont}

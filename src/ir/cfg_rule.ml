@@ -1110,9 +1110,9 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
      nt_succcont = lsucc;
      nt_failcont = lfail;
      nt_loc = ntd.non_term_loc} in
-  (* add it to the ToC *)
-  let toc = FormatToC.add nt_name nte ctx.ctx_toc in
-  {ctx with ctx_toc = toc}
+  (* add it to the grammar ToC *)
+  let toc = FormatGToC.add nt_name nte ctx.ctx_gtoc in
+  {ctx with ctx_gtoc = toc}
 
 (* a wrapper to intercept the special case of a non-terminal without
    attributes and a single regexp-convertible rule with no

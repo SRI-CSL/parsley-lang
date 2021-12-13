@@ -162,8 +162,8 @@ type aconst =
    aconst_loc:   Location.t}
 
 type afun =
-  {afun_ident:     varid;
-   afun_params:    varid list;
+  {afun_ident:     var;
+   afun_params:    var list;
    afun_body:      aexp;
    afun_recursive: bool;
    afun_loc:       Location.t}

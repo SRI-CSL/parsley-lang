@@ -200,10 +200,10 @@ let print_fun f =
   pp_string (if f.afun_recursive
              then "recfun "
              else "fun ");
-  pp_string (string_of_var f.afun_ident);
+  pp_string (string_of_var f.afun_ident.v);
   pp_string "(";
   AstPrinter.print_list ", "
-    (fun s -> pp_string (string_of_var s))
+    (fun s -> pp_string (string_of_var s.v))
     f.afun_params;
   pp_string ") = {";
   pp_close_box ();

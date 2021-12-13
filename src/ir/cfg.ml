@@ -64,14 +64,14 @@ type return = (var * bool) option
 type gnode_desc =
   (* expression evaluation *)
 
-  (* evaluate the expression and assign it to a possibly fresh
+  (* Evaluate the expression and assign it to a possibly fresh
      variable *)
   | N_assign of var * bool * aexp
 
-  (* create an entry for a function and assign it to a fresh
+  (* Create an entry for a function and assign it to a fresh
      variable.  Since there are no first-class functions, this is
      usually done during initialization. *)
-  | N_assign_fun of var * afun
+  | N_assign_fun of var * var list * aexp
 
   (* side-effects *)
 
@@ -286,12 +286,12 @@ type nt_entry =
    (* the location this non-term was defined *)
    nt_loc: Location.t}
 
-(* The 'table-of-contents' maps each non-terminal name to its
+(* The 'grammar table-of-contents' maps each non-terminal name to its
    nt_entry.  It is only a ToC and not complete since it does not
    contain the actual CFGs. *)
-module FormatToC = Map.Make(struct type t = string
-                                   let compare = compare
-                            end)
+module FormatGToC = Map.Make(struct type t = string
+                                    let compare = compare
+                             end)
 
 (* This is the complete set of CFG blocks in the specification,
    indexed by their entry label. *)
@@ -301,12 +301,9 @@ module FormatIR = Map.Make(struct type t = Label.label
 
 (* the IR for the entire specification *)
 type spec_ir =
-  {ir_toc: nt_entry  FormatToC.t;
-   ir_blocks: closed FormatIR.t;
-   (* block containing constants and their normalized value expressions *)
-   ir_consts: opened;
-   (* block containing functions and their normalized definitions *)
-   ir_funcs:  opened;
+  {ir_gtoc:          nt_entry FormatGToC.t;
+   ir_blocks:        closed FormatIR.t;
+   ir_statics:       opened; (* constants and functions *)
    ir_init_failcont: Label.label}
 
 (* The context for IR generation *)
@@ -314,16 +311,16 @@ type context =
   {(* the typing environment *)
    ctx_tenv: TypingEnvironment.environment;
    (* this will stay static during the construction of the IR *)
-   ctx_toc: nt_entry FormatToC.t;
+   ctx_gtoc: nt_entry FormatGToC.t;
    (* this will be updated during the construction with completed
       blocks *)
-   ctx_ir: closed FormatIR.t;
+   ctx_ir:   closed FormatIR.t;
    (* the current variable environment *)
    ctx_venv: VEnv.t;
    (* the current failure continuation *)
    ctx_failcont: Label.label;
    (* intermediate re forms for regexp non-terminals *)
-   ctx_re_env: re_env}
+   ctx_re_env:   re_env}
 
 type error =
   | Unbound_return_expr of Location.t
