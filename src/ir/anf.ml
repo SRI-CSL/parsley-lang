@@ -42,7 +42,7 @@ type varid = string * int
 
 (* variable bindings *)
 type var =
-  {v: varid;
+  {v:     varid;
    v_typ: typ;
    v_loc: Location.t}
 
@@ -55,7 +55,7 @@ type av_desc =
   | AV_mod_member of Ast.modident * Ast.ident
 
 and av =
-  {av: av_desc;
+  {av:     av_desc;
    av_typ: typ;
    av_loc: Location.t}
 
@@ -65,7 +65,7 @@ type fv_desc =
   | FV_mod_member of Ast.modident * Ast.ident
 
 and fv =
-  {fv: fv_desc;
+  {fv:     fv_desc;
    fv_typ: typ;
    fv_loc: Location.t}
 
@@ -103,7 +103,7 @@ type apat_desc =
   | AP_variant of (Ast.ident * Ast.ident)
 
 and apat =
-  {apat: apat_desc;
+  {apat:     apat_desc;
    apat_typ: typ;
    apat_loc: Location.t}
 
@@ -140,7 +140,7 @@ type aexp_desc =
   | AE_letpat of var * (av * occurrence) * aexp
 
 and aexp =
-  {aexp: aexp_desc;
+  {aexp:     aexp_desc;
    aexp_typ: typ;
    aexp_loc: Location.t}
 
@@ -152,21 +152,21 @@ let make_ae ae t l =
    aexp_loc = l}
 
 let ae_of_av (av: av) : aexp =
-  {aexp = AE_val av;
+  {aexp     = AE_val av;
    aexp_typ = av.av_typ;
    aexp_loc = av.av_loc}
 
 type aconst =
   {aconst_ident: varid;
-   aconst_val: aexp;
-   aconst_loc: Location.t}
+   aconst_val:   aexp;
+   aconst_loc:   Location.t}
 
 type afun =
-  {afun_ident: varid;
-   afun_params: varid list;
-   afun_body: aexp;
+  {afun_ident:     varid;
+   afun_params:    varid list;
+   afun_body:      aexp;
    afun_recursive: bool;
-   afun_loc: Location.t}
+   afun_loc:       Location.t}
 
 type astmt_desc =
   | AS_set_var of var * aexp
@@ -178,7 +178,7 @@ type astmt_desc =
   | AS_letpat of var * (av * occurrence) * astmt
 
 and astmt =
-  {astmt: astmt_desc;
+  {astmt:     astmt_desc;
    astmt_loc: Location.t}
 
 module Bindings = Map.Make(struct type t = string * TypeInfer.varid
