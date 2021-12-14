@@ -110,21 +110,16 @@ let rec print_type_expr ?paren te =
 let print_type_rep tr =
   match tr.type_rep with
     | TR_variant cons ->
-        let first = ref true in
         let print_data_cons dc =
-          if !first
-          then (pp_string "  ";
-                first := false)
-          else (pp_break  0 0;
-                pp_string "| ");
+          pp_break  0 0;
+          pp_string "| ";
           match dc with
             | id, Some te ->
                 pp_string (Location.value id);
                 pp_string " of ";
                 print_type_expr te
             | id, None ->
-                pp_string (Location.value id)
-        in
+                pp_string (Location.value id) in
         pp_open_vbox 0;
         List.iter (fun dc ->
             print_data_cons dc
@@ -211,7 +206,10 @@ let rec print_clause auxp (p, e) =
   pp_string "| ";
   print_pattern auxp p;
   pp_string " -> ";
-  print_expr auxp e
+  pp_open_vbox 0;
+  pp_cut ();
+  print_expr auxp e;
+  pp_close_box ()
 
 and print_clauses auxp = function
   | [] -> ()
@@ -321,6 +319,7 @@ and print_expr auxp e =
         pp_string " = ";
         print_expr auxp e;
         pp_string " in ";
+        pp_break  0 0;
         print_expr auxp b
     | E_cast (e, t) ->
         pp_string "(";
@@ -465,8 +464,8 @@ let rec print_clause auxp (p, s) =
   pp_string "| ";
   print_pattern auxp p;
   pp_string " -> ";
+  pp_open_vbox  0;
   pp_cut ();
-  pp_open_vbox  2;
   pp_string " { ";
   print_list "; " (print_stmt auxp) s;
   pp_string " }";

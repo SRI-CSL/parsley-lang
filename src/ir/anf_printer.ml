@@ -85,7 +85,10 @@ let rec print_clause (p, e) =
   pp_string "| ";
   print_pat p;
   pp_string " -> ";
-  print_aexp e
+  pp_open_vbox 2;
+  pp_cut ();
+  print_aexp e;
+  pp_close_box ()
 
 and print_clauses = function
   | [] -> ()
@@ -172,6 +175,7 @@ and print_aexp e =
         pp_string " = ";
         print_aexp e;
         pp_string " in ";
+        pp_break  0 0;
         print_aexp b
     | AE_letpat (v, (av, occ), e) ->
         pp_string "letpat ";
@@ -180,6 +184,7 @@ and print_aexp e =
         print_av av;
         pp_string (string_of_occurrence occ);
         pp_string " in ";
+        pp_break  0 0;
         print_aexp e
 
 let print_const c =
@@ -220,8 +225,8 @@ let rec print_clause (p, s) =
   pp_string "| ";
   print_pat p;
   pp_string " -> ";
+  pp_open_vbox 0;
   pp_cut ();
-  pp_open_vbox 2;
   pp_string " { ";
   print_stmt s;
   pp_string " }";
