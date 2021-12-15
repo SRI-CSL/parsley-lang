@@ -38,7 +38,6 @@ module Internal_errors = struct
     | Bad_subterm_path of Location.t * Ir.Anf.occurrence * Ir.Anf.occurrence
     | Bad_subterm_index of Location.t * (string * string) * int * Ir.Anf.occurrence
     | Pattern_match_failure of Location.t * Anf.var
-    | Pattern_match_type_failure of Location.t * Anf.var * vtype
 
   let error_msg =
     let pr_occ = Ir.Anf_printer.string_of_occurrence in
@@ -81,10 +80,6 @@ module Internal_errors = struct
     | Pattern_match_failure (lc, v) ->
         msg "%s:\n INTERNAL ERROR: no patterns matched for `%s:%d'."
           lc (fst Anf.(v.v)) (snd Anf.(v.v))
-    | Pattern_match_type_failure (lc, v, vt) ->
-        msg
-          "%s:\n INTERNAL ERROR: pattern type error for `%s:%d': got unexpected type %s."
-          lc (fst Anf.(v.v)) (snd Anf.(v.v)) (string_of_vtype vt)
 end
 
 type error =
