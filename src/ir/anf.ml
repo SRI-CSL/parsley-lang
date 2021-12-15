@@ -113,9 +113,6 @@ and apat =
    arguments are numbered starting from 1.*)
 type occurrence = int list
 let root_occurrence = []
-let sprint_occ occ =
-  "[" ^ (String.concat " "
-           (List.map string_of_int occ)) ^ "]"
 
 (* In the A-normal form, primitive operations are performed on
    `values' that are essentially names for evaluated subexpressions.

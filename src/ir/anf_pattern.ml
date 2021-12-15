@@ -57,34 +57,36 @@ let sprint_con = function
   | Default ->
       "*"
 
-open Format
-let pp_string    = pp_print_string !AstPrinter.ppf
-let pp_open_box  = pp_open_box !AstPrinter.ppf
-let pp_open_vbox = pp_open_vbox !AstPrinter.ppf
-let pp_close_box = pp_close_box !AstPrinter.ppf
-let pp_break     = pp_print_break !AstPrinter.ppf
-let pp_flush     = pp_print_flush !AstPrinter.ppf
+let pp_string    = AstPrinter.pp_string
+let pp_open_vbox = AstPrinter.pp_open_vbox
+let pp_close_box = AstPrinter.pp_close_box
+let pp_break     = AstPrinter.pp_break
+let pp_cut       = AstPrinter.pp_cut
+let pp_flush     = AstPrinter.pp_flush
 
-let rec print_dectree d =
-  match d with
-    | Leaf d ->
-        pp_string (Printf.sprintf "Leaf %d" d);
-        pp_flush ()
-    | Switch (occ, cases) ->
-        pp_string ("occ:" ^ (sprint_occ occ));
-        pp_string "(";
-        pp_open_box 0;
-        pp_break 0 0;
-        List.iteri print_case cases;
-        pp_close_box ();
-        pp_string ")";
-        pp_flush ()
+let sprint_occ occ =
+  "[" ^ (String.concat " "
+           (List.map string_of_int occ)) ^ "]"
 
-and print_case idx (c, _, _, d) =
-  let s = Printf.sprintf " %d| %s => (" idx (sprint_con c) in
-  pp_string s;
-  print_dectree d;
-  pp_string ")"
+let print_dectree d =
+  let rec pr_dectree d =
+    match d with
+      | Leaf d ->
+          pp_string (Printf.sprintf "Leaf %d" d)
+      | Switch (occ, cases) ->
+          pp_string ("occ:" ^ (sprint_occ occ) ^ "(");
+          pp_open_vbox 0;
+          List.iteri pr_case cases;
+          pp_close_box ();
+          pp_string ")"
+  and pr_case idx (c, _, _, d) =
+    let s = Printf.sprintf " %d| %s => (" idx (sprint_con c) in
+    pp_string s;
+    pr_dectree d;
+    pp_string ")";
+    pp_cut ()
+  in pr_dectree d;
+     pp_flush ()
 
 let print_pmat m =
   let auxp = (fun _ -> "") in
