@@ -35,8 +35,14 @@ module Internal_errors = struct
     | Duplicate_function_binding of Location.t * string
     | Function_arity of Location.t * string * int * int
     | Unknown_stdlib of Location.t * string * string * int
+    | Bad_subterm_path of Location.t * Ir.Anf.occurrence * Ir.Anf.occurrence
+    | Bad_subterm_index of Location.t * (string * string) * int * Ir.Anf.occurrence
+    | Pattern_match_failure of Location.t * Anf.var
+    | Pattern_match_type_failure of Location.t * Anf.var * vtype
 
-  let error_msg = function
+  let error_msg =
+    let pr_occ = Ir.Anf_printer.string_of_occurrence in
+    function
     | Type_error (l, op, arg, r, e) ->
         msg "%s:\n INTERNAL ERROR: invalid type for '%s': found %s for argument %d, expected %s."
           l op (string_of_vtype r) arg (string_of_vtype e)
@@ -64,6 +70,21 @@ module Internal_errors = struct
     | Unknown_stdlib (lc, m, f, nargs) ->
         msg "%s:\n INTERNAL ERROR: unknown stdlib call `%s.%s' (with %d args)."
           lc m f nargs
+    | Bad_subterm_path (lc, socc, occ) ->
+        msg
+          "%s:\n INTERNAL ERROR: no constructed value at location `%s' of path `%s'."
+          lc (pr_occ socc) (pr_occ occ)
+    | Bad_subterm_index (lc, (t, c), idx, occ) ->
+        msg
+          "%s:\n INTERNAL ERROR: invalid term index %d for `%s::%s' in path `%s'."
+          lc idx t c (pr_occ occ)
+    | Pattern_match_failure (lc, v) ->
+        msg "%s:\n INTERNAL ERROR: no patterns matched for `%s:%d'."
+          lc (fst Anf.(v.v)) (snd Anf.(v.v))
+    | Pattern_match_type_failure (lc, v, vt) ->
+        msg
+          "%s:\n INTERNAL ERROR: pattern type error for `%s:%d': got unexpected type %s."
+          lc (fst Anf.(v.v)) (snd Anf.(v.v)) (string_of_vtype vt)
 end
 
 type error =

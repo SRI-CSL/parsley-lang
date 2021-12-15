@@ -279,3 +279,21 @@ let constr_match lc (l: value) (c: string * string) : value =
         V_bool (c = c')
     | _ ->
         internal_error (Type_error (lc, "~~", 1, vtype_of l, T_adt (c, [])))
+
+(* subterm extraction *)
+let subterm lc (v: value) (o: Ir.Anf.occurrence) : value =
+  let rec walk v so =
+    match v, so with
+      | _, [] ->
+          v
+      | V_constr (tc, args), idx :: tl ->
+          let  arity = List.length args in
+          if   1 <= idx && idx <= arity
+          then let v' = List.nth args (idx - 1) in
+               walk v' tl
+          else let err = Bad_subterm_index (lc, tc, idx, o) in
+               internal_error err
+      | _, _ ->
+           let err = Bad_subterm_path (lc, so, o) in
+           internal_error err in
+  walk v o
