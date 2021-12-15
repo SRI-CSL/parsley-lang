@@ -100,7 +100,7 @@ let fv_of_var (v: var) : fv =
 type apat_desc =
   | AP_wildcard
   | AP_literal of Ast.primitive_literal
-  | AP_variant of (Ast.ident * Ast.ident)
+  | AP_variant of (string * string)
 
 and apat =
   {apat:     apat_desc;
@@ -108,9 +108,9 @@ and apat =
    apat_loc: Location.t}
 
 (* An occurrence identifies the subterm of the value being scrutinized
-   by a pattern.  The list starts from the subterm and goes towards
-   the root.  An empty list indicates the entire value.  Constructor
-   arguments are numbered starting from 1.*)
+   by a pattern.  The list starts from the root and goes towards
+   the sub-term.  An empty list indicates the entire value.  Constructor
+   arguments are numbered starting from 1. *)
 type occurrence = int list
 let root_occurrence = []
 

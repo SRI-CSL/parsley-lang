@@ -24,6 +24,11 @@ open Anf
    'Compiling pattern matching to good decision trees', by Luc Maranget.
    Proceedings of the 2008 ACM SIGPLAN workshop on ML, September 2008
    https://doi.org/10.1145/1411304.1411311
+
+   The representation of occurrence sequences is reversed from that
+   implied in the paper.  This is to ease interpretation and execution,
+   where a term is traversed from the root to the sub-term. This is
+   simpler if the occurrence is represented in the same order.
  *)
 
 (* pattern action row *)
@@ -120,7 +125,7 @@ let rec is_default_row = function
 let conarg_paths arity root_path =
   let rec helper acc i =
     if i = 0 then acc
-    else helper ((i :: root_path) :: acc) (i - 1) in
+    else helper ((root_path @ [i]) :: acc) (i - 1) in
   helper [] arity
 
 (* The input to the decision tree constructor includes
@@ -132,30 +137,31 @@ let rec to_dectree (tenv: TypingEnvironment.environment)
         : decision_tree =
   match m with
     | [] ->
-        (* Since we check for exhaustiveness, we should never fail. *)
+        (* This should never be seen at the top-level, since the empty
+           matrix has no actions and hence no possible decision
+           result. *)
         assert false
     | (prow, a) :: _ ->
         assert (List.length prow = List.length paths);
         (if   is_default_row prow
          then Leaf a
          else
-           (* TODO: employ heuristics to pick the best column, and
-              add the Swap decision_tree. *)
+           (* The naive column selection just uses the first column as
+              the next scrutinee; this avoids the need for the Swap
+              decision tree.
+              TODO: add Swap, and employ heuristics to pick the best
+              column. *)
            let col    = Pattern_utils.first_col m in
            let heads  = Pattern_utils.roots tenv col in
            let path   = List.hd paths in
            let rpaths = List.tl paths in
            match heads with
              | [] ->
-                 (* We could get empty pattern matrices, since we skip
-                    the exhaustiveness check for expressions
-                    constrained by the ~~ operator.  We cannot recurse
-                    with an empty matrix since we would lose the leaf
-                    label.  Instead, handle this case before
-                    recursing. *)
+                 (* Naive column selection will often give a column
+                    with no heads. *)
                  let def = default m in
                  (match def with
-                    | [] -> Leaf a
+                    | [] -> Leaf a (* last col with only wildcards *)
                     | _  -> to_dectree tenv def rpaths)
              | ({pattern_aux = def_typ; pattern_loc = def_loc; _}, _) :: _ ->
                  let switches =
@@ -183,12 +189,12 @@ let rec to_dectree (tenv: TypingEnvironment.environment)
                       | _  ->
                           let dt =
                             to_dectree tenv def rpaths in
-                          Switch (path, ((Default, def_typ, def_loc, dt) :: switches)))
+                          Switch (path, (switches @ [(Default, def_typ, def_loc, dt)])))
         )
 
 let to_decision_tree tenv pmat _loc =
-  (* seed with an empty list of occurrences *)
-  to_dectree tenv pmat [[]]
+  (* seed with the root occurrence *)
+  to_dectree tenv pmat [root_occurrence]
 
 (* computes the path occurrences for each pattern variable *)
 let pvar_paths (p: pat)
@@ -202,7 +208,7 @@ let pvar_paths (p: pat)
       | P_variant (_, ps) ->
           let acc, _ =
             List.fold_left (fun (acc, i) p ->
-                let acc = helper acc p (i :: path) in
+                let acc = helper acc p (path @ [i]) in
                 acc, i + 1
               ) (acc, 1) ps in
           acc in

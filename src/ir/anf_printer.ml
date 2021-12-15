@@ -31,7 +31,7 @@ let pp_cut       = pp_print_cut !AstPrinter.ppf
 let string_of_var (v, id) =
   if v <> "" && id = 1
   then v
-  else Printf.sprintf "#%s%d" v id
+  else Printf.sprintf "%s#%d" v id
 
 let string_of_occurrence occ =
   if occ = []
@@ -78,8 +78,8 @@ let print_pat p =
         pp_string "_"
     | AP_literal l ->
         pp_string (AstPrinter.string_of_literal l)
-    | AP_variant c ->
-        pp_string (AstPrinter.string_of_constructor c)
+    | AP_variant (t, c) ->
+        pp_string (AstUtils.canonicalize_dcon t c)
 
 let rec print_clause (p, e) =
   pp_string "| ";
@@ -103,10 +103,9 @@ and print_aexp e =
     | AE_val v ->
         print_av v
     | AE_apply (f, vs) ->
-        pp_string "(";
         print_fv f;
-        pp_string " ";
-        AstPrinter.print_list " " print_av vs;
+        pp_string "(";
+        AstPrinter.print_list "," print_av vs;
         pp_string ")"
     | AE_unop (op, v) ->
         pp_string (AstPrinter.str_of_unop op);
@@ -161,7 +160,7 @@ and print_aexp e =
         AstPrinter.print_type_expr t;
         pp_string ")"
     | AE_case (v, clauses) ->
-        pp_open_vbox 2;
+        pp_open_vbox 1;
         pp_string "(case ";
         pp_string (string_of_var v.v);
         pp_string " of ";

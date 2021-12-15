@@ -260,15 +260,17 @@ and normalize_exp_case (tenv: TypingEnvironment.environment)
           let cases, venv, opt_typ =
             List.fold_left (fun (cases, venv, _) (con, occ_typ, loc, dt) ->
                 let aexp, venv = unfold venv dt in
+                let to_anf (t, c) = Location.value t, Location.value c in
                 let apat =
                   {apat = (match con with
-                             | Con (c, _) -> AP_variant c
+                             | Con (c, _) -> AP_variant (to_anf c)
                              | Lit l      -> AP_literal l
                              | Default    -> AP_wildcard);
                    apat_typ = occ_typ;
                    apat_loc = loc} in
                 (apat, aexp) :: cases, venv, Some (occ_typ, aexp.aexp_typ)
               ) ([], venv, None) subtree in
+          let cases = List.rev cases in
           (* There should be at least one case (e.g. the default) *)
           let occ_typ, case_typ = match opt_typ with
               | None          -> assert false
@@ -458,9 +460,10 @@ and normalize_stmt_case (tenv: TypingEnvironment.environment)
           let cases, venv, opt_typ =
             List.fold_left (fun (cases, venv, _) (con, occ_typ, loc, dt) ->
                 let astmt, venv = unfold venv dt in
+                let to_anf (t, c) = Location.value t, Location.value c in
                 let apat =
                   {apat = (match con with
-                             | Con (c, _) -> AP_variant c
+                             | Con (c, _) -> AP_variant (to_anf c)
                              | Lit l      -> AP_literal l
                              | Default    -> AP_wildcard);
                    apat_typ = occ_typ;

@@ -75,8 +75,8 @@ let as_type_variable (_, v, _) =
   v
 
 (* The following information is stored for each datatype constructor:
-   - its type variables ;
    - its arity ;
+   - its type variables ;
    - its type *)
 type data_constructor = int * variable list * crterm
 

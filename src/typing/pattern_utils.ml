@@ -297,6 +297,26 @@ let swap_cols m i j =
 
 (* extract the constructors from a pattern column *)
 let roots tenv col =
+  (* ensure each constructor appears only once *)
+  let rec is_mem ((pat, _) as p) acc =
+    match pat.pattern, acc with
+      | _, [] ->
+          false
+      | P_literal l, ({pattern = P_literal l';
+                       _}, _) :: _
+           when l = l' ->
+          true
+      | P_variant ((t, c), _), ({pattern = P_variant ((t', c'), _);
+                                 _}, _) :: _
+           when    Location.value t = Location.value t'
+                && Location.value c = Location.value c' ->
+          true
+      | _, _ :: tl ->
+          is_mem p tl in
+  let add p acc =
+    if   is_mem p acc
+    then acc
+    else p :: acc in
   List.fold_right (fun p acc ->
       match p.pattern with
         | P_wildcard | P_var _ ->
@@ -304,7 +324,7 @@ let roots tenv col =
             acc
         | P_literal _ ->
             (* literals have arity 0 *)
-            (p, 0) :: acc
+            add (p, 0) acc
         | P_variant ((typ, constr), _) ->
-            (p, arity tenv typ constr) :: acc
+            add (p, arity tenv typ constr) acc
     ) col []
