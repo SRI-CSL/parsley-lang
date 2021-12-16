@@ -79,16 +79,12 @@ type dfa =
 type dfa_env = (Location.t * unit re) StringMap.t
 
 (* printing utility *)
-open Format
-
-let pp_string    = pp_print_string !AstPrinter.ppf
-let pp_open_box  = pp_open_box !AstPrinter.ppf
-let pp_open_vbox = pp_open_vbox !AstPrinter.ppf
-let pp_close_box = pp_close_box !AstPrinter.ppf
-let pp_break     = pp_print_break !AstPrinter.ppf
-let pp_flush     = pp_print_flush !AstPrinter.ppf
-let pp_newline   = pp_print_newline !AstPrinter.ppf
-let pp_cut       = pp_print_cut !AstPrinter.ppf
+let pp_string    = AstPrinter.pp_string
+let pp_open_box  = AstPrinter.pp_open_box
+let pp_open_vbox = AstPrinter.pp_open_vbox
+let pp_close_box = AstPrinter.pp_close_box
+let pp_break     = AstPrinter.pp_break
+let pp_flush     = AstPrinter.pp_flush
 
 let print_re auxp re =
   let rec printer auxp re =

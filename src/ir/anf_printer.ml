@@ -17,16 +17,14 @@
 
 open Parsing
 open Anf
-open Format
 
-let pp_string    = pp_print_string !AstPrinter.ppf
-let pp_open_box  = pp_open_box !AstPrinter.ppf
-let pp_open_vbox = pp_open_vbox !AstPrinter.ppf
-let pp_close_box = pp_close_box !AstPrinter.ppf
-let pp_break     = pp_print_break !AstPrinter.ppf
-let pp_flush     = pp_print_flush !AstPrinter.ppf
-let pp_newline   = pp_print_newline !AstPrinter.ppf
-let pp_cut       = pp_print_cut !AstPrinter.ppf
+let pp_string    = AstPrinter.pp_string
+let pp_open_box  = AstPrinter.pp_open_box
+let pp_open_vbox = AstPrinter.pp_open_vbox
+let pp_close_box = AstPrinter.pp_close_box
+let pp_break     = AstPrinter.pp_break
+let pp_newline   = AstPrinter.pp_newline
+let pp_cut       = AstPrinter.pp_cut
 
 let string_of_var (v, id) =
   if v <> "" && id = 1

@@ -25,11 +25,13 @@ let ppf = ref std_formatter
 let pp_string    = pp_print_string !ppf
 let pp_open_box  = pp_open_box !ppf
 let pp_open_vbox = pp_open_vbox !ppf
+let pp_open_hbox = pp_open_hbox !ppf
 let pp_close_box = pp_close_box !ppf
 let pp_break     = pp_print_break !ppf
 let pp_flush     = pp_print_flush !ppf
 let pp_newline   = pp_print_newline !ppf
 let pp_cut       = pp_print_cut !ppf
+let pp_space     = pp_print_space !ppf
 
 let rec print_list sep printer = function
   | [] -> ()
