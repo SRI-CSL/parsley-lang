@@ -84,7 +84,7 @@ format {
       s=U16
       t=U16
       { let r = { consume: s+1,
-                  produce: 0 } in
+                  produce: s+1 } in
         o.op := operation.Rotl(r)
       }
    ;
@@ -92,7 +92,7 @@ format {
       s=U16
       t=U16
       { let r = { consume: s+1,
-                  produce: 0 } in
+                  produce: s+1 } in
         o.op := operation.Rotr(r)
       }
    ;
