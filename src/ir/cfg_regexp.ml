@@ -385,7 +385,10 @@ let build_dfa (renv: re_env) (re: regexp) : dfa =
                    then StateSet.add st accept
                    else accept
                  ) states StateSet.empty in
-  states, start, accept, table
+  {dfa_states      = states;
+   dfa_start       = start;
+   dfa_accepts     = accept;
+   dfa_transitions = table}
 
 let re_of_character_class cc : unit re =
   let new_pos = get_pos_generator () in

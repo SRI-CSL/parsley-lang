@@ -54,9 +54,6 @@ type re_env = (Location.t * unit re) StringMap.t
 
 (* The DFA *)
 
-(* TODO: make the state abstract, and speed interpretation by using
-   integer identifiers for states. *)
-
 type state = PosSet.t
 
 module StateSet = Set.Make(struct
@@ -70,10 +67,24 @@ module TTable = Map.Make(struct
                   end)
 
 type dfa =
-  StateSet.t         (* all states *)
-  * state            (* starting state *)
-  * StateSet.t       (* accepting states *)
-  * state TTable.t   (* transition table *)
+  {dfa_states:      StateSet.t;     (* all states *)
+   dfa_start:       state;          (* starting state *)
+   dfa_accepts:     StateSet.t;     (* accepting states *)
+   dfa_transitions: state TTable.t} (* transition table *)
+
+module DFA = struct
+  type t = dfa
+
+  let start (dfa: t) : state =
+    dfa.dfa_start
+
+  let next (dfa: t) (s: state * Char.t) : state option =
+    let tt = dfa.dfa_transitions in
+    TTable.find_opt s tt
+
+  let accept (dfa: t) (s: state) : bool =
+    StateSet.mem s dfa.dfa_accepts
+end
 
 (* The DFAs for regexp non-terminals *)
 type dfa_env = (Location.t * unit re) StringMap.t
