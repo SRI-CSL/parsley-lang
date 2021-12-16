@@ -108,7 +108,7 @@ format {
 
       !"flip"!
       s=U16
-      t=0
+      t=U16
       { let r = { consume: s+1,
                   produce: s+1 } in
         o.op := operation::Flip(r)
@@ -117,7 +117,7 @@ format {
 
       !"pop"!
       s=U16
-      t=0
+      t=U16
       { let r = { consume: s+1,
                   produce: 0 } in
         o.op := operation::Pop(r)
