@@ -10,11 +10,13 @@ type operation =
  | If_else of resource * [operation] * [operation]
  // ... other ops
 
-//Duplicate top S+1 elements T+1
-//times (stack results shown for T=0)
-
- // stack operations, Table 96
+ // BH note: Table 96, Stack operations by signature, pg. 104
  | Copy of resource
+ | Rotl of resource
+ | Rotr of resource
+ | Posd of resource
+ | Flip of resource
+ | Pop of resource
 
 recfun num_ops (o: operation) -> int = {
   (case o of
@@ -22,8 +24,10 @@ recfun num_ops (o: operation) -> int = {
        1 + num_stream_ops(s, 0)
    | operation::If_else(_, s, t) ->
        2 + num_stream_ops(s, 0) + num_stream_ops(t, 0)
+
    // other ops
-   | operation::Copy(_) -> 1
+   // BH note: advised by PrashanthM to make this part a wildcard
+   | _ -> 1
    )
 }
 
@@ -66,12 +70,58 @@ format {
 
     ;
    // ... other ops
+   // Stack operations, Table 96
       !"copy"!
       s=U16
       t=U16
       { let r = { consume: s+1,
-                  produce: (s+1)*(t+1) } in
-        o.op := operation::Copy(r)}
+                  produce: (s+1)*(t+2) } in
+        o.op := operation::Copy(r)
+      }
+   ;
+
+      !"rotl"!
+      s=U16
+      t=U16
+      { let r = { consume: s+1,
+                  produce: 0 } in
+        o.op := operation.Rotl(r)
+      }
+   ;
+      !"rotr"!
+      s=U16
+      t=U16
+      { let r = { consume: s+1,
+                  produce: 0 } in
+        o.op := operation.Rotr(r)
+      }
+   ;
+
+      !"posd"!
+      s=U16
+      t=U16
+      { let r = { consume: s,
+                  produce: s + t+1 } in
+        o.op := operation.Posd(r)
+      }
+   ;
+
+      !"flip"!
+      s=U16
+      t=0
+      { let r = { consume: s+1,
+                  produce: s+1 } in
+        o.op := operation.Flip(r)
+      }
+   ;
+
+      !"pop"!
+      s=U16
+      t=0
+      { let r = { consume: s+1,
+                  produce: 0 } in
+        o.op := operation.Pop(r)
+      }
    ;;
 
   OpStream os (nops: int) {ops: [operation]} :=
