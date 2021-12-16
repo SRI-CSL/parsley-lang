@@ -28,7 +28,7 @@ recfun num_ops (o: operation) -> int = {
    // other ops
    // BH note: advised by PrashanthM to make this part a wildcard
    | _ -> 1
-   )
+  )
 }
 
 and num_stream_ops (os: [operation], acc: int) -> int = {
@@ -85,7 +85,7 @@ format {
       t=U16
       { let r = { consume: s+1,
                   produce: s+1 } in
-        o.op := operation.Rotl(r)
+        o.op := operation::Rotl(r)
       }
    ;
       !"rotr"!
@@ -93,7 +93,7 @@ format {
       t=U16
       { let r = { consume: s+1,
                   produce: s+1 } in
-        o.op := operation.Rotr(r)
+        o.op := operation::Rotr(r)
       }
    ;
 
@@ -101,8 +101,8 @@ format {
       s=U16
       t=U16
       { let r = { consume: s,
-                  produce: s + t+1 } in
-        o.op := operation.Posd(r)
+                  produce: s+t+1 } in
+        o.op := operation::Posd(r)
       }
    ;
 
@@ -111,7 +111,7 @@ format {
       t=0
       { let r = { consume: s+1,
                   produce: s+1 } in
-        o.op := operation.Flip(r)
+        o.op := operation::Flip(r)
       }
    ;
 
@@ -120,7 +120,7 @@ format {
       t=0
       { let r = { consume: s+1,
                   produce: 0 } in
-        o.op := operation.Pop(r)
+        o.op := operation::Pop(r)
       }
    ;;
 
