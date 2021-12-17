@@ -37,9 +37,15 @@ type view =
    vu_source: source;
    vu_id:     Int64.t; (* unique identifier per view *)
 
-   (* all locations below are maintained wrt to the start of vu_buf *)
+   (* all locations below are absolute indices into vu_buf.
+      The following invariants are maintained:
+      . vu_end is 1 past the last valid read index for the buffer
+      . vu_start <= vu_ofs <= vu_end
+      . it is legal for vu_ofs = vu_end; however, it is illegal to use
+        that offset for a read.
+    *)
    vu_start:  int;
-   vu_ofs:    int;     (* cursor *)
+   vu_ofs:    int;     (* cursor, i.e. index for next read *)
    vu_end:    int}
 
 (* the values of the expression language.  sets and maps have an

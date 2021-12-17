@@ -24,9 +24,16 @@ open Ir
 open Runtime_exceptions
 open Internal_errors
 
+(* bit-level parsing state *)
+
+type bitwise =
+  {bw_bit_ofs: int;
+   bw_view_id: Int64.t;
+   bw_matched: bool list}
+
 type mode =
   | Mode_normal
-  | Mode_bitlevel
+  | Mode_bitwise of bitwise
 
 (* Variable bindings *)
 module Bindings = Map.Make(struct type t = Anf.varid
