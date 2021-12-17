@@ -50,6 +50,42 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
         let m, c = Location.value m, Location.value c in
         dispatch_stdlib av.av_loc m c []
 
+(* match helper, used for aexps and astmts *)
+let matcher loc vr vl cases =
+  let rec do_cases cases =
+    match vl, cases with
+      | _, [] ->
+          let err = Internal_errors.Pattern_match_failure (loc, vr) in
+          internal_error err
+      | _, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_wildcard ->
+          br
+      | V_int i, (p, br) :: _
+           when let ilit  = Int64.to_int i in
+                Anf.(p.apat) = Anf.AP_literal (Ast.PL_int ilit) ->
+          br
+      | V_string s, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_literal (Ast.PL_string s) ->
+          br
+      | V_unit, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_literal Ast.PL_unit ->
+          br
+      | V_bool b, (p,br) :: _
+           when Anf.(p.apat) = Anf.AP_literal (Ast.PL_bool b) ->
+          br
+      | V_bit b, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_literal (Ast.PL_bit b) ->
+          br
+      | V_bitvector bv, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_literal (Ast.PL_bitvector bv) ->
+          br
+      | V_constr (c, _),  (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant c ->
+          br
+      | _, _ :: rest ->
+          do_cases rest in
+  do_cases cases
+
 let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
   let loc = ae.aexp_loc in
   match ae.aexp with
@@ -96,7 +132,7 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
         Builtins.constr_match loc v (Location.value t, Location.value c)
     | AE_field (av, f) ->
         let v = val_of_av s av in
-        Builtins.record_field (Location.loc f) v (Location.value f)
+        Builtins.get_field (Location.loc f) v (Location.value f)
     | AE_let (v, le, bd) ->
         let lv = val_of_aexp s le in
         let env = VEnv.assign s.st_venv v true lv in
@@ -128,36 +164,33 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
         val_of_aexp {s with st_venv = env} bd
     | AE_case (vr, cases) ->
         let vl = VEnv.lookup s.st_venv vr.v vr.v_loc in
-        let rec matcher cases =
-          match vl, cases with
-            | _, [] ->
-                let err = Internal_errors.Pattern_match_failure (loc, vr) in
-                internal_error err
-            | _, (p, ae) :: _
-                 when Anf.(p.apat) = Anf.AP_wildcard ->
-                ae
-            | V_int i, (p, ae) :: _
-                 when let ilit  = Int64.to_int i in
-                      Anf.(p.apat) = Anf.AP_literal (Ast.PL_int ilit) ->
-                ae
-            | V_string s, (p, ae) :: _
-                 when Anf.(p.apat) = Anf.AP_literal (Ast.PL_string s) ->
-                ae
-            | V_unit, (p, ae) :: _
-                 when Anf.(p.apat) = Anf.AP_literal Ast.PL_unit ->
-                ae
-            | V_bool b, (p, ae) :: _
-                 when Anf.(p.apat) = Anf.AP_literal (Ast.PL_bool b) ->
-                ae
-            | V_bit b, (p, ae) :: _
-                 when Anf.(p.apat) = Anf.AP_literal (Ast.PL_bit b) ->
-                ae
-            | V_bitvector bv, (p, ae) :: _
-                 when Anf.(p.apat) = Anf.AP_literal (Ast.PL_bitvector bv) ->
-                ae
-            | V_constr (c, _),  (p, ae) :: _
-                 when Anf.(p.apat) = Anf.AP_variant c ->
-                ae
-            | _, _ :: rest ->
-                matcher rest in
-        val_of_aexp s (matcher cases)
+        val_of_aexp s (matcher loc vr vl cases)
+
+let rec eval_stmt (s: state) (st: Anf.astmt) : state =
+  let loc = st.astmt_loc in
+  match st.astmt with
+    | AS_set_var (v, ae) ->
+        let vl = val_of_aexp s ae in
+        let env = VEnv.assign s.st_venv v true vl in
+        {s with st_venv = env}
+    | AS_set_field (r, f, ae) ->
+        let fvl = val_of_aexp s ae in
+        let rvl = VEnv.lookup s.st_venv r.v loc in
+        let rvl =
+          Builtins.set_field (Location.loc f) rvl (Location.value f) fvl in
+        let env = VEnv.assign s.st_venv r false rvl in
+        {s with st_venv = env}
+    | AS_let (v, ae, st') ->
+        let vl = val_of_aexp s ae in
+        let env = VEnv.assign s.st_venv v true vl in
+        eval_stmt {s with st_venv = env} st'
+    | AS_case (vr, cases) ->
+        let vl = VEnv.lookup s.st_venv vr.v vr.v_loc in
+        eval_stmt s (matcher loc vr vl cases)
+    | AS_block sts ->
+        List.fold_left eval_stmt s sts
+    | AS_letpat (p, (av, occ), st') ->
+        let v = val_of_av s av in
+        let v = Builtins.subterm av.av_loc v occ in
+        let env = VEnv.assign s.st_venv p true v in
+        eval_stmt {s with st_venv = env} st'

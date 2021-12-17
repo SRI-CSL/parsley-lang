@@ -264,12 +264,26 @@ let equals lc (l: value) (r: value) : value =
 let not_equals lc (l: value) (r: value) : value =
   V_bool (not (eq lc "!=" l r))
 
-let record_field lc (l: value) (f: string) : value =
+let get_field lc (l: value) (f: string) : value =
   match l with
     | V_record fs ->
         (match List.assoc_opt f fs with
            | Some v -> v
            | None -> internal_error (No_field (lc, f)))
+    | _ ->
+        internal_error (Type_error (lc, "." ^ f, 1, vtype_of l, T_record [f, T_empty]))
+
+let set_field lc (l: value) (f: string) (v: value) : value =
+  match l with
+    | V_record fs ->
+        (* Ensure the field is present *)
+        (match List.assoc_opt f fs with
+           | Some _ -> ();
+           | None -> internal_error (No_field (lc, f)));
+        (* Replace the field value *)
+        V_record (List.map (fun (f', v') ->
+                      f', if f' = f then v else v'
+                    ) fs)
     | _ ->
         internal_error (Type_error (lc, "." ^ f, 1, vtype_of l, T_record [f, T_empty]))
 
