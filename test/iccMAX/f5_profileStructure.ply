@@ -4,90 +4,144 @@
 // This also serves as the entry point to the parsing
 
 use aux
+use t63_multiProcessElementsType
 
-type sig_type = [byte]
+const header_len: int = 128
+const four : int = 4
 
-type tag_ent = {
-  tag_ent_sig : [sig_type],
-  tag_ent_off : int,
-  tag_ent_siz : int
+type void_type = {}
+
+type signature_type = {
+  sig : [byte]
 }
 
-type tag_tab_typ = {
-  tag_tab_cnt : int,
-  tag_tab_ents : [tag_ent] 
+type tag_entry_type = {
+  tag_signature : [byte],
+  data_element_offset : int,
+  data_element_size : int
 }
 
-type gen_pro_typ = {
-  hdr : [byte],
-  tab : tag_tab_typ
+type tag_table_type = {
+  count : int,
+  entries : [tag_entry_type]
 }
 
-recfun ext_views (tag_ents: [tag_ent]) -> [view] = {
-  (case tag_ents of 
+type profile_type = {
+  header : [byte],
+  tag_table : tag_table_type
+}
+
+recfun extract_views (tag_entries: [tag_entry_type]) -> [view] = {
+  (case tag_entries of
     | [] ->  []
     | first :: rest ->
         View.restrict(View.get_current(),
-                      first.tag_ent_off,
-                      first.tag_ent_siz) 
-        :: ext_views(rest)
+                      first.data_element_offset,
+                      first.data_element_size)
+        :: extract_views(rest)
   )
 }
 
-recfun val_sigs (tte: [tag_ent], sigs: [sig_type]) -> bool = {
-  (case tte of 
-    | tte1_first :: tte1_rest ->
-       ( case sigs of
-          | first_sig :: rest_sigs -> tte1_first.tag_ent_sig = first_sig && val_sigs(tte1_rest, rest_sigs)
-          | _ -> bool::False()
-       )
-    | [] -> bool::True()
-  )          
+// check that an individual data element signature corresponds to a tag element signature
+// this would be a massive case statement on tag_sig where the body of each case clause 
+// contains another case statement that compares ele_sig against permissible signatures 
+// for tag_sig.
+// this is out of scope for us
+fun validate_signature (tag_sig: [byte], ele_sig: [byte]) -> bool = {
+  (case tag_sig of 
+    _ -> bool::True())
 }
 
+// ensure that the data element associated with each tag entry has a permissible signature
+// given the tag signature
+recfun validate_signatures (tag_entries: [tag_entry_type], signatures: [signature_type]) -> bool = {
+  (case tag_entries of 
+    | first_tag_entry :: rest_tag_entries -> 
+       (case signatures of
+        | first_sig :: rest_sigs -> 
+           validate_signature(first_tag_entry.tag_signature, first_sig.sig) && validate_signatures(rest_tag_entries, rest_sigs)
+        | [] -> bool::False())
+    | [] ->
+       (case signatures of
+        | [] -> bool::True()
+        | _ -> bool::False()))
+}
 
 format {
 
   // this non-terminal corresponds to processing Figure 5
-  ParseFile gpt {gen_pro_typ} :=
-    
+  ParseFile pt {profile_type} :=
+
     // parse header and tag table
-    hdr = (Byte^128)
-    tag_tab_cnt = UInt32<endian=endian::Big()>
-    tag_tab_ents = (TagEntry^tag_tab_cnt)
-    tag_tab = TagTable
+    header = (Byte^header_len)
+    tag_table = TagTable
+    [tag_table.count >= 0]
     {
-      gpt.hdr := hdr;
-      gpt.tab := tag_tab
+      pt.header := header;
+      pt.tag_table := tag_table
     }
-    views = {;; ext_views(gpt.tab.tag_tab_ents)}
-    sigs = @#[views, ProcessEntry]
-    //[val_sigs(tag_tab_ents, sigs)]
+  
+    // approach 1: use @# view operator - succinct but currently impossible
+    // will need to augment @# so that it allows assignment of unique arguments to each RE
+    // views = {;; extract_views(pt.tag_table.entries)}
+    // sigs = @#[views, ProcessTaggedElementDataSetOld]
+    // [validate_signatures(pt.tag_table.entries, sigs)]
+
+    // approach 2: process the data element sets individual
+    views = {;; extract_views(pt.tag_table.entries)}
+    curr_view = {}
+    ProcessTaggedElementData<entry_num = 0, tag_table = pt.tag_table, views = views>
     ;;
 
-  // placeholder
-  ProcessEntry pe {sig: sig_type} := 
-    bytes = (Byte^4)
-    {
-      pe.sig := bytes
-    }
+  // process all tagged element data
+  ProcessTaggedElementData (entry_num: int, tag_table: tag_table_type, views: [view]) {void_type} :=
+    [entry_num < tag_table.count]
+    @[views[entry_num], ProcessTaggedElementDataSet<te = tag_table.entries[entry_num]>]
+    ProcessTaggedElementData<entry_num = entry_num + 1, tag_table = tag_table, views = views>
+    ;
+    [entry_num = tag_table.count]
     ;;
 
-  TagTable tt {tag_tab_typ} :=
-    tt_cnt = UInt32<endian=endian::Big()>
-    tt_ents = (TagEntry^tt_cnt)
+  // process the tagged element data set corresponding to a single entry
+  // validate signature against tag entry type
+  // and then process the tagged element data set
+  ProcessTaggedElementDataSet (te: tag_entry_type) {void_type} :=
+    ele_sig = (Byte^4)
+    [validate_signature(te.tag_signature, ele_sig)]
+    @[View.get_base(), ProcessTaggedElementDataSetHelper<te = te, ele_sig = ele_sig>]
+    ;;
+
+  // helper for ProcessTaggedElementDataSet
+  // process tagged element data after ele_sig has been validated
+  // we only test for mpet right now
+  ProcessTaggedElementDataSetHelper (te: tag_entry_type, ele_sig: [byte]) {void_type} :=
+    [ele_sig = "mpet"]
+    MultiProcessElements<len = te.data_element_size>
+    ;
+    [ele_sig != "mpet"]
+    ;;
+
+  ProcessTaggedElementDataSetOld pe {signature_type} :=
+    sig = (Byte^4)
     {
-      tt.tag_tab_cnt := tt_cnt;
-      tt.tag_tab_ents := tt_ents
+      pe.sig := sig
     };;
-    
-  TagEntry te {tag_ent} :=
-    tag_ent_sig = (Byte^4) // something like: \x05\x03
-    tag_ent_off = UInt32<endian=endian::Big()>
-    tag_ent_siz = UInt32<endian=endian::Big()>
+
+  TagTable tt {tag_table_type} :=
+    tt_count = UInt32<endian=endian::Big()>
+    tt_entries = (TagEntry^tt_count)
     {
-      te.tag_ent_sig := tag_ent_sig;
-      te.tag_ent_off := tag_ent_off;
-      te.tag_ent_siz := tag_ent_siz
+      tt.count := tt_count;
+      tt.entries := tt_entries
+    };;
+
+  TagEntry te {tag_entry_type} :=
+    tag_signature = (Byte^four) // something like: \x05\x03
+    data_offset = UInt32<endian=endian::Big()>
+    data_size = UInt32<endian=endian::Big()>
+    {
+      te.tag_signature := tag_signature;
+      te.data_element_offset := data_offset;
+      te.data_element_size := data_size
     }
 }
