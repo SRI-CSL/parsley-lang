@@ -20,6 +20,7 @@ open Ir
 open Values
 open State
 open Parsleylib
+open Viewlib
 open Runtime_exceptions
 
 let val_of_lit (l: Ast.primitive_literal) : value =
@@ -116,7 +117,10 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
              val_of_aexp {s with st_venv = env} bd
     | AE_apply (({fv = FV_mod_member (m, f); _} as fv), args) ->
         let vs = List.map (val_of_av s) args in
-        dispatch_stdlib fv.fv_loc (Location.value m) (Location.value f) vs
+        let m = Location.value m in
+        if   m = "View"
+        then dispatch_viewlib fv.fv_loc m (Location.value f) s vs
+        else dispatch_stdlib  fv.fv_loc m (Location.value f)   vs
     | AE_letpat (p, (av, occ), bd) ->
         let v = val_of_av s av in
         let v = Builtins.subterm av.av_loc v occ in

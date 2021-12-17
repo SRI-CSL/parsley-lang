@@ -443,86 +443,6 @@ module PMap = struct
           assert false
 end
 
-module PView = struct
-  (* incremented and used as id for every new view value created *)
-  let view_id = ref Int64.zero
-
-  let next_id () =
-    let id = !view_id in
-    view_id := Int64.succ !view_id;
-    id
-
-  let restrict lc (v: value) (o: value) (l: value) : value =
-    match v, o, l with
-      | V_view v, V_int o, V_int l ->
-          if Int64.compare o Int64.zero < 0
-          then fault (Invalid_argument (lc, "View.restrict", "negative offset"))
-          else if Int64.compare l Int64.zero < 0
-          then fault (Invalid_argument (lc, "View.restrict", "negative length"))
-          else begin
-              assert (0 <= v.vu_start && v.vu_start <= v.vu_ofs);
-              assert (v.vu_ofs <= v.vu_end);
-              assert (v.vu_end <= ViewBuf.size v.vu_buf);
-              let o, l = Int64.to_int o, Int64.to_int l in
-              if v.vu_ofs + o + l >= v.vu_end
-              then fault (View_bound (lc, "View.restrict", "end bound exceeded"))
-              else V_view {v with vu_id    = next_id ();
-                                  vu_start = v.vu_ofs + o;
-                                  vu_ofs   = 0;
-                                  vu_end   = v.vu_ofs + o + l}
-            end
-      | V_view _, V_int _, _ ->
-          internal_error (Type_error (lc, "View.restrict", 3, vtype_of l, T_int))
-      | V_view _, _, _ ->
-          internal_error (Type_error (lc, "View.restrict", 2, vtype_of o, T_int))
-      | _, _, _ ->
-          internal_error (Type_error (lc, "View.restrict", 1, vtype_of v, T_view))
-
-  let restrict_from lc (v: value) (o: value) : value =
-    match v, o with
-      | V_view v, V_int o ->
-          if Int64.compare o Int64.zero < 0
-          then fault (Invalid_argument (lc, "View.restrict_from", "negative offset"))
-          else begin
-              assert (0 <= v.vu_start && v.vu_start <= v.vu_ofs);
-              assert (v.vu_ofs <= v.vu_end);
-              assert (v.vu_end <= ViewBuf.size v.vu_buf);
-              let o = Int64.to_int o in
-              if   v.vu_ofs + o >= v.vu_end
-              then fault (View_bound (lc, "View.restrict_from", "end bound exceeded"))
-              else V_view {v with vu_id    = next_id ();
-                                  vu_start = v.vu_ofs;
-                                  vu_ofs   = 0}
-            end
-      | V_view _, _ ->
-          internal_error (Type_error (lc, "View.restrict_from", 2, vtype_of o, T_int))
-      | _, _ ->
-          internal_error (Type_error (lc, "View.restrict_from", 1, vtype_of v, T_view))
-
-  let clone lc (v: value) : value =
-    match v with
-      | V_view v ->
-          V_view {vu_buf    = v.vu_buf;
-                  vu_source = v.vu_source;
-                  vu_id     = next_id ();
-                  vu_start  = v.vu_start;
-                  vu_ofs    = v.vu_ofs;
-                  vu_end    = v.vu_end}
-      | _ ->
-          internal_error (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
-
-  (* Functions that access interpreter state need to be handled
-     directly by the interpreter *)
-  let get_base lc _ : value =
-    internal_error (Not_implemented (lc, "View.get_base"))
-
-  let get_current lc _ : value =
-    internal_error (Not_implemented (lc, "View.get_current"))
-
-  let get_current_cursor lc _ : value =
-    internal_error (Not_implemented (lc, "View.get_current_cursor"))
-end
-
 module DTable = Map.Make (struct type t = string * string
                                  let compare = compare
                           end)
@@ -566,7 +486,6 @@ let mk_dtable () : dtable =
       ("Bits", "of_bit"),             PBits.of_bit;
       ("Bits", "ones"),               PBits.ones;
       ("Bits", "zeros"),              PBits.zeros;
-      ("View", "clone"),              PView.clone;
     ] in
   let arg2s = [
       ("List", "cons"),               PList.cons;
@@ -580,11 +499,9 @@ let mk_dtable () : dtable =
       ("Map", "mem"),                 PMap.mem;
       ("Map", "find"),                PMap.find;
       ("Map", "find_unsafe"),         PMap.find_unsafe;
-      ("View", "restrict_from"),      PView.restrict_from;
     ] in
   let arg3s = [
       ("Map", "add"),                 PMap.add;
-      ("View", "restrict"),           PView.restrict;
     ] in
   {dt_0arg = DTable.of_seq (List.to_seq arg0s);
    dt_1arg = DTable.of_seq (List.to_seq arg1s);
