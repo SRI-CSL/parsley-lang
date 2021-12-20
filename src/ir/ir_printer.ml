@@ -79,21 +79,11 @@ let print_gnode g =
         pp_string (Printf.sprintf "pad %d" i)
     | N_mark_bit_cursor ->
         pp_string "bit_mark"
-    | N_collect_bits (v, f, (mbb, bv_opt)) ->
-        let padding = match bv_opt with
-            | None ->
-                ""
-            | Some bv ->
-                let fb b = if b then "1" else "0" in
-                let sbv = String.concat "" (List.map fb bv) in
-                if   List.length bv = 0
-                then ""
-                else ", padding<0b" ^ sbv ^ ">" in
-        pp_string (Printf.sprintf "collect %s%s, %s %s"
+    | N_collect_bits (v, f, mbb) ->
+        pp_string (Printf.sprintf "collect_bits %s%s, %s"
                      (Anf_printer.string_of_var v.v)
                      (string_of_fresh f)
-                     (string_of_mbb mbb)
-                     padding)
+                     (string_of_mbb mbb))
     | N_push_view ->
         pp_string "push_view"
     | N_pop_view ->
@@ -107,6 +97,12 @@ let print_gnode g =
 
 (* assumed to be called from within a hbox *)
 let print_node (type e x v) (n: (e, x, v) Node.node) =
+  let sprint_padding bv =
+    let fb b = if b then "1" else "0" in
+    let sbv = String.concat "" (List.map fb bv) in
+    if   List.length bv = 0
+    then ""
+    else ", padding<0b" ^ sbv ^ ">" in
   let open Node in
   match n with
     | N_label l ->
@@ -119,6 +115,20 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
         pp_string (Printf.sprintf "pop_fail %s" (Label.to_string l))
     | N_jump l ->
         pp_string (Printf.sprintf "jmp %s" (Label.to_string l))
+    | N_collect_checked_bits (v, f, (mbb, bv), lsc, lf) ->
+        pp_string (Printf.sprintf "collect_checked_bits %s%s, %s%s, %s, %s"
+                     (Anf_printer.string_of_var v.v)
+                     (string_of_fresh f)
+                     (string_of_mbb mbb)
+                     (sprint_padding bv)
+                     (Label.to_string lsc)
+                     (Label.to_string lf))
+    | N_check_bits ((mbb, bv), lsc, lf) ->
+        pp_string (Printf.sprintf "check_bits %s%s, %s, %s"
+                     (string_of_mbb mbb)
+                     (sprint_padding bv)
+                     (Label.to_string lsc)
+                     (Label.to_string lf))
     | N_constraint (v, s, f) ->
         pp_string (Printf.sprintf "constr %s, %s, %s"
                      (Anf_printer.string_of_var v.v)

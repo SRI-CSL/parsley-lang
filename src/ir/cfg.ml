@@ -46,8 +46,10 @@ type matched_bits_bound =
   | MB_exact of int (* the bound is exact *)
   | MB_below of int (* the matched number has to be <= the bound *)
 
+(* The above bound as well as a specified bit-pattern, to be matched
+   for padding. *)
 type matched_bits_predicate =
-  matched_bits_bound * Ast.bv_literal option
+  matched_bits_bound * Ast.bv_literal
 
 (* An optional variable to which the matched return value needs to be
    bound.  The boolean indicates whether this is a fresh variable
@@ -91,8 +93,8 @@ type gnode_desc =
 
      . the bits from the marked position to the current cursor are
        collected into a variable holding the match (N_collect_bits).
-       An expected number of bits (or bound on this number) and any
-       associated pattern is specified as a check on correctness.
+       An expected number of bits (or bound on this number) is
+       specified as a check on correctness.
 
      It is an internal error if there is no marked position at the
      time of N_collect_bits.
@@ -111,8 +113,8 @@ type gnode_desc =
   (* Mark bit-cursor location *)
   | N_mark_bit_cursor
   (* Collect matched bits from the marked position into a variable,
-     which may be fresh *)
-  | N_collect_bits of var * bool * matched_bits_predicate
+     which may be fresh. *)
+  | N_collect_bits of var * bool * matched_bits_bound
 
   (* view control *)
 
@@ -196,6 +198,19 @@ module Node = struct
 
     (* non-control-flow blocks *)
     | N_gnode: gnode -> (Block.o, Block.o, unit) node
+
+    (* Collect matched bits from the marked position and check the
+       specified predicate.  If it succeeds, N_collect_checked_bits
+       assigns the collected bitvector to the specified variable,
+       which may be fresh, and jumps to the first label; otherwise, it
+       fails to the second label.  N_check_bits does the same except
+       that it does not assign the matched bits to any variable. *)
+    | N_collect_checked_bits:
+        var * bool * matched_bits_predicate * Label.label * Label.label
+        -> (Block.o, Block.c, unit) node
+    | N_check_bits:
+        matched_bits_predicate * Label.label * Label.label
+        -> (Block.o, Block.c, unit) node
 
     (* push or pop a failure continuation on the failcont stack *)
     | N_push_failcont: Label.label -> (Block.o, Block.o, unit) node

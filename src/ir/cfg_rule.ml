@@ -119,7 +119,7 @@ let prepare_cursor
 
 (* collect matched bits into a variable if needed *)
 let collect_cursor
-      (b: opened) (pred: matched_bits_predicate) (ret: return) (typ: typ)
+      (b: opened) (pred: matched_bits_bound) (ret: return) (typ: typ)
       (loc: Location.t)
     : opened =
   match ret with
@@ -153,7 +153,7 @@ let rec lower_rule_elem
         let b = prepare_cursor ctx b ret loc in
         let bits = Location.value bits in
         let b = add_gnode b (N_bits bits) typ loc in
-        let pred = MB_exact bits, None in
+        let pred = MB_exact bits in
         let b = collect_cursor b pred ret typ loc in
         ctx, b
 
@@ -161,29 +161,41 @@ let rec lower_rule_elem
         let b = prepare_cursor ctx b ret loc in
         let bits = Location.value bits in
         let b = add_gnode b (N_align bits) typ loc in
-        let pred = MB_below bits, None in
-        let b = collect_cursor b pred ret typ loc in
-        ctx, b
-
-    | RE_pad (bits, pat) ->
-        let b = prepare_cursor ctx b ret loc in
-        let bits = Location.value bits in
-        let b = add_gnode b (N_pad bits) typ loc in
-        let pred = MB_below bits, Some pat in
+        let pred = MB_below bits in
         let b = collect_cursor b pred ret typ loc in
         ctx, b
 
     | RE_bitfield bf ->
-        (* This is equivalent to RE_bits for the underlying number of
-           bits.  The interpretation of the matched value as a
-           bitfield record is done by the record accessors. *)
+        (* This is equivalent to RE_bitvector for the underlying
+           number of bits.  The interpretation of the matched value as
+           a bitfield record is done by the record accessors. *)
         let bits =
           TypedAstUtils.lookup_bitfield_length ctx.ctx_tenv bf in
         let b = prepare_cursor ctx b ret loc in
         let b = add_gnode b (N_bits bits) typ loc in
-        let p = MB_exact bits, None in
+        let p = MB_exact bits in
         let b = collect_cursor b p ret typ loc in
         ctx, b
+
+    | RE_pad (bits, pat) ->
+        (* This node is like a bit-level constraint node in terms of
+           its control flow. *)
+        let b = prepare_cursor ctx b ret loc in
+        let bits = Location.value bits in
+        let b = add_gnode b (N_pad bits) typ loc in
+        let pred = MB_below bits, pat in
+        let lf = ctx.ctx_failcont in
+        (* make a new block for the success continuation *)
+        let lsc, bsc = new_block () in
+        let nd =
+          match ret with
+            | Some (v, fresh) ->
+                Node.N_collect_checked_bits (v, fresh, pred, lsc, lf)
+            | None ->
+                Node.N_check_bits (pred, lsc, lf) in
+        let ctx = close_block ctx b nd in
+        (* continue with the success continuation *)
+        ctx, bsc
 
     (* other basic primitives *)
 
