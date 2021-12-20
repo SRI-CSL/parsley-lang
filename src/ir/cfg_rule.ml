@@ -119,13 +119,13 @@ let prepare_cursor
 
 (* collect matched bits into a variable if needed *)
 let collect_cursor
-      (b: opened) (bnd: matched_bits_bound) (ret: return) (typ: typ)
+      (b: opened) (pred: matched_bits_predicate) (ret: return) (typ: typ)
       (loc: Location.t)
     : opened =
   match ret with
     | None -> b
     | Some (v, fresh) ->
-        let nd = N_collect_bits (v, fresh, bnd) in
+        let nd = N_collect_bits (v, fresh, pred) in
         add_gnode b nd typ loc
 
 (* Note: The construction of the CFG often involves glue code in ANF.
@@ -153,24 +153,24 @@ let rec lower_rule_elem
         let b = prepare_cursor ctx b ret loc in
         let bits = Location.value bits in
         let b = add_gnode b (N_bits bits) typ loc in
-        let bnd = MB_exact bits in
-        let b = collect_cursor b bnd ret typ loc in
+        let pred = MB_exact bits, None in
+        let b = collect_cursor b pred ret typ loc in
         ctx, b
 
     | RE_align bits ->
         let b = prepare_cursor ctx b ret loc in
         let bits = Location.value bits in
         let b = add_gnode b (N_align bits) typ loc in
-        let bnd = MB_below bits in
-        let b = collect_cursor b bnd ret typ loc in
+        let pred = MB_below bits, None in
+        let b = collect_cursor b pred ret typ loc in
         ctx, b
 
     | RE_pad (bits, pat) ->
         let b = prepare_cursor ctx b ret loc in
         let bits = Location.value bits in
-        let b = add_gnode b (N_pad (bits, pat)) typ loc in
-        let bnd = MB_below bits in
-        let b = collect_cursor b bnd ret typ loc in
+        let b = add_gnode b (N_pad bits) typ loc in
+        let pred = MB_below bits, Some pat in
+        let b = collect_cursor b pred ret typ loc in
         ctx, b
 
     | RE_bitfield bf ->
@@ -181,8 +181,8 @@ let rec lower_rule_elem
           TypedAstUtils.lookup_bitfield_length ctx.ctx_tenv bf in
         let b = prepare_cursor ctx b ret loc in
         let b = add_gnode b (N_bits bits) typ loc in
-        let bnd = MB_exact bits in
-        let b = collect_cursor b bnd ret typ loc in
+        let p = MB_exact bits, None in
+        let b = collect_cursor b p ret typ loc in
         ctx, b
 
     (* other basic primitives *)

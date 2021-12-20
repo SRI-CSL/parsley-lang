@@ -44,7 +44,10 @@ type program        = (typ, TypeInfer.varid) Ast.program
 (* A bound on the expected number of matched bits. *)
 type matched_bits_bound =
   | MB_exact of int (* the bound is exact *)
-  | MB_below of int (* the matched number has to be less than the bound *)
+  | MB_below of int (* the matched number has to be <= the bound *)
+
+type matched_bits_predicate =
+  matched_bits_bound * Ast.bv_literal option
 
 (* An optional variable to which the matched return value needs to be
    bound.  The boolean indicates whether this is a fresh variable
@@ -88,8 +91,8 @@ type gnode_desc =
 
      . the bits from the marked position to the current cursor are
        collected into a variable holding the match (N_collect_bits).
-       An expected number of bits (or bound on this number) is
-       specified as a check on correctness.
+       An expected number of bits (or bound on this number) and any
+       associated pattern is specified as a check on correctness.
 
      It is an internal error if there is no marked position at the
      time of N_collect_bits.
@@ -102,13 +105,14 @@ type gnode_desc =
   | N_bits of int
   (* Align to the specified width *)
   | N_align of int
-  (* Match the specified number of bits as padding *)
-  | N_pad of int * Ast.bv_literal
+  (* Match the specified number of bits as padding.  The padding
+     pattern is specified in the following N_collect_bits node *)
+  | N_pad of int
   (* Mark bit-cursor location *)
   | N_mark_bit_cursor
   (* Collect matched bits from the marked position into a variable,
      which may be fresh *)
-  | N_collect_bits of var * bool * matched_bits_bound
+  | N_collect_bits of var * bool * matched_bits_predicate
 
   (* view control *)
 

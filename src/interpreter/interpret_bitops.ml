@@ -17,6 +17,7 @@
 
 (* bit and bit-vector parsing *)
 
+open Ir
 open Values
 open State
 open Runtime_exceptions
@@ -52,12 +53,11 @@ let get_bitwise (s: state) : bitwise =
         bw
 
 (* exit bit-mode and return matched bits *)
-let collect_bits _lc (s: state) : value * state =
+let collect_bits _lc (s: state) : bool list * state =
   let bw = get_bitwise s in
   (* should be byte-aligned *)
   assert (bw.bw_bit_ofs = 0);
-  let bits = List.rev_map (fun b -> V_bool b) bw.bw_matched in
-  V_list bits, {s with st_mode = Mode_normal}
+  List.rev bw.bw_matched, {s with st_mode = Mode_normal}
 
 let check_bit_bounds lc op (v: view) (bw: bitwise) n =
   assert (bw.bw_bit_ofs < 8);
@@ -147,3 +147,13 @@ let match_padding matched_bits padding =
       | _ ->
           true in
   loop matched_bits padding
+
+let match_bits_predicate bits (bnd, match_opt) : bool =
+  let len = List.length bits in
+  let len_match = match bnd with
+      | Cfg.MB_exact n -> len = n
+      | Cfg.MB_below n -> len <= n in
+  let pat_match = match match_opt with
+      | None -> true
+      | Some pat -> match_padding bits pat in
+  len_match && pat_match
