@@ -200,3 +200,24 @@ let from_file filename : value =
      vu_ofs    = 0;
      vu_end    = size} in
   V_view vu
+
+let set_view lc (s: state) (v: value) : state =
+  match v with
+    | V_view vu ->
+        {s with st_cur_view = vu}
+    | _ ->
+        internal_error (Type_error (lc, "set-view", 1, vtype_of v, T_view))
+
+let set_pos lc (s: state) (v: value) : state =
+  match v with
+    | V_int i ->
+        let i = Int64.to_int i in
+        let vu = s.st_cur_view in
+        if   i < 0
+        then fault (View_bound (lc, "set-pos", "negative offset specified"))
+        else if vu.vu_start + i >= vu.vu_end
+        then fault (View_bound (lc, "set-pos", "end bound exceeded"))
+        else let vu = {vu with vu_ofs = vu.vu_start + i} in
+             {s with st_cur_view = vu}
+    | _ ->
+        internal_error (Type_error (lc, "set-pos", 1, vtype_of v, T_int))

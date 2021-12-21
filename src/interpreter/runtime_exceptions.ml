@@ -38,6 +38,8 @@ module Internal_errors = struct
     | Bad_subterm_path of Location.t * Ir.Anf.occurrence * Ir.Anf.occurrence
     | Bad_subterm_index of Location.t * (string * string) * int * Ir.Anf.occurrence
     | Pattern_match_failure of Location.t * Anf.var
+    | View_stack_underflow of Location.t
+    | Bitsbound_check of Location.t * string
 
   let error_msg =
     let pr_occ = Ir.Anf_printer.string_of_occurrence in
@@ -80,6 +82,10 @@ module Internal_errors = struct
     | Pattern_match_failure (lc, v) ->
         msg "%s:\n INTERNAL ERROR: no patterns matched for `%s:%d'."
           lc (fst Anf.(v.v)) (snd Anf.(v.v))
+    | View_stack_underflow lc ->
+        msg "%s:\n INTERNAL ERROR: the view stack underflowed." lc
+    | Bitsbound_check (lc, m) ->
+        msg "%s:\n INTERNAL ERROR: bits-bound check failed: %s" lc m
 end
 
 type error =

@@ -148,12 +148,8 @@ let match_padding matched_bits padding =
           true in
   loop matched_bits padding
 
-let match_bits_predicate bits (bnd, match_opt) : bool =
+let match_bits_bound bits bnd : bool =
   let len = List.length bits in
-  let len_match = match bnd with
-      | Cfg.MB_exact n -> len = n
-      | Cfg.MB_below n -> len <= n in
-  let pat_match = match match_opt with
-      | None -> true
-      | Some pat -> match_padding bits pat in
-  len_match && pat_match
+  match bnd with
+    | Cfg.MB_exact n -> len = n
+    | Cfg.MB_below n -> len <= n
