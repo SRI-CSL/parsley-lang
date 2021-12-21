@@ -194,7 +194,7 @@ module Node = struct
   (* Other nodes mostly concerned with control flow and book-keeping *)
   type ('e, 'x, 'v) node =
     (* block entry *)
-    | N_label: Label.label -> (Block.c, Block.o, unit) node
+    | N_label: Location.t * Label.label -> (Block.c, Block.o, unit) node
 
     (* non-control-flow blocks *)
     | N_gnode: gnode -> (Block.o, Block.o, unit) node
@@ -206,20 +206,22 @@ module Node = struct
        fails to the second label.  N_check_bits does the same except
        that it does not assign the matched bits to any variable. *)
     | N_collect_checked_bits:
-        var * bool * matched_bits_predicate * Label.label * Label.label
+        Location.t * var * bool * matched_bits_predicate
+        * Label.label * Label.label
         -> (Block.o, Block.c, unit) node
     | N_check_bits:
-        matched_bits_predicate * Label.label * Label.label
+        Location.t * matched_bits_predicate
+        * Label.label * Label.label
         -> (Block.o, Block.c, unit) node
 
     (* push or pop a failure continuation on the failcont stack *)
-    | N_push_failcont: Label.label -> (Block.o, Block.o, unit) node
-    | N_pop_failcont:  Label.label -> (Block.o, Block.o, unit) node
+    | N_push_failcont: Location.t * Label.label -> (Block.o, Block.o, unit) node
+    | N_pop_failcont:  Location.t * Label.label -> (Block.o, Block.o, unit) node
 
     (* block exits *)
 
     (* forward jumps *)
-    | N_jump: Label.label -> (Block.o, Block.c, unit) node
+    | N_jump: Location.t * Label.label -> (Block.o, Block.c, unit) node
 
     (* Constrained jump: the var should have been bound to the value
        of the constraint expression, and the label is the success
@@ -228,16 +230,15 @@ module Node = struct
        specified as the second label (to enable a dynamic check for
        code-generation errors, and a more accurate successors
        function). *)
-    | N_constraint: var * Label.label * Label.label
+    | N_constraint: Location.t * var * Label.label * Label.label
                     -> (Block.o, Block.c, unit) node
 
     (* Conditional branch: similar to above, except that the label for
        the failed condition is explicitly specified.  A failed
        condition does not have failcont semantics; i.e. jumping to the
        label for the failed case counts as forward progress. *)
-    | N_cond_branch: var * Label.label * Label.label
+    | N_cond_branch: Location.t * var * Label.label * Label.label
                      -> (Block.o, Block.c, unit) node
-
 
     (* Call the CFG for the specified non-terminal with the specified
        expressions for the inherited attributes.  On a successful
@@ -262,17 +263,17 @@ module Node = struct
 
   let entry_label (type x v) (n: (Block.c, x, v) node) =
     match n with
-      | N_label l -> l
+      | N_label (_, l) -> l
       (* this should not be needed *)
       | _ -> assert false
 
   let successors (type e v) (n: (e, Block.c, v) node) =
     match n with
-      | N_constraint (_, sc, fl)
-      | N_cond_branch (_, sc, fl)
+      | N_constraint (_, _, sc, fl)
+      | N_cond_branch (_, _, sc, fl)
       | N_call_nonterm (_, _, _, sc, fl)
         -> [sc; fl]
-      | N_jump l -> [l]
+      | N_jump (_, l) -> [l]
       (* this should not be needed *)
       | _ -> assert false
 end

@@ -105,17 +105,17 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
     else ", padding<0b" ^ sbv ^ ">" in
   let open Node in
   match n with
-    | N_label l ->
+    | N_label (_, l) ->
         pp_string (Printf.sprintf "L: %s" (Label.to_string l))
     | N_gnode g ->
         print_gnode g
-    | N_push_failcont l ->
+    | N_push_failcont (_, l) ->
         pp_string (Printf.sprintf "push_fail %s" (Label.to_string l))
-    | N_pop_failcont l ->
+    | N_pop_failcont (_, l) ->
         pp_string (Printf.sprintf "pop_fail %s" (Label.to_string l))
-    | N_jump l ->
+    | N_jump (_, l) ->
         pp_string (Printf.sprintf "jmp %s" (Label.to_string l))
-    | N_collect_checked_bits (v, f, (mbb, bv), lsc, lf) ->
+    | N_collect_checked_bits (_, v, f, (mbb, bv), lsc, lf) ->
         pp_string (Printf.sprintf "collect_checked_bits %s%s, %s%s, %s, %s"
                      (Anf_printer.string_of_var v.v)
                      (string_of_fresh f)
@@ -123,18 +123,18 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (sprint_padding bv)
                      (Label.to_string lsc)
                      (Label.to_string lf))
-    | N_check_bits ((mbb, bv), lsc, lf) ->
+    | N_check_bits (_, (mbb, bv), lsc, lf) ->
         pp_string (Printf.sprintf "check_bits %s%s, %s, %s"
                      (string_of_mbb mbb)
                      (sprint_padding bv)
                      (Label.to_string lsc)
                      (Label.to_string lf))
-    | N_constraint (v, s, f) ->
+    | N_constraint (_, v, s, f) ->
         pp_string (Printf.sprintf "constr %s, %s, %s"
                      (Anf_printer.string_of_var v.v)
                      (Label.to_string s)
                      (Label.to_string f))
-    | N_cond_branch (v, s, f) ->
+    | N_cond_branch (_, v, s, f) ->
         pp_string (Printf.sprintf "cbranch %s, %s, %s"
                      (Anf_printer.string_of_var v.v)
                      (Label.to_string s)

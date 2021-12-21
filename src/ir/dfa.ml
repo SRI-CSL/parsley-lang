@@ -70,7 +70,8 @@ type dfa =
   {dfa_states:      StateSet.t;     (* all states *)
    dfa_start:       state;          (* starting state *)
    dfa_accepts:     StateSet.t;     (* accepting states *)
-   dfa_transitions: state TTable.t} (* transition table *)
+   dfa_transitions: state TTable.t; (* transition table *)
+   dfa_loc:         Location.t}
 
 module DFA = struct
   type t = dfa
@@ -84,6 +85,9 @@ module DFA = struct
 
   let accept (dfa: t) (s: state) : bool =
     StateSet.mem s dfa.dfa_accepts
+
+  let loc (dfa: t) : Location.t =
+    dfa.dfa_loc
 end
 
 (* The DFAs for regexp non-terminals *)

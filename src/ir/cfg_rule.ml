@@ -69,13 +69,13 @@ let constr_av t c args typ loc =
 
 (* block manipulation utilities *)
 
-let new_labeled_block (l: Label.label) : opened =
-  let h = Node.N_label l in
+let new_labeled_block loc (l: Label.label) : opened =
+  let h = Node.N_label (loc, l) in
   B.join_head h B.empty
 
-let new_block () : Label.label * opened =
+let new_block loc () : Label.label * opened =
   let l = Label.fresh_label () in
-  l, new_labeled_block l
+  l, new_labeled_block loc l
 
 let add_node b nd =
   B.snoc b nd
@@ -84,8 +84,8 @@ let add_gnode b nd typ loc =
   let nd = mk_gnode nd typ loc in
   add_node b (Node.N_gnode nd)
 
-let close_with_jump ctx b l =
-  let nd = Node.N_jump l in
+let close_with_jump ctx b loc l =
+  let nd = Node.N_jump (loc, l) in
   let b = B.join_tail b nd in
   {ctx with ctx_ir = FormatIR.add (B.entry_label b) b ctx.ctx_ir}
 
@@ -186,13 +186,13 @@ let rec lower_rule_elem
         let pred = MB_below bits, pat in
         let lf = ctx.ctx_failcont in
         (* make a new block for the success continuation *)
-        let lsc, bsc = new_block () in
+        let lsc, bsc = new_block loc () in
         let nd =
           match ret with
             | Some (v, fresh) ->
-                Node.N_collect_checked_bits (v, fresh, pred, lsc, lf)
+                Node.N_collect_checked_bits (loc, v, fresh, pred, lsc, lf)
             | None ->
-                Node.N_check_bits (pred, lsc, lf) in
+                Node.N_check_bits (loc, pred, lsc, lf) in
         let ctx = close_block ctx b nd in
         (* continue with the success continuation *)
         ctx, bsc
@@ -214,7 +214,7 @@ let rec lower_rule_elem
         let lsc = Label.fresh_label () in
         let nd = Node.N_exec_dfa (dfa, v, lsc, ctx.ctx_failcont) in
         let ctx = close_block {ctx with ctx_venv = venv} b nd in
-        ctx, new_labeled_block lsc
+        ctx, new_labeled_block loc lsc
 
     | RE_seq_flat _ ->
         assert (TypedAstUtils.is_regexp_elem ctx.ctx_tenv re);
@@ -234,7 +234,7 @@ let rec lower_rule_elem
         let lsc = Label.fresh_label () in
         let nd = Node.N_exec_dfa (dfa, v, lsc, ctx.ctx_failcont) in
         let ctx = close_block {ctx with ctx_venv = venv} b nd in
-        ctx, new_labeled_block lsc
+        ctx, new_labeled_block loc lsc
 
     | RE_non_term (nt, None) ->
         (* The jump to the CFG for the non-term causes the current
@@ -252,7 +252,7 @@ let rec lower_rule_elem
         let nd =
           Node.N_call_nonterm (nt, [], ret, lsc, ctx.ctx_failcont) in
         let ctx = close_block ctx b nd in
-        ctx, new_labeled_block lsc
+        ctx, new_labeled_block loc lsc
 
     | RE_non_term (nt, Some args) ->
         let venv, args =
@@ -278,7 +278,7 @@ let rec lower_rule_elem
         let nd =
           Node.N_call_nonterm (nt, args, ret, lsc, ctx.ctx_failcont) in
         let ctx = close_block ctx b nd in
-        {ctx with ctx_venv = venv}, new_labeled_block lsc
+        {ctx with ctx_venv = venv}, new_labeled_block loc lsc
 
     (* binding for return values *)
     | RE_named (v, re') ->
@@ -344,9 +344,9 @@ let rec lower_rule_elem
                 v, venv, nd in
         let b = add_gnode b nd typ loc in
         (* make a new block for the success continuation *)
-        let lsc, bsc = new_block () in
+        let lsc, bsc = new_block loc () in
         (* close the current block and update the ir *)
-        let nd = Node.N_constraint (cvar, lsc, ctx.ctx_failcont) in
+        let nd = Node.N_constraint (loc, cvar, lsc, ctx.ctx_failcont) in
         let ctx = close_block ctx b nd in
         (* continue with the success continuation *)
         {ctx with ctx_venv = venv}, bsc
@@ -404,26 +404,30 @@ let rec lower_rule_elem
         let res = List.combine res fls in
         let ctx, _ = (* discard the last generated fail block *)
           List.fold_left (fun (ctx, b) (re, (fl, last)) ->
+              let loc' = Ast.(re.rule_elem_loc) in
               let b = if not last
-                      then add_node b (Node.N_push_failcont fl)
+                      then add_node b (Node.N_push_failcont (loc', fl))
                       else b in
+              (* even though we don't push the failcont for the last
+                 block, it is okay to set this in the context since
+                 `fl` will be `orig_failcont` *)
               let ctx = {ctx with ctx_failcont = fl} in
               let ctx, b = lower_rule_elem ctx b ret re in
               let b = if not last
                       then (* on success, pop the failcont *)
-                        add_node b (Node.N_pop_failcont fl)
+                        add_node b (Node.N_pop_failcont (loc', fl))
                       else b in
               (* jump to the success continuation *)
-              let ctx = close_with_jump ctx b lsc in
+              let ctx = close_with_jump ctx b loc' lsc in
               (* allocate the failure continuation of the current rule, into
                  which the next rule is lowered; if this is the last rule,
                  the new block is discarded *)
-              ctx, new_labeled_block fl
+              ctx, new_labeled_block loc' fl
             ) (ctx, b) res in
         (* continue with the success block and the original failcont.
            an invariant here is that any pushed failconts have been
            popped by the time this block is entered.  *)
-        let b = new_labeled_block lsc in
+        let b = new_labeled_block loc lsc in
         {ctx with ctx_failcont = orig_failcont}, b
 
     | RE_star (re', None) ->
@@ -444,13 +448,14 @@ let rec lower_rule_elem
            first time.
          *)
         let lsc = Label.fresh_label () in
-        let b = add_node b (Node.N_push_failcont lsc) in
+        let loc' = re'.rule_elem_loc in
+        let b = add_node b (Node.N_push_failcont (loc', lsc)) in
         (* create a label for a new block for re' since it will be a
            jump target for the loop over re', and close the current
            block with a jump to the loop *)
         let lp = Label.fresh_label () in
-        let ctx = close_with_jump ctx b lp in
-        let b = new_labeled_block lp in
+        let ctx = close_with_jump ctx b loc lp in
+        let b = new_labeled_block loc lp in
         (* lower re' into this block with the new failcont, adjusting
            for any return value *)
         let orig_failcont = ctx.ctx_failcont in
@@ -461,7 +466,6 @@ let rec lower_rule_elem
             | Some vr ->
                 (* create a variable for the matched value for re' *)
                 let typ' = re'.rule_elem_aux in
-                let loc' = re'.rule_elem_loc in
                 let v, venv = fresh_var ctx.ctx_venv typ' loc' in
                 (* Note: v' is fresh here, but inside a loop, which
                    means the freshness is only valid the first time
@@ -479,11 +483,11 @@ let rec lower_rule_elem
                 let b = add_gnode b nd typ loc in
                 ctx, b in
         (* on success, this block loops back to lp *)
-        let ctx = close_with_jump ctx b lp in
+        let ctx = close_with_jump ctx b loc lp in
         (* continue with the success block, which will be entered only
            if re failed, i.e. via a popped failcont.  so there is no
            need to pop it here. *)
-        let b = new_labeled_block lsc in
+        let b = new_labeled_block loc lsc in
         (* continue with the original failcont *)
         let ctx = {ctx with ctx_failcont = orig_failcont} in
         (* adjust any return value *)
@@ -525,24 +529,24 @@ let rec lower_rule_elem
         (* close the block with a jump to block containing the loop
            comparison *)
         let lc = Label.fresh_label () in
-        let ctx = close_with_jump {ctx with ctx_venv = venv} b lc in
+        let ctx = close_with_jump {ctx with ctx_venv = venv} b loc lc in
         (* the loop exit will be the success continuation *)
         let lx = Label.fresh_label () in
         (* the loop comparison block evaluates the bound constraint *)
-        let b = new_labeled_block lc in
+        let b = new_labeled_block loc lc in
         (* build the boolean comparison variable: c := bv > 0 *)
         let bool = get_typ ctx "bool" in
         let z = av_of_int ctx 0 e.expr_loc in
         let ae = AE_binop (Ast.Gt, av_of_var bv, z) in
         let ae = make_ae ae bool e.expr_loc in
-        let c, venv = fresh_var venv bool loc in
+        let c, venv = fresh_var venv bool e.expr_loc in
         let b = add_gnode b (N_assign (c, true, ae)) bool e.expr_loc in
         (* branch on c: true -> do re, false -> jump to exit *)
         let lre = Label.fresh_label () in
-        let nd = Node.N_cond_branch (c, lre, lx) in
+        let nd = Node.N_cond_branch (e.expr_loc, c, lre, lx) in
         let ctx = close_block {ctx with ctx_venv = venv} b nd in
         (* build the block for re', failing to the current failcont *)
-        let b = new_labeled_block lre in
+        let b = new_labeled_block loc lre in
         (* lower re' into this block, adjusting for any return
            value *)
         let ctx, b = match vr with
@@ -576,9 +580,9 @@ let rec lower_rule_elem
         let nd = N_assign (bv, true, ae) in
         let b = add_gnode b nd int e.expr_loc in
         (* close with a jump to the comparison *)
-        let ctx = close_with_jump ctx b lc in
+        let ctx = close_with_jump ctx b loc lc in
         (* continue with the exit block as success continuation *)
-        let b = new_labeled_block lx in
+        let b = new_labeled_block loc lx in
         (* adjust any return value *)
         let b = match vr with
             | None ->
@@ -600,18 +604,19 @@ let rec lower_rule_elem
            for both the success and failure case, and save the
            original failure continuation. *)
         let lsc = Label.fresh_label () in
-        let b = add_node b (Node.N_push_failcont lsc) in
+        let loc'  = re'.rule_elem_loc in
+        let b = add_node b (Node.N_push_failcont (loc', lsc)) in
         let orig_failcont = ctx.ctx_failcont in
         (* lower re' with the new failure continuation *)
         let ctx = {ctx with ctx_failcont = lsc} in
         let ctx, b = lower_rule_elem ctx b ret re' in
         (* on the success path, pop the failcont *)
-        let b = add_node b (Node.N_pop_failcont lsc) in
+        let b = add_node b (Node.N_pop_failcont (loc', lsc)) in
         (* terminate the current block with a jump to the
            continuation block, since that is where the failure path
            will join us *)
-        let ctx = close_with_jump ctx b lsc in
-        let bsc = new_labeled_block lsc in
+        let ctx = close_with_jump ctx b loc lsc in
+        let bsc = new_labeled_block loc lsc in
         (* continue with the original failure continuation *)
         {ctx with ctx_failcont = orig_failcont}, bsc
 
@@ -623,9 +628,9 @@ let rec lower_rule_elem
            labels for the success and failure continuations. *)
         let lsc = Label.fresh_label () in
         let lfl = Label.fresh_label () in
+        let loc' = re'.rule_elem_loc in
         let vsc, venv =
           let typ' = re'.rule_elem_aux in
-          let loc' = re'.rule_elem_loc in
           fresh_var ctx.ctx_venv typ' loc' in
         let ret' = Some (vsc, true) in
         (* save the original failure continuation, and prepare an
@@ -633,11 +638,11 @@ let rec lower_rule_elem
         let orig_failcont = ctx.ctx_failcont in
         let ctx = {ctx with ctx_failcont = lfl; ctx_venv = venv} in
         (* push the failcont before lowering the re *)
-        let b = add_node b (Node.N_push_failcont lfl) in
+        let b = add_node b (Node.N_push_failcont (loc', lfl)) in
         let ctx, b = lower_rule_elem ctx b ret' re' in
         (* on the success path, pop the failcont first so that the
            assignment below holds *)
-        let b = add_node b (Node.N_pop_failcont lfl) in
+        let b = add_node b (Node.N_pop_failcont (loc', lfl)) in
         (* extract the current return value *)
         let vr, fresh = match ret with
             | None -> assert false (* handled above *)
@@ -648,18 +653,18 @@ let rec lower_rule_elem
         let nd = N_assign (vr, fresh, ae_of_av av) in
         let b = add_gnode b nd typ loc in
         (* close the current block by jumping to lsc *)
-        let ctx = close_with_jump ctx b lsc in
+        let ctx = close_with_jump ctx b loc lsc in
         (* construct the failure block for lfl, in which vr gets
            assigned 'option::None' and then control jumps to lsc. *)
-        let b = new_labeled_block lfl in
+        let b = new_labeled_block loc lfl in
         let none = constr_av "option" "None" [] typ loc in
         let nd = N_assign (vr, fresh, ae_of_av none) in
         let b = add_gnode b nd typ loc in
-        let ctx = close_with_jump ctx b lsc in
+        let ctx = close_with_jump ctx b loc lsc in
         (* construct the lsc continuation block, and continue with it
            as the current block, in a context where the original
            failure continuation is restored *)
-        let b = new_labeled_block lsc in
+        let b = new_labeled_block loc lsc in
         {ctx with ctx_failcont = orig_failcont}, b
 
     | RE_epsilon ->
@@ -697,18 +702,19 @@ let rec lower_rule_elem
         let lf = Label.fresh_label () in
         let orig_failcont = ctx.ctx_failcont in
         (* push the failcont *)
-        let b = add_node b (Node.N_push_failcont lf) in
+        let loc' = re'.rule_elem_loc in
+        let b = add_node b (Node.N_push_failcont (loc', lf)) in
         (* lower the rule element with this failcont *)
         let ctx = {ctx with ctx_venv = venv; ctx_failcont = lf} in
         let ctx, b = lower_rule_elem ctx b ret re' in
         (* on the success path, restore the failcont and the view *)
-        let b = add_node b (Node.N_pop_failcont lf) in
+        let b = add_node b (Node.N_pop_failcont (loc', lf)) in
         let b = add_gnode b N_pop_view unit loc in
         let ctx = {ctx with ctx_failcont = orig_failcont} in
         (* create the trampoline failcont block that restores the view *)
-        let tfb = new_labeled_block lf in
+        let tfb = new_labeled_block loc lf in
         let tfb = add_gnode tfb N_pop_view unit loc in
-        let ctx = close_with_jump ctx tfb orig_failcont in
+        let ctx = close_with_jump ctx tfb loc orig_failcont in
         (* proceed with the current block *)
         ctx, b
 
@@ -730,18 +736,19 @@ let rec lower_rule_elem
         let lf = Label.fresh_label () in
         let orig_failcont = ctx.ctx_failcont in
         (* push the failcont *)
-        let b = add_node b (Node.N_push_failcont lf) in
+        let loc' = re'.rule_elem_loc in
+        let b = add_node b (Node.N_push_failcont (loc', lf)) in
         (* lower the rule element with this failcont *)
         let ctx = {ctx with ctx_venv = venv; ctx_failcont = lf} in
         let ctx, b = lower_rule_elem ctx b ret re' in
         (* on the success path, restore the failcont and the view *)
-        let b = add_node b (Node.N_pop_failcont lf) in
+        let b = add_node b (Node.N_pop_failcont (loc', lf)) in
         let b = add_gnode b N_pop_view unit loc in
         let ctx = {ctx with ctx_failcont = orig_failcont} in
         (* create the trampoline failcont block that restores the view *)
-        let tfb = new_labeled_block lf in
+        let tfb = new_labeled_block loc lf in
         let tfb = add_gnode tfb N_pop_view unit loc in
-        let ctx = close_with_jump ctx tfb orig_failcont in
+        let ctx = close_with_jump ctx tfb loc orig_failcont in
         (* proceed with the current block *)
         ctx, b
 
@@ -794,13 +801,13 @@ let rec lower_rule_elem
         let lc = Label.fresh_label () in
         let lx = Label.fresh_label () in
         (* jump to the starting condition block *)
-        let ctx = close_with_jump {ctx with ctx_venv = venv} b lc in
+        let ctx = close_with_jump {ctx with ctx_venv = venv} b loc lc in
         (* collect the list variables *)
         let vs = vl :: List.map snd iters in
         let ctx, lp =
           List.fold_left (fun (ctx, l) v ->
               (* create the condition block for `v` with label `l` *)
-              let b = new_labeled_block l in
+              let b = new_labeled_block loc l in
               let null = constr_av "[]" "[]" [] v.v_typ v.v_loc in
               let bool = get_typ ctx "bool" in
               let ae = AE_binop (Ast.Eq, (av_of_var v), null) in
@@ -810,12 +817,12 @@ let rec lower_rule_elem
               let b = add_gnode b nd bool v.v_loc in
               (* create a label for the next condition block *)
               let ln = Label.fresh_label () in
-              let nd = Node.N_cond_branch (vc, lx, ln) in
+              let nd = Node.N_cond_branch (vc.v_loc, vc, lx, ln) in
               let ctx = close_block {ctx with ctx_venv = venv} b nd in
               ctx, ln
             ) (ctx, lc) vs in
         (* create the loop body block *)
-        let b = new_labeled_block lp in
+        let b = new_labeled_block loc lp in
         (* Extract the heads of the various lists, and update the
            lists in the condition variables to their tails.  Collect
            the variables storing the heads in the same order as `vs`
@@ -853,7 +860,8 @@ let rec lower_rule_elem
            restore the view, and then return the original failcont. *)
         let lf = Label.fresh_label () in
         (* push the failcont *)
-        let b = add_node b (Node.N_push_failcont lf) in
+        let loc' = re'.rule_elem_loc in
+        let b = add_node b (Node.N_push_failcont (loc', lf)) in
         (* construct the inherited attr argument list for the call *)
         let iters' = List.map (fun ((i, _), vv) -> (i, vv)) viters in
         let args' = iters' @ consts in
@@ -876,7 +884,6 @@ let rec lower_rule_elem
             | Some vr ->
                 (* construct the variable to hold the return value *)
                 let typ' = re'.rule_elem_aux in
-                let loc' = re'.rule_elem_loc in
                 let v, venv = fresh_var ctx.ctx_venv typ' loc' in
                 let ret' = Some (v, true) in
                 (* create a label for the epilog block in which to
@@ -886,7 +893,7 @@ let rec lower_rule_elem
                 let nd = Node.N_call_nonterm (nt, args', ret', le, lf) in
                 let ctx = close_block {ctx with ctx_venv = venv} b nd in
                 (* now accumulate the return value *)
-                let b = new_labeled_block le in
+                let b = new_labeled_block loc le in
                 (* update the return value:
                    vr := v :: vr , and reverse it when done *)
                 let l =
@@ -895,13 +902,13 @@ let rec lower_rule_elem
                 let nd = N_assign (vr, false, ae_of_av l) in
                 let b = add_gnode b nd typ loc in
                 (* continue to the condition block for the loop *)
-                close_with_jump ctx b lc in
+                close_with_jump ctx b loc lc in
         (* create the trampoline failcont block that restores the view *)
-        let tfb = new_labeled_block lf in
-        let tfb = add_gnode tfb N_pop_view unit loc in
-        let ctx = close_with_jump ctx tfb ctx.ctx_failcont in
+        let tfb = new_labeled_block loc lf in
+        let tfb = add_gnode tfb N_pop_view unit e.expr_loc in
+        let ctx = close_with_jump ctx tfb loc ctx.ctx_failcont in
         (* restore the view in the exit block *)
-        let b = new_labeled_block lx in
+        let b = new_labeled_block loc lx in
         let b = add_gnode b N_pop_view unit e.expr_loc in
         (* reverse the return value since we're done *)
         let b = match vr with
@@ -937,8 +944,8 @@ let rec lower_rule_elem
         (* create a block for the loop condition and jump to it *)
         let lc = Label.fresh_label () in
         let ctx =
-          close_with_jump {ctx with ctx_venv = venv} b lc in
-        let b = new_labeled_block lc in
+          close_with_jump {ctx with ctx_venv = venv} b loc lc in
+        let b = new_labeled_block loc lc in
         (* vc := v == [] *)
         let bool = get_typ ctx "bool" in
         let ae = AE_binop (Ast.Eq, (av_of_var vl), null) in
@@ -950,10 +957,10 @@ let rec lower_rule_elem
         let lp = Label.fresh_label () in
         let lx = Label.fresh_label () in
         (* if vc, we exit the loop, else we enter it *)
-        let nd = Node.N_cond_branch (vc, lx, lp) in
+        let nd = Node.N_cond_branch (vc.v_loc, vc, lx, lp) in
         let ctx = close_block {ctx with ctx_venv = venv} b nd in
         (* create the loop body block *)
-        let b = new_labeled_block lp in
+        let b = new_labeled_block loc lp in
         (* get the view to set: vv = List.head(vl) *)
         (* todo: use the _element type_ of the list type in e.expr_aux
            where appropriate below *)
@@ -979,7 +986,8 @@ let rec lower_rule_elem
         let lf = Label.fresh_label () in
         let orig_failcont = ctx.ctx_failcont in
         (* push the failcont *)
-        let b = add_node b (Node.N_push_failcont lf) in
+        let loc' = re'.rule_elem_loc in
+        let b = add_node b (Node.N_push_failcont (loc', lf)) in
         (* lower the rule element with this failcont, adjusting for
            any return value *)
         let ctx, b = match vr with
@@ -989,7 +997,6 @@ let rec lower_rule_elem
             | Some vr ->
                 (* create a new variable to hold a matched value for re' *)
                 let typ' = re'.rule_elem_aux in
-                let loc' = re'.rule_elem_loc in
                 let v, venv = fresh_var venv typ' loc' in
                 let ret' = Some (v, true) in
                 let ctx =
@@ -1004,16 +1011,16 @@ let rec lower_rule_elem
                 let b = add_gnode b nd typ loc in
                 ctx, b in
         (* on the success path, restore the failcont *)
-        let b = add_node b (Node.N_pop_failcont lf) in
+        let b = add_node b (Node.N_pop_failcont (loc', lf)) in
         let ctx = {ctx with ctx_failcont = orig_failcont} in
         (* loop back to the condition *)
-        let ctx = close_with_jump ctx b lc in
+        let ctx = close_with_jump ctx b loc lc in
         (* create the trampoline failcont block that restores the view *)
-        let tfb = new_labeled_block lf in
+        let tfb = new_labeled_block loc lf in
         let tfb = add_gnode tfb N_pop_view unit e.expr_loc in
-        let ctx = close_with_jump ctx tfb orig_failcont in
+        let ctx = close_with_jump ctx tfb loc orig_failcont in
         (* restore the view in the exit block *)
-        let b = new_labeled_block lx in
+        let b = new_labeled_block loc lx in
         let b = add_gnode b N_pop_view unit e.expr_loc in
         (* reverse the return value since we're done *)
         let b = match vr with
@@ -1032,10 +1039,6 @@ let rec lower_rule_elem
    well-typed rule *)
 let lower_rule (ctx: context) (b: opened) (r: rule)
     : (context * opened) =
-  (* set a failcont to collect the temporaries *)
-  let fl = Label.fresh_label () in
-  let orig_failcont = ctx.ctx_failcont in
-  let b = add_node b (Node.N_push_failcont fl) in
   (* initialize the rule temporaries *)
   let b, venv =
     List.fold_left (fun (b, venv) (v, _, (e: exp)) ->
@@ -1051,12 +1054,6 @@ let lower_rule (ctx: context) (b: opened) (r: rule)
     List.fold_left (fun (ctx, b) re ->
         lower_rule_elem ctx b None re
       ) ({ctx with ctx_venv = venv}, b) r.rule_rhs in
-  (* pop the failcont *)
-  let b = add_node b (Node.N_pop_failcont fl) in
-  (* in the failcont, jump to the original one *)
-  let fb = new_labeled_block fl in
-  let ctx = close_with_jump {ctx with ctx_failcont = orig_failcont}
-              fb orig_failcont in
   ctx, b
 
 (* a non-terminal requires the set up of its attributes and lowering
@@ -1065,6 +1062,7 @@ let lower_rule (ctx: context) (b: opened) (r: rule)
 let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   let nt_name = Location.value ntd.non_term_name in
   let typ = get_nt_typ ctx nt_name in
+  let loc = ntd.non_term_loc in
   (* ensure the NT var is bound in the rules *)
   let venv = match ntd.non_term_varname with
       | None ->
@@ -1087,7 +1085,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   let lsucc = Label.fresh_label () in
   let lfail = Label.fresh_label () in
   (* create the entry block *)
-  let lent, b = new_block () in
+  let lent, b = new_block loc () in
   (* create the intermediate failure conts needed to fail one rule to
      the next, with the final rule failing to lfail *)
   let fls = mk_choice_labels ntd.non_term_rules lfail in
@@ -1096,32 +1094,35 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   let rls = List.combine ntd.non_term_rules fls in
   let ctx, _ = (* discard the last generated block *)
     List.fold_left (fun (ctx, b) (r, (fl, last)) ->
+        let loc' = Ast.(r.rule_loc) in
         let b = if not last
-                then add_node b (Node.N_push_failcont fl)
+                then add_node b (Node.N_push_failcont (loc', fl))
                 else b in
+        (* see above comment in RE_choice for why setting failcont to
+           `fl` is okay even for the last choice. *)
         let ctx = {ctx with ctx_failcont = fl} in
         let ctx, b = lower_rule ctx b r in
         let b = if not last
                 then (* on success, pop the failcont *)
-                  add_node b (Node.N_pop_failcont fl)
+                  add_node b (Node.N_pop_failcont (loc', fl))
                 else b in
         (* jump to the success continuation *)
-        let ctx = close_with_jump ctx b lsucc in
+        let ctx = close_with_jump ctx b loc' lsucc in
         (* allocate the failure continuation of the current rule, into
            which the next rule is lowered; if this is the last rule,
            the new block is discarded *)
-        ctx, new_labeled_block fl
+        ctx, new_labeled_block loc' fl
       ) ({ctx with ctx_venv = venv}, b) rls in
 
   (* construct the nt_entry *)
   let nte =
-    {nt_name = ntd.non_term_name;
+    {nt_name     = ntd.non_term_name;
      nt_inh_attrs;
-     nt_typ = typ;
-     nt_entry = lent;
+     nt_typ      = typ;
+     nt_entry    = lent;
      nt_succcont = lsucc;
      nt_failcont = lfail;
-     nt_loc = ntd.non_term_loc} in
+     nt_loc      = ntd.non_term_loc} in
   (* add it to the grammar ToC *)
   let toc = FormatGToC.add nt_name nte ctx.ctx_gtoc in
   {ctx with ctx_gtoc = toc}

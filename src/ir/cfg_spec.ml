@@ -35,10 +35,9 @@ let lower_spec (_, init_venv) tenv (spec: program) =
                  let _, venv = Anf.VEnv.bind venv v in
                  venv
                ) Anf.VEnv.empty init_venv in
-
+  let gl = Location.ghost_loc in
   (* Initialize the re (i.e. compiled regexp) environment *)
   let re_env =
-    let gl = Location.ghost_loc in
     List.fold_left (fun acc (s, cc) ->
         let re = Cfg_regexp.re_of_character_class cc in
         Dfa.StringMap.add s (gl, re) acc
@@ -56,7 +55,7 @@ let lower_spec (_, init_venv) tenv (spec: program) =
   (* create a block for evaluating the statics, i.e. constants and
      function definitions.  its label will be
      the start label for the spec *)
-  let _, sts = Cfg_rule.new_block () in
+  let _, sts = Cfg_rule.new_block gl () in
 
   (* add a function to the function block *)
   let add_fun fb af =
