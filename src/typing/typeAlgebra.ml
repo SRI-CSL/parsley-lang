@@ -195,6 +195,8 @@ let builtin_types, builtin_consts, builtin_vars,
                              (arrow_type (gen_tvar "int") (gen_tvar "int")));
       (Ast.DName "*",  [], arrow_type (gen_tvar "int")
                              (arrow_type (gen_tvar "int") (gen_tvar "int")));
+      (Ast.DName "%",  [], arrow_type (gen_tvar "int")
+                             (arrow_type (gen_tvar "int") (gen_tvar "int")));
       (Ast.DName "/",  [], arrow_type (gen_tvar "int")
                              (arrow_type (gen_tvar "int") (gen_tvar "int")));
 
@@ -547,6 +549,7 @@ let binop_const_name = function
   | Ast.Plus  -> "+"
   | Ast.Minus -> "-"
   | Ast.Mult  -> "*"
+  | Ast.Mod   -> "%"
   | Ast.Div   -> "/"
   | Ast.Lt    -> "<"
   | Ast.Gt    -> ">"

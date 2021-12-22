@@ -127,6 +127,7 @@ rule token = parse
 | "~"  { TILDE }
 | "-"  { MINUS }
 | "*"  { STAR }
+| "%"  { MOD }
 | "/"  { DIV }
 | "&&" { LAND }
 | "||" { LOR }

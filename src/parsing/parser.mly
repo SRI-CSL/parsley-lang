@@ -30,7 +30,7 @@ open AstUtils
 %token LPARBAR RPARBAR SYN_BEGIN SYN_END
 %token SET_VIEW AT_POS AT_VIEW AT_MAP HASH
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI DOT QUESTION ARROW LARROW
-%token STAR PLUS MINUS DIV CARET PLUS_S AT BAR_B AND_B TILDE
+%token STAR PLUS MINUS MOD DIV CARET PLUS_S AT BAR_B AND_B TILDE
 %token LT GT LTEQ GTEQ EQ NEQ LAND LOR
 %token CONSTR_MATCH COLONCOLON BACKSLASH EXCLAIM UNDERSCORE DOTDOT
 
@@ -55,7 +55,7 @@ open AstUtils
 %right AT
 %right COLONCOLON
 %left  PLUS MINUS PLUS_S
-%left  STAR DIV QUESTION
+%left  STAR MOD DIV QUESTION
 %left  BAR_B
 %left  AND_B
 %left  CARET
@@ -453,6 +453,8 @@ expr:
   { make_expr (E_binop (Minus, l, r)) $startpos $endpos }
 | l=expr STAR r=expr
   { make_expr (E_binop (Mult, l, r)) $startpos $endpos }
+| l=expr MOD r=expr
+  { make_expr (E_binop (Mod, l, r)) $startpos $endpos }
 | l=expr DIV r=expr
   { make_expr (E_binop (Div, l, r)) $startpos $endpos }
 | l=expr LT r=expr

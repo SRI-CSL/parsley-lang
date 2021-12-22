@@ -145,6 +145,11 @@ let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
                {e with expr = E_literal (PL_int (l - r))}
            | Mult, E_literal (PL_int l), E_literal (PL_int r) ->
                {e with expr = E_literal (PL_int (l * r))}
+           | Mod,  E_literal (PL_int _), E_literal (PL_int r)
+                when r = 0 ->
+               raise (TExc.Error (TExc.Possible_division_by_zero e.expr_loc))
+           | Mod,  E_literal (PL_int l), E_literal (PL_int r) ->
+               {e with expr = E_literal (PL_int (l mod r))}
            | Div,  E_literal (PL_int _), E_literal (PL_int r)
                 when r = 0 ->
                raise (TExc.Error (TExc.Possible_division_by_zero e.expr_loc))
@@ -163,6 +168,10 @@ let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
                {e with expr = E_literal (PL_bool true)}
            | Eq,   E_literal (PL_bool l), E_literal (PL_bool r) ->
                {e with expr = E_literal (PL_bool (l = r))}
+           | Eq,   E_literal (PL_bit l), E_literal (PL_bit r) ->
+               {e with expr = E_literal (PL_bool (l = r))}
+           | Eq,   E_literal (PL_bitvector l), E_literal (PL_bitvector r) ->
+               {e with expr = E_literal (PL_bool (l = r))}
            | Neq,  E_literal (PL_int l), E_literal (PL_int r) ->
                {e with expr = E_literal (PL_bool (not (l = r)))}
            | Neq,  E_literal (PL_string l), E_literal (PL_string r) ->
@@ -170,6 +179,10 @@ let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
            | Neq,  E_literal PL_unit, E_literal PL_unit ->
                {e with expr = E_literal (PL_bool false)}
            | Neq,  E_literal (PL_bool l), E_literal (PL_bool r) ->
+               {e with expr = E_literal (PL_bool (not (l = r)))}
+           | Neq,  E_literal (PL_bit l), E_literal (PL_bit r) ->
+               {e with expr = E_literal (PL_bool (not (l = r)))}
+           | Neq,  E_literal (PL_bitvector l), E_literal (PL_bitvector r) ->
                {e with expr = E_literal (PL_bool (not (l = r)))}
            | _ ->
                {e with expr = E_binop (op, l', r')})

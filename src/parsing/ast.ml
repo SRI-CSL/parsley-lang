@@ -56,7 +56,7 @@ and type_rep =
 
 type binop =
   | Lt | Gt | Lteq | Gteq | Eq | Neq
-  | Plus | Minus | Mult | Div | Land | Lor
+  | Plus | Minus | Mult | Mod | Div | Land | Lor
   | Or_b | And_b
   | Plus_s | At
   | Cons | Index

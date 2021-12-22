@@ -50,7 +50,8 @@ let str_of_unop = function
 
 let str_of_binop = function
   | Lt -> "<" | Gt -> ">" | Lteq -> "<=" | Gteq -> ">=" | Eq -> "=" | Neq -> "!="
-  | Plus -> "+" | Plus_s -> "+_s" | Minus -> "-" | Mult -> "*" | Div -> "/"
+  | Plus -> "+" | Plus_s -> "+_s" | Minus -> "-" | Mult -> "*"
+  | Mod -> "%s" | Div -> "/"
   | Land -> "&&" | Lor -> "||"
   | And_b -> "&_b" | Or_b -> "|_b"
   | Cons -> "::" | At -> "@"
