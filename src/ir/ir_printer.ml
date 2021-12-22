@@ -110,35 +110,35 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
     | N_gnode g ->
         print_gnode g
     | N_push_failcont (_, l) ->
-        pp_string (Printf.sprintf "push_fail %s" (Label.to_string l))
+        pp_string (Printf.sprintf "push_fail %s" (label_to_string l))
     | N_pop_failcont (_, l) ->
-        pp_string (Printf.sprintf "pop_fail %s" (Label.to_string l))
+        pp_string (Printf.sprintf "pop_fail %s" (label_to_string l))
     | N_jump (_, l) ->
-        pp_string (Printf.sprintf "jmp %s" (Label.to_string l))
+        pp_string (Printf.sprintf "jmp %s" (label_to_string l))
     | N_collect_checked_bits (_, v, f, (mbb, bv), lsc, lf) ->
         pp_string (Printf.sprintf "collect_checked_bits %s%s, %s%s, %s, %s"
                      (Anf_printer.string_of_var v.v)
                      (string_of_fresh f)
                      (string_of_mbb mbb)
                      (sprint_padding bv)
-                     (Label.to_string lsc)
-                     (Label.to_string lf))
+                     (label_to_string lsc)
+                     (label_to_string lf))
     | N_check_bits (_, (mbb, bv), lsc, lf) ->
         pp_string (Printf.sprintf "check_bits %s%s, %s, %s"
                      (string_of_mbb mbb)
                      (sprint_padding bv)
-                     (Label.to_string lsc)
-                     (Label.to_string lf))
+                     (label_to_string lsc)
+                     (label_to_string lf))
     | N_constraint (_, v, s, f) ->
         pp_string (Printf.sprintf "constr %s, %s, %s"
                      (Anf_printer.string_of_var v.v)
-                     (Label.to_string s)
-                     (Label.to_string f))
+                     (label_to_string s)
+                     (label_to_string f))
     | N_cond_branch (_, v, s, f) ->
         pp_string (Printf.sprintf "cbranch %s, %s, %s"
                      (Anf_printer.string_of_var v.v)
-                     (Label.to_string s)
-                     (Label.to_string f))
+                     (label_to_string s)
+                     (label_to_string f))
     | N_call_nonterm (nt, args, ret, s, f) ->
         let sargs = String.concat ","
                      (List.map (fun (a, (v: Anf.var)) ->
@@ -150,13 +150,13 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (Location.value nt)
                      sargs
                      (string_of_return ret)
-                     (Label.to_string s)
-                     (Label.to_string f))
+                     (label_to_string s)
+                     (label_to_string f))
     | N_exec_dfa (_, v, s, f) ->
         pp_string (Printf.sprintf "dfa %s, %s, %s"
                      (Anf_printer.string_of_var v.v)
-                     (Label.to_string s)
-                     (Label.to_string f))
+                     (label_to_string s)
+                     (label_to_string f))
 
 let print_opened (b: opened) =
   let h, ns = match b with
@@ -189,8 +189,8 @@ let string_of_nt_entry e =
   Printf.sprintf "{nt: %s, entry: %s, succ: %s, fail: %s}"
     (Location.value e.nt_name)
     (Label.to_string e.nt_entry)
-    (Label.to_string e.nt_succcont)
-    (Label.to_string e.nt_failcont)
+    (label_to_string e.nt_succcont)
+    (label_to_string e.nt_failcont)
 
 let print_gtoc toc =
   pp_string "GTOC:"; pp_newline ();
@@ -226,6 +226,6 @@ let print_spec ir =
   print_statics ir.ir_statics;
   pp_newline ();
   pp_string (Printf.sprintf "InitFailCont: %s"
-               (Label.to_string ir.ir_init_failcont));
+               (label_to_string ir.ir_init_failcont));
   pp_newline ();
   pp_close_box ()

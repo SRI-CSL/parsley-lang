@@ -19,7 +19,6 @@
 
 open Parsing
 open Typing
-open Flow
 open Cfg
 
 let print_anf = false
@@ -44,7 +43,7 @@ let lower_spec (_, init_venv) tenv (spec: program) =
       ) Dfa.StringMap.empty TypeAlgebra.character_classes in
 
   (* initialize the context with a dummy failure label *)
-  let init_failcont = Label.fresh_label () in
+  let init_failcont = fresh_dynamic () in
   let ctx = {ctx_tenv       = tenv;
              ctx_gtoc       = FormatGToC.empty;
              ctx_ir         = FormatIR.empty;

@@ -166,6 +166,56 @@ let mk_gnode n t l =
    node_typ = t;
    node_loc = l}
 
+(* Labels are used to designate the unique entry node of a block, and
+   therefore also used to designate the block itself.  The interior of
+   a block contains CFG nodes that have linear control flow, and the
+   block is terminated by a node to transfer control to another block
+   by specifying the label of the target block.
+
+   Labels are of two types: static and dynamic.  Static labels are
+   used to designate fixed control-flow targets, i.e. targets that do
+   not change during execution.  Dynamic labels are used when a target
+   needs to be re-mapped during execution.
+
+   When lowering the rules for a non-terminal to a CFG, the success
+   and continuation targets for the non-terminal are only known during
+   execution, and may change for each invocation.  Hence, the CFG for
+   a non-terminal is generated using dynamic labels for the success
+   and failure continuations, and these labels will need to be
+   re-mapped to the ones in effect at the time the CFG for the
+   non-terminal is executed.
+
+   The entry node of a block is always static; however, jump targets,
+   failure continuations and success continuations may be dynamic.
+ *)
+
+type label =
+  | L_static of Label.label
+  | L_dynamic of Label.label
+
+let fresh_static () =
+  L_static (Label.fresh_label ())
+
+let fresh_dynamic () =
+  L_dynamic (Label.fresh_label ())
+
+let is_static = function
+  | L_static _  -> true
+  | L_dynamic _ -> false
+
+let is_dynamic = function
+  | L_static _  -> false
+  | L_dynamic _ -> true
+
+let raw_label_of = function
+  | L_static l  -> l
+  | L_dynamic l -> l
+
+let label_to_string l =
+  match l with
+    | L_static  l -> Printf.sprintf "S%s" (Label.to_string l)
+    | L_dynamic l -> Printf.sprintf "D%s" (Label.to_string l)
+
 (* Handling match failures, or back-tracking:
 
    This is done with a stack of labels, or failconts, that point to
@@ -193,7 +243,7 @@ let mk_gnode n t l =
 module Node = struct
   (* Other nodes mostly concerned with control flow and book-keeping *)
   type ('e, 'x, 'v) node =
-    (* block entry *)
+    (* block entry, denoted by an implicitly static label *)
     | N_label: Location.t * Label.label -> (Block.c, Block.o, unit) node
 
     (* non-control-flow blocks *)
@@ -207,21 +257,21 @@ module Node = struct
        that it does not assign the matched bits to any variable. *)
     | N_collect_checked_bits:
         Location.t * var * bool * matched_bits_predicate
-        * Label.label * Label.label
+        * label * label
         -> (Block.o, Block.c, unit) node
     | N_check_bits:
         Location.t * matched_bits_predicate
-        * Label.label * Label.label
+        * label * label
         -> (Block.o, Block.c, unit) node
 
     (* push or pop a failure continuation on the failcont stack *)
-    | N_push_failcont: Location.t * Label.label -> (Block.o, Block.o, unit) node
-    | N_pop_failcont:  Location.t * Label.label -> (Block.o, Block.o, unit) node
+    | N_push_failcont: Location.t * label -> (Block.o, Block.o, unit) node
+    | N_pop_failcont:  Location.t * label -> (Block.o, Block.o, unit) node
 
     (* block exits *)
 
     (* forward jumps *)
-    | N_jump: Location.t * Label.label -> (Block.o, Block.c, unit) node
+    | N_jump: Location.t * label -> (Block.o, Block.c, unit) node
 
     (* Constrained jump: the var should have been bound to the value
        of the constraint expression, and the label is the success
@@ -230,14 +280,14 @@ module Node = struct
        specified as the second label (to enable a dynamic check for
        code-generation errors, and a more accurate successors
        function). *)
-    | N_constraint: Location.t * var * Label.label * Label.label
+    | N_constraint: Location.t * var * label * label
                     -> (Block.o, Block.c, unit) node
 
     (* Conditional branch: similar to above, except that the label for
        the failed condition is explicitly specified.  A failed
        condition does not have failcont semantics; i.e. jumping to the
        label for the failed case counts as forward progress. *)
-    | N_cond_branch: Location.t * var * Label.label * Label.label
+    | N_cond_branch: Location.t * var * label * label
                      -> (Block.o, Block.c, unit) node
 
     (* Call the CFG for the specified non-terminal with the specified
@@ -250,7 +300,7 @@ module Node = struct
        in its nt_entry.
      *)
     | N_call_nonterm:
-        Ast.ident * (Ast.ident * var) list * return * Label.label * Label.label
+        Ast.ident * (Ast.ident * var) list * return * label * label
         -> (Block.o, Block.c, unit) node
 
     (* Call the DFA for a regular expression.  On a successful match,
@@ -258,7 +308,7 @@ module Node = struct
        first specified label.  A failure rewinds to the top-most
        failcont on the failcont stack, which is specified as the
        second label (see N_constraint above). *)
-    | N_exec_dfa: dfa * var * Label.label * Label.label
+    | N_exec_dfa: dfa * var * label * label
                   -> (Block.o, Block.c, unit) node
 
   let entry_label (type x v) (n: (Block.c, x, v) node) =
@@ -272,8 +322,8 @@ module Node = struct
       | N_constraint (_, _, sc, fl)
       | N_cond_branch (_, _, sc, fl)
       | N_call_nonterm (_, _, _, sc, fl)
-        -> [sc; fl]
-      | N_jump (_, l) -> [l]
+        -> [raw_label_of sc; raw_label_of fl]
+      | N_jump (_, l) -> [raw_label_of l]
       (* this should not be needed *)
       | _ -> assert false
 end
@@ -297,12 +347,12 @@ type nt_entry =
    (* type of the return value after parsing this non-terminal *)
    nt_typ: typ;
    (* the entry label for the CFG *)
-   nt_entry: Label.label;
+   nt_entry: Label.label; (* is implicitly static *)
    (* a pair of success and failure continuations are assumed for the
       CFG.  these need to mapped to the current runtime success and
       failure continuations during execution *)
-   nt_succcont: Label.label;
-   nt_failcont: Label.label;
+   nt_succcont: label;    (* should always be dynamic *)
+   nt_failcont: label;    (* should always be dynamic *)
    (* the location this non-term was defined *)
    nt_loc: Location.t}
 
@@ -324,7 +374,7 @@ type spec_ir =
   {ir_gtoc:          nt_entry FormatGToC.t;
    ir_blocks:        closed FormatIR.t;
    ir_statics:       opened; (* constants and functions *)
-   ir_init_failcont: Label.label}
+   ir_init_failcont: label}  (* should always be dynamic *)
 
 (* The context for IR generation *)
 type context =
@@ -338,7 +388,7 @@ type context =
    (* the current variable environment *)
    ctx_venv: VEnv.t;
    (* the current failure continuation *)
-   ctx_failcont: Label.label;
+   ctx_failcont: label; (* may be static or dynamic *)
    (* intermediate re forms for regexp non-terminals *)
    ctx_re_env:   re_env}
 
