@@ -336,6 +336,8 @@ module B = G.Block
 type opened = (Block.c, Block.o, unit) B.block
 type closed = (Block.c, Block.c, unit) B.block
 
+module StringMap = Map.Make(String)
+
 (* The entry describing a non-terminal in the IR.  The CFG itself is
  * stored separately, since this entry is needed for each non-terminal
  * before their CFGs can be constructed. *)
@@ -343,7 +345,7 @@ type nt_entry =
   {nt_name: Ast.ident;
    (* each inherited attribute and the corresponding var used for it
     * in the CFG *)
-   nt_inh_attrs: (var * typ) Misc.StringMap.t;
+   nt_inh_attrs: (var * typ) StringMap.t;
    (* type of the return value after parsing this non-terminal *)
    nt_typ: typ;
    (* the entry label for the CFG *)
@@ -353,6 +355,8 @@ type nt_entry =
       failure continuations during execution *)
    nt_succcont: label;    (* should always be dynamic *)
    nt_failcont: label;    (* should always be dynamic *)
+   (* a successfully matched value will be bound to this variable *)
+   nt_retvar: var;
    (* the location this non-term was defined *)
    nt_loc: Location.t}
 

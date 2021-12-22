@@ -1071,13 +1071,15 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   let nt_name = Location.value ntd.non_term_name in
   let typ = get_nt_typ ctx nt_name in
   let loc = ntd.non_term_loc in
-  (* ensure the NT var is bound in the rules *)
-  let venv = match ntd.non_term_varname with
+  (* Ensure the NT var is bound in the rules.  If the var is not
+     present, generate one, since it will be used to return the
+     matched value. *)
+  let rv, venv = match ntd.non_term_varname with
       | None ->
-          ctx.ctx_venv
+          let rv, venv = VEnv.gen ctx.ctx_venv in
+          make_var rv typ loc, venv
       | Some v ->
-          let _, venv = bind_var ctx.ctx_venv v typ in
-          venv in
+          bind_var ctx.ctx_venv v typ in
   (* and similarly for the inherited attributes *)
   let tenv = ctx.ctx_tenv in
   let nt_inh_attrs, venv =
@@ -1087,8 +1089,8 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
         let te = TypedAstUtils.expand_type_abbrevs tenv te in
         let typ = TypeConv.intern tenv te in
         let v, venv = bind_var venv v typ in
-        (Misc.StringMap.add ia (v, typ) attrs), venv
-      ) (Misc.StringMap.empty, venv) ntd.non_term_inh_attrs in
+        (StringMap.add ia (v, typ) attrs), venv
+      ) (StringMap.empty, venv) ntd.non_term_inh_attrs in
   (* create the dynamic success and failure conts *)
   let lsucc = fresh_dynamic () in
   let lfail = fresh_dynamic () in
@@ -1138,6 +1140,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
      nt_entry    = (raw_label_of lent);
      nt_succcont = lsucc;
      nt_failcont = lfail;
+     nt_retvar   = rv;
      nt_loc      = ntd.non_term_loc} in
   (* add it to the grammar ToC *)
   let toc = FormatGToC.add nt_name nte ctx.ctx_gtoc in
