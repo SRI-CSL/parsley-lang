@@ -747,7 +747,8 @@ let rec lower_rule_elem
         let loc' = re'.rule_elem_loc in
         let b = add_node b (Node.N_push_failcont (loc', lf)) in
         (* lower the rule element with this failcont *)
-        let ctx = {ctx with ctx_venv = venv; ctx_failcont = lf} in
+        let ctx = {ctx with ctx_venv     = venv;
+                            ctx_failcont = lf} in
         let ctx, b = lower_rule_elem ctx b ret re' in
         (* on the success path, restore the failcont and the view *)
         let b = add_node b (Node.N_pop_failcont (loc', lf)) in
@@ -1000,15 +1001,15 @@ let rec lower_rule_elem
            any return value *)
         let ctx, b = match vr with
             | None ->
-                lower_rule_elem {ctx with ctx_venv = venv;
+                lower_rule_elem {ctx with ctx_venv     = venv;
                                           ctx_failcont = lf} b None re'
             | Some vr ->
                 (* create a new variable to hold a matched value for re' *)
                 let typ' = re'.rule_elem_aux in
                 let v, venv = fresh_var venv typ' loc' in
                 let ret' = Some (v, true) in
-                let ctx =
-                  {ctx with ctx_venv = venv; ctx_failcont = lf} in
+                let ctx = {ctx with ctx_venv     = venv;
+                                    ctx_failcont = lf} in
                 let ctx, b = lower_rule_elem ctx b ret' re' in
                 (* update the return value:
                    vr := v :: vr , and reverse it when done *)

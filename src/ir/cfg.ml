@@ -244,10 +244,18 @@ module Node = struct
   (* Other nodes mostly concerned with control flow and book-keeping *)
   type ('e, 'x, 'v) node =
     (* block entry, denoted by an implicitly static label *)
+
     | N_label: Location.t * Label.label -> (Block.c, Block.o, unit) node
 
     (* non-control-flow blocks *)
+
     | N_gnode: gnode -> (Block.o, Block.o, unit) node
+
+    (* push or pop a failure continuation on the failcont stack *)
+    | N_push_failcont: Location.t * label -> (Block.o, Block.o, unit) node
+    | N_pop_failcont:  Location.t * label -> (Block.o, Block.o, unit) node
+
+    (* block exits *)
 
     (* Collect matched bits from the marked position and check the
        specified predicate.  If it succeeds, N_collect_checked_bits
@@ -263,12 +271,6 @@ module Node = struct
         Location.t * matched_bits_predicate
         * label * label
         -> (Block.o, Block.c, unit) node
-
-    (* push or pop a failure continuation on the failcont stack *)
-    | N_push_failcont: Location.t * label -> (Block.o, Block.o, unit) node
-    | N_pop_failcont:  Location.t * label -> (Block.o, Block.o, unit) node
-
-    (* block exits *)
 
     (* forward jumps *)
     | N_jump: Location.t * label -> (Block.o, Block.c, unit) node
@@ -310,6 +312,10 @@ module Node = struct
        second label (see N_constraint above). *)
     | N_exec_dfa: dfa * var * label * label
                   -> (Block.o, Block.c, unit) node
+
+  type entry_node  = (Block.c, Block.o, unit) node
+  type linear_node = (Block.o, Block.o, unit) node
+  type exit_node   = (Block.o, Block.c, unit) node
 
   let entry_label (type x v) (n: (Block.c, x, v) node) =
     match n with
