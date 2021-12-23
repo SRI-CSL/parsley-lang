@@ -43,6 +43,7 @@ type init_var_error =
   | Use_of_uninit_var of binding * Location.t
   | Unnamed_attributed_nonterminal of ident
   | Unassigned_attribute of ident * string * Location.t
+  | Unassigned_variable  of ident * string * Location.t
 
 exception Error of init_var_error
 
@@ -63,6 +64,9 @@ let error_msg = function
   | Unassigned_attribute (nt, f, loc) ->
       msg "%s:\n attribute %s of %s may be uninitialized at the end of this rule.\n"
         loc f (Location.value nt)
+  | Unassigned_variable (nt, v, loc) ->
+      msg "%s:\n variable %s of %s may be uninitialized at the end of this rule.\n"
+        loc v (Location.value nt)
 
 (* TODO: move this into an astutils module *)
 
@@ -841,9 +845,10 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
         let ntnm = Location.value ntd.non_term_name in
         let recinfo = get_synth_recinfo tenv ntnm in
         match recinfo, ntd.non_term_varname with
-          | None, _
-          | Some (TE.{fields = []; _}), _ ->  (* no synthesized attributes *)
+          | None, None ->
               None
+          | None, Some v ->
+              Some (v, [])
           | Some _, None ->
               (* Initialized attributes are best modeled as
                * assignments in which the lhs is a field indexed
@@ -862,6 +867,13 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
           match syn_attrs with
             | None ->
                 ReachingDefns.empty
+            | Some (v, []) ->
+                (* create an undefined binding for the variable *)
+                let lc = Location.loc v in
+                let vn = fst (Location.value v) in
+                let v  = snd (Location.value v) in
+                let b  = v, None, (vn, lc) in
+                ReachingDefns.add (b, None) ReachingDefns.empty
             | Some (v, fs) ->
                 (* create undefined bindings for each attribute *)
                 List.fold_left (fun rd (attr, _) ->
@@ -882,6 +894,24 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
       match syn_attrs with
         | None ->
             ()
+        | Some (v, []) ->
+            let loc = Location.loc v in
+            let vn  = fst (Location.value v) in
+            let v   = snd (Location.value v) in
+            (* get the factbase at exit *)
+            let exit_fbase = match exit_fbase with
+                | VA.Facts_closed fb -> fb
+                | VA.Facts_open _ -> assert false in
+(*            Printf.eprintf "exit_fbase:\n";
+            print_fbase exit_fbase;*)
+            let exit_fact = match FB.lookup exit_fbase exit with
+                | None -> assert false
+                | Some f -> f in
+            let b = v, None, (vn, loc) in
+            if   ReachingDefns.possibly_undefined b exit_fact
+            then let err =
+                   Unassigned_variable (ntd.non_term_name, vn, r.rule_loc) in
+                 raise (Error err)
         | Some (v, fs) ->
             let loc = Location.loc v in
             let vn  = fst (Location.value v) in
