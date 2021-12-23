@@ -1,9 +1,11 @@
 format {
-  WS (allow_empty: bool) :=
+  WS w (allow_empty: bool) {ws: [byte]}:=
     [allow_empty]
-    (# [" " | "\t" | "\r" | "\n"]* #)
+    ws=(# [" " | "\t" | "\r" | "\n"]* #)
+    {w.ws := ws}
   ; [!allow_empty]
-    (# [" " | "\t" | "\r" | "\n"]+ #)
+    ws=(# [" " | "\t" | "\r" | "\n"]+ #)
+    {w.ws := ws}
   ;;
 
   A := !"["! ;;

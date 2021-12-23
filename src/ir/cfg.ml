@@ -399,6 +399,7 @@ type context =
 type error =
   | Unbound_return_expr of Location.t
   | Unsupported_construct of Location.t * string
+  | Nonterm_variable_required of Ast.ident
 exception Error of error
 
 let msg m loc =
@@ -406,10 +407,12 @@ let msg m loc =
 
 let error_msg = function
   | Unbound_return_expr l ->
-      msg
-        "%s:\n the return expression in this action block is not used"
+      msg "%s:\n The return expression in this action block is not used."
         l
   | Unsupported_construct (l, s) ->
-      msg
-        "%s:\n IR generation for `%s' is currently unsupported"
+      msg "%s:\n IR generation for `%s' is currently unsupported."
         l s
+  | Nonterm_variable_required ntd ->
+      msg
+        "%s:\n Non-terminal `%s' requires a variable to indicate the matched value."
+        (Location.loc ntd) (Location.value ntd)

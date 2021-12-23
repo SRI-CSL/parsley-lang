@@ -34,11 +34,13 @@ format {
   //
   // The ';' is an ordered choice combinator that combines a sequence
   // of rules.
-  Whitespace (allow_empty: bool) :=
+  Whitespace w (allow_empty: bool) {ws: [byte]}:=
     [allow_empty]
-    (# ( [" " | "\000" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
+    ws=(# ( [" " | "\000" | "\t" | "\r" | "\n" | "\x0c"] | Comment )* #)
+    {w.ws := ws}
   ; [!allow_empty]
-    (# ( [" " | "\000" | "\t" | "\r" | "\n" | "\x0c"] | Comment )+ #)
+    ws=(# ( [" " | "\000" | "\t" | "\r" | "\n" | "\x0c"] | Comment )+ #)
+    {w.ws := ws}
   ;;
 
   // The 'Name' non-terminal has a synthesized attribute 'nm' that

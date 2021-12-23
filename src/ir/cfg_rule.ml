@@ -1071,13 +1071,11 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   let nt_name = Location.value ntd.non_term_name in
   let typ = get_nt_typ ctx nt_name in
   let loc = ntd.non_term_loc in
-  (* Ensure the NT var is bound in the rules.  If the var is not
-     present, generate one, since it will be used to return the
-     matched value. *)
+  (* Ensure the NT var is bound in the rules.  If the var was not
+     originally present, we should have generated it. *)
   let rv, venv = match ntd.non_term_varname with
       | None ->
-          let rv, venv = VEnv.gen ctx.ctx_venv in
-          make_var rv typ loc, venv
+          assert false
       | Some v ->
           bind_var ctx.ctx_venv v typ in
   (* and similarly for the inherited attributes *)
@@ -1148,18 +1146,31 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
 
 (* a wrapper to intercept the special case of a non-terminal without
    attributes, no temporaries and regexp-convertible rules. *)
-let lower_ntd (ctx: context) (ntd: non_term_defn) : context =
+let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
+    : context * TypeInfer.VEnv.t =
   (* detect special case *)
   let no_synth_attrs =
     match ntd.non_term_syn_attrs with
       | ALT_decls [] -> true
       | _                -> false in
   let no_inh_attrs = List.length ntd.non_term_inh_attrs = 0 in
-  let only_regexp_rules =
-    List.for_all (TypedAstUtils.is_regexp_rule ctx.ctx_tenv) ntd.non_term_rules in
+  let only_regexp_rules = List.for_all
+                            (TypedAstUtils.is_regexp_rule ctx.ctx_tenv)
+                            ntd.non_term_rules in
 
-  (* update re context if needed *)
-  let ctx =
+  let mk_ntd_var () =
+    (* Generate a variable to contain the matched value. *)
+    let ntn = Location.value ntd.non_term_name in
+    let ntl = Location.loc ntd.non_term_name in
+    (* since `ntn` is uppercase, we can use its lowercase form as a
+       non-conflicting local variable name *)
+    let nv = String.lowercase_ascii ntn in
+    let nv = Location.mk_loc_val (nv, ()) ntl in
+    (* generate a variable for this name *)
+    TypeInfer.VEnv.add tvenv nv in
+
+  let ctx, tvenv, ntd =
+    (* update re context if needed *)
     if no_synth_attrs && no_inh_attrs && only_regexp_rules
     then
       (* construct a regexp from the rules *)
@@ -1170,7 +1181,47 @@ let lower_ntd (ctx: context) (ntd: non_term_defn) : context =
                    (Location.value ntd.non_term_name)
                    (rx.regexp_loc, re)
                    ctx.ctx_re_env in
-      {ctx with ctx_re_env = renv}
-    else ctx in
+      (* create a simplified rule for the definition *)
+      let rle = Ast.({rule_elem      = RE_regexp rx;
+                      rule_elem_aux  = rx.regexp_aux;
+                      rule_elem_loc  = rx.regexp_loc}) in
+      (* The non-terminal could not have been named, otherwise the
+         initialization analysis should have ensured an action was
+         used to set its value, and that action would have made this
+         non-terminal not equivalent to a non-regexp. *)
+      assert (ntd.non_term_varname = None);
+      let nv, tvenv = mk_ntd_var () in
+      (* make sure this variable is bound in the rule *)
+      let rle = Ast.({rule_elem     = RE_named (nv, rle);
+                      rule_elem_aux = rle.rule_elem_aux;
+                      rule_elem_loc = rle.rule_elem_loc}) in
+      let rl = Ast.({rule_rhs   = [rle];
+                     rule_temps = [];
+                     rule_loc   = rx.regexp_loc}) in
+      let ntd = {ntd with non_term_varname = Some nv;
+                          non_term_rules   = [rl]} in
+      {ctx with ctx_re_env = renv}, tvenv, ntd
+    else if ntd.non_term_varname = None
+    (* handle common cases of unnamed non-terminals *)
+    then
+      (* abbreviations *)
+      (if List.length ntd.non_term_rules = 1
+          && List.length (List.hd ntd.non_term_rules).rule_rhs = 1
+       then
+         let nv, tvenv = mk_ntd_var () in
+         let rl  = List.hd ntd.non_term_rules in
+         let rle = List.hd rl.rule_rhs in
+         let rle = Ast.({rle with rule_elem = RE_named (nv, rle)}) in
+         let rl  = Ast.({rl with rule_rhs = [rle]}) in
+         let ntd = {ntd with non_term_varname = Some nv;
+                             non_term_rules   = [rl]} in
+         ctx, tvenv, ntd
+       else
+         let err = Nonterm_variable_required ntd.non_term_name in
+         raise (Error err)
+      )
+    else
+      ctx, tvenv, ntd in
   (* now dispatch to general case *)
-  lower_general_ntd ctx ntd
+  let ctx = lower_general_ntd ctx ntd in
+  ctx, tvenv

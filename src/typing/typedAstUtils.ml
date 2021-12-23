@@ -215,7 +215,6 @@ let is_non_zero: 't 'v. ('t, 'v) expr -> bool =
 let rec guess_is_regexp_elem rle =
   match rle.rule_elem with
     | RE_epsilon
-    | RE_constraint _
     | RE_regexp _ -> true
 
     | RE_opt rle'
@@ -230,6 +229,7 @@ let rec guess_is_regexp_elem rle =
     | RE_seq rles
     | RE_seq_flat rles -> List.for_all guess_is_regexp_elem rles
 
+    | RE_constraint _
     | RE_named _
     | RE_action _
     | RE_non_term _

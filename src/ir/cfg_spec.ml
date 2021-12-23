@@ -66,11 +66,11 @@ let lower_spec (_, init_venv) tenv (spec: program) =
     Cfg_rule.add_gnode fb nd afb.aexp_typ loc in
 
   (* process the spec in lexical order *)
-  let ctx, sts =
-    List.fold_left (fun (ctx, sts) d ->
+  let ctx, _, sts =
+    List.fold_left (fun (ctx, tvenv, sts) d ->
         match d with
           | Ast.Decl_types _ ->
-              ctx, sts
+              ctx, tvenv, sts
           | Ast.Decl_const c ->
               (* populate the consts block *)
               let c', venv =
@@ -83,7 +83,7 @@ let lower_spec (_, init_venv) tenv (spec: program) =
               let v = Anf.make_var v' ae.aexp_typ loc in
               let nd = N_assign (v, true, ae) in
               let sts = Cfg_rule.add_gnode sts nd ae.aexp_typ loc in
-              {ctx with ctx_venv = venv}, sts
+              {ctx with ctx_venv = venv}, tvenv, sts
           | Ast.Decl_fun f ->
               (* populate the funcs block *)
               let af, venv =
@@ -91,7 +91,7 @@ let lower_spec (_, init_venv) tenv (spec: program) =
               if print_anf
               then Anf_printer.print_fun af;
               let sts = add_fun sts af in
-              {ctx with ctx_venv = venv}, sts
+              {ctx with ctx_venv = venv}, tvenv, sts
           | Ast.Decl_recfuns r ->
               (* populate the funcs block *)
               let afs, venv = Anf_exp.normalize_recfuns ctx.ctx_tenv
@@ -99,15 +99,15 @@ let lower_spec (_, init_venv) tenv (spec: program) =
               if print_anf
               then List.iter Anf_printer.print_fun afs;
               let sts = List.fold_left add_fun sts afs in
-              {ctx with ctx_venv = venv}, sts
+              {ctx with ctx_venv = venv}, tvenv, sts
           | Ast.Decl_format f ->
               (* generate the CFG blocks for the non-terminals *)
-              List.fold_left (fun (ctx, sts) (fd: format_decl) ->
+              List.fold_left (fun (ctx, tvenv, sts) (fd: format_decl) ->
                   let ntd = fd.format_decl in
-                  let ctx = Cfg_rule.lower_ntd ctx ntd in
-                  ctx, sts
-                ) (ctx, sts) f.format_decls
-      ) (ctx, sts) spec.decls in
+                  let ctx, tvenv = Cfg_rule.lower_ntd ctx tvenv ntd in
+                  ctx, tvenv, sts
+                ) (ctx, tvenv, sts) f.format_decls
+      ) (ctx, init_venv, sts) spec.decls in
   {ir_gtoc          = ctx.ctx_gtoc;
    ir_blocks        = ctx.ctx_ir;
    ir_statics       = sts;
