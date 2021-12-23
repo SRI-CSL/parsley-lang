@@ -256,7 +256,7 @@ let rec is_regexp_elem tenv rle =
 
     | RE_star (rle', Some e) ->
         (match (const_fold e).expr with
-           | E_literal (PL_int _) -> guess_is_regexp_elem rle'
+           | E_literal (PL_int _) -> is_regexp_elem tenv rle'
            | _ -> false)
 
     | RE_choice rles
@@ -287,11 +287,15 @@ let rec is_regexp_elem tenv rle =
     | RE_set_view _
     | RE_map_views _ -> false
 
+let is_regexp_rule tenv r =
+     List.length r.rule_temps = 0
+  && List.for_all (is_regexp_elem tenv) r.rule_rhs
+
 (* Converts a typed regexp rule element into a regexp.  It maintains
    the aux and location information as best it can.  It assumes that
    [r] satisfies [is_regexp_elem r].
  *)
-let rec to_regexp r =
+let rec rule_elem_to_regexp r =
   let wrap r' = {regexp = r';
                  regexp_loc = r.rule_elem_loc;
                  regexp_aux = r.rule_elem_aux} in
@@ -304,21 +308,49 @@ let rec to_regexp r =
         wrap (RX_type nid)
 
     | RE_star (r', None) ->
-        wrap (RX_star (to_regexp r', None))
+        wrap (RX_star (rule_elem_to_regexp r', None))
     | RE_star (r', Some e) ->
         let e' = const_fold e in
         (match e'.expr with
            | E_literal (PL_int _) -> ()
            | _ -> assert false);
-        wrap (RX_star (to_regexp r', Some e'))
+        wrap (RX_star (rule_elem_to_regexp r', Some e'))
 
     | RE_opt r' ->
-        wrap (RX_opt (to_regexp r'))
+        wrap (RX_opt (rule_elem_to_regexp r'))
     | RE_choice rs ->
-        let rs' = List.map to_regexp rs in
+        let rs' = List.map rule_elem_to_regexp rs in
         wrap (RX_choice rs')
     | RE_seq rs | RE_seq_flat rs ->
-        let rs' = List.map to_regexp rs in
+        let rs' = List.map rule_elem_to_regexp rs in
         wrap (RX_seq rs')
     | _ ->
         assert false
+
+(* Converts a typed rule into a regexp.  It maintains the aux and
+   location information as best it can.  It assumes that [r] satisfies
+   [is_regexp_rule r].
+ *)
+let rule_to_regexp r =
+  assert (List.length r.rule_temps = 0);
+  assert (List.length r.rule_rhs > 0);
+  (* since all regexps have the same type, we use the type from the
+     first element *)
+  let rx = List.hd r.rule_rhs in
+  let rxs = List.map rule_elem_to_regexp r.rule_rhs in
+  {regexp     = RX_seq rxs;
+   regexp_loc = r.rule_loc;
+   regexp_aux = rx.rule_elem_aux}
+
+(* Converts a sequence of typed rules into a regexp.  It maintains the
+   aux and location information as best it can.  It assumes that each
+   rule [r] in [rs] satisfies [is_regexp_rule r].
+ *)
+
+let rules_to_regexp rs =
+  let rxs = List.map rule_to_regexp rs in
+  let rxh = List.hd rxs in
+  let rxt = List.hd (List.rev rxs) in
+  {regexp     = RX_choice rxs;
+   regexp_loc = Location.extent rxh.regexp_loc rxt.regexp_loc;
+   regexp_aux = rxh.regexp_aux}

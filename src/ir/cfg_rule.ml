@@ -218,7 +218,7 @@ let rec lower_rule_elem
 
     | RE_seq_flat _ ->
         assert (TypedAstUtils.is_regexp_elem ctx.ctx_tenv re);
-        let rx = TypedAstUtils.to_regexp re in
+        let rx = TypedAstUtils.rule_elem_to_regexp re in
         (* Now do as above *)
         (* Compile the regexp into a DFA. *)
         let dfa = Cfg_regexp.build_dfa ctx.ctx_re_env rx in
@@ -1147,8 +1147,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   {ctx with ctx_gtoc = toc}
 
 (* a wrapper to intercept the special case of a non-terminal without
-   attributes and a single regexp-convertible rule with no
-   temporaries *)
+   attributes, no temporaries and regexp-convertible rules. *)
 let lower_ntd (ctx: context) (ntd: non_term_defn) : context =
   (* detect special case *)
   let no_synth_attrs =
@@ -1156,36 +1155,20 @@ let lower_ntd (ctx: context) (ntd: non_term_defn) : context =
       | ALT_decls [] -> true
       | _                -> false in
   let no_inh_attrs = List.length ntd.non_term_inh_attrs = 0 in
-  let is_regexp_rule, rl =
-    match ntd.non_term_rules with
-      | [] ->
-          (* should have had a parse error *)
-          assert false
-      | [r] ->
-          List.length r.rule_temps = 0
-          && List.for_all
-               (TypedAstUtils.is_regexp_elem ctx.ctx_tenv)
-               r.rule_rhs,
-          r
-      | r :: _ ->
-          false, r in
+  let only_regexp_rules =
+    List.for_all (TypedAstUtils.is_regexp_rule ctx.ctx_tenv) ntd.non_term_rules in
+
   (* update re context if needed *)
   let ctx =
-    if no_synth_attrs && no_inh_attrs && is_regexp_rule
+    if no_synth_attrs && no_inh_attrs && only_regexp_rules
     then
-      (* construct a regexp from the rule element sequence *)
-      let re = match rl.rule_rhs with
-          | [] -> assert false
-          | h :: _ -> (* copy aux info *)
-              Ast.({rule_elem = RE_seq_flat rl.rule_rhs;
-                    rule_elem_loc = rl.rule_loc;
-                    rule_elem_aux = h.rule_elem_aux}) in
-      let rx = TypedAstUtils.to_regexp re in
-      let rx = Cfg_regexp.build_re ctx.ctx_re_env rx in
+      (* construct a regexp from the rules *)
+      let rx = TypedAstUtils.rules_to_regexp ntd.non_term_rules in
+      let re = Cfg_regexp.build_re ctx.ctx_re_env rx in
       (* add this to the re environment *)
       let renv = Dfa.StringMap.add
                    (Location.value ntd.non_term_name)
-                   (rl.rule_loc, rx)
+                   (rx.regexp_loc, re)
                    ctx.ctx_re_env in
       {ctx with ctx_re_env = renv}
     else ctx in
