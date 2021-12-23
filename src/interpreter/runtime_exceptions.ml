@@ -17,6 +17,7 @@
 
 open Parsing
 open Values
+open Flow
 open Ir
 
 let msg m loc =
@@ -40,6 +41,12 @@ module Internal_errors = struct
     | Pattern_match_failure of Location.t * Anf.var
     | View_stack_underflow of Location.t
     | Bitsbound_check of Location.t * string
+    | Failcont_stack_underflow of Location.t
+    | Unexpected_failcont of Location.t * Cfg.label * Cfg.label
+    | No_nonterm_entry of Ast.ident
+    | Unknown_attribute of Ast.ident * Ast.ident
+    | No_binding_for_label of Location.t * Label.label
+    | No_block_for_label of Location.t * Label.label
 
   let error_msg =
     let pr_occ = Ir.Anf_printer.string_of_occurrence in
@@ -86,6 +93,23 @@ module Internal_errors = struct
         msg "%s:\n INTERNAL ERROR: the view stack underflowed." lc
     | Bitsbound_check (lc, m) ->
         msg "%s:\n INTERNAL ERROR: bits-bound check failed: %s" lc m
+    | Failcont_stack_underflow lc ->
+        msg "%s:\n INTERNAL ERROR: failcont stack underflow" lc
+    | Unexpected_failcont (lc, l, le) ->
+        msg "%s:\n INTERNAL ERROR: unexpected failcont label %s, expected %s"
+          lc (Cfg.label_to_string l) (Cfg.label_to_string le)
+    | No_nonterm_entry nt ->
+        msg "%s:\n INTERNAL ERROR: no non-terminal entry found for `%s'"
+          (Location.loc nt) (Location.value nt)
+    | Unknown_attribute (nt, p) ->
+        msg "%s:\n INTERNAL ERROR: no attribute `%s' found for non-terminal `%s'"
+          (Location.loc p) (Location.value p) (Location.value nt)
+    | No_binding_for_label (loc, l) ->
+        msg "%s:\n INTERNAL ERROR: no static binding found for dynamic label `%s'."
+          loc (Label.to_string l)
+    | No_block_for_label (loc, l) ->
+        msg "%s:\n INTERNAL ERROR: no block found for label `%s'."
+          loc (Label.to_string l)
 end
 
 type error =

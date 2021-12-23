@@ -175,14 +175,14 @@ let mk_gnode n t l =
    Labels are of two types: static and dynamic.  Static labels are
    used to designate fixed control-flow targets, i.e. targets that do
    not change during execution.  Dynamic labels are used when a target
-   needs to be re-mapped during execution.
+   is only known during execution.
 
    When lowering the rules for a non-terminal to a CFG, the success
    and continuation targets for the non-terminal are only known during
    execution, and may change for each invocation.  Hence, the CFG for
    a non-terminal is generated using dynamic labels for the success
-   and failure continuations, and these labels will need to be
-   re-mapped to the ones in effect at the time the CFG for the
+   and failure continuations, and these labels will be use to transfer
+   control to the targets in effect at the time the CFG for the
    non-terminal is executed.
 
    The entry node of a block is always static; however, jump targets,
@@ -292,6 +292,14 @@ module Node = struct
     | N_cond_branch: Location.t * var * label * label
                      -> (Block.o, Block.c, unit) node
 
+    (* Call the DFA for a regular expression.  On a successful match,
+       assign the specified variable to the match, and continue at the
+       first specified label.  A failure rewinds to the top-most
+       failcont on the failcont stack, which is specified as the
+       second label (see N_constraint above). *)
+    | N_exec_dfa: dfa * var * label * label
+                  -> (Block.o, Block.c, unit) node
+
     (* Call the CFG for the specified non-terminal with the specified
        expressions for the inherited attributes.  On a successful
        continuation, continue at the first specified label.  The
@@ -304,14 +312,6 @@ module Node = struct
     | N_call_nonterm:
         Ast.ident * (Ast.ident * var) list * return * label * label
         -> (Block.o, Block.c, unit) node
-
-    (* Call the DFA for a regular expression.  On a successful match,
-       assign the specified variable to the match, and continue at the
-       first specified label.  A failure rewinds to the top-most
-       failcont on the failcont stack, which is specified as the
-       second label (see N_constraint above). *)
-    | N_exec_dfa: dfa * var * label * label
-                  -> (Block.o, Block.c, unit) node
 
   type entry_node  = (Block.c, Block.o, unit) node
   type linear_node = (Block.o, Block.o, unit) node

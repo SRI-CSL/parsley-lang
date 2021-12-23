@@ -19,6 +19,7 @@
 
 open Parsing
 open Typing
+open Flow
 open Ir
 open Runtime_exceptions
 open Internal_errors
@@ -79,6 +80,10 @@ module FEnv = struct
       | Some (_, ps, bd) -> ps, bd
 end
 
+(* Label bindings *)
+module LBindings = Map.Make (struct type t = Label.label
+                                    let compare = compare
+                             end)
 type state =
   {(* static state *)
    st_spec_toc:     Cfg.nt_entry Cfg.FormatGToC.t;
@@ -94,3 +99,25 @@ type state =
    st_failcont_stk: Cfg.label list;    (* stack of failconts *)
    st_view_stk:     Values.view list;  (* stack of views (minus top-of-stack) *)
    st_cur_view:     Values.view}       (* current view (top-of-view-stack) *)
+
+(* helpers *)
+
+let get_block lc (s: state) (l: Cfg.label) : Cfg.closed =
+  (* We should only be given static labels. *)
+  assert (Cfg.is_static l);
+  let l = Cfg.raw_label_of l in
+  match Cfg.FormatIR.find_opt l s.st_spec_ir with
+    | Some b ->
+        b
+    | None ->
+        let err = Internal_errors.No_block_for_label (lc, l) in
+        internal_error err
+
+let get_ntentry (s: state) (nt: Ast.ident) : Cfg.nt_entry =
+  let ntn = Location.value nt in
+  match Cfg.FormatGToC.find_opt ntn s.st_spec_toc with
+    | None ->
+        let err = Internal_errors.No_nonterm_entry nt in
+        internal_error err
+    | Some ent ->
+        ent

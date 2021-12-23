@@ -139,6 +139,11 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (Anf_printer.string_of_var v.v)
                      (label_to_string s)
                      (label_to_string f))
+    | N_exec_dfa (_, v, s, f) ->
+        pp_string (Printf.sprintf "dfa %s, %s, %s"
+                     (Anf_printer.string_of_var v.v)
+                     (label_to_string s)
+                     (label_to_string f))
     | N_call_nonterm (nt, args, ret, s, f) ->
         let sargs = String.concat ","
                      (List.map (fun (a, (v: Anf.var)) ->
@@ -150,11 +155,6 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (Location.value nt)
                      sargs
                      (string_of_return ret)
-                     (label_to_string s)
-                     (label_to_string f))
-    | N_exec_dfa (_, v, s, f) ->
-        pp_string (Printf.sprintf "dfa %s, %s, %s"
-                     (Anf_printer.string_of_var v.v)
                      (label_to_string s)
                      (label_to_string f))
 

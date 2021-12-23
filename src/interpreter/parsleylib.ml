@@ -531,3 +531,9 @@ let dispatch_stdlib lc (m: string) (f: string) (vs: value list)
        fn lc a0 a1 a2
   else let err = Internal_errors.Unknown_stdlib (lc, m, f, nvs) in
        internal_error err
+
+(* internal helpers *)
+let cond lc (v: value) : bool =
+  match v with
+    | V_bool b -> b
+    | _ -> internal_error (Type_error (lc, "cond", 1, vtype_of v, T_bool))
