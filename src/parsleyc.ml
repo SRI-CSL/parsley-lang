@@ -42,14 +42,14 @@ let options =
 let () =
   Printexc.record_backtrace debug_build;
   Arg.parse options (fun s -> input_file := s :: !input_file) usage;
-  if List.length !input_file > 1 || List.length !input_file = 0
+  if   List.length !input_file > 1 || List.length !input_file = 0
   then (Printf.eprintf "Please specify a single input file.\n";
         exit 1);
   let spec_file = List.hd !input_file in
   let spec = SpecParser.parse_spec spec_file in
-  if !print_ast
+  if   !print_ast
   then Parsing.AstPrinter.print_parsed_spec spec;
   let init_envs, tenv, tspec = SpecTyper.type_check spec in
   SpecTyper.assignment_check init_envs tenv tspec;
-  Printf.printf "%s: parsed and typed.\n" spec_file;
-  ignore (SpecIR.to_ir init_envs tenv tspec)
+  ignore (SpecIR.to_ir init_envs tenv tspec);
+  Printf.printf "%s: parsed, typed, generated IR.\n" spec_file
