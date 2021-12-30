@@ -514,16 +514,19 @@ let dispatch_stdlib lc (m: string) (f: string) (vs: value list)
     : value =
   let nvs = List.length vs in
   let key = m, f in
-  if   nvs = 1 && DTable.mem  key dtable.dt_1arg
+  if   nvs = 0 && DTable.mem key dtable.dt_0arg
+  then let fn = DTable.find key dtable.dt_0arg in
+       fn lc
+  else if nvs = 1 && DTable.mem key dtable.dt_1arg
   then let fn = DTable.find key dtable.dt_1arg in
        let a0 = List.nth vs 0 in
        fn lc a0
-  else if nvs = 2 && DTable.mem  key dtable.dt_2arg
+  else if nvs = 2 && DTable.mem key dtable.dt_2arg
   then let fn = DTable.find key dtable.dt_2arg in
        let a0 = List.nth vs 0 in
        let a1 = List.nth vs 1 in
        fn lc a0 a1
-  else if nvs = 3 && DTable.mem  key dtable.dt_3arg
+  else if nvs = 3 && DTable.mem key dtable.dt_3arg
   then let fn = DTable.find key dtable.dt_3arg in
        let a0 = List.nth vs 0 in
        let a1 = List.nth vs 1 in
