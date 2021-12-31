@@ -145,14 +145,14 @@ let rec do_jump lc (s: state) (l: Cfg.label) : result =
   if   Cfg.is_dynamic l
   then C_success, s, l
   else let b = get_block lc s l in
-       do_block s b
+       do_closed_block s b
 
 and do_fail lc (s: state) (l: Cfg.label) : result =
   let s = do_pop_failcont lc s l in
   if   Cfg.is_dynamic l
   then C_failure, s, l
   else let b = get_block lc s l in
-       do_block s b
+       do_closed_block s b
 
 and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
   match n with
@@ -260,7 +260,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         let s' = {s with st_venv = env'} in
         (* Wait on the stack until the CFG terminates at one of its
            dynamic labels. *)
-        let code, s', l = do_block s' b in
+        let code, s', l = do_closed_block s' b in
         assert (Cfg.is_dynamic l);
         (match code with
            | C_success ->
@@ -289,10 +289,18 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         (* this should not be needed *)
         assert false
 
-and do_block (s: state) (b: Cfg.closed) : result =
+and do_closed_block (s: state) (b: Cfg.closed) : result =
   let e, b = Cfg.B.split_head b in
   let b, x = Cfg.B.split_tail b in
   let ns   = Cfg.B.to_list b in
   let s = do_entry_node s e in
   let s = List.fold_left do_linear_node s ns in
   do_exit_node s x
+
+(* This is only called to initialize the statics, and has no parsing
+   result. *)
+let do_opened_block (s: state) (b: Cfg.opened) : state =
+  let e, b = Cfg.B.split_head b in
+  let ns   = Cfg.B.to_list b in
+  let s = do_entry_node s e in
+  List.fold_left do_linear_node s ns

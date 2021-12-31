@@ -111,4 +111,6 @@ let lower_spec (_, init_venv) tenv (spec: program) =
   {ir_gtoc          = ctx.ctx_gtoc;
    ir_blocks        = ctx.ctx_ir;
    ir_statics       = sts;
-   ir_init_failcont = init_failcont}
+   ir_init_failcont = init_failcont;
+   ir_tenv          = ctx.ctx_tenv;
+   ir_venv          = ctx.ctx_venv}

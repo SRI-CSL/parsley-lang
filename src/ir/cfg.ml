@@ -384,7 +384,10 @@ type spec_ir =
   {ir_gtoc:          nt_entry FormatGToC.t;
    ir_blocks:        closed FormatIR.t;
    ir_statics:       opened; (* constants and functions *)
-   ir_init_failcont: label}  (* should always be dynamic *)
+   ir_init_failcont: label;  (* should always be dynamic *)
+   (* debugging state for the interpreter *)
+   ir_tenv:          TypingEnvironment.environment;
+   ir_venv:          VEnv.t}
 
 (* The context for IR generation *)
 type context =

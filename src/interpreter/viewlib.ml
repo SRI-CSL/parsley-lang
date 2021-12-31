@@ -181,7 +181,7 @@ let dispatch_viewlib lc (m: string) (f: string) (s: state) (vs: value list)
 
 (* helpers for runtime *)
 
-let from_file filename : value =
+let from_file filename : view =
   let fd  = Unix.openfile filename [O_RDONLY] 0 in
   let buf =
     Unix.map_file fd Bigarray.char Bigarray.c_layout false [|(-1)|] in
@@ -190,16 +190,14 @@ let from_file filename : value =
   let size = (Unix.fstat fd).Unix.st_size in
   (* Ensure size from Unix is consistent with Bigarray. *)
   assert (size = ViewBuf.size buf);
-  let vu =
-    {vu_buf    = buf;
-     (* TODO: use (Unix.realpath filename) once OCaml 4.13 is more
-        commonly installed *)
-     vu_source = Src_file filename;
-     vu_id     = id;
-     vu_start  = 0;
-     vu_ofs    = 0;
-     vu_end    = size} in
-  V_view vu
+  {vu_buf    = buf;
+   (* TODO: use (Unix.realpath filename) once OCaml 4.13 is more
+      commonly installed *)
+   vu_source = Src_file filename;
+   vu_id     = id;
+   vu_start  = 0;
+   vu_ofs    = 0;
+   vu_end    = size}
 
 let set_view lc (s: state) (v: value) : state =
   match v with

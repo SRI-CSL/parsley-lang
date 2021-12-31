@@ -48,6 +48,8 @@ module VEnv = struct
      prioritize speed *)
   type t = vmap
 
+  let empty = Bindings.empty
+
   (* See the explanation for `fresh` in ir/cfg.ml. *)
   let assign (t: t) (v: Anf.var) (fresh: bool) (vl: Values.value) : t =
     if   Bindings.mem (Anf.(v.v)) t
@@ -65,6 +67,8 @@ end
 (* Function environment *)
 module FEnv = struct
   type t = (Anf.var * Anf.var list * Anf.aexp) Bindings.t
+
+  let empty = Bindings.empty
 
   let assign (t: t) (fv: Anf.var) (params: Anf.var list) (b: Anf.aexp) : t =
     if   Bindings.mem (Anf.(fv.v)) t
@@ -88,7 +92,6 @@ type state =
   {(* static state *)
    st_spec_toc:     Cfg.nt_entry Cfg.FormatGToC.t;
    st_spec_ir:      Cfg.closed Cfg.FormatIR.t;
-   st_spec_re:      Dfa.re_env;
    (* static state only for debugging *)
    st_ir_tenv:         TypingEnvironment.environment;
    st_ir_venv:         Anf.VEnv.t;
@@ -121,3 +124,8 @@ let get_ntentry (s: state) (nt: Ast.ident) : Cfg.nt_entry =
         internal_error err
     | Some ent ->
         ent
+
+(* An error in looking up the entry non-terminal is not an internal
+   error. *)
+let get_init_ntentry (s: state) (ntn: string) : Cfg.nt_entry option =
+  Cfg.FormatGToC.find_opt ntn s.st_spec_toc
