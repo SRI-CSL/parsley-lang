@@ -21,7 +21,7 @@ open State
 
 (* Interpret a Parsley spec on the data in a given file, given a
    top-level entry (user-defined) non-terminal. *)
-let execute (spec: Cfg.spec_ir) (entry_nt: string) (f: string) =
+let do_execute (spec: Cfg.spec_ir) (entry_nt: string) (f: string) =
   let view = Viewlib.from_file f in
   let venv = VEnv.empty in
   let fenv = FEnv.empty in
@@ -78,3 +78,13 @@ let execute (spec: Cfg.spec_ir) (entry_nt: string) (f: string) =
         assert (l = ent.nt_failcont);
         Printf.printf "Parse terminated in failure.\n";
         exit 1
+
+let execute spec entry_nt f =
+  try
+    do_execute spec entry_nt f
+  with
+    | Runtime_exceptions.Runtime_exception e ->
+        Printf.eprintf "%s\n" (Runtime_exceptions.error_msg e)
+    | Unix.Unix_error (e, op, _) ->
+        Printf.eprintf "Error processing %s: %s: %s.\n"
+          f op (Unix.error_message e)

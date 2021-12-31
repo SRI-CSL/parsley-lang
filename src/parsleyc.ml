@@ -21,6 +21,8 @@ module StringSet = FD.StringSet
 let print_ast   = ref false
 let input_file  = ref []
 let debug_build = false
+let ent_nonterm = ref None
+let data_file   = ref None
 
 let usage = Printf.sprintf
               "Usage: %s <options> <file.ply> " (Sys.argv.(0))
@@ -36,8 +38,14 @@ let options =
           " display the decorated non-terminal" );
         ( "-ir",
           Arg.Set SpecIR.print_ir,
-          " print the IR" )
-      ])
+          " print the IR" );
+        ( "-ex",
+          Arg.String (fun s -> ent_nonterm := Some s),
+          " entry non-terminal to initiate parse" );
+        ( "-df",
+          Arg.String (fun s -> data_file := Some s),
+          " data file to parse" );
+    ])
 
 let () =
   Printexc.record_backtrace debug_build;
@@ -51,5 +59,6 @@ let () =
   then Parsing.AstPrinter.print_parsed_spec spec;
   let init_envs, tenv, tspec = SpecTyper.type_check spec in
   SpecTyper.assignment_check init_envs tenv tspec;
-  ignore (SpecIR.to_ir init_envs tenv tspec);
-  Printf.printf "%s: parsed, typed, generated IR.\n" spec_file
+  let spec = SpecIR.to_ir init_envs tenv tspec in
+  Printf.printf "%s: parsed, typed, generated IR.\n" spec_file;
+  SpecInterpret.interpret spec !ent_nonterm !data_file

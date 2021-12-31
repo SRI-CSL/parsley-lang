@@ -127,10 +127,19 @@ let rec flatten accum includes pending =
                )
         )
 
-let parse_spec f =
+let do_parse_spec f =
   (*Printf.fprintf stdout " parsing %s ...\n" f;*)
   update_inc_dir f;
   parse_file f (fun ast ->
       let ast = flatten [] (StringSet.add f StringSet.empty) ast.pre_decls in
       {decls = List.rev ast}
     )
+
+let parse_spec f =
+  try
+    do_parse_spec f
+  with
+    | Unix.Unix_error (e, op, _) ->
+        (Printf.eprintf "Error processing %s: %s: %s.\n"
+           f op (Unix.error_message e);
+         exit 1)
