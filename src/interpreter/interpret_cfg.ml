@@ -19,6 +19,7 @@ open Parsing
 open Ir
 open Values
 open State
+open Parsleygram
 open Runtime_exceptions
 open Interpret_anf
 open Interpret_bitops
@@ -200,10 +201,42 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                let s = {s with st_venv     = env;
                                st_cur_view = vu} in
                do_jump loc s lsc)
+    | Cfg.Node.N_call_nonterm (nt, params, ret, lsc, lf)
+         when is_std_nonterm (Location.value nt) ->
+        (* We don't have an nt_entry for stdlib non-terminals, so
+           just evaluate the attribute values and dispatch. *)
+        let ntn = Location.value nt in
+        let loc = Location.loc nt in
+        let pvs =
+          List.map (fun (p, vr) ->
+              let vl = VEnv.lookup s.st_venv Anf.(vr.v) vr.v_loc in
+              Location.value p, vl
+            ) params in
+        (* The continuations should be dynamic. *)
+        assert (Cfg.is_dynamic lsc);
+        assert (Cfg.is_dynamic lf);
+        (match dispatch_stdlib loc ntn s.st_cur_view pvs with
+           | R_ok (vl, vu) ->
+               (* Update the environment of the calling state `s`. *)
+               let env = match ret with
+                   | None ->
+                       s.st_venv
+                   | Some (vr, fresh) ->
+                       VEnv.assign s.st_venv vr fresh vl in
+               (* Transfer control to the success continuation. *)
+               do_jump loc {s with st_venv = env;
+                                   st_cur_view = vu} lsc
+           | R_nomatch | R_err _ ->
+               (* These are operationally equivalent but can be used
+                  for debugging. *)
+               (* Transfer control to the failure continuation. *)
+               do_fail loc s lf
+        )
     | Cfg.Node.N_call_nonterm (nt, params, ret, lsc, lf) ->
         let ent = get_ntentry s nt in
+        let ntn = Location.value nt in
         (* sanity check *)
-        assert (Location.value nt  = Location.value ent.nt_name);
+        assert (ntn = Location.value ent.nt_name);
         assert (List.length params = Cfg.StringMap.cardinal ent.nt_inh_attrs);
         (* Bind the values pointed to by params to the
            variables specified in `nt_inh_attrs`. *)
@@ -215,8 +248,9 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
               let pn = Location.value p in
               match Cfg.StringMap.find_opt pn iattrs with
                 | None ->
+                    let loc = Location.loc p in
                     let err =
-                      Internal_errors.Unknown_attribute (nt, p) in
+                      Internal_errors.Unknown_attribute (loc, ntn, pn) in
                     internal_error err
                 | Some pv ->
                     VEnv.assign env (fst pv) true vl

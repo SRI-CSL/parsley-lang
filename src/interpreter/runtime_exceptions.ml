@@ -36,6 +36,7 @@ module Internal_errors = struct
     | Duplicate_function_binding of Location.t * string
     | Function_arity of Location.t * string * int * int
     | Unknown_stdlib of Location.t * string * string * int
+    | Unknown_std_nonterm of Location.t * string * int
     | Bad_subterm_path of Location.t * Ir.Anf.occurrence * Ir.Anf.occurrence
     | Bad_subterm_index of Location.t * (string * string) * int * Ir.Anf.occurrence
     | Pattern_match_failure of Location.t * Anf.var
@@ -44,7 +45,8 @@ module Internal_errors = struct
     | Failcont_stack_underflow of Location.t
     | Unexpected_failcont of Location.t * Cfg.label * Cfg.label
     | No_nonterm_entry of Ast.ident
-    | Unknown_attribute of Ast.ident * Ast.ident
+    | Unknown_attribute of Location.t * string * string
+    | Invalid_constructor_value of Location.t * (string * string) * int
     | No_binding_for_label of Location.t * Label.label
     | No_block_for_label of Location.t * Label.label
 
@@ -78,6 +80,9 @@ module Internal_errors = struct
     | Unknown_stdlib (lc, m, f, nargs) ->
         msg "%s:\n INTERNAL ERROR: unknown stdlib call `%s.%s' (with %d args)."
           lc m f nargs
+    | Unknown_std_nonterm (lc, nt, nargs) ->
+        msg "%s:\n INTERNAL ERROR: unknown nonterminal `%s' (with %d attributes)."
+          lc nt nargs
     | Bad_subterm_path (lc, socc, occ) ->
         msg
           "%s:\n INTERNAL ERROR: no constructed value at location `%s' of path `%s'."
@@ -101,9 +106,12 @@ module Internal_errors = struct
     | No_nonterm_entry nt ->
         msg "%s:\n INTERNAL ERROR: no non-terminal entry found for `%s'"
           (Location.loc nt) (Location.value nt)
-    | Unknown_attribute (nt, p) ->
+    | Unknown_attribute (loc, nt, a) ->
         msg "%s:\n INTERNAL ERROR: no attribute `%s' found for non-terminal `%s'"
-          (Location.loc p) (Location.value p) (Location.value nt)
+          loc a nt
+    | Invalid_constructor_value (loc, (t, c), nargs) ->
+        msg "%s:\n INTERNAL ERROR: illegal constructed value `%s::%s' with %d args."
+          loc t c nargs
     | No_binding_for_label (loc, l) ->
         msg "%s:\n INTERNAL ERROR: no static binding found for dynamic label `%s'."
           loc (Label.to_string l)

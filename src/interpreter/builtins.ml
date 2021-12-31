@@ -292,7 +292,7 @@ let constr_match lc (l: value) (c: string * string) : value =
     | V_constr (c', _) ->
         V_bool (c = c')
     | _ ->
-        internal_error (Type_error (lc, "~~", 1, vtype_of l, T_adt (c, [])))
+        internal_error (Type_error (lc, "~~", 1, vtype_of l, T_adt_constr (c, [])))
 
 (* subterm extraction *)
 let subterm lc (v: value) (o: Ir.Anf.occurrence) : value =

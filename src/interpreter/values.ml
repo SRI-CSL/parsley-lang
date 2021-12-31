@@ -86,7 +86,8 @@ type vtype =
   | T_option of vtype
   | T_list of vtype
   | T_tuple of vtype list
-  | T_adt of (string * string) * vtype list
+  | T_adt of string
+  | T_adt_constr of (string * string) * vtype list
   | T_record of (string * vtype) list
   | T_view
   | T_set of vtype
@@ -116,8 +117,9 @@ let rec string_of_vtype t =
     | T_tuple ts    -> "("
                        ^ (String.concat ", " (List.map string_of_vtype ts))
                        ^ ")"
-    | T_adt ((t', c), ts) -> Printf.sprintf "%s::%s(%s)" t' c
-                               (String.concat ", " (List.map string_of_vtype ts))
+    | T_adt s       -> s
+    | T_adt_constr ((t', c), ts) -> Printf.sprintf "%s::%s(%s)" t' c
+                                      (String.concat ", " (List.map string_of_vtype ts))
     | T_record fs   -> Printf.sprintf "{%s}"
                          (String.concat ", " (List.map string_of_field fs))
     | T_view        -> "view"
@@ -147,7 +149,7 @@ let rec vtype_of v =
     | V_list []        -> T_list T_empty
     | V_list (e :: _)  -> T_list (vtype_of e)
     | V_tuple vs       -> T_tuple (List.map vtype_of vs)
-    | V_constr (c, vs) -> T_adt (c, List.map vtype_of vs)
+    | V_constr (c, vs) -> T_adt_constr (c, List.map vtype_of vs)
     | V_record fs      -> T_record (List.map ftype_of fs)
     | V_view _         -> T_view
     | V_set []         -> T_set T_empty
