@@ -37,3 +37,5 @@ val loc:         'a loc -> t
 
 val str_of_loc:      t -> string (* full location, including file name *)
 val str_of_file_loc: t -> string (* location without file name *)
+
+val msg: (string -> 'a, unit, string) format -> t -> 'a

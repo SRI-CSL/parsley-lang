@@ -29,18 +29,16 @@ type regexp_error =
 
 exception Error of regexp_error
 
-let msg m loc =
-  Printf.sprintf m (Location.str_of_loc loc)
+let msg = Location.msg
 
 let error_msg = function
   | Unknown_regexp_nonterm id ->
-      msg "%s:\n unknown regexp nonterminal `%s'."
+      msg "%s:\n Unknown regexp nonterminal `%s'."
         (Location.loc id) (Location.value id)
   | Negative_seq_bound l ->
-      msg "%s:\n regexp bounds cannot be negative" l
+      msg "%s:\n Regexp bounds cannot be negative." l
   | Nonconstant_seq_bound l ->
-      msg "%s:\n non-constant regexp bounds are not supported"
-        l
+      msg "%s:\n Non-constant regexp bounds are not supported." l
 
 (* position generator *)
 let get_pos_generator () =

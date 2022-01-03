@@ -20,8 +20,7 @@ open Values
 open Flow
 open Ir
 
-let msg m loc =
-  Printf.sprintf m (Location.str_of_loc loc)
+let msg = Location.msg
 
 module Internal_errors = struct
   (* These errors indicate internal bugs. *)
@@ -54,69 +53,69 @@ module Internal_errors = struct
     let pr_occ = Ir.Anf_printer.string_of_occurrence in
     function
     | Type_error (l, op, arg, r, e) ->
-        msg "%s:\n INTERNAL ERROR: invalid type for '%s': found %s for argument %d, expected %s."
+        msg "%s:\n Internal Error: invalid type for '%s': found %s for argument %d, expected %s."
           l op (string_of_vtype r) arg (string_of_vtype e)
     | Not_implemented (l, s) ->
-        msg "%s:\n INTERNAL ERROR: Not implemented error: '%s'." l s
+        msg "%s:\n Internal Error: Not implemented error: '%s'." l s
     | No_binding_for_read (l, v) ->
-        msg "%s:\n INTERNAL ERROR: Variable '%s:%d' is not bound." l (fst v) (snd v)
+        msg "%s:\n Internal Error: Variable '%s:%d' is not bound." l (fst v) (snd v)
     | No_binding_for_write v ->
-        msg "%s:\n INTERNAL ERROR: Cannot assign to unbound variable '%s:%d'."
+        msg "%s:\n Internal Error: Cannot assign to unbound variable '%s:%d'."
           Anf.(v.v_loc) (fst Anf.(v.v)) (snd Anf.(v.v))
     | Bitrange_index (l, idx, len) ->
-        msg "%s:\n INTERNAL ERROR: bitrange index %d is out of range for list of length %d."
+        msg "%s:\n Internal Error: bitrange index %d is out of range for list of length %d."
           l idx len
     | No_field (l, f) ->
-        msg "%s:\n INTERNAL ERROR: record does not have field `%s'." l f
+        msg "%s:\n Internal Error: record does not have field `%s'." l f
     | Bitfield_length_mismatch (lc, bf, f, ex, fd) ->
-        msg "%s:\n INTERNAL ERROR: field `%s' of bitfield `%s' has %d bits instead of %d"
+        msg "%s:\n Internal Error: field `%s' of bitfield `%s' has %d bits instead of %d"
           lc f bf fd ex
     | Duplicate_function_binding (lc, f) ->
-        msg "%s:\n INTERNAL ERROR: function `%s' is already bound."
+        msg "%s:\n Internal Error: function `%s' is already bound."
           lc f
     | Function_arity (lc, f, nps, npvs) ->
-        msg "%s:\n INTERNAL ERROR: function `%s' expected %d args, got %d instead."
+        msg "%s:\n Internal Error: function `%s' expected %d args, got %d instead."
           lc f nps npvs
     | Unknown_stdlib (lc, m, f, nargs) ->
-        msg "%s:\n INTERNAL ERROR: unknown stdlib call `%s.%s' (with %d args)."
+        msg "%s:\n Internal Error: unknown stdlib call `%s.%s' (with %d args)."
           lc m f nargs
     | Unknown_std_nonterm (lc, nt, nargs) ->
-        msg "%s:\n INTERNAL ERROR: unknown nonterminal `%s' (with %d attributes)."
+        msg "%s:\n Internal Error: unknown nonterminal `%s' (with %d attributes)."
           lc nt nargs
     | Bad_subterm_path (lc, socc, occ) ->
         msg
-          "%s:\n INTERNAL ERROR: no constructed value at location `%s' of path `%s'."
+          "%s:\n Internal Error: no constructed value at location `%s' of path `%s'."
           lc (pr_occ socc) (pr_occ occ)
     | Bad_subterm_index (lc, (t, c), idx, occ) ->
         msg
-          "%s:\n INTERNAL ERROR: invalid term index %d for `%s::%s' in path `%s'."
+          "%s:\n Internal Error: invalid term index %d for `%s::%s' in path `%s'."
           lc idx t c (pr_occ occ)
     | Pattern_match_failure (lc, v) ->
-        msg "%s:\n INTERNAL ERROR: no patterns matched for `%s:%d'."
+        msg "%s:\n Internal Error: no patterns matched for `%s:%d'."
           lc (fst Anf.(v.v)) (snd Anf.(v.v))
     | View_stack_underflow lc ->
-        msg "%s:\n INTERNAL ERROR: the view stack underflowed." lc
+        msg "%s:\n Internal Error: the view stack underflowed." lc
     | Bitsbound_check (lc, m) ->
-        msg "%s:\n INTERNAL ERROR: bits-bound check failed: %s" lc m
+        msg "%s:\n Internal Error: bits-bound check failed: %s" lc m
     | Failcont_stack_underflow lc ->
-        msg "%s:\n INTERNAL ERROR: failcont stack underflow" lc
+        msg "%s:\n Internal Error: failcont stack underflow" lc
     | Unexpected_failcont (lc, l, le) ->
-        msg "%s:\n INTERNAL ERROR: unexpected failcont label %s, expected %s"
+        msg "%s:\n Internal Error: unexpected failcont label %s, expected %s"
           lc (Cfg.label_to_string l) (Cfg.label_to_string le)
     | No_nonterm_entry nt ->
-        msg "%s:\n INTERNAL ERROR: no non-terminal entry found for `%s'"
+        msg "%s:\n Internal Error: no non-terminal entry found for `%s'"
           (Location.loc nt) (Location.value nt)
     | Unknown_attribute (loc, nt, a) ->
-        msg "%s:\n INTERNAL ERROR: no attribute `%s' found for non-terminal `%s'"
+        msg "%s:\n Internal Error: no attribute `%s' found for non-terminal `%s'"
           loc a nt
     | Invalid_constructor_value (loc, (t, c), nargs) ->
-        msg "%s:\n INTERNAL ERROR: illegal constructed value `%s::%s' with %d args."
+        msg "%s:\n Internal Error: illegal constructed value `%s::%s' with %d args."
           loc t c nargs
     | No_binding_for_label (loc, l) ->
-        msg "%s:\n INTERNAL ERROR: no static binding found for dynamic label `%s'."
+        msg "%s:\n Internal Error: no static binding found for dynamic label `%s'."
           loc (Label.to_string l)
     | No_block_for_label (loc, l) ->
-        msg "%s:\n INTERNAL ERROR: no block found for label `%s'."
+        msg "%s:\n Internal Error: no block found for label `%s'."
           loc (Label.to_string l)
 end
 

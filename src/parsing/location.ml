@@ -97,3 +97,6 @@ let mk_ghost a =
 let value l = l.pelem
 
 let loc l = l.ploc
+
+let msg m loc =
+  Printf.sprintf m (str_of_loc loc)

@@ -381,43 +381,6 @@ let print_env print env =
   in
   (List.iter print_entry (environment_as_list env))
 
-let msg m loc =
-  Printf.sprintf m (Parsing.Location.str_of_loc loc)
-
-let error_msg = function
-  | TypingError p ->
-      msg "%s:\n  Typing error.\n" p
-
-  | UnboundIdentifier (p, t) ->
-      msg "%s:\n Unbound identifier `%s'.\n" p t
-
-  | CannotGeneralizeNonVariable (p, v) ->
-      msg "%s:\n Cannot generalize non-variable `%s'.\n"
-        p (TypeEnvPrinter.print_variable false v)
-
-  | CannotGeneralizeRank (p, v, r) ->
-      msg "%s:\n Cannot generalize `%s' of rank %d.\n"
-        p (TypeEnvPrinter.print_variable false v) r
-
-  | NonDistinctVariables (p, vs) ->
-      let lvs = Misc.print_separated_list ";"
-                  (TypeEnvPrinter.print_variable false) vs in
-      msg
-        ("%s:\n The following variables have been unified: [%s].\n")
-        p lvs
-
-  | Not_a_bitvector loc ->
-      msg "%s:\n not a bitvector" loc
-
-  | Not_a_bitwidth (loc, s) ->
-      msg "%s:\n not a bitwidth%s" loc
-        (match s with
-           | Some s -> Printf.sprintf ": %s" s
-           | None -> "")
-  | Invalid_bitwidth (loc, i, p) ->
-      msg "%s:\n bitwidth %d does not satisfy %s" loc
-        i (TypeConstraintPrinter.print_width_predicate p)
-
 let tracer () =
   let mode = PrettyPrinter.(Txt (Channel stdout)) in
   TypeConstraintPrinter.active_mode mode;
@@ -514,3 +477,39 @@ let check_width_constraints wc =
       | WC_pred (loc, v, p) -> check_pred v p loc
       | WC_conjunction l -> List.iter checker l in
   checker wc
+
+let msg = Parsing.Location.msg
+
+let error_msg = function
+  | TypingError p ->
+      msg "%s:\n Typing error.\n" p
+
+  | UnboundIdentifier (p, t) ->
+      msg "%s:\n Unbound identifier `%s'.\n" p t
+
+  | CannotGeneralizeNonVariable (p, v) ->
+      msg "%s:\n Cannot generalize non-variable `%s'.\n"
+        p (TypeEnvPrinter.print_variable false v)
+
+  | CannotGeneralizeRank (p, v, r) ->
+      msg "%s:\n Cannot generalize `%s' of rank %d.\n"
+        p (TypeEnvPrinter.print_variable false v) r
+
+  | NonDistinctVariables (p, vs) ->
+      let lvs = Misc.print_separated_list ";"
+                  (TypeEnvPrinter.print_variable false) vs in
+      msg
+        ("%s:\n The following non-distinct variables have been unified: [%s].\n")
+        p lvs
+
+  | Not_a_bitvector loc ->
+      msg "%s:\n This does not type as a bitvector." loc
+
+  | Not_a_bitwidth (loc, s) ->
+      msg "%s:\n This does not type as a bitwidth%s." loc
+        (match s with
+           | Some s -> Printf.sprintf ": %s" s
+           | None -> "")
+  | Invalid_bitwidth (loc, i, p) ->
+      msg "%s:\n Bitwidth %d does not satisfy %s." loc
+        i (TypeConstraintPrinter.print_width_predicate p)

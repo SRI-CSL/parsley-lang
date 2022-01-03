@@ -47,27 +47,6 @@ type init_var_error =
 
 exception Error of init_var_error
 
-let msg m loc =
-  Printf.sprintf m (Location.str_of_loc loc)
-
-let error_msg = function
-  | Use_of_uninit_var ((_v, optf, (n, _)), loc) ->
-      msg "%s:\n %s may be used uninitialized.\n"
-        loc
-        (match optf with
-           | None -> n
-           | Some f -> Printf.sprintf "%s.%s" n f)
-  | Unnamed_attributed_nonterminal nt ->
-      msg
-        "%s:\n non-terminal %s with synthetic attributes needs to be  given a local name.\n"
-        (Location.loc nt) (Location.value nt)
-  | Unassigned_attribute (nt, f, loc) ->
-      msg "%s:\n attribute %s of %s may be uninitialized at the end of this rule.\n"
-        loc f (Location.value nt)
-  | Unassigned_variable (nt, v, loc) ->
-      msg "%s:\n variable %s of %s may be uninitialized at the end of this rule.\n"
-        loc v (Location.value nt)
-
 (* TODO: move this into an astutils module *)
 
 (* We track bindings that are of two types:
@@ -966,3 +945,24 @@ let check_spec init_envs (tenv: TE.environment) (tspec: (typ, varid) program) =
                 check_non_term tenv init fd.format_decl
               ) f.format_decls
     ) tspec.decls
+
+(* error messages *)
+
+let msg = Location.msg
+
+let error_msg = function
+  | Use_of_uninit_var ((_v, optf, (n, _)), loc) ->
+      msg "%s:\n `%s' may be used uninitialized.\n" loc
+        (match optf with
+           | None -> n
+           | Some f -> Printf.sprintf "%s.%s" n f)
+  | Unnamed_attributed_nonterminal nt ->
+      msg
+        "%s:\n Non-terminal `%s' with synthetic attributes needs to be  given a local name.\n"
+        (Location.loc nt) (Location.value nt)
+  | Unassigned_attribute (nt, f, loc) ->
+      msg "%s:\n Attribute `%s' of `%s' may be uninitialized at the end of this rule.\n"
+        loc f (Location.value nt)
+  | Unassigned_variable (nt, v, loc) ->
+      msg "%s:\n Variable `%s' of `%s' may be uninitialized at the end of this rule.\n"
+        loc v (Location.value nt)

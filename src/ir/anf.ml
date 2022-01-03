@@ -232,8 +232,7 @@ type anf_error =
 
 exception Error of anf_error
 
-let msg m loc =
-  Printf.sprintf m (Location.str_of_loc loc)
+let msg = Location.msg
 
 let error_msg = function
   | Unassignable_expression l ->

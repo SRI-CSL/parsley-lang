@@ -20,9 +20,6 @@ open Parsing.Ast
 open Lexing
 module I = Parser.MenhirInterpreter
 
-let print_exception loc msg =
-  Printf.sprintf "%s: %s\n" (Location.str_of_loc loc) msg
-
 let handle_exception bt msg =
   Printf.fprintf stderr "%s\n" msg;
   Printf.printf "%s\n" bt;
@@ -65,8 +62,7 @@ let parse_file fname cont =
              (Location.str_of_curr_pos lexbuf))
     | Parseerror.Error (e, l) ->
         handle_exception
-          (Printexc.get_backtrace ())
-          (print_exception l (Parseerror.error_string e))
+          (Printexc.get_backtrace ()) (Parseerror.error_msg l e)
 
 (* TODO: include directory management.
  * make this a list specifiable via cli -I options.

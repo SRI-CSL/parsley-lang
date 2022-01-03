@@ -346,8 +346,7 @@ let str_of_rule_pos = function
   | At_begin -> "beginning"
   | At_end   -> "end"
 
-let msg m loc =
-  Printf.sprintf m (Location.str_of_loc loc)
+let msg = Location.msg
 
 let error_msg = function
   | UnboundTypeIdentifier (p, TName t) ->

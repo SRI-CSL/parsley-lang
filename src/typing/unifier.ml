@@ -199,13 +199,10 @@ let unify ?tracer pos register =
 
   in unify pos
 
-
-let msg m loc =
-  Printf.sprintf m (Parsing.Location.str_of_loc loc)
+let msg = Parsing.Location.msg
 
 open TypeConstraintPrinter
 let error_msg = function
   | CannotUnify (p, r, t) ->
-      msg
-        "%s:\n %s and %s are not compatible.\n"
+      msg "%s:\n %s and %s are not compatible.\n"
         p (print_crterm t) (print_crterm r)

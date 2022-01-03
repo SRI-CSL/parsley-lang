@@ -27,20 +27,22 @@ type parse_error =
 
 exception Error of parse_error * Location.t
 
-let error_string = function
+let msg = Location.msg
+
+let error_msg l = function
   | Invalid_integer s ->
-      Printf.sprintf "invalid integer: '%s'" s
+      msg "%s:\n Invalid integer: `%s'." l s
   | Undeclared_format_param s ->
-      Printf.sprintf "undeclared format param '%s'" s
+      msg "%s:\n Undeclared format param `%s'." l s
   | Untyped_format_param s ->
-      Printf.sprintf "no type declared for format param '%s'" s
+      msg "%s:\n No type declared for format param `%s'." l s
   | Invalid_bitvector_constructor s ->
-      Printf.sprintf "constructor '%s' cannot use bitvector syntax" s
+      msg "%s:\n Constructor `%s' cannot use bitvector syntax." l s
   | Invalid_bitvector_nonterminal s ->
-      Printf.sprintf "non-terminal '%s' cannot use bitvector syntax" s
+      msg "%s:\n Non-terminal `%s' cannot use bitvector syntax." l s
   | Nonpositive_bitvector_width w ->
-      Printf.sprintf "illegal non-positive width %d for bitvector" w
+      msg "%s:\n Illegal non-positive width %d for bitvector." l w
   | Missing_bitvector_width ->
-      Printf.sprintf "BitVector requires an explicit bit-width"
+      msg "%s:\n BitVector requires an explicit bit-width." l
   | Invalid_bitvector_syntax ->
-      Printf.sprintf "Incorrect syntax for BitVector use"
+      msg "%s:\n Incorrect syntax for BitVector use." l

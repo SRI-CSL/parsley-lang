@@ -411,8 +411,7 @@ type error =
   | Nonterm_variable_required of Ast.ident
 exception Error of error
 
-let msg m loc =
-  Printf.sprintf m (Location.str_of_loc loc)
+let msg = Location.msg
 
 let error_msg = function
   | Unbound_return_expr l ->
