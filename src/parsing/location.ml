@@ -98,5 +98,65 @@ let value l = l.pelem
 
 let loc l = l.ploc
 
+(* the source lines for a location *)
+
+let raw_lines_of_loc loc =
+  let from = loc.loc_start in
+  let upto = loc.loc_end in
+  let chan = open_in from.pos_fname in
+  seek_in chan from.pos_bol;
+  let rec get_lines acc () =
+    let stl = pos_in chan in
+    let l   = input_line chan in
+    let etl = pos_in chan in
+    let acc = ((stl, etl), l) :: acc in
+    if   etl < upto.pos_cnum
+    then get_lines acc ()
+    else List.rev acc in
+  get_lines [] ()
+
+let lines_of_loc loc =
+  if   loc.loc_ghost
+  then None
+  else try Some (raw_lines_of_loc loc) with | _ -> None
+
+let content_of_loc loc lines =
+  let b    = Buffer.create 256 in
+  let from = loc.loc_start.pos_cnum in
+  let upto = loc.loc_end.pos_cnum in
+  (* Prune lines to avoid showing more than 5 in a snippet. *)
+  let lines =
+    let  nlines = List.length lines in
+    if   nlines <= 5
+    then lines
+    else (* add a filler line that will not highlight *)
+      let pos = loc.loc_end.pos_cnum, loc.loc_start.pos_bol in
+      let filler = pos, "[some lines omitted]\n" in
+      [List.nth lines 0; List.nth lines 1; filler;
+       List.nth lines (nlines - 2); List.nth lines (nlines - 1)] in
+  List.iter (fun ((s, e), l) ->
+      Buffer.add_string b l;
+      (* add highlighting appropriately *)
+      if   s <= upto && from <= e
+      then (
+        Buffer.add_string b "\n";
+        (* prefix *)
+        if   s < from
+        then Buffer.add_string b (String.make (from - s) ' ');
+        (* highlight *)
+        let f = max s from in
+        let t = min e upto in
+        if   f < t
+        then Buffer.add_string b (String.make (t - f) '^');
+        (* suffix *)
+        if   s < from || f < t
+        then Buffer.add_string b "\n";
+      )
+    ) lines;
+  Buffer.contents b
+
 let msg m loc =
-  Printf.sprintf m (str_of_loc loc)
+  let content = match lines_of_loc loc with
+      | None    -> ""
+      | Some ls -> content_of_loc loc ls in
+  Printf.sprintf ("%s" ^^ m) content (str_of_loc loc)
