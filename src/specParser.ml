@@ -135,6 +135,9 @@ let parse_spec f =
   try
     do_parse_spec f
   with
+    | Sys_error s ->
+        (Printf.eprintf "Error processing %s.\n" s;
+         exit 1)
     | Unix.Unix_error (e, op, _) ->
         (Printf.eprintf "Error processing %s: %s: %s.\n"
            f op (Unix.error_message e);
