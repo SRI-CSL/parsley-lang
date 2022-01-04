@@ -22,7 +22,7 @@ module ME = MultiEquation
 module TEnv = TypingEnvironment
 module TExc = TypingExceptions
 
-(* expanding type abbreviations in a type expression *)
+(* Expands type abbreviations in a type expression. *)
 let expand_type_abbrevs env te =
   let rec expand te =
     let loc = te.type_expr_loc in
@@ -120,12 +120,12 @@ let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
     | E_var _ | E_literal _ | E_mod_member _ | E_apply _ | E_constr _ ->
         e
     | E_match _ | E_record _ | E_field _ | E_let _ | E_case _ ->
-        (* although these could be reduced in theory, it is unlikely
-         * to be useful in this context *)
+        (* Although these could be reduced in theory, it is unlikely
+         * to be useful in this context. *)
         e
     | E_cast (e, _) ->
-        (* this loses information, but that's ok as long as we don't
-         * replace the source with the result *)
+        (* This loses information, but that's ok as long as we don't
+         * replace the source with the result. *)
         const_fold e
     | E_unop (op, e') ->
         let e' = const_fold e' in
@@ -167,7 +167,7 @@ let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
                {e with expr = E_literal (PL_bool (l && r))}
            | Lor,  E_literal (PL_bool l), E_literal (PL_bool r) ->
                {e with expr = E_literal (PL_bool (l || r))}
-           (* Eq and Neq are polymorphic *)
+           (* Eq and Neq are polymorphic. *)
            | Eq,   E_literal (PL_int l), E_literal (PL_int r) ->
                {e with expr = E_literal (PL_bool (l = r))}
            | Eq,   E_literal (PL_string l), E_literal (PL_string r) ->
@@ -206,11 +206,25 @@ let is_non_zero: 't 'v. ('t, 'v) expr -> bool =
     | _                    -> true
 
 
-(* Guesses whether the rule element [rle] is composed of only regexps,
+(* Extract a nested sequence of field accessors in an expression,
+   along with the head variable.  This is usually applied to the lhs
+   of an assignment expression. *)
+let lhs_fields (type b) e : ((string * b) * string list) option =
+  let rec traverse (acc: string list) e =
+    match e.expr with
+      | E_field (e', f) ->
+          traverse (Location.value f :: acc) e'
+      | E_var v ->
+          Some (Location.value v, acc)
+      | _ ->
+          None in
+  traverse [] e
+
+(* Guesses whether the rule element `rle` is composed of only regexps,
    such that it can be condensed into a single regexp.
    Since no environment is provided, it assumes any non-terminals are
    not regular expressions.  This is more lenient than
-   [is_regexp_elem] since it allows constraints.  It is typically
+   `is_regexp_elem` since it allows constraints.  It is typically
    called for the rules of a regexp-nonterminal. *)
 let rec guess_is_regexp_elem rle =
   match rle.rule_elem with
@@ -242,7 +256,7 @@ let rec guess_is_regexp_elem rle =
     | RE_set_view _
     | RE_map_views _ -> false
 
-(* Checks whether the rule element [rle] is composed of only regexps,
+(* Checks whether the rule element `rle` is composed of only regexps,
    such that it can be condensed into a single regexp.
    Since an environment is provided, it looks up the types of any
    non-terminals to check whether they are regular expressions. *)
@@ -293,7 +307,7 @@ let is_regexp_rule tenv r =
 
 (* Converts a typed regexp rule element into a regexp.  It maintains
    the aux and location information as best it can.  It assumes that
-   [r] satisfies [is_regexp_elem r].
+   `r` satisfies `is_regexp_elem r`.
  *)
 let rec rule_elem_to_regexp r =
   let wrap r' = {regexp = r';
@@ -328,14 +342,13 @@ let rec rule_elem_to_regexp r =
         assert false
 
 (* Converts a typed rule into a regexp.  It maintains the aux and
-   location information as best it can.  It assumes that [r] satisfies
-   [is_regexp_rule r].
- *)
+   location information as best it can.  It assumes that `r` satisfies
+   `is_regexp_rule r`. *)
 let rule_to_regexp r =
   assert (List.length r.rule_temps = 0);
   assert (List.length r.rule_rhs > 0);
-  (* since all regexps have the same type, we use the type from the
-     first element *)
+  (* Since all regexps have the same type, we use the type from the
+     first element. *)
   let rx = List.hd r.rule_rhs in
   let rxs = List.map rule_elem_to_regexp r.rule_rhs in
   {regexp     = RX_seq rxs;
@@ -344,9 +357,7 @@ let rule_to_regexp r =
 
 (* Converts a sequence of typed rules into a regexp.  It maintains the
    aux and location information as best it can.  It assumes that each
-   rule [r] in [rs] satisfies [is_regexp_rule r].
- *)
-
+   rule `r` in `rs` satisfies `is_regexp_rule r`. *)
 let rules_to_regexp rs =
   let rxs = List.map rule_to_regexp rs in
   let rxh = List.hd rxs in
