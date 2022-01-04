@@ -207,8 +207,8 @@ let is_non_zero: 't 'v. ('t, 'v) expr -> bool =
 
 
 (* Extract a nested sequence of field accessors in an expression,
-   along with the head variable.  This is usually applied to the lhs
-   of an assignment expression. *)
+   along with the head variable.  This is usually applied to check
+   whether an expression is a reference. *)
 let lhs_fields (type b) e : ((string * b) * string list) option =
   let rec traverse (acc: string list) e =
     match e.expr with
