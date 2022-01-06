@@ -18,7 +18,7 @@ Then,
 ```
 $ make
 ```
-should build the compiler executable in `_build/default/src/parsleyc.exe`.
+should leave the compiler executable in `./parsleyc.exe`.
 
 Documentation
 -------------
