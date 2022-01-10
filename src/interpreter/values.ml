@@ -156,3 +156,44 @@ let rec vtype_of v =
     | V_set (e :: _)   -> T_set (vtype_of e)
     | V_map []         -> T_map (T_empty, T_empty)
     | V_map ((k,v)::_) -> T_map (vtype_of k, vtype_of v)
+
+let print v =
+  let rec pr d v =
+    let mk_fill d = String.make (2*d + 3) ' ' in
+    let mk_sep c  = Printf.sprintf "%s\n %s" c (mk_fill d) in
+    match v with
+      | V_unit        -> "()"
+      | V_bool b      -> if b then "true" else "false"
+      | V_bit  b      -> if b then "1" else "0"
+      | V_char c      -> Printf.sprintf "'%s'" (Char.escaped c)
+      | V_int  i      -> Int64.to_string i
+      | V_float f     -> Float.to_string f
+      | V_string s    -> Printf.sprintf "'%s'" s
+      | V_bitvector v -> Printf.sprintf "0b%s"
+                           (String.concat ""
+                              (List.map (fun b -> if b then "1" else "0") v))
+      | V_option v    -> (match v with
+                            | None   -> "option::None()"
+                            | Some v -> Printf.sprintf "option::Some(%s)"
+                                          (pr (d + 1) v))
+      | V_list vs     -> Printf.sprintf "%s[%s]" (mk_fill d)
+                           (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
+      | V_tuple vs    -> Printf.sprintf "(%s)"
+                           (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
+      | V_constr ((t, c), vs) -> Printf.sprintf "%s(%s)"
+                                   (Parsing.AstUtils.canonicalize_dcon t c)
+                                   (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
+      | V_record fs   -> Printf.sprintf "{%s}"
+                           (String.concat (mk_sep ";")
+                              (List.map (fun (f, v) ->
+                                   Printf.sprintf "%s: %s" f (pr (d + 1) v)
+                                 ) fs))
+      | V_view _v     -> "view"
+      | V_set  vs     -> Printf.sprintf "set<%s>"
+                           (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
+      | V_map  kvs    -> Printf.sprintf "map<%s>"
+                           (String.concat (mk_sep ",")
+                              (List.map (fun (k, v) ->
+                                   Printf.sprintf "%s: %s" (pr (d+1) k) (pr (d+1) v)
+                                 ) kvs)) in
+  pr 0 v

@@ -18,6 +18,30 @@
 open Ir
 open Interpreter
 
+let handle_exception bt msg =
+  Printf.fprintf stderr "%s\n%!" msg;
+  Printf.printf "%s\n%!" bt
+
+let do_interpret spec nt f =
+  try
+    (match Interpret.execute_on_file spec nt f with
+       | Some _ -> (Printf.printf "Parse terminated successfully.\n";
+                    exit 0)
+       | None   -> (Printf.printf "Parse terminated in failure.\n";
+                    exit 1))
+  with
+    | Runtime_exceptions.Runtime_exception e ->
+        (handle_exception
+           (Printexc.get_backtrace ())
+           (Printf.sprintf "%s\n" (Runtime_exceptions.error_msg e));
+         exit 1)
+    | Unix.Unix_error (e, op, _) ->
+        (handle_exception
+           (Printexc.get_backtrace ())
+           (Printf.sprintf "Error processing %s: %s: %s.\n"
+              f op (Unix.error_message e));
+         exit 1)
+
 let interpret (spec: Cfg.spec_ir) (ent_nonterm: string option)
       (data_file: string option) =
   match ent_nonterm, data_file with
@@ -28,4 +52,4 @@ let interpret (spec: Cfg.spec_ir) (ent_nonterm: string option)
     | None, Some f ->
         Printf.eprintf "No entry non-terminal specified for `%s'.\n" f
     | Some nt, Some f ->
-        Interpret.execute spec nt f
+        do_interpret spec nt f

@@ -58,7 +58,7 @@ module Internal_errors = struct
     | Not_implemented (l, s) ->
         msg "%s:\n Internal Error: Not implemented error: '%s'." l s
     | No_binding_for_read (l, v) ->
-        msg "%s:\n Internal Error: Variable '%s:%d' is not bound." l (fst v) (snd v)
+        msg "%s:\n Internal Error: Variable '%s#%d' is not bound." l (fst v) (snd v)
     | No_binding_for_write v ->
         msg "%s:\n Internal Error: Cannot assign to unbound variable '%s:%d'."
           Anf.(v.v_loc) (fst Anf.(v.v)) (snd Anf.(v.v))

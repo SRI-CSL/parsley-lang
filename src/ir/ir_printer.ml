@@ -218,6 +218,7 @@ let print_statics blocks =
   pp_newline ()
 
 let print_spec ir =
+  pp_newline ();
   pp_open_vbox 0;
   print_gtoc ir.ir_gtoc;
   pp_newline ();

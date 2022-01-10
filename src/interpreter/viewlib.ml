@@ -199,6 +199,20 @@ let from_file filename : view =
    vu_ofs    = 0;
    vu_end    = size}
 
+let from_string (name: string) (data: string) : view =
+  let buf = Bigarray.Array1.of_array Bigarray.char Bigarray.c_layout
+              (Array.of_seq (String.to_seq data)) in
+  let id   = PView.next_id () in
+  let size = String.length data in
+  (* Ensure size from Unix is consistent with Bigarray. *)
+  assert (size = ViewBuf.size buf);
+  {vu_buf    = buf;
+   vu_source = Src_file name;
+   vu_id     = id;
+   vu_start  = 0;
+   vu_ofs    = 0;
+   vu_end    = size}
+
 let set_view lc (s: state) (v: value) : state =
   match v with
     | V_view vu ->

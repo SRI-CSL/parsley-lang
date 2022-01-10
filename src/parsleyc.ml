@@ -18,6 +18,7 @@
 module FD = Typing.Format_decorators
 module StringSet = FD.StringSet
 
+let do_tests    = ref false
 let print_ast   = ref false
 let input_file  = ref []
 let debug_build = false
@@ -45,11 +46,17 @@ let options =
         ( "-df",
           Arg.String (fun s -> data_file := Some s),
           " data file to parse" );
+        ( "-test",
+          Arg.Set do_tests,
+          " run internal tests");
     ])
 
 let () =
   Printexc.record_backtrace debug_build;
   Arg.parse options (fun s -> input_file := s :: !input_file) usage;
+  if   !do_tests
+  then (SpecTests.do_tests ();
+        exit 0);
   if   List.length !input_file > 1 || List.length !input_file = 0
   then (Printf.eprintf "Please specify a single input file.\n";
         exit 1);
