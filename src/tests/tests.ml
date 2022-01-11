@@ -18,10 +18,10 @@
 open Interpreter
 open Values
 
-let print_ir   = true
+let print_ir   = false
 
 let tests = [
-    ("trivial", "format { A := (# [\"A\"] #) }", "A", "A", V_string "A");
+    ("trivial", "format { A := (# [\"A\"] #) }", "A", "A", V_list [V_char 'A']);
   ]
 
 let do_tests gen_ir exe_ir =

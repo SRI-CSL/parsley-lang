@@ -1109,7 +1109,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
             | Some b -> b
             | None   -> assert false in
         let loc' = Ast.(r.rule_loc) in
-        let b = if not last
+        let b = if   not last
                 then add_node b (Node.N_push_failcont (loc', fl))
                 else b in
         (* see above comment in RE_choice for why setting failcont to
@@ -1159,16 +1159,39 @@ let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
                             (TypedAstUtils.is_regexp_rule ctx.ctx_tenv)
                             ntd.non_term_rules in
 
-  let mk_ntd_var () =
-    (* Generate a variable to contain the matched value. *)
+  (* Generate local variable names for use in binding and assignment.
+     The idea is to transform definitions of the type
+         A := <regexp>
+     into
+         A a' := a=<regexp> { a' := a }
+     This is needed to ensure that there is a variable that binds the
+     matched value.  Two variables are needed since `a` above is a
+     lexically scoped variable that is not visible outside the rule,
+     while `a'` is visible outside the rule.
+   *)
+  let mk_ntd_var i tvenv =
     let ntn = Location.value ntd.non_term_name in
     let ntl = Location.loc ntd.non_term_name in
     (* since `ntn` is uppercase, we can use its lowercase form as a
        non-conflicting local variable name *)
-    let nv = String.lowercase_ascii ntn in
+    let nv = String.lowercase_ascii ntn ^ Int.to_string i in
     let nv = Location.mk_loc_val (nv, ()) ntl in
     (* generate a variable for this name *)
     TypeInfer.VEnv.add tvenv nv in
+  (* construct the rule element for `{ a' := a }` *)
+  let mk_assign_rule_elem nv' nv r_loc r_aux =
+    let act = Ast.({action_stmts =
+                      [ {stmt = S_assign ({expr     = E_var nv';
+                                           expr_loc = r_loc;
+                                           expr_aux = r_aux},
+                                          {expr     = E_var nv;
+                                           expr_loc = r_loc;
+                                           expr_aux = r_aux});
+                         stmt_loc = r_loc} ], None;
+                    action_loc = r_loc}) in
+    Ast.({rule_elem     = RE_action act;
+          rule_elem_aux = get_typ ctx "unit";
+          rule_elem_loc = r_loc}) in
 
   let ctx, tvenv, ntd =
     (* update re context if needed *)
@@ -1182,24 +1205,29 @@ let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
                    (Location.value ntd.non_term_name)
                    (rx.regexp_loc, re)
                    ctx.ctx_re_env in
+      let r_loc = rx.regexp_loc in
+      let r_aux = rx.regexp_aux in
       (* create a simplified rule for the definition *)
       let rle = Ast.({rule_elem      = RE_regexp rx;
-                      rule_elem_aux  = rx.regexp_aux;
-                      rule_elem_loc  = rx.regexp_loc}) in
+                      rule_elem_aux  = r_aux;
+                      rule_elem_loc  = r_loc}) in
       (* The non-terminal could not have been named, otherwise the
          initialization analysis should have ensured an action was
          used to set its value, and that action would have made this
          non-terminal not equivalent to a non-regexp. *)
       assert (ntd.non_term_varname = None);
-      let nv, tvenv = mk_ntd_var () in
+      let nv, tvenv = mk_ntd_var 0 tvenv in
       (* make sure this variable is bound in the rule *)
       let rle = Ast.({rule_elem     = RE_named (nv, rle);
-                      rule_elem_aux = rle.rule_elem_aux;
-                      rule_elem_loc = rle.rule_elem_loc}) in
-      let rl = Ast.({rule_rhs   = [rle];
-                     rule_temps = [];
-                     rule_loc   = rx.regexp_loc}) in
-      let ntd = {ntd with non_term_varname = Some nv;
+                      rule_elem_aux = r_aux;
+                      rule_elem_loc = r_loc}) in
+      (* use an action to make the bound value visible *)
+      let nv', tvenv = mk_ntd_var 1 tvenv in
+      let rla = mk_assign_rule_elem nv' nv r_loc r_aux in
+      let rl  = Ast.({rule_rhs   = [rle; rla];
+                      rule_temps = [];
+                      rule_loc   = rx.regexp_loc}) in
+      let ntd = {ntd with non_term_varname = Some nv';
                           non_term_rules   = [rl]} in
       {ctx with ctx_re_env = renv}, tvenv, ntd
     else if ntd.non_term_varname = None
@@ -1209,12 +1237,15 @@ let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
       (if List.length ntd.non_term_rules = 1
           && List.length (List.hd ntd.non_term_rules).rule_rhs = 1
        then
-         let nv, tvenv = mk_ntd_var () in
+         let nv, tvenv = mk_ntd_var 0 tvenv in
          let rl  = List.hd ntd.non_term_rules in
          let rle = List.hd rl.rule_rhs in
          let rle = Ast.({rle with rule_elem = RE_named (nv, rle)}) in
-         let rl  = Ast.({rl with rule_rhs = [rle]}) in
-         let ntd = {ntd with non_term_varname = Some nv;
+         let nv', tvenv = mk_ntd_var 1 tvenv in
+         let r_loc, r_aux = rle.rule_elem_loc, rle.rule_elem_aux in
+         let rla = mk_assign_rule_elem nv' nv r_loc r_aux in
+         let rl  = Ast.({rl with rule_rhs = [rle; rla]}) in
+         let ntd = {ntd with non_term_varname = Some nv';
                              non_term_rules   = [rl]} in
          ctx, tvenv, ntd
        else
