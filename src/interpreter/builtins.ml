@@ -276,14 +276,15 @@ let get_field lc (l: value) (f: string) : value =
 let set_field lc (l: value) (f: string) (v: value) : value =
   match l with
     | V_record fs ->
-        (* Ensure the field is present *)
+        (* The field might not be present since this might be the
+           initializing assignment. *)
         (match List.assoc_opt f fs with
-           | Some _ -> ();
-           | None -> internal_error (No_field (lc, f)));
-        (* Replace the field value *)
-        V_record (List.map (fun (f', v') ->
-                      f', if f' = f then v else v'
-                    ) fs)
+           | Some _ ->
+               V_record (List.map (fun (f', v') ->
+                             f', if f' = f then v else v'
+                           ) fs)
+           | None ->
+               V_record ((f,v) :: fs))
     | _ ->
         internal_error (Type_error (lc, "." ^ f, 1, vtype_of l, T_record [f, T_empty]))
 

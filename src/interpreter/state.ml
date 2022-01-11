@@ -50,18 +50,16 @@ module VEnv = struct
 
   let empty = Bindings.empty
 
-  (* See the explanation for `fresh` in ir/cfg.ml. *)
-  let assign (t: t) (v: Anf.var) (fresh: bool) (vl: Values.value) : t =
-    if   Bindings.mem (Anf.(v.v)) t
-    then Bindings.add Anf.(v.v) (vl, v) t
-    else if not fresh
-    then internal_error (No_binding_for_write v)
-    else Bindings.add Anf.(v.v) (vl, v) t
+  let assign (t: t) (v: Anf.var) (vl: Values.value) : t =
+    Bindings.add Anf.(v.v) (vl, v) t
 
   let lookup (t: t) (v: Anf.varid) (l: Location.t) : Values.value =
     match Bindings.find_opt v t with
       | None         -> internal_error (No_binding_for_read (l, v))
       | Some (vl, _) -> vl
+
+  let bound (t: t) (v: Anf.varid) : bool =
+    Bindings.mem v t
 end
 
 (* Function environment *)

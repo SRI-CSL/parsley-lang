@@ -81,7 +81,7 @@ let lower_spec (_, init_venv) tenv (spec: program) =
                        aconst_val = ae;
                        aconst_loc = loc; _} = c' in
               let v = Anf.make_var v' ae.aexp_typ loc in
-              let nd = N_assign (v, true, ae) in
+              let nd = N_assign (v, ae) in
               let sts = Cfg_rule.add_gnode sts nd ae.aexp_typ loc in
               {ctx with ctx_venv = venv}, tvenv, sts
           | Ast.Decl_fun f ->

@@ -27,9 +27,9 @@ open Interpret_bitops
 let do_gnode (s: state) (n: Cfg.gnode) : state =
   let loc = n.node_loc in
   match n.node with
-    | N_assign (vr, fresh, ae) ->
+    | N_assign (vr, ae) ->
         let vl = val_of_aexp s ae in
-        let st_venv = VEnv.assign s.st_venv vr fresh vl in
+        let st_venv = VEnv.assign s.st_venv vr vl in
         {s with st_venv}
     | N_assign_fun (fv, pvs, bd) ->
         let st_fenv = FEnv.assign s.st_fenv fv pvs bd in
@@ -44,11 +44,11 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
         align_bits loc (Printf.sprintf "pad<%d>" w) s w
     | N_mark_bit_cursor ->
         mark_bit_cursor loc s
-    | N_collect_bits (v, fresh, pred) ->
+    | N_collect_bits (v, pred) ->
         let bits, s = collect_bits loc s in
         if   match_bits_bound bits pred
         then let bits = List.map (fun b -> V_bool b) bits in
-             let env = VEnv.assign s.st_venv v fresh (V_list bits) in
+             let env = VEnv.assign s.st_venv v (V_list bits) in
              {s with st_venv = env}
         else let m = Ir_printer.string_of_mbb pred in
              let err = Internal_errors.Bitsbound_check (loc, m) in
@@ -156,7 +156,7 @@ and do_fail lc (s: state) (l: Cfg.label) : result =
 
 and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
   match n with
-    | Cfg.Node.N_collect_checked_bits (loc, v, fresh, (mbb, pat), lsc, lf) ->
+    | Cfg.Node.N_collect_checked_bits (loc, v, (mbb, pat), lsc, lf) ->
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
         then let m   = Ir_printer.string_of_mbb mbb in
@@ -164,7 +164,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
              internal_error err
         else if match_padding bits pat
         then let bits = List.map (fun b -> V_bool b) bits in
-             let env  = VEnv.assign s.st_venv v fresh (V_list bits) in
+             let env  = VEnv.assign s.st_venv v (V_list bits) in
              let s    = {s with st_venv = env} in
              do_jump loc s lsc
         else do_fail loc s lf
@@ -197,7 +197,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                do_fail loc s lf
            | Some (vl, vu) ->
                (* matched value with updated view *)
-               let env = VEnv.assign s.st_venv v true vl in
+               let env = VEnv.assign s.st_venv v vl in
                let s = {s with st_venv     = env;
                                st_cur_view = vu} in
                do_jump loc s lsc)
@@ -219,10 +219,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
            | R_ok (vl, vu) ->
                (* Update the environment of the calling state `s`. *)
                let env = match ret with
-                   | None ->
-                       s.st_venv
-                   | Some (vr, fresh) ->
-                       VEnv.assign s.st_venv vr fresh vl in
+                   | None    -> s.st_venv
+                   | Some vr -> VEnv.assign s.st_venv vr vl in
                (* Transfer control to the success continuation. *)
                do_jump loc {s with st_venv = env;
                                    st_cur_view = vu} lsc
@@ -253,7 +251,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                       Internal_errors.Unknown_attribute (loc, ntn, pn) in
                     internal_error err
                 | Some pv ->
-                    VEnv.assign env (fst pv) true vl
+                    VEnv.assign env (fst pv) vl
             ) s.st_venv params in
         let loc = Location.loc nt in
         let b   = get_block loc s (Cfg.L_static ent.nt_entry) in
@@ -273,10 +271,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                let vl = VEnv.lookup s'.st_venv ent.nt_retvar.v loc in
                (* Update the environment of the calling state `s`. *)
                let env = match ret with
-                   | None ->
-                       s.st_venv
-                   | Some (vr, fresh) ->
-                       VEnv.assign s.st_venv vr fresh vl in
+                   | None    -> s.st_venv
+                   | Some vr -> VEnv.assign s.st_venv vr vl in
                (* Transfer control to the success continuation. *)
                do_jump loc {s with st_venv = env} lsc
            | C_failure ->

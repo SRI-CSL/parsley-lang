@@ -52,15 +52,8 @@ type matched_bits_predicate =
   matched_bits_bound * Ast.bv_literal
 
 (* An optional variable to which the matched return value needs to be
-   bound.  The boolean indicates whether this is a fresh variable
-   (true) that needs to be initialized, or an existing variable
-   (false) that needs to be assigned.
-
-   Due to the presence of loops, a variable marked fresh may already
-   exist since it may occur in a loop body.  The invariant that should
-   hold, however, is that a non-fresh variable should already exist in
-   the dynamic environment.  *)
-type return = (var * bool) option
+   bound. *)
+type return = var option
 
 (* The various types of internal nodes of a block in the CFG.  These
    are the open-open nodes with linear control flow, and are
@@ -71,7 +64,7 @@ type gnode_desc =
 
   (* Evaluate the expression and assign it to a possibly fresh
      variable *)
-  | N_assign of var * bool * aexp
+  | N_assign of var * aexp
 
   (* Create an entry for a function and assign it to a fresh
      variable.  Since there are no first-class functions, this is
@@ -114,7 +107,7 @@ type gnode_desc =
   | N_mark_bit_cursor
   (* Collect matched bits from the marked position into a variable,
      which may be fresh. *)
-  | N_collect_bits of var * bool * matched_bits_bound
+  | N_collect_bits of var * matched_bits_bound
 
   (* view control *)
 
@@ -264,7 +257,7 @@ module Node = struct
        fails to the second label.  N_check_bits does the same except
        that it does not assign the matched bits to any variable. *)
     | N_collect_checked_bits:
-        Location.t * var * bool * matched_bits_predicate
+        Location.t * var * matched_bits_predicate
         * label * label
         -> (Block.o, Block.c, unit) node
     | N_check_bits:

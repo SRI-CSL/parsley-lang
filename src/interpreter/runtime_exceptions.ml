@@ -60,7 +60,7 @@ module Internal_errors = struct
     | No_binding_for_read (l, v) ->
         msg "%s:\n Internal Error: Variable '%s#%d' is not bound." l (fst v) (snd v)
     | No_binding_for_write v ->
-        msg "%s:\n Internal Error: Cannot assign to unbound variable '%s:%d'."
+        msg "%s:\n Internal Error: Cannot assign to unbound variable '%s#%d'."
           Anf.(v.v_loc) (fst Anf.(v.v)) (snd Anf.(v.v))
     | Bitrange_index (l, idx, len) ->
         msg "%s:\n Internal Error: bitrange index %d is out of range for list of length %d."
@@ -91,7 +91,7 @@ module Internal_errors = struct
           "%s:\n Internal Error: invalid term index %d for `%s::%s' in path `%s'."
           lc idx t c (pr_occ occ)
     | Pattern_match_failure (lc, v) ->
-        msg "%s:\n Internal Error: no patterns matched for `%s:%d'."
+        msg "%s:\n Internal Error: no patterns matched for `%s#%d'."
           lc (fst Anf.(v.v)) (snd Anf.(v.v))
     | View_stack_underflow lc ->
         msg "%s:\n Internal Error: the view stack underflowed." lc

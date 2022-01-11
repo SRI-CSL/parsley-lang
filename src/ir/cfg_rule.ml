@@ -124,8 +124,8 @@ let collect_cursor
     : opened =
   match ret with
     | None -> b
-    | Some (v, fresh) ->
-        let nd = N_collect_bits (v, fresh, pred) in
+    | Some v ->
+        let nd = N_collect_bits (v, pred) in
         add_gnode b nd typ loc
 
 (* Note: The construction of the CFG often involves glue code in ANF.
@@ -189,8 +189,8 @@ let rec lower_rule_elem
         let lsc, bsc = new_block loc () in
         let nd =
           match ret with
-            | Some (v, fresh) ->
-                Node.N_collect_checked_bits (loc, v, fresh, pred, lsc, lf)
+            | Some v ->
+                Node.N_collect_checked_bits (loc, v, pred, lsc, lf)
             | None ->
                 Node.N_check_bits (loc, pred, lsc, lf) in
         let ctx = close_block ctx b nd in
@@ -206,8 +206,8 @@ let rec lower_rule_elem
            return binding. *)
         let v, venv =
           match ret with
-            | None -> fresh_var ctx.ctx_venv typ loc
-            | Some (v', _) -> v', ctx.ctx_venv in
+            | None    -> fresh_var ctx.ctx_venv typ loc
+            | Some v' -> v', ctx.ctx_venv in
         (* The call to execute the DFA closes the current block, and
            the success continuation begins in a new block (with the
            same rationale as for RE_non_term). *)
@@ -226,8 +226,8 @@ let rec lower_rule_elem
            return binding. *)
         let v, venv =
           match ret with
-            | None -> fresh_var ctx.ctx_venv typ loc
-            | Some (v', _) -> v', ctx.ctx_venv in
+            | None    -> fresh_var ctx.ctx_venv typ loc
+            | Some v' -> v', ctx.ctx_venv in
         (* The call to execute the DFA closes the current block, and
            the success continuation begins in a new block (with the
            same rationale as for RE_non_term). *)
@@ -271,7 +271,7 @@ let rec lower_rule_elem
         (* evaluation of inherited attributes is right-to-left *)
         let b, args =
           List.fold_left (fun (b, args) (i, v, ae) ->
-              add_gnode b (N_assign (v, true, ae)) v.v_typ v.v_loc,
+              add_gnode b (N_assign (v, ae)) v.v_typ v.v_loc,
               (i, v) :: args
             ) (b, []) args in
         let lsc = fresh_static () in
@@ -284,14 +284,14 @@ let rec lower_rule_elem
     (* binding for return values *)
     | RE_named (v, re') ->
         let v, venv = bind_var ctx.ctx_venv v typ in
-        let ret' = Some (v, true) in
+        let ret' = Some v in
         let ctx, b =
           lower_rule_elem {ctx with ctx_venv = venv} b ret' re' in
         (* we might have our own return to bind *)
         let b = match ret with
             | None -> b
-            | Some (v', fresh) ->
-                let nd = N_assign (v', fresh, ae_of_av (av_of_var v)) in
+            | Some v' ->
+                let nd = N_assign (v', ae_of_av (av_of_var v)) in
                 add_gnode b nd typ loc in
         ctx, b
 
@@ -309,10 +309,10 @@ let rec lower_rule_elem
           match retexp, ret with
             | None, None ->
                 b, venv
-            | None, Some (v, fresh) ->
+            | None, Some v ->
                 (* TODO: assert that typ is 'unit' *)
                 let unit = ae_of_av (make_av (AV_lit PL_unit) typ loc) in
-                let nd = N_assign (v, fresh, unit) in
+                let nd = N_assign (v, unit) in
                 let b = add_gnode b nd typ loc in
                 b, venv
             | Some _, None ->
@@ -320,10 +320,10 @@ let rec lower_rule_elem
                    return expression *)
                 let err = Unbound_return_expr loc in
                 raise (Error err)
-            | Some e, Some (v, fresh) ->
+            | Some e, Some v ->
                 let ae, venv =
                   Anf_exp.normalize_exp ctx.ctx_tenv venv e in
-                let nd = N_assign (v, fresh, ae) in
+                let nd = N_assign (v, ae) in
                 let b = add_gnode b nd typ loc in
                 b, venv in
         {ctx with ctx_venv = venv}, b
@@ -338,10 +338,10 @@ let rec lower_rule_elem
         let cvar, venv, nd = match ret with
             | None ->
                 let cvar, venv = fresh_var venv typ loc in
-                let nd = N_assign (cvar, true, cir) in
+                let nd = N_assign (cvar, cir) in
                 cvar, venv, nd
-            | Some (v, fresh) ->
-                let nd = N_assign (v, fresh, cir) in
+            | Some v ->
+                let nd = N_assign (v, cir) in
                 v, venv, nd in
         let b = add_gnode b nd typ loc in
         (* make a new block for the success continuation *)
@@ -367,7 +367,7 @@ let rec lower_rule_elem
               (* create variables for the elements of the sequence *)
               let v, venv =
                 fresh_var ctx.ctx_venv re.rule_elem_aux re.rule_elem_loc in
-              let ret = Some (v, true) in
+              let ret = Some v in
               let ctx = {ctx with ctx_venv = venv} in
               let ctx, b = lower_rule_elem ctx b ret re in
               ctx, b, v :: vs
@@ -383,10 +383,10 @@ let rec lower_rule_elem
                     constr_av "[]" "::" [av; l] l.av_typ l.av_loc
                   ) l vs in
         let l = ae_of_av l in
-        let v, fresh = match ret with
+        let v = match ret with
             | None -> assert false (* handled above *)
-            | Some (v, fresh) -> v, fresh in
-        let b = add_gnode b (N_assign (v, fresh, l)) typ loc in
+            | Some v -> v in
+        let b = add_gnode b (N_assign (v, l)) typ loc in
         ctx, b
 
     (* there is no special case for ret since it gets handled by
@@ -443,10 +443,10 @@ let rec lower_rule_elem
         let vr, b = match ret with
             | None ->
                 None, b
-            | Some (vr, fresh) ->
+            | Some vr ->
                 (* initialize vr to [] *)
                 let null = constr_av "[]" "[]" [] typ loc in
-                let nd = N_assign (vr, fresh, ae_of_av null) in
+                let nd = N_assign (vr, ae_of_av null) in
                 let b = add_gnode b nd typ loc in
                 Some vr, b in
         (* since (re')* can never fail, create a new label for the
@@ -475,11 +475,7 @@ let rec lower_rule_elem
                 (* create a variable for the matched value for re' *)
                 let typ' = re'.rule_elem_aux in
                 let v, venv = fresh_var ctx.ctx_venv typ' loc' in
-                (* Note: v' is fresh here, but inside a loop, which
-                   means the freshness is only valid the first time
-                   around.  This will be true in general, for
-                   variables that are inside non-local loops. *)
-                let ret' = Some (v, true) in
+                let ret' = Some v in
                 let ctx = {ctx with ctx_venv = venv} in
                 let ctx, b = lower_rule_elem ctx b ret' re' in
                 (* update the return value:
@@ -487,7 +483,7 @@ let rec lower_rule_elem
                 let l =
                   constr_av "[]" "::" [av_of_var v;
                                        av_of_var vr] typ loc in
-                let nd = N_assign (vr, false, ae_of_av l) in
+                let nd = N_assign (vr, ae_of_av l) in
                 let b = add_gnode b nd typ loc in
                 ctx, b in
         (* on success, this block loops back to lp *)
@@ -508,7 +504,7 @@ let rec lower_rule_elem
                 let ftyp = mk_func_type ctx typ typ in
                 let f = mk_mod_func "List" "rev" ftyp loc in
                 let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
-                add_gnode b (N_assign (vr, false, l)) typ loc in
+                add_gnode b (N_assign (vr, l)) typ loc in
         ctx, b
 
     | RE_star (re', Some e) ->
@@ -520,10 +516,10 @@ let rec lower_rule_elem
         let vr, b = match ret with
             | None ->
                 None, b
-            | Some (vr, fresh) ->
+            | Some vr ->
                 (* initialize vr to [] *)
                 let null = constr_av "[]" "[]" [] typ loc in
-                let nd = N_assign (vr, fresh, ae_of_av null) in
+                let nd = N_assign (vr, ae_of_av null) in
                 let b = add_gnode b nd typ loc in
                 Some vr, b in
         (* Assign the bound to a variable bv, and then decrement this
@@ -532,7 +528,7 @@ let rec lower_rule_elem
         let bnd, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let bv, venv = fresh_var venv e.expr_aux e.expr_loc in
-        let nd = N_assign (bv, true, bnd) in
+        let nd = N_assign (bv, bnd) in
         let b = add_gnode b nd e.expr_aux e.expr_loc in
         (* close the block with a jump to block containing the loop
            comparison *)
@@ -548,7 +544,7 @@ let rec lower_rule_elem
         let ae = AE_binop (Ast.Gt, av_of_var bv, z) in
         let ae = make_ae ae bool e.expr_loc in
         let c, venv = fresh_var venv bool e.expr_loc in
-        let b = add_gnode b (N_assign (c, true, ae)) bool e.expr_loc in
+        let b = add_gnode b (N_assign (c, ae)) bool e.expr_loc in
         (* branch on c: true -> do re, false -> jump to exit *)
         let lre = fresh_static () in
         let nd = Node.N_cond_branch (e.expr_loc, c, lre, lx) in
@@ -565,11 +561,7 @@ let rec lower_rule_elem
                 let typ' = re'.rule_elem_aux in
                 let loc' = re'.rule_elem_loc in
                 let v, venv = fresh_var ctx.ctx_venv typ' loc'  in
-                (* Note: v' is fresh here, but inside a loop, which
-                   means the freshness is only valid the first time
-                   around.  This will be true in general, for
-                   variables that are inside non-local loops. *)
-                let ret' = Some (v, true) in
+                let ret' = Some v in
                 let ctx = {ctx with ctx_venv = venv} in
                 let ctx, b = lower_rule_elem ctx b ret' re' in
                 (* update the return value:
@@ -577,7 +569,7 @@ let rec lower_rule_elem
                 let l =
                   constr_av "[]" "::" [av_of_var v;
                                        av_of_var vr] typ loc in
-                let nd = N_assign (vr, false, ae_of_av l) in
+                let nd = N_assign (vr, ae_of_av l) in
                 let b = add_gnode b nd typ loc in
                 ctx, b in
         (* bv := bv - 1 *)
@@ -585,7 +577,7 @@ let rec lower_rule_elem
         let o = av_of_int ctx 1 e.expr_loc in
         let ae = AE_binop (Ast.Minus, av_of_var bv, o) in
         let ae = make_ae ae int e.expr_loc in
-        let nd = N_assign (bv, true, ae) in
+        let nd = N_assign (bv, ae) in
         let b = add_gnode b nd int e.expr_loc in
         (* close with a jump to the comparison *)
         let ctx = close_with_jump ctx b loc lc in
@@ -601,7 +593,7 @@ let rec lower_rule_elem
                 let ftyp = mk_func_type ctx typ typ in
                 let f = mk_mod_func "List" "rev" ftyp loc in
                 let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
-                add_gnode b (N_assign (vr, false, l)) typ loc in
+                add_gnode b (N_assign (vr, l)) typ loc in
         ctx, b
 
     (* Since the RE_opt case differs a fair amount depending on
@@ -640,7 +632,7 @@ let rec lower_rule_elem
         let vsc, venv =
           let typ' = re'.rule_elem_aux in
           fresh_var ctx.ctx_venv typ' loc' in
-        let ret' = Some (vsc, true) in
+        let ret' = Some vsc in
         (* save the original failure continuation, and prepare an
            updated context *)
         let orig_failcont = ctx.ctx_failcont in
@@ -652,13 +644,13 @@ let rec lower_rule_elem
            assignment below holds *)
         let b = add_node b (Node.N_pop_failcont (loc', lfl)) in
         (* extract the current return value *)
-        let vr, fresh = match ret with
+        let vr = match ret with
             | None -> assert false (* handled above *)
-            | Some (vr, fresh) -> vr, fresh in
+            | Some vr -> vr in
         (* use the return value from re' in vsc, construct
            'option::Some(vsc)' and bind it to vr *)
         let av = constr_av "option" "Some" [av_of_var vsc] typ loc in
-        let nd = N_assign (vr, fresh, ae_of_av av) in
+        let nd = N_assign (vr, ae_of_av av) in
         let b = add_gnode b nd typ loc in
         (* close the current block by jumping to lsc *)
         let ctx = close_with_jump ctx b loc lsc in
@@ -666,7 +658,7 @@ let rec lower_rule_elem
            assigned 'option::None' and then control jumps to lsc. *)
         let b = new_labeled_block loc lfl in
         let none = constr_av "option" "None" [] typ loc in
-        let nd = N_assign (vr, fresh, ae_of_av none) in
+        let nd = N_assign (vr, ae_of_av none) in
         let b = add_gnode b nd typ loc in
         let ctx = close_with_jump ctx b loc lsc in
         (* construct the lsc continuation block, and continue with it
@@ -684,7 +676,7 @@ let rec lower_rule_elem
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let v, venv = fresh_var venv e.expr_aux e.expr_loc in
-        let nd = N_assign (v, true, ae) in
+        let nd = N_assign (v, ae) in
         let b = add_gnode b nd e.expr_aux loc in
         let unit = get_typ ctx "unit" in
         let b = add_gnode b (N_set_view v) unit loc in
@@ -697,7 +689,7 @@ let rec lower_rule_elem
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let v, venv = fresh_var venv e.expr_aux e.expr_loc in
-        let nd = N_assign (v, true, ae) in
+        let nd = N_assign (v, ae) in
         let b = add_gnode b nd e.expr_aux e.expr_loc in
         (* Save the current view before the excursion *)
         let unit = get_typ ctx "unit" in
@@ -731,7 +723,7 @@ let rec lower_rule_elem
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let v, venv = fresh_var venv e.expr_aux e.expr_loc in
-        let nd = N_assign (v, true, ae) in
+        let nd = N_assign (v, ae) in
         let b = add_gnode b nd e.expr_aux loc in
         (* Save the current view before the excursion *)
         let unit = get_typ ctx "unit" in
@@ -769,7 +761,7 @@ let rec lower_rule_elem
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let vl, venv = fresh_var venv e.expr_aux e.expr_loc in
-        let nd = N_assign (vl, true, ae) in
+        let nd = N_assign (vl, ae) in
         let b = add_gnode b nd e.expr_aux e.expr_loc in
         (* Split args into their types: iters are the variables
            holding the lists to be looped over (i.e. the condition
@@ -782,7 +774,7 @@ let rec lower_rule_elem
                 Anf_exp.normalize_exp ctx.ctx_tenv venv e in
               (* allocate a variable for this value *)
               let v, venv = fresh_var venv e.expr_aux e.expr_loc in
-              let nd = N_assign (v, true, ae) in
+              let nd = N_assign (v, ae) in
               let b = add_gnode b nd e.expr_aux e.expr_loc in
               let is, cs = match a with
                   | Ast.A_in -> (i, v) :: is, cs
@@ -794,8 +786,8 @@ let rec lower_rule_elem
         let vr, b = match ret with
             | None ->
                 None, b
-            | Some (vr, fresh) ->
-                let nd = N_assign (vr, fresh, ae_of_av null) in
+            | Some vr ->
+                let nd = N_assign (vr, ae_of_av null) in
                 let b = add_gnode b nd typ loc in
                 Some vr, b in
         (* save the current view: we will need to restore this in the
@@ -822,7 +814,7 @@ let rec lower_rule_elem
               let ae = AE_binop (Ast.Eq, (av_of_var v), null) in
               let ae = make_ae ae bool v.v_loc in
               let vc, venv = fresh_var ctx.ctx_venv bool v.v_loc in
-              let nd = N_assign (vc, true, ae) in
+              let nd = N_assign (vc, ae) in
               let b = add_gnode b nd bool v.v_loc in
               (* create a label for the next condition block *)
               let ln = fresh_static () in
@@ -846,13 +838,13 @@ let rec lower_rule_elem
               let hd =
                 make_ae (AE_apply (f, [av_of_var v])) v.v_typ v.v_loc in
               let vv, venv = fresh_var ctx.ctx_venv v.v_typ v.v_loc in
-              let nd = N_assign (vv, true, hd) in
+              let nd = N_assign (vv, hd) in
               let b  = add_gnode b nd v.v_typ v.v_loc in
               (* update the list: v := List.tail(v) *)
               let f  = mk_mod_func "List" "tail" ftyp v.v_loc in
               let tl =
                 make_ae (AE_apply (f, [av_of_var vl])) v.v_typ v.v_loc in
-              let nd = N_assign (v, true, tl) in
+              let nd = N_assign (v, tl) in
               let b  = add_gnode b nd v.v_typ v.v_loc in
               {ctx with ctx_venv = venv}, b, vv :: vvs
             ) (ctx, b, []) vs in
@@ -894,7 +886,7 @@ let rec lower_rule_elem
                 (* construct the variable to hold the return value *)
                 let typ' = re'.rule_elem_aux in
                 let v, venv = fresh_var ctx.ctx_venv typ' loc' in
-                let ret' = Some (v, true) in
+                let ret' = Some v in
                 (* create a label for the epilog block in which to
                    accumulate the return value; this epilog will form
                    the success continuation for the call *)
@@ -908,7 +900,7 @@ let rec lower_rule_elem
                 let l =
                   constr_av "[]" "::" [av_of_var v;
                                        av_of_var vr] typ loc in
-                let nd = N_assign (vr, false, ae_of_av l) in
+                let nd = N_assign (vr, ae_of_av l) in
                 let b = add_gnode b nd typ loc in
                 (* continue to the condition block for the loop *)
                 close_with_jump ctx b loc lc in
@@ -928,22 +920,22 @@ let rec lower_rule_elem
                 let ftyp = mk_func_type ctx typ typ in
                 let f = mk_mod_func "List" "rev" ftyp loc in
                 let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
-                add_gnode b (N_assign (vr, false, l)) typ loc in
+                add_gnode b (N_assign (vr, l)) typ loc in
         ctx, b
 
     | RE_map_views (e, re') ->
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let vl, venv = fresh_var venv e.expr_aux e.expr_loc in
-        let nd = N_assign (vl, true, ae) in
+        let nd = N_assign (vl, ae) in
         let b = add_gnode b nd e.expr_aux e.expr_loc in
         (* initialize the return value if any *)
         let null = constr_av "[]" "[]" [] typ loc in
         let vr, b = match ret with
             | None ->
                 None, b
-            | Some (vr, fresh) ->
-                let nd = N_assign (vr, fresh, ae_of_av null) in
+            | Some vr ->
+                let nd = N_assign (vr, ae_of_av null) in
                 let b = add_gnode b nd typ loc in
                 Some vr, b in
         (* save the current view: we will need to restore this in the
@@ -960,7 +952,7 @@ let rec lower_rule_elem
         let ae = AE_binop (Ast.Eq, (av_of_var vl), null) in
         let ae = make_ae ae bool e.expr_loc in
         let vc, venv = fresh_var ctx.ctx_venv bool e.expr_loc in
-        let nd = N_assign (vc, true, ae) in
+        let nd = N_assign (vc, ae) in
         let b = add_gnode b nd bool e.expr_loc in
         (* create a label for the loop body block and its exit block *)
         let lp = fresh_static () in
@@ -978,13 +970,13 @@ let rec lower_rule_elem
         let hd =
           make_ae (AE_apply (f, [av_of_var vl])) e.expr_aux e.expr_loc in
         let vv, venv = fresh_var venv e.expr_aux e.expr_loc in
-        let nd = N_assign (vv, true, hd) in
+        let nd = N_assign (vv, hd) in
         let b  = add_gnode b nd e.expr_aux e.expr_loc in
         (* update the remaining views: vl = List.tail(vl) *)
         let f = mk_mod_func "List" "tail" ftyp e.expr_loc in
         let tl =
           make_ae (AE_apply (f, [av_of_var vl])) e.expr_aux e.expr_loc in
-        let nd = N_assign (vl, true, tl) in
+        let nd = N_assign (vl, tl) in
         let b  = add_gnode b nd e.expr_aux e.expr_loc in
         (* set the view: set_view(vv) *)
         let nd = N_set_view vv in
@@ -1007,7 +999,7 @@ let rec lower_rule_elem
                 (* create a new variable to hold a matched value for re' *)
                 let typ' = re'.rule_elem_aux in
                 let v, venv = fresh_var venv typ' loc' in
-                let ret' = Some (v, true) in
+                let ret' = Some v in
                 let ctx = {ctx with ctx_venv     = venv;
                                     ctx_failcont = lf} in
                 let ctx, b = lower_rule_elem ctx b ret' re' in
@@ -1016,7 +1008,7 @@ let rec lower_rule_elem
                 let l =
                   constr_av "[]" "::" [av_of_var v;
                                        av_of_var vr] typ loc in
-                let nd = N_assign (vr, false, ae_of_av l) in
+                let nd = N_assign (vr, ae_of_av l) in
                 let b = add_gnode b nd typ loc in
                 ctx, b in
         (* on the success path, restore the failcont *)
@@ -1040,7 +1032,7 @@ let rec lower_rule_elem
                 let ftyp = mk_func_type ctx typ typ in
                 let f = mk_mod_func "List" "rev" ftyp loc in
                 let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
-                add_gnode b (N_assign (vr, false, l)) typ loc in
+                add_gnode b (N_assign (vr, l)) typ loc in
         ctx, b
 
 (* unlike a rule element, a rule has no explicit return value, since
@@ -1054,7 +1046,7 @@ let lower_rule (ctx: context) (b: opened) (r: rule)
         let v, venv = bind_var venv v e.expr_aux in
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv venv e in
-        let nd = N_assign (v, true, ae) in
+        let nd = N_assign (v, ae) in
         let b = add_gnode b nd e.expr_aux e.expr_loc in
         b, venv
       ) (b, ctx.ctx_venv) r.rule_temps in

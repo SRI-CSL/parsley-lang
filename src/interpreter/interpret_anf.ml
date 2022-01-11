@@ -135,7 +135,7 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
         Builtins.get_field (Location.loc f) v (Location.value f)
     | AE_let (v, le, bd) ->
         let lv = val_of_aexp s le in
-        let env = VEnv.assign s.st_venv v true lv in
+        let env = VEnv.assign s.st_venv v lv in
         val_of_aexp {s with st_venv = env} bd
     | AE_cast (av, _) ->
         val_of_av s av
@@ -148,7 +148,7 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
              let err = Internal_errors.Function_arity (f.fv_loc, fn, nps, nvs) in
              internal_error err
         else let env = List.fold_left (fun env (p, v) ->
-                           VEnv.assign env p true v
+                           VEnv.assign env p v
                          ) s.st_venv (List.combine ps vs) in
              val_of_aexp {s with st_venv = env} bd
     | AE_apply (({fv = FV_mod_member (m, f); _} as fv), args) ->
@@ -160,7 +160,7 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
     | AE_letpat (p, (av, occ), bd) ->
         let v = val_of_av s av in
         let v = Builtins.subterm av.av_loc v occ in
-        let env = VEnv.assign s.st_venv p true v in
+        let env = VEnv.assign s.st_venv p v in
         val_of_aexp {s with st_venv = env} bd
     | AE_case (vr, cases) ->
         let vl = VEnv.lookup s.st_venv vr.v vr.v_loc in
@@ -171,18 +171,22 @@ let rec eval_stmt (s: state) (st: Anf.astmt) : state =
   match st.astmt with
     | AS_set_var (v, ae) ->
         let vl = val_of_aexp s ae in
-        let env = VEnv.assign s.st_venv v true vl in
+        let env = VEnv.assign s.st_venv v vl in
         {s with st_venv = env}
     | AS_set_field (r, f, ae) ->
         let fvl = val_of_aexp s ae in
-        let rvl = VEnv.lookup s.st_venv r.v loc in
+        (* `r` might not be bound since this might be the initializing
+           assignment. *)
+        let rvl = if   VEnv.bound s.st_venv r.v
+                  then VEnv.lookup s.st_venv r.v loc
+                  else V_record [] in
         let rvl =
           Builtins.set_field (Location.loc f) rvl (Location.value f) fvl in
-        let env = VEnv.assign s.st_venv r false rvl in
+        let env = VEnv.assign s.st_venv r rvl in
         {s with st_venv = env}
     | AS_let (v, ae, st') ->
         let vl = val_of_aexp s ae in
-        let env = VEnv.assign s.st_venv v true vl in
+        let env = VEnv.assign s.st_venv v vl in
         eval_stmt {s with st_venv = env} st'
     | AS_case (vr, cases) ->
         let vl = VEnv.lookup s.st_venv vr.v vr.v_loc in
@@ -192,5 +196,5 @@ let rec eval_stmt (s: state) (st: Anf.astmt) : state =
     | AS_letpat (p, (av, occ), st') ->
         let v = val_of_av s av in
         let v = Builtins.subterm av.av_loc v occ in
-        let env = VEnv.assign s.st_venv p true v in
+        let env = VEnv.assign s.st_venv p v in
         eval_stmt {s with st_venv = env} st'
