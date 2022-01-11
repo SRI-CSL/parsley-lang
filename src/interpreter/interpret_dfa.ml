@@ -27,18 +27,24 @@ let run (dfa: DFA.t) (v: view) : (value * view) option =
   let start = v.vu_ofs in
   assert (start <= vend);
   let s = DFA.start dfa in
-  let rec loop s ofs bytes =
-    (* `s` is the current state, and `ofs` is the (potentially
-       invalid) offset where the next byte will be read *)
+  let try_accept s ofs bytes =
     if   DFA.accept dfa s
     then let vu    = {v with vu_ofs = ofs} in
          let bytes = List.rev_map (fun b -> V_char b) bytes in
          Some (V_list bytes, vu)
-    else if  ofs >= vend
-    then None (* non-accepting state with no input *)
+    else None in
+  let rec loop s ofs bytes =
+    (* `s` is the current state, and `ofs` is the (potentially
+       invalid) offset where the next byte will be read.
+
+       The current state might have a transition as well as be an
+       accepting state.  For greedy matching, check for a transition
+       first if possible before trying to accept. *)
+    if   ofs >= vend
+    then try_accept s ofs bytes
     else let c = buf.{ofs} in
          match DFA.next dfa (s, c) with
-           | None   -> None
+           | None   -> try_accept s ofs bytes
            | Some s -> loop s (ofs + 1) (c :: bytes) in
   (* run the DFA *)
   loop s start []
