@@ -186,11 +186,12 @@ let print_closed (b: closed) =
   pp_close_box ()
 
 let string_of_nt_entry e =
-  Printf.sprintf "{nt: %s, entry: %s, succ: %s, fail: %s}"
-    (Location.value e.nt_name)
+  Printf.sprintf "{nt: %s, entry: %s, succ: %s, fail: %s, var: %s}"
+    (Location.value  e.nt_name)
     (Label.to_string e.nt_entry)
     (label_to_string e.nt_succcont)
     (label_to_string e.nt_failcont)
+    (Anf_printer.string_of_var e.nt_retvar.v)
 
 let print_gtoc toc =
   pp_string "GTOC:"; pp_newline ();
