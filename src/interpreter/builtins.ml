@@ -330,6 +330,22 @@ let subterm lc (v: value) (o: Ir.Anf.occurrence) : value =
     match v, so with
       | _, [] ->
           v
+      (* native representations *)
+      | V_option (Some v'), 1 :: tl ->
+          walk v' tl
+      | V_list (v' :: _), 1 :: tl ->
+          walk v' tl
+      | V_list (_ :: v'), 2 :: tl ->
+          walk (V_list v') tl
+      | V_tuple vs, idx :: tl ->
+          let  arity = List.length vs in
+          if   1 <= idx && idx <= arity
+          then let v' = List.nth vs (idx - 1) in
+               walk v' tl
+          else let tc = "*", "_Tuple" in
+               let err = Bad_subterm_index (lc, tc, idx, o) in
+               internal_error err
+      (* user-defined constructions *)
       | V_constr (tc, args), idx :: tl ->
           let  arity = List.length args in
           if   1 <= idx && idx <= arity
