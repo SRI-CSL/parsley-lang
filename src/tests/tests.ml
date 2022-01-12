@@ -35,7 +35,11 @@ let tests = [
      "", V_record ["val", V_list [V_char 'A']]);
     ("pure2", "format {Pure p {val: [byte] := []} := { p.val := \"A\" }}", "Pure",
      "", V_record ["val", V_list [V_char 'A']]);
-    ]
+    ("abc", "format {ABC p {a: [byte]} := !\"Helo\"! v=!\"ABC\"! {p.a := v}}", "ABC",
+     "HeloABC", V_record ["a", V_list [V_char 'A'; V_char 'B'; V_char 'C']]);
+    ("abc", "format {ABC p {a: [byte]} := u=!\"Helo\"! v=!\"ABC\"! {p.a := List.concat(u,v)}}", "ABC",
+     "HeloABC", V_record ["a", V_list [V_char 'H'; V_char 'e'; V_char 'l'; V_char 'o'; V_char 'A'; V_char 'B'; V_char 'C']]);
+  ]
 
 let do_tests gen_ir exe_ir =
   let fails = ref 0 in
