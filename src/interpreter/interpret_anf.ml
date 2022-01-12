@@ -38,6 +38,46 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
         val_of_lit l
     | Anf.AV_var v ->
         VEnv.lookup s.st_venv v av.av_loc
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "*" ->
+        assert (Location.value c = "_Tuple");
+        let vs = List.map (val_of_av s) avs in
+        V_tuple vs
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "[]" && Location.value c = "[]" ->
+        assert (List.length avs = 0);
+        V_list []
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "[]" && Location.value c = "::" ->
+        assert (List.length avs = 2);
+        let h  = val_of_av s (List.nth avs 0) in
+        let tl = val_of_av s (List.nth avs 1) in
+        PList.cons av.av_loc h tl
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "option" && Location.value c = "None" ->
+        assert (List.length avs = 0);
+        V_option None
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "option" && Location.value c = "Some" ->
+        assert (List.length avs = 1);
+        let v = val_of_av s (List.hd avs) in
+        V_option (Some v)
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "bool" && Location.value c = "True" ->
+        assert (List.length avs = 0);
+        V_bool true
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "bool" && Location.value c = "False" ->
+        assert (List.length avs = 0);
+        V_bool false
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "bit" && Location.value c = "One" ->
+        assert (List.length avs = 0);
+        V_bit true
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "bit" && Location.value c = "Zero" ->
+        assert (List.length avs = 0);
+        V_bit false
     | Anf.AV_constr ((t, c), avs) ->
         let t, c = Location.value t, Location.value c in
         V_constr ((t, c), List.map (val_of_av s) avs)

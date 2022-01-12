@@ -44,7 +44,9 @@ let tests = [
     ("struct", "format {Struct s {x: int, y: [byte]} := x=Byte y=!\"Helo\"! {s.x := Int.of_byte(x); s.y := y}}",
      "Struct", "ZHelo", V_record ["x", V_int (Int64.of_int (Char.code 'Z'));
                                   "y", V_list [V_char 'H'; V_char 'e'; V_char 'l'; V_char 'o']]);
-    ]
+    ("depvec", "format {DepVec d {v: [byte]} := c=Byte v=(Byte ^ Int.of_byte(c)) {d.v := v}}",
+     "DepVec", "\003abcd", V_record ["v", V_list [V_char 'a'; V_char 'b'; V_char 'c']]);
+  ]
 
 let do_tests gen_ir exe_ir =
   let fails = ref 0 in
