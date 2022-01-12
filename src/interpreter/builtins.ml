@@ -199,54 +199,69 @@ let bits_of_rec lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
         internal_error (Type_error (lc, op, 1, vtype_of l, ty))
 
 (* pure boolean helpers for equality and inequality *)
-let rec eq lc op l r =
-  match l, r with
-    | V_unit, V_unit               -> true
-    | V_bool l, V_bool r           -> l = r
-    | V_bit l, V_bit r             -> l = r
-    | V_int l, V_int r             -> l = r
-    | V_string l, V_string r       -> l = r
-    | V_bitvector l, V_bitvector r -> l = r
+let mand b b' =
+  match b, b' with
+    | Ok b, Ok b' -> Ok (b && b')
+    | Error e, _
+    | _, Error e  -> Error e
 
-    | V_option None, V_option None -> true
+let rec eq lc op l r : (bool, error) result =
+  match l, r with
+    | V_unit, V_unit               -> Ok true
+    | V_bool l, V_bool r           -> Ok (l = r)
+    | V_bit l, V_bit r             -> Ok (l = r)
+    | V_char l, V_char r           -> Ok (l = r)
+    | V_int l, V_int r             -> Ok (l = r)
+    | V_float l, V_float r         -> Ok (l = r)
+    | V_string l, V_string r       -> Ok (l = r)
+    | V_bitvector l, V_bitvector r -> Ok (l = r)
+
+    | V_option None, V_option None         -> Ok true
     | V_option (Some l), V_option (Some r) -> eq lc op l r
-    | V_option _, V_option _       -> false
+    | V_option _, V_option _               -> Ok false
 
     | V_list ls, V_list rs | V_tuple ls, V_tuple rs ->
-        eqs lc op true ls rs
+        eqs lc op (Ok true) ls rs
 
     | V_constr ((tl, cl), ls), V_constr ((tr, cr), rs) ->
         if tl != tr
-        then internal_error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
+        then Error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
         else if cl != cr
-        then false
-        else eqs lc op true ls rs
+        then Ok false
+        else eqs lc op (Ok true) ls rs
+    | V_record l, V_record r ->
+        (* Before comparing, normalize by sorting the fields. *)
+        let srt m =
+          List.sort (fun (fl, _) (fr, _) -> compare fl fr) m in
+        let sl, sr = srt l, srt r in
+        eqr lc op (Ok true) sl sr
 
     | V_view {vu_id = l; _}, V_view {vu_id = r; _} ->
         (* only compare their ids *)
-        l = r
+        Ok (l = r)
 
     | V_set [], V_set [] | V_map [], V_map [] ->
-        true
+        Ok true
     | V_set ls, V_set rs ->
-        eqs lc op true ls rs
+        (* Before comparing, normalize by sorting the lists. *)
+        eqs lc op (Ok true) (List.sort compare ls) (List.sort compare rs)
 
     | V_map ls, V_map rs ->
-        (* Before comparing, we need to normalize by sorting the keys. *)
+        (* Before comparing, normalize by sorting the keys. *)
         let srt m =
           List.sort (fun (kl, _) (kr, _) -> compare kl kr) m in
         let sls, srs = srt ls, srt rs in
-        eqm lc op true sls srs
+        eqm lc op (Ok true) sls srs
     | _, _  ->
-        internal_error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
+        Error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
 
 and eqs lc op acc ls rs =
   (* we don't short circuit to catch type errors, though this won't
      catch type errors if lengths are different *)
   match ls, rs with
     | [], [] -> acc
-    | hl :: tl, hr :: tr -> eqs lc op (acc && eq lc op hl hr) tl tr
-    | _, _ -> false
+    | hl :: tl, hr :: tr -> eqs lc op (mand acc (eq lc op hl hr)) tl tr
+    | _, _ -> Ok false
 and eqm lc op acc lm rm =
   (* we don't short circuit to catch type errors, though this won't
      catch type errors if lengths are different *)
@@ -254,15 +269,29 @@ and eqm lc op acc lm rm =
     | [], [] ->
         acc
     | (lk, lv) :: tl, (rk, rv) :: tr ->
-        eqm lc op (acc && eq lc op lk rk && eq lc op lv rv) tl tr
+        eqm lc op (mand (mand acc (eq lc op lk rk)) (eq lc op lv rv)) tl tr
     | _, _ ->
-        false
+        Ok false
+and eqr lc op acc lr rr =
+  match lr, rr with
+    | [], [] ->
+        acc
+    | (lf, lv) :: tl, (rf, rv) :: tr ->
+        if   lf = rf
+        then eqr lc op (mand acc (eq lc op lv rv)) tl tr
+        else Ok false
+    | _, _ ->
+        Ok false
 
 let equals lc (l: value) (r: value) : value =
-  V_bool (eq lc "=" l r)
+  match eq lc "=" l r with
+    | Ok b    -> V_bool b
+    | Error e -> internal_error e
 
 let not_equals lc (l: value) (r: value) : value =
-  V_bool (not (eq lc "!=" l r))
+  match eq lc "!=" l r with
+    | Ok b    -> V_bool (not b)
+    | Error e -> internal_error e
 
 let get_field lc (l: value) (f: string) : value =
   match l with

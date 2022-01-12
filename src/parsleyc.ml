@@ -21,7 +21,7 @@ module StringSet = FD.StringSet
 let do_tests    = ref false
 let print_ast   = ref false
 let input_file  = ref []
-let debug_build = false
+let debug_build = true
 let ent_nonterm = ref None
 let data_file   = ref None
 

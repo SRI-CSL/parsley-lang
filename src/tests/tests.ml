@@ -18,7 +18,7 @@
 open Interpreter
 open Values
 
-let print_ir   = true
+let print_ir = true
 
 let tests = [
     ("trivial", "format { A := (# [\"A\"] #) }",  "A",
@@ -41,7 +41,10 @@ let tests = [
      "HeloABC", V_record ["a", V_list [V_char 'H'; V_char 'e'; V_char 'l'; V_char 'o'; V_char 'A'; V_char 'B'; V_char 'C']]);
     ("sum", "format {Add a {m: int} := x=Byte !\"+\"! y=Byte {a.m := Int.of_byte(x) + Int.of_byte(y)}}",
      "Add", "5+6", V_record ["m",V_int (Int64.of_int (Char.code '5' + Char.code '6'))]);
-  ]
+    ("struct", "format {Struct s {x: int, y: [byte]} := x=Byte y=!\"Helo\"! {s.x := Int.of_byte(x); s.y := y}}",
+     "Struct", "ZHelo", V_record ["x", V_int (Int64.of_int (Char.code 'Z'));
+                                  "y", V_list [V_char 'H'; V_char 'e'; V_char 'l'; V_char 'o']]);
+    ]
 
 let do_tests gen_ir exe_ir =
   let fails = ref 0 in
@@ -61,6 +64,12 @@ let do_tests gen_ir exe_ir =
     Printf.eprintf "  got:      %s\n%!" (Values.print v');
     if   print_ir
     then Ir.Ir_printer.print_spec ir in
+  let fail_except ir e =
+    incr fails;
+    Printf.eprintf " failed with exception: %s\n%!"
+      (Runtime_exceptions.Internal_errors.error_msg e);
+    if   print_ir
+    then Ir.Ir_printer.print_spec ir in
   let succ () =
     incr succs;
     Printf.eprintf " passed.\n%!" in
@@ -69,10 +78,13 @@ let do_tests gen_ir exe_ir =
       let ir = gen_ir test spec in
       match ir with
         | None    -> fail "no IR generated"
-        | Some ir -> (match exe_ir test ir entry data with
+        | Some ir -> (let lc = Parsing.Location.ghost_loc in
+                      match exe_ir test ir entry data with
                         | None    -> fail_ir ir "no value returned"
-                        | Some v' -> if   v = v'
-                                     then succ ()
-                                     else fail_match ir v v')
+                        | Some v' -> (match Builtins.eq lc "=" v v' with
+                                        | Ok true  -> succ ()
+                                        | Ok false -> fail_match ir v v'
+                                        | Error e  -> fail_except ir e))
+
     ) tests;
   Printf.printf "Tests: %d failed out of %d.\n%!" !fails (!fails + !succs)
