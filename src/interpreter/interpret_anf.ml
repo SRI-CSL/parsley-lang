@@ -97,9 +97,11 @@ let matcher loc vr vl cases =
       | _, [] ->
           let err = Internal_errors.Pattern_match_failure (loc, vr) in
           internal_error err
+      (* wildcard *)
       | _, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_wildcard ->
           br
+      (* literals *)
       | V_int i, (p, br) :: _
            when let ilit  = Int64.to_int i in
                 Anf.(p.apat) = Anf.AP_literal (Ast.PL_int ilit) ->
@@ -121,6 +123,35 @@ let matcher loc vr vl cases =
       | V_bitvector bv, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_literal (Ast.PL_bitvector bv) ->
           br
+      (* std constructed types with native representation *)
+      | V_tuple _, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("*", "_Tuple") ->
+          br
+      | V_list [], (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("[]", "[]") ->
+          br
+      | V_list (_::_), (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("[]", "::") ->
+          br
+      | V_option None, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("option", "None") ->
+          br
+      | V_option (Some _), (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("option", "Some") ->
+          br
+      | V_bool true, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("bool", "True") ->
+          br
+      | V_bool true, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("bool", "False") ->
+          br
+      | V_bit true, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("bit", "One") ->
+          br
+      | V_bit false, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("bit", "Zero") ->
+          br
+      (* endian and user constructed types *)
       | V_constr (c, _),  (p, br) :: _
            when Anf.(p.apat) = Anf.AP_variant c ->
           br
