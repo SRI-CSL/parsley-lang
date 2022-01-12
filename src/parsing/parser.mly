@@ -394,7 +394,7 @@ expr:
 | e=expr DOT f=ident
   { make_expr (E_field (e, f)) $startpos $endpos }
 | l=LITERAL
-  { make_expr (E_literal (PL_string (Location.value l))) $startpos $endpos }
+  { make_expr (E_literal (PL_bytes (Location.value l))) $startpos $endpos }
 | l=INT_LITERAL
   { let i = make_int_literal l in
     make_expr (E_literal (PL_int i)) $startpos $endpos }
@@ -503,7 +503,7 @@ pattern:
         | Some l -> P_variant (v, l) in
     make_pattern pat $startpos $endpos }
 | l=LITERAL
-  { make_pattern (P_literal (PL_string (Location.value l))) $startpos $endpos }
+  { make_pattern (P_literal (PL_bytes (Location.value l))) $startpos $endpos }
 | l=INT_LITERAL
   { let i = make_int_literal l in
     make_pattern (P_literal (PL_int i)) $startpos $endpos }

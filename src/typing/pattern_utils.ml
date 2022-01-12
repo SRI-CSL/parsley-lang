@@ -199,10 +199,10 @@ let is_complete_sig tenv roots =
                    assert (p.pattern = P_literal PL_unit)
                  ) rest;
                true
-           | P_literal (PL_string _) ->
+           | P_literal (PL_bytes _) ->
                List.iter (fun p ->
                    match p.pattern with
-                     | P_literal (PL_string _) -> ()
+                     | P_literal (PL_bytes _) -> ()
                      | _ -> assert false
                  ) rest;
                false

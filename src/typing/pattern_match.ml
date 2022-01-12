@@ -81,14 +81,14 @@ let pick_missed_constructor tenv signature =
             ) signature in
         let i = pick_missed_int l in
         {p with pattern = P_literal (PL_int i)}
-    | P_literal (PL_string _) ->
+    | P_literal (PL_bytes _) ->
         let l =
           List.map (function
-              | {pattern = P_literal (PL_string s); _} -> s
+              | {pattern = P_literal (PL_bytes s); _} -> s
               | _ -> assert false
             ) signature in
         let s = pick_missed_string l in
-        {p with pattern = P_literal (PL_string s)}
+        {p with pattern = P_literal (PL_bytes s)}
     | P_literal (PL_bool b) ->
         ignore (List.map
                   (function

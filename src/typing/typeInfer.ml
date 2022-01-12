@@ -704,26 +704,6 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
              mk_auxexpr (E_field (exp', f)))
           )
     | E_apply ({expr = E_mod_member (m, i); _} as f, [n])
-         when Location.value m = "String"
-              && Location.value i = "of_literal" ->
-        (* special case of string literals *)
-        (match n with
-           | {expr = E_literal (PL_string s); _} ->
-               (* TODO: we could statically check s for unicode validity *)
-               let string = typcon_variable tenv (TName "string") in
-               let n' = {expr = E_literal (PL_string s);
-                         expr_loc = n.expr_loc;
-                         expr_aux = string} in
-               let ftyp = TypeConv.arrow tenv string string in
-               let _, (_, f') = infer_expr tenv venv f ftyp in
-               (string =?= t) e.expr_loc,
-               (WC_true,
-                mk_auxexpr (E_apply (f', [n'])))
-           | _ ->
-               let err = Non_literal_string_arg (n.expr_loc, m, i) in
-               raise (Error err)
-        )
-    | E_apply ({expr = E_mod_member (m, i); _} as f, [n])
          when Location.value m = "Bits"
               && (Location.value i = "ones"
                   || Location.value i = "zeros") ->

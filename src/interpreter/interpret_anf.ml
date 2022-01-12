@@ -26,7 +26,7 @@ open Runtime_exceptions
 let val_of_lit (l: Ast.primitive_literal) : value =
   match l with
     | Ast.PL_int i       -> V_int (Int64.of_int i)
-    | Ast.PL_string s    -> V_string s
+    | Ast.PL_bytes s     -> PString.to_byte_list s
     | Ast.PL_unit        -> V_unit
     | Ast.PL_bool b      -> V_bool b
     | Ast.PL_bit b       -> V_bit b
@@ -64,9 +64,11 @@ let matcher loc vr vl cases =
            when let ilit  = Int64.to_int i in
                 Anf.(p.apat) = Anf.AP_literal (Ast.PL_int ilit) ->
           br
-      | V_string s, (p, br) :: _
-           when Anf.(p.apat) = Anf.AP_literal (Ast.PL_string s) ->
-          br
+      | V_list _, (Anf.({apat = AP_literal (Ast.PL_bytes s);_}), br)
+                   :: rest ->
+          (match PString.try_to_string vl with
+             | Some s' when s' = s -> br
+             | _                   -> do_cases rest)
       | V_unit, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_literal Ast.PL_unit ->
           br

@@ -21,13 +21,21 @@ open Values
 let print_ir   = true
 
 let tests = [
-    ("trivial", "format { A := (# [\"A\"] #) }",  "A", "A",
-     V_list [V_char 'A']);
-    ("exact",   "format { A := (# [\"AB\"] #) }", "A", "ABC",
-     V_list [V_char 'A'; V_char 'B']);
-    ("astar",   "format { A := (# [\"A\"] #)* }", "A", "A",
-     V_list [V_char 'A']);
-  ]
+    ("trivial", "format { A := (# [\"A\"] #) }",  "A",
+     "A", V_list [V_char 'A']);
+    ("exact",   "format { A := (# [\"AB\"] #) }", "A",
+     "ABC", V_list [V_char 'A'; V_char 'B']);
+    ("astar",   "format { A := (# [\"A\"] #)* }", "A",
+     "A", V_list [V_char 'A']);
+    ("istar",   "format { A := (# [\"0\" .. \"9\"] #)* }", "A",
+     "0159A", V_list [V_char '0'; V_char '1'; V_char '5'; V_char '9']);
+    ("ichoice", "format { A := (# [\"0\" | \"5\" | \"9\"] #)* }", "A",
+     "0591A", V_list [V_char '0'; V_char '5'; V_char '9']);
+    ("pure",  "format {Pure p {val: [byte]} := { p.val := \"A\" }}", "Pure",
+     "", V_record ["val", V_list [V_char 'A']]);
+    ("pure2", "format {Pure p {val: [byte] := []} := { p.val := \"A\" }}", "Pure",
+     "", V_record ["val", V_list [V_char 'A']]);
+    ]
 
 let do_tests gen_ir exe_ir =
   let fails = ref 0 in

@@ -170,7 +170,7 @@ let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
            (* Eq and Neq are polymorphic. *)
            | Eq,   E_literal (PL_int l), E_literal (PL_int r) ->
                {e with expr = E_literal (PL_bool (l = r))}
-           | Eq,   E_literal (PL_string l), E_literal (PL_string r) ->
+           | Eq,   E_literal (PL_bytes l), E_literal (PL_bytes r) ->
                {e with expr = E_literal (PL_bool (l = r))}
            | Eq,   E_literal PL_unit, E_literal PL_unit ->
                {e with expr = E_literal (PL_bool true)}
@@ -182,7 +182,7 @@ let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
                {e with expr = E_literal (PL_bool (l = r))}
            | Neq,  E_literal (PL_int l), E_literal (PL_int r) ->
                {e with expr = E_literal (PL_bool (not (l = r)))}
-           | Neq,  E_literal (PL_string l), E_literal (PL_string r) ->
+           | Neq,  E_literal (PL_bytes l), E_literal (PL_bytes r) ->
                {e with expr = E_literal (PL_bool (not (l = r)))}
            | Neq,  E_literal PL_unit, E_literal PL_unit ->
                {e with expr = E_literal (PL_bool false)}
