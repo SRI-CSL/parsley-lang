@@ -39,6 +39,8 @@ let tests = [
      "HeloABC", V_record ["a", V_list [V_char 'A'; V_char 'B'; V_char 'C']]);
     ("abc", "format {ABC p {a: [byte]} := u=!\"Helo\"! v=!\"ABC\"! {p.a := List.concat(u,v)}}", "ABC",
      "HeloABC", V_record ["a", V_list [V_char 'H'; V_char 'e'; V_char 'l'; V_char 'o'; V_char 'A'; V_char 'B'; V_char 'C']]);
+    ("sum", "format {Add a {m: int} := x=Byte !\"+\"! y=Byte {a.m := Int.of_byte(x) + Int.of_byte(y)}}",
+     "Add", "5+6", V_record ["m",V_int (Int64.of_int (Char.code '5' + Char.code '6'))]);
   ]
 
 let do_tests gen_ir exe_ir =
@@ -61,7 +63,7 @@ let do_tests gen_ir exe_ir =
     then Ir.Ir_printer.print_spec ir in
   let succ () =
     incr succs;
-    Printf.eprintf " succeeded.\n%!" in
+    Printf.eprintf " passed.\n%!" in
   List.iter (fun (test, spec, entry, data, v) ->
       Printf.eprintf "Running test '%s' ...%!" test;
       let ir = gen_ir test spec in

@@ -212,9 +212,10 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
               let vl = VEnv.lookup s.st_venv Anf.(vr.v) vr.v_loc in
               Location.value p, vl
             ) params in
-        (* The continuations should be dynamic. *)
-        assert (Cfg.is_dynamic lsc);
-        assert (Cfg.is_dynamic lf);
+        (* There is no assertion on the continuations since they need
+           not be dynamic, unlike user-defined non-terminals.  This is
+           because stdlib non-terminals are not dispatched by an
+           `nt_entry`. *)
         (match dispatch_stdlib loc ntn s.st_cur_view pvs with
            | R_ok (vl, vu) ->
                (* Update the environment of the calling state `s`. *)
