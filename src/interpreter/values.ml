@@ -93,7 +93,7 @@ type vtype =
   | T_set of vtype
   | T_map of vtype * vtype
 
-let rec string_of_vtype t =
+let rec string_of_vtype (t: vtype) : string =
   let string_of_field (f, ft) =
     Printf.sprintf "%s: %s" f (string_of_vtype ft) in
   match t with
@@ -133,7 +133,7 @@ let rec string_of_vtype t =
                                     (string_of_vtype tv)
 
 (* the runtime type of a value *)
-let rec vtype_of v =
+let rec vtype_of (v: value) : vtype =
   let ftype_of (f, fv) = f, vtype_of fv in
   match v with
     | V_unit           -> T_unit
@@ -157,7 +157,7 @@ let rec vtype_of v =
     | V_map []         -> T_map (T_empty, T_empty)
     | V_map ((k,v)::_) -> T_map (vtype_of k, vtype_of v)
 
-let print v =
+let string_of_value (v: value) : string =
   let rec pr d v =
     let mk_fill d = String.make (2*d + 3) ' ' in
     let mk_sep c  = Printf.sprintf "%s\n %s" c (mk_fill d) in
