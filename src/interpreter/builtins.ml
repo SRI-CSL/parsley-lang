@@ -133,17 +133,14 @@ let bv_and lc (l: value) (r: value) : value =
         internal_error (Type_error (lc, "&_b", 1, vtype_of l, T_bitvector))
 
 let bit_extract lc (l: bool list) (hi: int) (lo: int) =
-  let rec rextract l acc idx =
-    if   idx > hi
-    then acc
-    else let b = List.nth l idx in
-         rextract l (b :: acc) (idx + 1) in
   let len = List.length l in
-  if hi >= len
+  if   hi >= len
   then internal_error (Bitrange_index (lc, hi, len))
   else if lo >= len
   then internal_error (Bitrange_index (lc, lo, len))
-  else rextract l [] lo
+  else if lo >= hi
+  then internal_error (Bitrange_index (lc, lo, hi))
+  else field_of_bitvector l hi lo
 
 let bv_bitrange lc (l: value) (hi: int) (lo: int) : value =
   match l with
@@ -153,14 +150,14 @@ let bv_bitrange lc (l: value) (hi: int) (lo: int) : value =
         internal_error (Type_error (lc, "bitrange", 1, vtype_of l, T_bitvector))
 
 let mk_bitfield_type (bfi: TypingEnvironment.bitfield_info) =
-  let rcd = List.map (fun (f, _, _) -> f, T_bitvector) bfi.bf_fields in
+  let rcd = List.map (fun (f, _) -> f, T_bitvector) bfi.bf_fields in
   T_record rcd
 
 let rec_of_bits lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
     : value =
   match l with
     | V_bitvector l ->
-        let fs = List.fold_left (fun acc (f, hi, lo) ->
+        let fs = List.fold_left (fun acc (f, (hi, lo)) ->
                      (f, V_bitvector (bit_extract lc l hi lo)) :: acc
                    ) [] bfi.bf_fields in
         V_record fs
@@ -178,7 +175,7 @@ let bits_of_rec lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
            since they are sorted before registered into the type
            environment. *)
         let l =
-          List.fold_left (fun acc (f, hi, lo) ->
+          List.fold_left (fun acc (f, (hi, lo)) ->
               match List.assoc_opt f rv with
                   | None ->
                       internal_error (No_field (lc, f))
@@ -215,6 +212,13 @@ let rec eq lc op l r : (bool, error) result =
     | V_float l, V_float r         -> Ok (l = r)
     | V_string l, V_string r       -> Ok (l = r)
     | V_bitvector l, V_bitvector r -> Ok (l = r)
+
+    | V_bitfield (li, lv), V_bitfield (ri, rv)
+         when
+           let li = {li with bf_fields = List.sort compare li.bf_fields} in
+           let ri = {ri with bf_fields = List.sort compare ri.bf_fields} in
+           li = ri ->
+        Ok (lv = rv)
 
     | V_option None, V_option None         -> Ok true
     | V_option (Some l), V_option (Some r) -> eq lc op l r
@@ -298,7 +302,13 @@ let get_field lc (l: value) (f: string) : value =
     | V_record fs ->
         (match List.assoc_opt f fs with
            | Some v -> v
-           | None -> internal_error (No_field (lc, f)))
+           | None   -> internal_error (No_field (lc, f)))
+    | V_bitfield (bf, v) ->
+        let hi, lo =
+          match List.assoc_opt f bf.bf_fields with
+            | Some r -> r
+            | None   -> internal_error (No_field (lc, f)) in
+        V_bitvector (bit_extract lc v hi lo)
     | _ ->
         internal_error (Type_error (lc, "." ^ f, 1, vtype_of l, T_record [f, T_empty]))
 

@@ -506,16 +506,18 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
               assert (hi >= lo);
               let loc = Location.loc f in
               (f, (AstUtils.make_bitvector_type (1 + hi - lo) loc)),
-              (Location.value f, hi, lo)
+              (Location.value f, (hi, lo))
             ) fields in
         let fields, finfos = List.split fields in
         let dids, drqs, (tenv, cid, crqs, let_env) =
           process_record_fields fields in
         (* Sort the fields into increasing index order *)
         let finfos =
-          List.sort (fun (_, l, _) (_, r, _) -> compare l r) finfos in
+          List.sort (fun (_, (l, _)) (_, (r, _)) -> compare l r) finfos in
         (* Fill in the adt_info *)
-        let bf_info = {bf_fields = finfos; bf_length = len} in
+        let bf_info = {bf_name   = Location.value ident;
+                       bf_fields = finfos;
+                       bf_length = len} in
         adt_ref := Some {adt = Record {adt = ident;
                                        fields;
                                        record_constructor = cid;

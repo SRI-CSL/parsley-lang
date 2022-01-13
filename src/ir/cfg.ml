@@ -62,13 +62,12 @@ type return = var option
 type gnode_desc =
   (* expression evaluation *)
 
-  (* Evaluate the expression and assign it to a possibly fresh
-     variable *)
+  (* Evaluate the expression and assign it to a variable. *)
   | N_assign of var * aexp
 
-  (* Create an entry for a function and assign it to a fresh
-     variable.  Since there are no first-class functions, this is
-     usually done during initialization. *)
+  (* Create an entry for a function and assign it to a variable.
+     Since there are no first-class functions, this is usually done
+     during initialization. *)
   | N_assign_fun of var * var list * aexp
 
   (* side-effects *)
@@ -101,7 +100,7 @@ type gnode_desc =
      N_mark_bit_cursor and N_collect_bits are omitted.
    *)
 
-  (* enter/exit the bitwise parsing mode *)
+  (* Enter/exit the bitwise parsing mode *)
   | N_enter_bitmode
   | N_exit_bitmode
 
@@ -115,8 +114,9 @@ type gnode_desc =
   (* Mark bit-cursor location *)
   | N_mark_bit_cursor
   (* Collect matched bits from the marked position into a variable,
-     which may be fresh. *)
-  | N_collect_bits of var * matched_bits_bound
+     and optionally interpret as a bitfield. *)
+  | N_collect_bits of
+      var * matched_bits_bound * TypingEnvironment.bitfield_info option
 
   (* view control *)
 
@@ -159,12 +159,12 @@ type gnode_desc =
   | N_set_pos of var
 
 type gnode =
-  {node: gnode_desc;
+  {node:     gnode_desc;
    node_typ: typ;
    node_loc: Location.t}
 
 let mk_gnode n t l =
-  {node = n;
+  {node     = n;
    node_typ = t;
    node_loc = l}
 
@@ -213,7 +213,7 @@ let raw_label_of = function
   | L_static l  -> l
   | L_dynamic l -> l
 
-let label_to_string l =
+let string_of_label l =
   match l with
     | L_static  l -> Printf.sprintf "S%s" (Label.to_string l)
     | L_dynamic l -> Printf.sprintf "D%s" (Label.to_string l)
@@ -263,10 +263,10 @@ module Node = struct
 
     (* Collect matched bits from the marked position and check the
        specified predicate.  If it succeeds, N_collect_checked_bits
-       assigns the collected bitvector to the specified variable,
-       which may be fresh, and jumps to the first label; otherwise, it
-       fails to the second label.  N_check_bits does the same except
-       that it does not assign the matched bits to any variable. *)
+       assigns the collected bitvector to the specified variable, and
+       jumps to the first label; otherwise, it fails to the second
+       label.  N_check_bits does the same except that it does not
+       assign the matched bits to any variable. *)
     | N_collect_checked_bits:
         Location.t * var * matched_bits_predicate
         * label * label
@@ -348,23 +348,23 @@ module StringMap = Map.Make(String)
  * stored separately, since this entry is needed for each non-terminal
  * before their CFGs can be constructed. *)
 type nt_entry =
-  {nt_name: Ast.ident;
+  {nt_name:      Ast.ident;
    (* each inherited attribute and the corresponding var used for it
     * in the CFG *)
    nt_inh_attrs: (var * typ) StringMap.t;
    (* type of the return value after parsing this non-terminal *)
-   nt_typ: typ;
+   nt_typ:       typ;
    (* the entry label for the CFG *)
-   nt_entry: Label.label; (* is implicitly static *)
+   nt_entry:     Label.label; (* is implicitly static *)
    (* a pair of success and failure continuations are assumed for the
       CFG.  these need to mapped to the current runtime success and
       failure continuations during execution *)
-   nt_succcont: label;    (* should always be dynamic *)
-   nt_failcont: label;    (* should always be dynamic *)
+   nt_succcont:  label;       (* should always be dynamic *)
+   nt_failcont:  label;       (* should always be dynamic *)
    (* a successfully matched value will be bound to this variable *)
-   nt_retvar: var;
+   nt_retvar:    var;
    (* the location this non-term was defined *)
-   nt_loc: Location.t}
+   nt_loc:       Location.t}
 
 (* The 'grammar table-of-contents' maps each non-terminal name to its
    nt_entry.  It is only a ToC and not complete since it does not
@@ -392,14 +392,14 @@ type spec_ir =
 (* The context for IR generation *)
 type context =
   {(* the typing environment *)
-   ctx_tenv: TypingEnvironment.environment;
+   ctx_tenv:     TypingEnvironment.environment;
    (* this will stay static during the construction of the IR *)
-   ctx_gtoc: nt_entry FormatGToC.t;
+   ctx_gtoc:     nt_entry FormatGToC.t;
    (* this will be updated during the construction with completed
       blocks *)
-   ctx_ir:   closed FormatIR.t;
+   ctx_ir:       closed FormatIR.t;
    (* the current variable environment *)
-   ctx_venv: VEnv.t;
+   ctx_venv:     VEnv.t;
    (* the current failure continuation *)
    ctx_failcont: label; (* may be static or dynamic *)
    (* intermediate re forms for regexp non-terminals *)

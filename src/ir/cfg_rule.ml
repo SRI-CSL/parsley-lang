@@ -137,12 +137,12 @@ let prepare_cursor
 (* collect matched bits into a variable if needed *)
 let collect_cursor
       (b: opened) (pred: matched_bits_bound) (ret: return) (typ: typ)
-      (loc: Location.t)
+      (obf: TypingEnvironment.bitfield_info option) (loc: Location.t)
     : opened =
   match ret with
     | None -> b
     | Some v ->
-        let nd = N_collect_bits (v, pred) in
+        let nd = N_collect_bits (v, pred, obf) in
         add_gnode b nd typ loc
 
 (* Note: The construction of the CFG often involves glue code in ANF.
@@ -172,7 +172,7 @@ let rec lower_rule_elem
         let bits = Location.value bits in
         let b = add_gnode b (N_bits bits) typ loc in
         let pred = MB_exact bits in
-        let b = collect_cursor b pred ret typ loc in
+        let b = collect_cursor b pred ret typ None loc in
         ctx, b
 
     | RE_align bits ->
@@ -181,20 +181,20 @@ let rec lower_rule_elem
         let bits = Location.value bits in
         let b = add_gnode b (N_align bits) typ loc in
         let pred = MB_below bits in
-        let b = collect_cursor b pred ret typ loc in
+        let b = collect_cursor b pred ret typ None loc in
         ctx, b
 
     | RE_bitfield bf ->
         (* This is equivalent to RE_bitvector for the underlying
            number of bits.  The interpretation of the matched value as
            a bitfield record is done by the record accessors. *)
-        let bits =
-          TypedAstUtils.lookup_bitfield_length ctx.ctx_tenv bf in
+        let bfi =
+          TypedAstUtils.lookup_bitfield_info ctx.ctx_tenv bf in
         let ctx, b = enter_bitmode ctx b loc in
         let b = prepare_cursor ctx b ret loc in
-        let b = add_gnode b (N_bits bits) typ loc in
-        let p = MB_exact bits in
-        let b = collect_cursor b p ret typ loc in
+        let b = add_gnode b (N_bits bfi.bf_length) typ loc in
+        let p = MB_exact bfi.bf_length in
+        let b = collect_cursor b p ret typ (Some bfi) loc in
         ctx, b
 
     | RE_pad (bits, pat) ->

@@ -48,11 +48,13 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
         align_bits loc (Printf.sprintf "pad<%d>" w) s w
     | N_mark_bit_cursor ->
         mark_bit_cursor loc s
-    | N_collect_bits (v, pred) ->
+    | N_collect_bits (v, pred, obf) ->
         let bits, s = collect_bits loc s in
         if   match_bits_bound bits pred
-        then let bits = List.map (fun b -> V_bool b) bits in
-             let env = VEnv.assign s.st_venv v (V_list bits) in
+        then let vl = match obf with
+                 | None    -> V_bitvector bits
+                 | Some bf -> V_bitfield (bf, bits) in
+             let env = VEnv.assign s.st_venv v vl in
              {s with st_venv = env}
         else let m = Ir_printer.string_of_mbb pred in
              let err = Internal_errors.Bitsbound_check (loc, m) in

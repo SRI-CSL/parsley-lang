@@ -35,7 +35,8 @@ open MultiEquation
     type constructor analysis. *)
 
 type bitfield_info =
-  {bf_fields: (string * int * int) list;
+  {bf_name:   string;
+   bf_fields: (string * (int * int)) list;
    bf_length: int}
 
 type record_info =

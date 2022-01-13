@@ -101,7 +101,7 @@ module Internal_errors = struct
         msg "%s:\n Internal Error: failcont stack underflow" lc
     | Unexpected_failcont (lc, l, le) ->
         msg "%s:\n Internal Error: unexpected failcont label %s, expected %s"
-          lc (Cfg.label_to_string l) (Cfg.label_to_string le)
+          lc (Cfg.string_of_label l) (Cfg.string_of_label le)
     | No_nonterm_entry nt ->
         msg "%s:\n Internal Error: no non-terminal entry found for `%s'"
           (Location.loc nt) (Location.value nt)
