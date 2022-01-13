@@ -216,6 +216,10 @@ let label_to_string l =
    top-most failcont label from the stack is popped, and execution
    resumed from the block pointed to by the label.
 
+   The failcont stack is explicitly managed using
+   N_{push,pop}_failcont instructions, and can only contain static
+   labels.
+
    All modifications to variable state are stratified according to the
    failcont context in which they are performed.  On a match failure,
    all state updates since the last push_failcont are undone, and that
@@ -227,9 +231,7 @@ let label_to_string l =
 
    This can be used to perform a limited amount of garbage collection:
    on error, all variables allocated since the last push_failcont can
-   be deallocated when the failcont stack is popped.
-
- *)
+   be deallocated when the failcont stack is popped. *)
 
 (* The node structure of the CFG *)
 
@@ -271,10 +273,7 @@ module Node = struct
     (* Constrained jump: the var should have been bound to the value
        of the constraint expression, and the label is the success
        continuation.  If the constraint fails (evaluates to false),
-       rewind to the top-most failcont on the failcont stack, which is
-       specified as the second label (to enable a dynamic check for
-       code-generation errors, and a more accurate successors
-       function). *)
+       rewind to the second label. *)
     | N_constraint: Location.t * var * label * label
                     -> (Block.o, Block.c, unit) node
 
@@ -300,8 +299,7 @@ module Node = struct
        At runtime: the specified labels are the dynamic success
        and failure continuations, which get mapped to the static
        succcont and failcont for the non-terminal's CFG, as specified
-       in its nt_entry.
-     *)
+       in its nt_entry. *)
     | N_call_nonterm:
         Ast.ident * (Ast.ident * var) list * return * label * label
         -> (Block.o, Block.c, unit) node

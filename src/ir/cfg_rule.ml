@@ -411,7 +411,7 @@ let rec lower_rule_elem
                   | Some b -> b
                   | None   -> assert false in
               let loc' = Ast.(re.rule_elem_loc) in
-              let b = if not last
+              let b = if   not last
                       then add_node b (Node.N_push_failcont (loc', fl))
                       else b in
               (* even though we don't push the failcont for the last
@@ -419,9 +419,9 @@ let rec lower_rule_elem
                  `fl` will be `orig_failcont` *)
               let ctx = {ctx with ctx_failcont = fl} in
               let ctx, b = lower_rule_elem ctx b ret re in
-              let b = if not last
+              let b = if   not last
                       then (* on success, pop the failcont *)
-                        add_node b (Node.N_pop_failcont (loc', fl))
+                           add_node b (Node.N_pop_failcont (loc', fl))
                       else b in
               (* jump to the success continuation *)
               let ctx = close_with_jump ctx b loc' lsc in
@@ -604,7 +604,7 @@ let rec lower_rule_elem
            for both the success and failure case, and save the
            original failure continuation. *)
         let lsc = fresh_static () in
-        let loc'  = re'.rule_elem_loc in
+        let loc' = re'.rule_elem_loc in
         let b = add_node b (Node.N_push_failcont (loc', lsc)) in
         let orig_failcont = ctx.ctx_failcont in
         (* lower re' with the new failure continuation *)
@@ -1108,9 +1108,9 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
            `fl` is okay even for the last choice. *)
         let ctx = {ctx with ctx_failcont = fl} in
         let ctx, b = lower_rule ctx b r in
-        let b = if not last
+        let b = if   not last
                 then (* on success, pop the failcont *)
-                  add_node b (Node.N_pop_failcont (loc', fl))
+                     add_node b (Node.N_pop_failcont (loc', fl))
                 else b in
         (* jump to the success continuation *)
         let ctx = close_with_jump ctx b loc' lsucc in

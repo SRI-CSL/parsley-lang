@@ -147,11 +147,15 @@ let rec do_jump lc (s: state) (l: Cfg.label) : result =
   else let b = get_block lc s l in
        do_closed_block s b
 
+(* A failure to a static label should correspond to an entry at the
+   top of the failcont stack, and this entry is popped before
+   proceeding.  A failure to a dynamic label corresponds to a return
+   to the caller. *)
 and do_fail lc (s: state) (l: Cfg.label) : result =
-  let s = do_pop_failcont lc s l in
   if   Cfg.is_dynamic l
   then C_failure, s, l
-  else let b = get_block lc s l in
+  else let s = do_pop_failcont lc s l in
+       let b = get_block lc s l in
        do_closed_block s b
 
 and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
@@ -215,7 +219,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         (* There is no assertion on the continuations since they need
            not be dynamic, unlike user-defined non-terminals.  This is
            because stdlib non-terminals are not dispatched by an
-           `nt_entry`. *)
+           `nt_entry`, and hence do not have explicitly defined
+           dynamic continuation labels. *)
         (match dispatch_stdlib loc ntn s.st_cur_view pvs with
            | R_ok (vl, vu) ->
                (* Update the environment of the calling state `s`. *)
