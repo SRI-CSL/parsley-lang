@@ -106,6 +106,23 @@ let mk_choice_labels choices (final_cont : label) =
       | _ :: t  -> mk_fls ((fresh_static (), false) :: fls) t in
   List.rev (mk_fls [] choices)
 
+(* enter and exit bitmode *)
+let enter_bitmode (ctx: context) (b: opened) (loc: Location.t)
+    : context * opened =
+  if   ctx.ctx_bitmode
+  then ctx, b
+  else {ctx with ctx_bitmode = true},
+       let typ = get_typ ctx "unit" in
+       add_gnode b N_enter_bitmode typ loc
+
+let exit_bitmode (ctx: context) (b: opened) (loc: Location.t)
+    : context * opened =
+  if   not ctx.ctx_bitmode
+  then ctx, b
+  else {ctx with ctx_bitmode = false},
+       let typ = get_typ ctx "unit" in
+       add_gnode b N_exit_bitmode typ loc
+
 (* handle inserting a mark_bit_cursor if needed for a return value *)
 let prepare_cursor
       (ctx: context) (b: opened) (ret: return) (loc: Location.t)
@@ -150,6 +167,7 @@ let rec lower_rule_elem
     (* bit-level support *)
 
     | RE_bitvector bits ->
+        let ctx, b = enter_bitmode ctx b loc in
         let b = prepare_cursor ctx b ret loc in
         let bits = Location.value bits in
         let b = add_gnode b (N_bits bits) typ loc in
@@ -158,6 +176,7 @@ let rec lower_rule_elem
         ctx, b
 
     | RE_align bits ->
+        let ctx, b = enter_bitmode ctx b loc in
         let b = prepare_cursor ctx b ret loc in
         let bits = Location.value bits in
         let b = add_gnode b (N_align bits) typ loc in
@@ -171,6 +190,7 @@ let rec lower_rule_elem
            a bitfield record is done by the record accessors. *)
         let bits =
           TypedAstUtils.lookup_bitfield_length ctx.ctx_tenv bf in
+        let ctx, b = enter_bitmode ctx b loc in
         let b = prepare_cursor ctx b ret loc in
         let b = add_gnode b (N_bits bits) typ loc in
         let p = MB_exact bits in
@@ -180,6 +200,7 @@ let rec lower_rule_elem
     | RE_pad (bits, pat) ->
         (* This node is like a bit-level constraint node in terms of
            its control flow. *)
+        let ctx, b = enter_bitmode ctx b loc in
         let b = prepare_cursor ctx b ret loc in
         let bits = Location.value bits in
         let b = add_gnode b (N_pad bits) typ loc in
@@ -200,6 +221,7 @@ let rec lower_rule_elem
     (* other basic primitives *)
 
     | RE_regexp r ->
+        let ctx, b = exit_bitmode ctx b loc in
         (* Compile the regexp into a DFA. *)
         let dfa = Cfg_regexp.build_dfa ctx.ctx_re_env r in
         (* Bind a new var for the matched value if we don't have a
@@ -217,6 +239,7 @@ let rec lower_rule_elem
         ctx, new_labeled_block loc lsc
 
     | RE_seq_flat _ ->
+        let ctx, b = exit_bitmode ctx b loc in
         assert (TypedAstUtils.is_regexp_elem ctx.ctx_tenv re);
         let rx = TypedAstUtils.rule_elem_to_regexp re in
         (* Now do as above *)
@@ -237,6 +260,7 @@ let rec lower_rule_elem
         ctx, new_labeled_block loc lsc
 
     | RE_non_term (nt, None) ->
+        let ctx, b = exit_bitmode ctx b loc in
         (* The jump to the CFG for the non-term causes the current
            block to end and continue on success in a new block, with
            failure continuing in the current failcont.  This is
@@ -255,6 +279,7 @@ let rec lower_rule_elem
         ctx, new_labeled_block loc lsc
 
     | RE_non_term (nt, Some args) ->
+        let ctx, b = exit_bitmode ctx b loc in
         let venv, args =
           List.fold_left (fun (venv, args) (i, a, e) ->
               (if a != Ast.A_eq
@@ -283,6 +308,8 @@ let rec lower_rule_elem
 
     (* binding for return values *)
     | RE_named (v, re') ->
+        (* Allow naming regardless of the current bit-mode.  This
+           enables naming of bitwise matches. *)
         let v, venv = bind_var ctx.ctx_venv v typ in
         let ret' = Some v in
         let ctx, b =
@@ -297,6 +324,14 @@ let rec lower_rule_elem
 
     (* side-effects *)
     | RE_action {action_stmts = (stmts, retexp); _} ->
+        (* Disallow actions at non-byte-aligned locations.  Actions
+           can modify the view, which could leave the bitmode of the
+           view for the next rule element in an undefined state.
+           The tradeoff is that view enquiry cannot be done at
+           non-aligned positions.  We could reconsider this if we
+           could distinguish view-read-only from view-write
+           actions. *)
+        let ctx, b = exit_bitmode ctx b loc in
         let venv, astmts =
           List.fold_left (fun (venv, astmts) stmt ->
               let astmt, venv =
@@ -331,6 +366,12 @@ let rec lower_rule_elem
     (* control flow *)
 
     | RE_constraint c ->
+        (* Due to the control-flow introduced by a constraint, the
+           view should be in a well-defined state at the branch
+           targets, otherwise the parser may or may not be in
+           bitmode.  The tradeoff is that constraints cannot be
+           checked at non-byte-aligned positions. *)
+        let ctx, b = exit_bitmode ctx b loc in
         let cir, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv c in
         (* if we don't have a return variable, generate one to hold
@@ -355,6 +396,7 @@ let rec lower_rule_elem
     (* since the case when there is no return value is especially
        simple, handle it separately *)
     | RE_seq res when ret = None ->
+        let ctx, b = exit_bitmode ctx b loc in
         List.fold_left (fun (ctx, b) re ->
             lower_rule_elem ctx b ret re
           ) (ctx, b) res
@@ -362,6 +404,7 @@ let rec lower_rule_elem
     (* with a return value, the outline is the same as above, but we
        have to ensure that the return variable is properly assigned *)
     | RE_seq res ->
+        let ctx, b = exit_bitmode ctx b loc in
         let ctx, b, vs =
           List.fold_left (fun (ctx, b, vs) (re: rule_elem) ->
               (* create variables for the elements of the sequence *)
@@ -392,6 +435,7 @@ let rec lower_rule_elem
     (* there is no special case for ret since it gets handled by
        whichever re succeeds *)
     | RE_choice res ->
+        let ctx, b = exit_bitmode ctx b loc in
         (* since any re could succeed, we need to create a common
            success continuation for all of them. *)
         let lsc = fresh_static () in
@@ -439,6 +483,7 @@ let rec lower_rule_elem
         {ctx with ctx_failcont = orig_failcont}, b
 
     | RE_star (re', None) ->
+        let ctx, b = exit_bitmode ctx b loc in
         (* initialize the return value if any *)
         let vr, b = match ret with
             | None ->
@@ -508,6 +553,7 @@ let rec lower_rule_elem
         ctx, b
 
     | RE_star (re', Some e) ->
+        let ctx, b = exit_bitmode ctx b loc in
         (* The loop bound is tracked in a variable, and the return
            value is accumulated in a list that is reversed at the end.
            Note a big difference wrt RE_star (_, None): re* can never
@@ -600,6 +646,10 @@ let rec lower_rule_elem
        whether there is a return variable to be bound, we keep the two
        cases separate. *)
     | RE_opt re' when ret == None ->
+        (* Optional bit-elements complicate bit-alignment
+           calculations, so they are currently forbidden in
+           bit-mode. *)
+        let ctx, b = exit_bitmode ctx b loc in
         (* re'? cannot fail, so create a new label that can be used
            for both the success and failure case, and save the
            original failure continuation. *)
@@ -624,6 +674,10 @@ let rec lower_rule_elem
        have to ensure that the return variable is properly assigned in
        both the success as well as the failure case. *)
     | RE_opt re' ->
+        (* Optional bit-elements complicate bit-alignment
+           calculations, so they are currently forbidden in
+           bit-mode. *)
+        let ctx, b = exit_bitmode ctx b loc in
         (* create a new variable to contain the matched value, and new
            labels for the success and failure continuations. *)
         let lsc = fresh_static () in
@@ -673,6 +727,7 @@ let rec lower_rule_elem
     (* view control *)
 
     | RE_set_view e ->
+        let ctx, b = exit_bitmode ctx b loc in
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let v, venv = fresh_var venv e.expr_aux e.expr_loc in
@@ -686,6 +741,7 @@ let rec lower_rule_elem
        failcont is decoupled from view restoration.  So views need to
        be restored explicitly after failures, unlike variable state. *)
     | RE_at_pos (e, re') ->
+        let ctx, b = exit_bitmode ctx b loc in
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let v, venv = fresh_var venv e.expr_aux e.expr_loc in
@@ -719,6 +775,7 @@ let rec lower_rule_elem
         ctx, b
 
     | RE_at_view (e, re') ->
+        let ctx, b = exit_bitmode ctx b loc in
         (* essentially the same as above, but with the N_set_view primitive *)
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
@@ -758,6 +815,7 @@ let rec lower_rule_elem
     | RE_map_views (e, ({rule_elem = RE_non_term (nt, Some args); _}
                         as re'))
          when List.exists (fun (_, a, _) -> a = Ast.A_in) args ->
+        let ctx, b = exit_bitmode ctx b loc in
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let vl, venv = fresh_var venv e.expr_aux e.expr_loc in
@@ -924,6 +982,7 @@ let rec lower_rule_elem
         ctx, b
 
     | RE_map_views (e, re') ->
+        let ctx, b = exit_bitmode ctx b loc in
         let ae, venv =
           Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
         let vl, venv = fresh_var venv e.expr_aux e.expr_loc in
@@ -1055,7 +1114,8 @@ let lower_rule (ctx: context) (b: opened) (r: rule)
     List.fold_left (fun (ctx, b) re ->
         lower_rule_elem ctx b None re
       ) ({ctx with ctx_venv = venv}, b) r.rule_rhs in
-  ctx, b
+  (* Ensure bitmode has been exited at the end of the rule. *)
+  exit_bitmode ctx b r.rule_loc
 
 (* a non-terminal requires the set up of its attributes and lowering
    of the ordered choice of its rules; in addition, it needs an

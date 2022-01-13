@@ -78,16 +78,21 @@ type gnode_desc =
 
   (* The mechanism for the matching and extraction of matched bits is
      the following:
+     . a bit-sensitive parsing mode is explicitly entered using
+       N_enter_bitmode before any bit-wise parsing operation.
 
-     . the current bit-cursor location is marked (N_mark_bit_cursor)
+     . the current bit-cursor location is marked (N_mark_bit_cursor).
 
      . the cursor is updated according to the bit-matching construct
-       (bitvector, align, pad, bitfield)
+       (bitvector, align, pad, bitfield).
 
      . the bits from the marked position to the current cursor are
        collected into a variable holding the match (N_collect_bits).
        An expected number of bits (or bound on this number) is
        specified as a check on correctness.
+
+     . when a sequence of bit-wise parsing operations are finished,
+       the normal parsing mode is restored using N_exit_bitmode.
 
      It is an internal error if there is no marked position at the
      time of N_collect_bits.
@@ -95,6 +100,10 @@ type gnode_desc =
      If the matched bits are not being bound by a variable, the
      N_mark_bit_cursor and N_collect_bits are omitted.
    *)
+
+  (* enter/exit the bitwise parsing mode *)
+  | N_enter_bitmode
+  | N_exit_bitmode
 
   (* Match a specified number of bits *)
   | N_bits of int
@@ -394,7 +403,9 @@ type context =
    (* the current failure continuation *)
    ctx_failcont: label; (* may be static or dynamic *)
    (* intermediate re forms for regexp non-terminals *)
-   ctx_re_env:   re_env}
+   ctx_re_env:   re_env;
+   (* whether the current mode is bit-wise *)
+   ctx_bitmode:  bool}
 
 type error =
   | Unbound_return_expr of Location.t

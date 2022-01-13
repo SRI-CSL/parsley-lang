@@ -36,6 +36,10 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
         {s with st_fenv}
     | N_action sts ->
         List.fold_left eval_stmt s sts
+    | N_enter_bitmode ->
+        enter_bitmode loc s
+    | N_exit_bitmode ->
+        exit_bitmode loc s
     | N_bits w ->
         match_bits loc (Printf.sprintf "bits<%d>" w) s w
     | N_align w ->

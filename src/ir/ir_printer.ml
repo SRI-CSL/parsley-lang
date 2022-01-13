@@ -66,6 +66,10 @@ let print_gnode g =
           ) ss;
         pp_string " }";
         pp_close_box ()
+    | N_enter_bitmode ->
+        pp_string "enter_bitmode"
+    | N_exit_bitmode ->
+        pp_string "exit_bitmode"
     | N_bits i ->
         pp_string (Printf.sprintf "bits %d" i)
     | N_align i ->
@@ -73,7 +77,7 @@ let print_gnode g =
     | N_pad i ->
         pp_string (Printf.sprintf "pad %d" i)
     | N_mark_bit_cursor ->
-        pp_string "bit_mark"
+        pp_string "set_bit_mark"
     | N_collect_bits (v, mbb) ->
         pp_string (Printf.sprintf "collect_bits %s, %s"
                      (Anf_printer.string_of_var v.v)

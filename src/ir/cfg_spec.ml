@@ -49,7 +49,8 @@ let lower_spec (_, init_venv) tenv (spec: program) =
              ctx_ir         = FormatIR.empty;
              ctx_venv       = venv;
              ctx_failcont   = init_failcont;
-             ctx_re_env     = re_env} in
+             ctx_re_env     = re_env;
+             ctx_bitmode    = false} in
 
   (* create a block for evaluating the statics, i.e. constants and
      function definitions.  its label will be
