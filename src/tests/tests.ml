@@ -54,8 +54,25 @@ let tests = [
                 }
                 format {C p {c:[byte]} := i=(# [\"0\" .. \"9\" ]* #)
                                           (([more_than_five(i)] {p.c := \"gt 5\"})
-                                        | {p.c := \"ngt 5\"})}", "C",
-     "1234", V_record ["c", V_list [V_char 'g'; V_char 't'; V_char ' '; V_char '5']]);
+                                        | {p.c := \"ngt 5\"})}",
+     "C", "1234", V_record ["c", V_list [V_char 'g'; V_char 't'; V_char ' '; V_char '5']]);
+    ("recdnt", "type recd = {t: byte}
+                format {NonTerm nt {recd} := c=Byte {nt.t := c}}",
+     "NonTerm", "B", V_record ["t", V_char 'B']);
+    ("depntvec", "type recd = {t: byte}
+                  fun byte_of_recd(r: recd) -> byte = {r.t}
+                  format {NonTerm n {recd} := c=Byte {n.t := c};;
+                          DepNTVec d {v: [byte]} :=
+                            c=Byte v=(NonTerm ^ Int.of_byte(c))
+                            {d.v := List.map(byte_of_recd, v)}}",
+     "DepNTVec", "\002AB", V_record ["v", V_list [V_char 'A'; V_char 'B']]);
+    ("ntdepntvec", "type recd = {t: byte}
+                    fun byte_of_recd(r: recd) -> byte = {r.t}
+                    format {NonTerm n {recd} := c=Byte {n.t := c};;
+                            NTDepNTVec d {v: [byte]} :=
+                              c=NonTerm v=(NonTerm ^ Int.of_byte(c.t))
+                              {d.v := List.map(byte_of_recd, v)}}",
+     "NTDepNTVec","\002AB", V_record ["v", V_list [V_char 'A'; V_char 'B']]);
   ]
 
 let do_tests gen_ir exe_ir =

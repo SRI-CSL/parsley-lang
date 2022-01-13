@@ -279,13 +279,16 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                let env = match ret with
                    | None    -> s.st_venv
                    | Some vr -> VEnv.assign s.st_venv vr vl in
-               (* Transfer control to the success continuation. *)
-               do_jump loc {s with st_venv = env} lsc
+               (* Transfer control to the success continuation with
+                  the updated view. *)
+               do_jump loc {s with st_venv     = env;
+                                   st_cur_view = s'.st_cur_view} lsc
            | C_failure ->
                (* We should have terminated at the specified failure
                   continuation. *)
                assert (l = ent.nt_failcont);
-               (* Transfer control to the failure continuation. *)
+               (* Transfer control to the failure continuation without
+                  any change to the view. *)
                do_fail loc s lf)
     | _ ->
         (* this should not be needed *)
