@@ -85,32 +85,52 @@ let tests = [
                                     "f", V_bitfield (bf, [true;false;false;false;false;false;false;true;true]);
                                     "t", V_bitvector [true;false];
                                     "b", V_bitvector [false;false;false;false;false;true;true]]);
+    ("choice1", "type choice = | Good of [byte] | Bad of [byte]
+                 format {Chk r {v: [byte]} :=
+                        (|res : choice := choice::Good(\"\")|)
+                        ((!\"G\"! {res := choice::Good(\"G\")})
+                        |(!\"B\"! {res := choice::Bad(\"B\")})
+                        )
+                        (([res ~~ choice::Good] {r.v := \"Succ\"})
+                        |([res ~~ choice::Bad]  {r.v := \"Fail\"})
+                        )}",
+     "Chk", "G", V_record ["v", V_list[V_char 'S'; V_char 'u'; V_char 'c'; V_char 'c']]);
+    ("choice2", "type choice = | Good of [byte] | Bad of [byte]
+                 format {Chk r {v: [byte]} :=
+                        (|res : choice := choice::Good(\"\")|)
+                        ((!\"G\"! {res := choice::Good(\"G\")})
+                        |(!\"B\"! {res := choice::Bad(\"B\")})
+                        )
+                        (([res ~~ choice::Good] {r.v := \"Succ\"})
+                        |([res ~~ choice::Bad]  {r.v := \"Fail\"})
+                        )}",
+     "Chk", "B", V_record ["v", V_list[V_char 'F'; V_char 'a'; V_char 'i'; V_char 'l']]);
   ]
 
 let do_tests gen_ir exe_ir =
   let fails = ref 0 in
   let succs = ref 0 in
+  let print_ir ir =
+    if   print_ir
+    then Ir.Ir_printer.print_spec ir in
   let fail reason =
     incr fails;
     Printf.eprintf " failed, %s.\n%!" reason in
   let fail_ir ir reason =
     incr fails;
     Printf.eprintf " failed, %s.\n%!" reason;
-    if   print_ir
-    then Ir.Ir_printer.print_spec ir in
+    print_ir ir in
   let fail_match ir v v' =
     incr fails;
     Printf.eprintf " failed, incorrect result.\n%!";
     Printf.eprintf "expected:\n   %s\n%!" (Values.string_of_value v);
     Printf.eprintf "got:     \n   %s\n%!" (Values.string_of_value v');
-    if   print_ir
-    then Ir.Ir_printer.print_spec ir in
+    print_ir ir in
   let fail_except ir e =
     incr fails;
     Printf.eprintf " failed with exception: %s\n%!"
       (Runtime_exceptions.Internal_errors.error_msg e);
-    if   print_ir
-    then Ir.Ir_printer.print_spec ir in
+    print_ir ir in
   let succ () =
     incr succs;
     Printf.eprintf " passed.\n%!" in

@@ -130,7 +130,7 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (string_of_label lsc)
                      (string_of_label lf))
     | N_constraint (_, v, s, f) ->
-        pp_string (Printf.sprintf "constr %s, %s, %s"
+        pp_string (Printf.sprintf "constraint %s, %s, %s"
                      (Anf_printer.string_of_var v.v)
                      (string_of_label s)
                      (string_of_label f))
