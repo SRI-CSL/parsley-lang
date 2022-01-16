@@ -105,6 +105,16 @@ let tests = [
                         |([res ~~ choice::Bad]  {r.v := \"Fail\"})
                         )}",
      "Chk", "B", V_record ["v", V_list[V_char 'F'; V_char 'a'; V_char 'i'; V_char 'l']]);
+    ("views1", "format {P1 := (# [\"0\" .. \"5\"]* #);;
+                        P2 := (# [\"0\" .. \"9\"]* #);;
+                        Twice pt {p1: [byte], p2: [byte]} :=
+                          w={;; View.get_current()}
+                          v={;; View.clone(w)}
+                          p1=@[w, P1]
+                          p2=@[v, P2]
+                          {pt.p1 := p1; pt.p2 := p2}}",
+     "Twice", "5091a", V_record ["p1", V_list[V_char '5'; V_char '0'];
+                                 "p2", V_list[V_char '5'; V_char '0'; V_char '9'; V_char '1']]);
   ]
 
 let do_tests gen_ir exe_ir =

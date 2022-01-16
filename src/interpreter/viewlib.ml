@@ -95,30 +95,18 @@ module PView = struct
       | _ ->
           internal_error (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
 
-  let get_base lc (s: state) (v: value) : value =
-    match v with
-      | V_unit ->
-          let vu = clone_view s.st_cur_view in
-          let vu = {vu with vu_ofs = vu.vu_start} in
-          V_view vu
-      | _ ->
-          internal_error (Type_error (lc, "View.get_base", 1, vtype_of v, T_unit))
+  let get_base _lc (s: state) : value =
+    let vu = clone_view s.st_cur_view in
+    let vu = {vu with vu_ofs = vu.vu_start} in
+    V_view vu
 
-  let get_current lc (s: state) (v: value) : value =
-    match v with
-      | V_unit ->
-          (* retain the view id *)
-          V_view s.st_cur_view
-      | _ ->
-          internal_error (Type_error (lc, "View.get_base", 1, vtype_of v, T_unit))
+  let get_current _lc (s: state) : value =
+    (* retain the view id *)
+    V_view s.st_cur_view
 
-  let get_current_cursor lc (s: state) (v: value) : value =
-    match v with
-      | V_unit ->
-          let vu = s.st_cur_view in
-          V_int (Int64.of_int vu.vu_ofs)
-      | _ ->
-          internal_error (Type_error (lc, "View.get_base", 1, vtype_of v, T_unit))
+  let get_current_cursor _lc (s: state) : value =
+    let vu = s.st_cur_view in
+    V_int (Int64.of_int vu.vu_ofs)
 end
 
 module DTable = Map.Make (struct type t = string * string
@@ -137,11 +125,11 @@ type dtable =
 
 let mk_dtable () : dtable =
   let arg0s = [
-    ] in
-  let arg1s = [
       ("View", "get_base"),           PView.get_base;
       ("View", "get_current"),        PView.get_current;
       ("View", "get_current_cursor"), PView.get_current_cursor;
+    ] in
+  let arg1s = [
       ("View", "clone"),              PView.clone;
     ] in
   let arg2s = [
@@ -161,7 +149,10 @@ let dispatch_viewlib lc (m: string) (f: string) (s: state) (vs: value list)
     : value =
   let nvs = List.length vs in
   let key = m, f in
-  if   nvs = 1 && DTable.mem  key dtable.dt_1arg
+  if   nvs = 0 && DTable.mem  key dtable.dt_0arg
+  then let fn = DTable.find key dtable.dt_0arg in
+       fn lc s
+  else if nvs = 1 && DTable.mem  key dtable.dt_1arg
   then let fn = DTable.find key dtable.dt_1arg in
        let a0 = List.nth vs 0 in
        fn lc s a0

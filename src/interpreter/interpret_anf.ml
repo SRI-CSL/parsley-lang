@@ -88,7 +88,9 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
         V_record vs
     | Anf.AV_mod_member (m, c) ->
         let m, c = Location.value m, Location.value c in
-        dispatch_stdlib av.av_loc m c []
+        if   m = "View"
+        then dispatch_viewlib av.av_loc m c s []
+        else dispatch_stdlib  av.av_loc m c []
 
 (* match helper, used for aexps and astmts *)
 let matcher loc vr vl cases =

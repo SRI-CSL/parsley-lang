@@ -786,7 +786,7 @@ let rec lower_rule_elem
         let unit = get_typ ctx "unit" in
         let b = add_gnode b N_push_view unit loc in
         (* Update the view *)
-        let b = add_gnode b (N_set_pos v) unit loc in
+        let b = add_gnode b (N_set_view v) unit loc in
         (* The view needs to be restored on both the success and
            failure paths.  Create a new failcont which will first
            restore the view, and then return the original failcont. *)
