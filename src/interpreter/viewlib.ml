@@ -80,7 +80,7 @@ module PView = struct
               if   v.vu_ofs + o >= v.vu_end
               then fault (View_bound (lc, "View.restrict_from", "end bound exceeded"))
               else V_view {v with vu_id    = next_id ();
-                                  vu_start = v.vu_ofs;
+                                  vu_start = v.vu_ofs + o;
                                   vu_ofs   = 0}
             end
       | V_view _, _ ->

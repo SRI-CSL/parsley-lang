@@ -24,12 +24,12 @@ open Values
 let run (dfa: DFA.t) (v: view) : (value * view) option =
   let buf   = v.vu_buf in
   let vend  = v.vu_end in
-  let start = v.vu_ofs in
+  let start = v.vu_start + v.vu_ofs in
   assert (start <= vend);
   let s = DFA.start dfa in
   let try_accept s ofs bytes =
     if   DFA.accept dfa s
-    then let vu    = {v with vu_ofs = ofs} in
+    then let vu    = {v with vu_ofs = ofs - v.vu_start} in
          let bytes = List.rev_map (fun b -> V_char b) bytes in
          Some (V_list bytes, vu)
     else None in

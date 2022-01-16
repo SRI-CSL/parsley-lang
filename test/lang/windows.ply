@@ -11,12 +11,17 @@ format {
 }
 
 format {
-  LetterFill lf (n : int) {s: [byte]} :=
-    w = { ;; View.restrict(View.get_current(), 0, n) }
-    next = { ;; View.restrict_from(w, n) }
+  LetterFill lf (n : int) {s: [byte], t: [byte]} :=
+    v = { ;; View.get_current() }
+    w = { ;; View.restrict(v, 0, n) }
+    next = { ;; View.restrict_from(v, n) }
     s=@[w, (# ["0" .. "9"]* [" "]* #)]
     { lf.s := s }
     @^[next]
+    //t=@[next, (# ["0" .. "9"]* [" "]* #)]
+    // The below is equivalent to the commented line above.
+    t=(# ["0" .. "9"]* [" "]* #)
+    { lf.t := t }
 }
 
 format {

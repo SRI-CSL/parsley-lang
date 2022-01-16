@@ -40,7 +40,7 @@ type view =
    (* all locations below are absolute indices into vu_buf.
       The following invariants are maintained:
       . vu_end is 1 past the last valid read index for the buffer
-      . vu_start <= vu_ofs <= vu_end
+      . 0 <= vu_start <= vu_ofs <= vu_end
       . it is legal for vu_ofs = vu_end; however, it is illegal to use
         that offset for a read.
     *)
