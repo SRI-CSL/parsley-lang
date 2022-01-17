@@ -131,9 +131,44 @@ let tests = [
                          !\"AA\"!
                          b={;; View.get_current_cursor()}
                          {ot.a := a; ot.b := b}}",
-     "OffsetTest", "AA", V_record ["a", V_int (Int64.of_int 0);
-                                   "b", V_int (Int64.of_int 2)]);
-
+     "OffsetTest", "AA", V_record ["a", V_int 0L;
+                                   "b", V_int 2L]);
+    ("int", "format {I16LE := Int16<endian=endian::Little()>;;
+                     I16BE := Int16<endian=endian::Big()>;;
+                     U16LE := UInt16<endian=endian::Little()>;;
+                     U16BE := UInt16<endian=endian::Big()>;;
+                     TInt t {i:int, j:int, k:int, l:int, m:int, n:int} :=
+                        i=Int8 j=UInt8 k=I16LE l=I16BE m=U16LE n=U16BE
+                        {t.i := i; t.j := j; t.k := k; t.l := l; t.m := m; t.n := n}}",
+     "TInt", "\x80\x80\x01\x80\x01\x80\x01\x80\x01\x80",
+     V_record ["i", V_int 0xffffffffffffff80L; "j", V_int 0x80L; "k", V_int 0xffffffffffff8001L;
+               "l", V_int 0x0180L; "m", V_int 0x8001L; "n", V_int 0x0180L]);
+    ("uint1", "format {U32LE := UInt32<endian=endian::Little()>;;
+                       U32BE := UInt32<endian=endian::Big()>;;
+                       TInt t {i: int, j:int} :=
+                          i=U32LE j=U32BE {t.i := i; t.j := j}}",
+     "TInt", "\x00\x01\x02\x80\x00\x01\x02\x80", V_record ["i", V_int 0x80020100L;
+                                                           "j", V_int 0x00010280L]);
+    ("int1", "format {I32LE := Int32<endian=endian::Little()>;;
+                      I32BE := Int32<endian=endian::Big()>;;
+                      TInt t {i: int, j:int} :=
+                         i=I32LE j=I32BE {t.i := i; t.j := j}}",
+     "TInt", "\x00\x01\x02\x80\x00\x01\x02\x80", V_record ["i", V_int 0xffffffff80020100L;
+                                                           "j", V_int 0x00010280L]);
+    ("uint2", "format {U64LE := UInt64<endian=endian::Little()>;;
+                       U64BE := UInt64<endian=endian::Big()>;;
+                       TInt t {i: int, j:int} :=
+                          i=U64LE j=U64BE {t.i := i; t.j := j}}",
+     "TInt", "\x00\x01\x02\x80\x00\x01\x02\x40\x00\x01\x02\x80\x00\x01\x02\x80",
+     V_record ["i", V_int 0x4002010080020100L;
+               "j", V_int 0x0001028000010280L]);
+    ("int2", "format {I64LE := Int64<endian=endian::Little()>;;
+                      I64BE := Int64<endian=endian::Big()>;;
+                      TInt t {i: int, j:int} :=
+                         i=I64LE j=I64BE {t.i := i; t.j := j}}",
+     "TInt", "\x00\x01\x02\x80\x00\x01\x02\x40\x00\x01\x02\x80\x00\x01\x02\x80",
+     V_record ["i", V_int 0x4002010080020100L;
+               "j", V_int 0x0001028000010280L]);
   ]
 
 let do_tests gen_ir exe_ir =

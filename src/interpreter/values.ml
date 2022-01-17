@@ -188,7 +188,7 @@ let string_of_value (v: value) : string =
       | V_bool b          -> if b then "true" else "false"
       | V_bit  b          -> if b then "1" else "0"
       | V_char c          -> Printf.sprintf "'%s'" (Char.escaped c)
-      | V_int  i          -> Int64.to_string i
+      | V_int  i          -> Printf.sprintf "%s (%#Lx)" (Int64.to_string i) i
       | V_float f         -> Float.to_string f
       | V_string s        -> Printf.sprintf "'%s'" s
       | V_bitvector v     -> pr_bvec v
