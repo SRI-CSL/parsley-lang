@@ -863,12 +863,12 @@ let rec lower_rule_elem
         let ctx = close_with_jump {ctx with ctx_venv = venv} b loc lc in
         (* collect the list variables *)
         let vs = vl :: List.map snd iters in
+        let bool = get_typ ctx "bool" in
         let ctx, lp =
           List.fold_left (fun (ctx, l) v ->
               (* create the condition block for `v` with label `l` *)
               let b = new_labeled_block loc l in
               let null = constr_av "[]" "[]" [] v.v_typ v.v_loc in
-              let bool = get_typ ctx "bool" in
               let ae = AE_binop (Ast.Eq, (av_of_var v), null) in
               let ae = make_ae ae bool v.v_loc in
               let vc, venv = fresh_var ctx.ctx_venv bool v.v_loc in
@@ -901,7 +901,7 @@ let rec lower_rule_elem
               (* update the list: v := List.tail(v) *)
               let f  = mk_mod_func "List" "tail" ftyp v.v_loc in
               let tl =
-                make_ae (AE_apply (f, [av_of_var vl])) v.v_typ v.v_loc in
+                make_ae (AE_apply (f, [av_of_var v])) v.v_typ v.v_loc in
               let nd = N_assign (v, tl) in
               let b  = add_gnode b nd v.v_typ v.v_loc in
               {ctx with ctx_venv = venv}, b, vv :: vvs

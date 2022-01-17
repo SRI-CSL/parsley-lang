@@ -15,7 +15,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Typing.TypingEnvironment
 open Interpreter
 open Values
 
@@ -78,9 +77,10 @@ let tests = [
                    format {N n {v: bitvector<7>, f: bf, t: bitvector<2>, b: bitvector<7>} :=
                              BitVector<1> $align<8> v=BitVector<7> f=$bitfield(bf)
                              {n.v := v; n.f := f; n.t := f.top; n.b := f.bot}}",
-     "N", "\x00\x43\x03", let bf = {bf_name   = "bf";
-                                    bf_fields = [("top", (8,7)); ("bot", (6,0))];
-                                    bf_length = 9} in
+     "N", "\x00\x43\x03", let bf = Typing.TypingEnvironment.(
+                              {bf_name   = "bf";
+                               bf_fields = [("top", (8,7)); ("bot", (6,0))];
+                               bf_length = 9}) in
                           V_record ["v", V_bitvector [false;true;false;false;false;false;true];
                                     "f", V_bitfield (bf, [true;false;false;false;false;false;false;true;true]);
                                     "t", V_bitvector [true;false];
@@ -169,6 +169,62 @@ let tests = [
      "TInt", "\x00\x01\x02\x80\x00\x01\x02\x40\x00\x01\x02\x80\x00\x01\x02\x80",
      V_record ["i", V_int 0x4002010080020100L;
                "j", V_int 0x0001028000010280L]);
+    ("views1", "format {U32LE := UInt32<endian=endian::Little()>;;
+                        TInt t {i: int} :=
+                           i=@(1, U32LE)
+                           {t.i := i}}",
+     "TInt", "\000\001\002\003\004\005", V_record ["i", V_int 0x04030201L]);
+    ("views2", "format {U32LE := UInt32<endian=endian::Little()>;;
+                        TInt t {i: int} :=
+                           Byte // affects view
+                           v={;; let v = View.get_current() in
+                                 View.restrict(v, 0, 4)}
+                           Byte // does not affect view
+                           i=@[v, U32LE]
+                           {t.i := i}}",
+     "TInt", "\000\001\002\003\004\005", V_record ["i", V_int 0x04030201L]);
+    ("views3", "fun mk_views() -> [view] = {
+                   let v  = View.get_current() in
+                   let v0 = View.restrict(v, 0, 4) in
+                   let v1 = View.restrict(v, 4, 4) in
+                   let v2 = View.restrict(v, 8, 4) in
+                   let v3 = View.restrict(v, 12, 4) in
+                   [v2; v3; v0; v1]
+                }
+                format {U32BE := UInt32<endian=endian::Big()>;;
+                        TInt t {is: [int]} :=
+                           vs={;; mk_views()}
+                           is=@#[vs, U32BE]
+                           {t.is := is}}",
+     "TInt", "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
+     V_record ["is", V_list [V_int 0x08090a0bL; V_int 0x0c0d0e0fL;
+                             V_int 0x00010203L; V_int 0x04050607L]]);
+    ("views4", "fun mk_views() -> [view] = {
+                   let v  = View.get_current() in
+                   let v0 = View.restrict(v, 0, 4) in
+                   let v1 = View.restrict(v, 4, 4) in
+                   let v2 = View.restrict(v, 8, 4) in
+                   let v3 = View.restrict(v, 12, 4) in
+                   [v2; v3; v0; v1]
+                }
+                fun mk_args() -> [int] = { [1;2;3;4] }
+                type recd = {v: int, a: int}
+                format { U32BE := UInt32<endian=endian::Big()>;;
+                         TInt  t (a: int) {recd} := v=U32BE {t.v := v; t.a := a};;
+                         TInts t {rs: [recd]} :=
+                            vs={;; mk_views ()}
+                            rs=@#[vs, TInt<a <- (mk_args ())>]
+                            {t.rs := rs}}",
+     "TInts", "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
+     V_record ["rs", V_list [V_record ["a", V_int 0x1L;
+                                       "v", V_int 0x08090a0bL];
+                             V_record ["a", V_int 0x2L;
+                                       "v", V_int 0x0c0d0e0fL];
+                             V_record ["a", V_int 0x3L;
+                                       "v", V_int 0x00010203L];
+                             V_record ["a", V_int 0x4L;
+                                       "v", V_int 0x04050607L];
+                       ]]);
   ]
 
 let do_tests gen_ir exe_ir =
