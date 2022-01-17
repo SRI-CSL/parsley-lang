@@ -127,18 +127,18 @@ type gnode_desc =
      element from the view stack to be popped and become the current
      view.
 
-     There is an asymmetry in these two instructions: push-view leaves
-     the current-view register intact, but pushes its value onto the
-     view-stack.  pop-view pops the top-most value from the stack and
-     puts it into the current-view register, thus modifying both the
-     stack and the register.  This asymmetry is a consequence of the
-     design choice discussed below.
+     There is an asymmetry in these two instructions: `push-view`
+     leaves the current-view register intact, but pushes its value
+     onto the view-stack.  `pop-view` pops the top-most value from the
+     stack and puts it into the current-view register, thus modifying
+     both the stack and the register.  This asymmetry is a consequence
+     of the design choice discussed below.
 
-     View values on the stack are not modified due to excursions, even
-     with views derived from these values.  TODO: confirm this.  *)
+     `drop-view` drops the top-most entry on the stack. *)
 
   | N_push_view
   | N_pop_view
+  | N_drop_view
 
   (* The two view setters below are equivalent in that each could be
      expressed in terms of the other, via some glue ANF.  However,

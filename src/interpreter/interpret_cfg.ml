@@ -62,7 +62,7 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
     | N_push_view ->
         let st_view_stk = s.st_cur_view :: s.st_view_stk in
         {s with st_view_stk}
-    | N_pop_view
+    | N_pop_view | N_drop_view
          when s.st_view_stk = [] ->
         let err = Internal_errors.View_stack_underflow loc in
         internal_error err
@@ -70,6 +70,9 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
         let vu, stk = List.hd s.st_view_stk, List.tl s.st_view_stk in
         {s with st_cur_view = vu;
                 st_view_stk = stk}
+    | N_drop_view ->
+        let stk = List.tl s.st_view_stk in
+        {s with st_view_stk = stk}
     | N_set_view v ->
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
         Viewlib.set_view loc s vl
@@ -295,6 +298,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                assert (l = ent.nt_failcont);
                (* Transfer control to the failure continuation without
                   any change to the view. *)
+               assert (s.st_cur_view = s'.st_cur_view);
                do_fail loc s lf)
     | _ ->
         (* this should not be needed *)

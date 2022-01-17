@@ -223,8 +223,25 @@ let tests = [
                              V_record ["a", V_int 0x3L;
                                        "v", V_int 0x00010203L];
                              V_record ["a", V_int 0x4L;
-                                       "v", V_int 0x04050607L];
-                       ]]);
+                                       "v", V_int 0x04050607L]]]);
+    ("rules1", "format {N n {s: [byte]} :=
+                        Byte !\"AB\"! {n.s := \"ab\"}
+                      ; Byte !\"CD\"! {n.s := \"cd\"}
+                      ; Byte !\"EF\"! {n.s := \"ef\"}
+                      ;               {n.s := \"de\"}}",
+     "N", "_CD", V_record ["s", V_list [V_char 'c'; V_char 'd']]);
+    ("rules2", "format {N n {s: [byte]} :=
+                        Byte !\"AB\"! {n.s := \"ab\"}
+                      ; Byte !\"CD\"! {n.s := \"cd\"}
+                      ; Byte !\"EF\"! {n.s := \"ef\"}
+                      ;               {n.s := \"de\"}}",
+     "N", "_EF", V_record ["s", V_list [V_char 'e'; V_char 'f']]);
+    ("rules3", "format {N n {s: [byte]} :=
+                        Byte !\"AB\"! {n.s := \"ab\"}
+                      ; Byte !\"CD\"! {n.s := \"cd\"}
+                      ; Byte !\"EF\"! {n.s := \"ef\"}
+                      ;               {n.s := \"de\"}}",
+     "N", "FE", V_record ["s", V_list [V_char 'd'; V_char 'e']]);
   ]
 
 let do_tests gen_ir exe_ir =

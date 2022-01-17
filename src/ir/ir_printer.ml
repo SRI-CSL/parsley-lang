@@ -89,6 +89,8 @@ let print_gnode g =
         pp_string "push_view"
     | N_pop_view ->
         pp_string "pop_view"
+    | N_drop_view ->
+        pp_string "drop_view"
     | N_set_view v ->
         pp_string (Printf.sprintf "set_view %s"
                      (Anf_printer.string_of_var v.v))
