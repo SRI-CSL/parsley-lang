@@ -242,6 +242,47 @@ let tests = [
                       ; Byte !\"EF\"! {n.s := \"ef\"}
                       ;               {n.s := \"de\"}}",
      "N", "FE", V_record ["s", V_list [V_char 'd'; V_char 'e']]);
+    ("recfun", "type t = | A | B
+                recfun do_A(t: t) -> int = {
+                  (case t of
+                  | t::A() -> 1
+                  | t::B() -> do_B(t)
+                  )
+                }
+                and do_B(t: t) -> int = {
+                  (case t of
+                  | t::A() -> do_A(t)
+                  | t::B() -> 2
+                  )
+                }
+                type r = {i: int}
+                format {A a {r} :=
+                            !\"AA\"! {a.i := do_A(t::A())}
+                          ; !\"AB\"! {a.i := do_A(t::B())}
+                          ; !\"BA\"! {a.i := do_B(t::A())}
+                          ; !\"BB\"! {a.i := do_B(t::B())}
+                          ;;
+                        R r {r: [r]} :=
+                            r1=A r2=A r3=A r4=A
+                            {r.r := [r1; r2; r3; r4]}}",
+     "R", "BBBAABAA", V_record ["r", V_list [V_record ["i", V_int 2L];
+                                             V_record ["i", V_int 1L];
+                                             V_record ["i", V_int 2L];
+                                             V_record ["i", V_int 1L]]]);
+    ("map2", "type t = | A | B
+              fun couple (l: t, r: t) -> int = {
+                 (case (l, r) of
+                 | (t::A(), t::A()) -> 0
+                 | (t::A(), t::B()) -> 1
+                 | (t::B(), t::A()) -> 2
+                 | (t::B(), t::B()) -> 3
+                 )
+              }
+              format {A a {i: [int]} := {
+                         let l = [t::A(); t::B(); t::A(); t::B()] in
+                         let r = [t::A(); t::A(); t::B(); t::B()] in
+                         a.i := List.map2(couple, l, r) }}",
+     "A", "", V_record ["i", V_list [V_int 0L; V_int 2L; V_int 1L; V_int 3L]]);
   ]
 
 let do_tests gen_ir exe_ir =
