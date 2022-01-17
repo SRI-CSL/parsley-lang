@@ -44,7 +44,7 @@ module PView = struct
   let restrict lc (_s: state) (v: value) (o: value) (l: value) : value =
     match v, o, l with
       | V_view v, V_int o, V_int l ->
-          if Int64.compare o Int64.zero < 0
+          if   Int64.compare o Int64.zero < 0
           then fault (Invalid_argument (lc, "View.restrict", "negative offset"))
           else if Int64.compare l Int64.zero < 0
           then fault (Invalid_argument (lc, "View.restrict", "negative length"))
@@ -53,11 +53,11 @@ module PView = struct
               assert (v.vu_ofs <= v.vu_end);
               assert (v.vu_end <= ViewBuf.size v.vu_buf);
               let o, l = Int64.to_int o, Int64.to_int l in
-              if v.vu_ofs + o + l >= v.vu_end
+              if   v.vu_ofs + o + l > v.vu_end
               then fault (View_bound (lc, "View.restrict", "end bound exceeded"))
               else V_view {v with vu_id    = next_id ();
                                   vu_start = v.vu_ofs + o;
-                                  vu_ofs   = 0;
+                                  vu_ofs   = v.vu_ofs + o;
                                   vu_end   = v.vu_ofs + o + l}
             end
       | V_view _, V_int _, _ ->
@@ -70,7 +70,7 @@ module PView = struct
   let restrict_from lc (_s: state) (v: value) (o: value) : value =
     match v, o with
       | V_view v, V_int o ->
-          if Int64.compare o Int64.zero < 0
+          if   Int64.compare o Int64.zero < 0
           then fault (Invalid_argument (lc, "View.restrict_from", "negative offset"))
           else begin
               assert (0 <= v.vu_start && v.vu_start <= v.vu_ofs);
@@ -81,7 +81,7 @@ module PView = struct
               then fault (View_bound (lc, "View.restrict_from", "end bound exceeded"))
               else V_view {v with vu_id    = next_id ();
                                   vu_start = v.vu_ofs + o;
-                                  vu_ofs   = 0}
+                                  vu_ofs   = v.vu_ofs + o;}
             end
       | V_view _, _ ->
           internal_error (Type_error (lc, "View.restrict_from", 2, vtype_of o, T_int))

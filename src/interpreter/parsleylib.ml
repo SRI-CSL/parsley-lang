@@ -75,7 +75,7 @@ module PList = struct
   let tail lc (v: value) : value =
     match v with
       | V_list [] -> fault (Invalid_argument (lc, "List.tail", "0-length list"))
-      | V_list (h :: _) -> h
+      | V_list (_ :: tl) -> V_list tl
       | _ -> internal_error (Type_error (lc, "List.tail", 1, vtype_of v, T_list T_empty))
 
   let index lc (l: value) (r: value) : value =
