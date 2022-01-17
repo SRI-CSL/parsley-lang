@@ -742,7 +742,8 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
         if List.length args = 0 then
           let unit = typcon_variable tenv (TName "unit") in
           let typ = TypeConv.arrow tenv unit t in
-          infer_expr tenv venv fexp typ
+          let cfun, (wc_fun, fexp') = infer_expr tenv venv fexp typ in
+          cfun, (wc_fun, mk_auxexpr (E_apply (fexp', [])))
         else
           exists_list_aux args (
               fun exs ->
