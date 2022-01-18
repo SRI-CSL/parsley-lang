@@ -25,7 +25,8 @@ let handle_exception bt msg =
 let do_interpret spec nt f =
   try
     (match Interpret.execute_on_file spec nt f with
-       | Some _ -> (Printf.printf "Parse terminated successfully.\n";
+       | Some v -> (Printf.printf "Parse terminated successfully with:\n";
+                    Printf.printf "%s\n%!" (Values.string_of_value v);
                     exit 0)
        | None   -> (Printf.printf "Parse terminated in failure.\n";
                     exit 1))
