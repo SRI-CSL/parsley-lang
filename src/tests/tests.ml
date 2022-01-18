@@ -115,7 +115,17 @@ let tests = [
                           {pt.p1 := p1; pt.p2 := p2}}",
      "Twice", "5091a", V_record ["p1", V_list[V_char '5'; V_char '0'];
                                  "p2", V_list[V_char '5'; V_char '0'; V_char '9'; V_char '1']]);
-    ("views2", "format {LetterFill lf {s: [byte], t: [byte]} :=
+    ("views2a", "format {LetterFill lf {s: [byte], t: [byte]} :=
+                             v = {;; View.get_current() }
+                             w = {;; View.restrict(v, 0, 3)}
+                          next = {;; View.restrict_from(v, 3)}
+                          s=@[w,    (# [\"0\" .. \"5\"]* [\" \"]* #)]
+                          {lf.s := s}
+                          t=@[next, (# [\"5\" .. \"9\"]* [\" \"]* #)]
+                          {lf.t := t}}",
+     "LetterFill", "01a59b", V_record ["s", V_list[V_char '0'; V_char '1'];
+                                       "t", V_list[V_char '5'; V_char '9']]);
+    ("views2b", "format {LetterFill lf {s: [byte], t: [byte]} :=
                              v = {;; View.get_current() }
                              w = {;; View.restrict(v, 0, 3)}
                           next = {;; View.restrict_from(v, 3)}
@@ -126,7 +136,21 @@ let tests = [
                           {lf.t := t}}",
      "LetterFill", "01a59b", V_record ["s", V_list[V_char '0'; V_char '1'];
                                        "t", V_list[V_char '5'; V_char '9']]);
-    ("offs", "format {OffsetTest ot {a: int, b:int} :=
+    ("views3", "format {LetterFill lf (o: int, n : int) {s: [byte], t: [byte]} :=
+                               v = {;; View.get_current()}
+                               w = {;; View.restrict(v, o, n)}
+                               next = {;; View.restrict_from(v, n)}
+                               s=@[w, (# [\"0\" .. \"9\"]* [\" \"]* #)]
+                               {lf.s := s}
+                               @^[next]
+                               t=(# [\"0\" .. \"9\"]* [\" \"]* #)
+                               {lf.t := t};;
+                        Letters ls {ls: [byte], lt: [byte]} :=
+                             l=LetterFill<n=3,o=0>
+                             {ls.ls := l.s; ls.lt := l.t}}",
+     "Letters", "01a59b",  V_record ["ls", V_list[V_char '0'; V_char '1'];
+                                     "lt", V_list[V_char '5'; V_char '9']]);
+     ("offs", "format {OffsetTest ot {a: int, b:int} :=
                          a={;; View.get_current_cursor()}
                          !\"AA\"!
                          b={;; View.get_current_cursor()}

@@ -10,14 +10,36 @@ recfun map_bufs<'a>(re: parser<'a>, views: [view], acc: ['a])
     )
   }
 
+fun mk_views() -> [view] = {
+  let v  = View.get_current() in
+  let v0 = View.restrict(v, 0, 4) in
+  let v1 = View.restrict(v, 4, 4) in
+  let v2 = View.restrict(v, 8, 4) in
+  let v3 = View.restrict(v, 12, 4) in
+  [v2; v3; v0; v1]
+}
+
 format {
+  U32LE := UInt32<endian=endian::Little()>;;
+  TInt0 t {i0: int} :=
+    Byte v={;; let v = View.get_current() in View.restrict(v, 0, 4)}
+    i=@[v, U32LE]
+    { t.i0 := i };;
+  TInt1 t {i1: int} :=
+    Byte v={;; let v = View.get_current() in View.restrict(v, 0, 4)}
+    i=@[v, U32LE]
+    { t.i1 := i };;
+  TInt2 t {is: [int]} :=
+    vs={;; mk_views()}
+    is=@#[vs, U32LE]
+    { t.is := is } ;;
+
   NT n (v: view, i: int) {n: unit} :=
     { n.n := () }
   ;;
 
   NTT n (i: int) {ntt: unit} :=
     { n.ntt := () }
-
   ;;
 
   T1 t (vs: [view], is: [int]) {t1: unit} :=
