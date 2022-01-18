@@ -90,28 +90,11 @@ let do_entry_node (s: state) (n: Cfg.Node.entry_node)
         (* this should not be needed *)
         assert false
 
-let do_pop_failcont lc (s: state) (l: Cfg.label) : state =
-  (* pop the top-most failcont, ensure that it is the specified label,
-     and return the updated state *)
-  match s.st_failcont_stk with
-    | [] ->
-        let err = Internal_errors.Failcont_stack_underflow lc in
-        internal_error err
-    | le :: stk ->
-        if   l != le
-        then let err = Internal_errors.Unexpected_failcont (lc, l, le) in
-             internal_error err
-        else {s with st_failcont_stk = stk}
-
 let do_linear_node (s: state) (n: Cfg.Node.linear_node)
     : state =
   match n with
     | Cfg.Node.N_gnode nd ->
         do_gnode s nd
-    | Cfg.Node.N_push_failcont (_, l) ->
-        {s with st_failcont_stk = l :: s.st_failcont_stk}
-    | Cfg.Node.N_pop_failcont (loc, l) ->
-        do_pop_failcont loc s l
     | _ ->
         (* this should not be needed *)
         assert false
@@ -163,8 +146,7 @@ let rec do_jump lc (s: state) (l: Cfg.label) : result =
 and do_fail lc (s: state) (l: Cfg.label) : result =
   if   Cfg.is_dynamic l
   then C_failure, s, l
-  else let s = do_pop_failcont lc s l in
-       let b = get_block lc s l in
+  else let b = get_block lc s l in
        do_closed_block s b
 
 and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
@@ -192,6 +174,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         else do_fail loc s lf
     | Cfg.Node.N_jump (loc, l) ->
         do_jump loc s l
+    | Cfg.Node.N_fail (loc, l) ->
+        do_fail loc s l
     | Cfg.Node.N_constraint (loc, v, lsc, lf) ->
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
         if   Parsleylib.cond loc vl

@@ -26,7 +26,6 @@ let do_execute (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
   : value option =
   let venv = VEnv.empty in
   let fenv = FEnv.empty in
-  let failcont = Cfg.(spec.ir_init_failcont) in
   let s = {st_spec_toc     = Cfg.(spec.ir_gtoc);
            st_spec_ir      = Cfg.(spec.ir_blocks);
            st_ir_tenv      = Cfg.(spec.ir_tenv);
@@ -34,7 +33,6 @@ let do_execute (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
            st_mode         = Mode_normal;
            st_venv         = venv;
            st_fenv         = fenv;
-           st_failcont_stk = [failcont];
            st_view_stk     = [];
            st_cur_view     = view} in
   (* Initialize from the statics block. *)

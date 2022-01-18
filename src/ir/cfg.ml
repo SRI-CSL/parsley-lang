@@ -218,30 +218,6 @@ let string_of_label l =
     | L_static  l -> Printf.sprintf "S%s" (Label.to_string l)
     | L_dynamic l -> Printf.sprintf "D%s" (Label.to_string l)
 
-(* Handling match failures, or back-tracking:
-
-   This is done with a stack of labels, or failconts, that point to
-   blocks from which execution should be resumed.  On a failure, the
-   top-most failcont label from the stack is popped, and execution
-   resumed from the block pointed to by the label.
-
-   The failcont stack is explicitly managed using
-   N_{push,pop}_failcont instructions, and can only contain static
-   labels.
-
-   All modifications to variable state are stratified according to the
-   failcont context in which they are performed.  On a match failure,
-   all state updates since the last push_failcont are undone, and that
-   execution resumes from that failcont.  On a pop_failcont, the state
-   updates since the last push_failcont are promoted to the stratum of
-   the next lower failcont.  This is because valid pop_failconts are
-   always done on success paths, where variable state should not be
-   rolled back.
-
-   This can be used to perform a limited amount of garbage collection:
-   on error, all variables allocated since the last push_failcont can
-   be deallocated when the failcont stack is popped. *)
-
 (* The node structure of the CFG *)
 
 module Node = struct
@@ -254,10 +230,6 @@ module Node = struct
     (* non-control-flow blocks *)
 
     | N_gnode: gnode -> (Block.o, Block.o, unit) node
-
-    (* push or pop a failure continuation on the failcont stack *)
-    | N_push_failcont: Location.t * label -> (Block.o, Block.o, unit) node
-    | N_pop_failcont:  Location.t * label -> (Block.o, Block.o, unit) node
 
     (* block exits *)
 
@@ -276,8 +248,10 @@ module Node = struct
         * label * label
         -> (Block.o, Block.c, unit) node
 
-    (* forward jumps *)
+    (* forward jumps (typically in success path) *)
     | N_jump: Location.t * label -> (Block.o, Block.c, unit) node
+    (* forward jumps in failure path *)
+    | N_fail: Location.t * label -> (Block.o, Block.c, unit) node
 
     (* Constrained jump: the var should have been bound to the value
        of the constraint expression, and the label is the success
@@ -295,9 +269,7 @@ module Node = struct
 
     (* Call the DFA for a regular expression.  On a successful match,
        assign the specified variable to the match, and continue at the
-       first specified label.  A failure rewinds to the top-most
-       failcont on the failcont stack, which is specified as the
-       second label (see N_constraint above). *)
+       first specified label.  A failure rewinds to the second label. *)
     | N_exec_dfa: dfa * var * label * label
                   -> (Block.o, Block.c, unit) node
 

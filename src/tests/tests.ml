@@ -307,6 +307,44 @@ let tests = [
                          let r = [t::A(); t::A(); t::B(); t::B()] in
                          a.i := List.map2(couple, l, r) }}",
      "A", "", V_record ["i", V_list [V_int 0L; V_int 2L; V_int 1L; V_int 3L]]);
+    ("ws_empty", "format {WS w (allow_empty: bool) {ws: [byte]}:=
+                            [allow_empty]
+                            ws=(# [\" \" | \"\t\" | \"\r\" | \"\n\"]* #)
+                            {w.ws := ws}
+                          ; [!allow_empty]
+                            ws=(# [\" \" | \"\t\" | \"\r\" | \"\n\"]+ #)
+                            {w.ws := ws}
+                          ;;
+                          A := !\"[\"!;; B := !\"]\"!;; C := !\"+\"!;; D := !\"-\"!;;
+                          #[whitespace(WS:allow_empty=true)]
+                          NT n {a: int} :=  A B              {n.a := 1}
+                                        ;  ((A C) | (B D))*  {n.a := 2}}",
+     "NT", "[]", V_record ["a", V_int 1L]);
+    ("ws_empty", "format {WS w (allow_empty: bool) {ws: [byte]}:=
+                            [allow_empty]
+                            ws=(# [\" \" | \"\t\" | \"\r\" | \"\n\"]* #)
+                            {w.ws := ws}
+                          ; [!allow_empty]
+                            ws=(# [\" \" | \"\t\" | \"\r\" | \"\n\"]+ #)
+                            {w.ws := ws}
+                          ;;
+                          A := !\"[\"!;; B := !\"]\"!;; C := !\"+\"!;; D := !\"-\"!;;
+                          #[whitespace(WS:allow_empty=true)]
+                          NT n {a: int} :=  A B              {n.a := 1}
+                                        ;  ((A C) | (B D))*  {n.a := 2}}",
+     "NT", "[ ]", V_record ["a", V_int 1L]);
+    ("ws_noempty", "format {WS w (allow_empty: bool) {ws: [byte]}:=
+                            [allow_empty]
+                            ws=(# [\" \" | \"\t\" | \"\r\" | \"\n\"]* #)
+                            {w.ws := ws}
+                          ; [!allow_empty]
+                            ws=(# [\" \" | \"\t\" | \"\r\" | \"\n\"]+ #)
+                            {w.ws := ws}
+                          ;;
+                          A := !\"[\"!;; B := !\"]\"!;; C := !\"+\"!;; D := !\"-\"!;;
+                          #[whitespace(WS:allow_empty=false)]
+                          NT n {a: int} :=  A B              {n.a := 1}}",
+     "NT", " [ ] ", V_record ["a", V_int 1L]);
   ]
 
 let do_tests gen_ir exe_ir =

@@ -112,12 +112,10 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
         pp_string (Printf.sprintf "L: %s" (Label.to_string l))
     | N_gnode g ->
         print_gnode g
-    | N_push_failcont (_, l) ->
-        pp_string (Printf.sprintf "push_fail %s" (string_of_label l))
-    | N_pop_failcont (_, l) ->
-        pp_string (Printf.sprintf "pop_fail %s" (string_of_label l))
     | N_jump (_, l) ->
         pp_string (Printf.sprintf "jmp %s" (string_of_label l))
+    | N_fail (_, l) ->
+        pp_string (Printf.sprintf "fail %s" (string_of_label l))
     | N_collect_checked_bits (_, v, (mbb, bv), lsc, lf) ->
         pp_string (Printf.sprintf "collect_checked_bits %s, %s%s, %s, %s"
                      (Anf_printer.string_of_var v.v)

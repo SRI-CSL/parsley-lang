@@ -97,7 +97,6 @@ type state =
    st_mode:         mode;
    st_venv:         VEnv.t;
    st_fenv:         FEnv.t;
-   st_failcont_stk: Cfg.label list;    (* stack of failconts *)
    st_view_stk:     Values.view list;  (* stack of views (minus top-of-stack) *)
    st_cur_view:     Values.view}       (* current view (top-of-view-stack) *)
 
