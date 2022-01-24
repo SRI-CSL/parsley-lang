@@ -104,9 +104,25 @@ module PView = struct
     (* retain the view id *)
     V_view s.st_cur_view
 
-  let get_current_cursor _lc (s: state) : value =
-    let vu = s.st_cur_view in
-    V_int (Int64.of_int vu.vu_ofs)
+  let get_cursor lc (_s: state) (v: value) : value =
+    match v with
+      | V_view vu ->
+          V_int (Int64.of_int (vu.vu_ofs - vu.vu_start))
+      | _ ->
+          internal_error (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
+
+  let get_remaining lc (_s: state) (v: value) : value =
+    match v with
+      | V_view vu ->
+          V_int (Int64.of_int (vu.vu_end - vu.vu_ofs))
+      | _ ->
+          internal_error (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
+
+  let get_current_cursor lc (s: state) : value =
+    get_cursor lc s (V_view s.st_cur_view)
+
+  let get_current_remaining lc (s: state) : value =
+    get_remaining lc s (V_view s.st_cur_view)
 end
 
 module DTable = Map.Make (struct type t = string * string
@@ -128,8 +144,11 @@ let mk_dtable () : dtable =
       ("View", "get_base"),           PView.get_base;
       ("View", "get_current"),        PView.get_current;
       ("View", "get_current_cursor"), PView.get_current_cursor;
+      ("View", "get_current_remaining"), PView.get_current_remaining;
     ] in
   let arg1s = [
+      ("View", "get_cursor"),         PView.get_cursor;
+      ("View", "get_remaining"),      PView.get_remaining;
       ("View", "clone"),              PView.clone;
     ] in
   let arg2s = [

@@ -248,6 +248,23 @@ let tests = [
                                        "v", V_int 0x00010203L];
                              V_record ["a", V_int 0x4L;
                                        "v", V_int 0x04050607L]]]);
+    ("views5", "format {U32LE := UInt32<endian=endian::Little()>;;
+                        TInt t {i: int, j: int, k: int, l: int, m: int, n: int} :=
+                           Byte // affects view
+                           v={;; let v = View.get_current() in
+                                 View.restrict(v, 0, 4)}
+                           Byte // does not affect view
+                           i=@[v, U32LE]
+                           {t.i := View.get_current_cursor();
+                            t.j := View.get_cursor(View.get_current());
+                            t.k := View.get_current_remaining();
+                            t.l := View.get_remaining(View.get_current());
+                            // not affected by @[v, _]
+                            t.m := View.get_cursor(v);
+                            t.n := View.get_remaining(v)}}",
+     "TInt", "\000\001\002\003\004\005", V_record ["i", V_int 2L; "j", V_int 2L;
+                                                   "k", V_int 4L; "l", V_int 4L;
+                                                   "m", V_int 0L; "n", V_int 4L]);
     ("rules1", "format {N n {s: [byte]} :=
                         Byte !\"AB\"! {n.s := \"ab\"}
                       ; Byte !\"CD\"! {n.s := \"cd\"}

@@ -412,13 +412,22 @@ let builtin_types, builtin_consts, builtin_vars,
       };
       {mod_name   = Ast.MName "View";
        mod_values = [
-           (Ast.DName "get_base", [],
-            (arrow_type (gen_tvar "unit")
-               (gen_tvar "view")));
            (Ast.DName "get_current", [],
             (arrow_type (gen_tvar "unit")
                (gen_tvar "view")));
+           (Ast.DName "get_base", [],
+            (arrow_type (gen_tvar "unit")
+               (gen_tvar "view")));
+           (Ast.DName "get_cursor", [],
+            (arrow_type (gen_tvar "view")
+               (gen_tvar "int")));
+           (Ast.DName "get_remaining", [],
+            (arrow_type (gen_tvar "view")
+               (gen_tvar "int")));
            (Ast.DName "get_current_cursor", [],
+            (arrow_type (gen_tvar "unit")
+               (gen_tvar "int")));
+           (Ast.DName "get_current_remaining", [],
             (arrow_type (gen_tvar "unit")
                (gen_tvar "int")));
            (Ast.DName "restrict", [],

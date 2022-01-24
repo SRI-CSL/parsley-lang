@@ -263,26 +263,38 @@ addressed soon.
 |===
 | Value | Signature | Description
 
-| `get_base`
-| `unit -> view`
-| gets the current parsing buffer, with the cursor set at the beginning of the buffer
-
 | `get_current`
 | `unit -> view`
-| gets the current parsing buffer
+| gets the current view (i.e. parsing buffer)
+
+| `get_base`
+| `unit -> view`
+| gets the current view with the cursor set at the beginning of the buffer
+
+| `get_cursor`
+| `view -> int`
+| gets the cursor offset in the specified view (a cursor at the start position has a zero offset)
+
+| `get_remaining`
+| `view -> int`
+| gets the remaining bytes in the specified view (i.e. the number of bytes from the cursor to the end of the view)
 
 | `get_current_cursor`
 | `unit -> int`
-| get the cursor offset in the current parsing buffer
+| get the cursor offset in the current view
+
+| `get_current_remaining`
+| `unit -> int`
+| gets the remaining bytes in the current view
 
 | `restrict`
 | `view -> int -> int -> view`
-| `restrict(v, n, len)` returns a parsing buffer of size `len` that starts `n` bytes from the cursor of `v`;
+| `restrict(v, n, len)` returns a view of size `len` that starts `n` bytes from the cursor of `v`;
 throws an exception the specified range is out-of-bounds
 
 | `restrict_from`
 | `view -> int -> view`
-| `restrict_from(v, n)` returns a parsing buffer that begins `n` bytes from the cursor location of `v` and continues until the end of `v`;
+| `restrict_from(v, n)` returns a view that begins `n` bytes from the cursor location of `v` and continues until the end of `v`;
 throws an exception if `n` is out-of-bounds
 
 | `clone`
