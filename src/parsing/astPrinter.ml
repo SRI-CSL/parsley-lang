@@ -744,3 +744,7 @@ let print_typed_spec type_printer spec =
     let s = type_printer t in
     Printf.sprintf " (: %s) " s in
   print_spec auxp spec
+
+let print_ast_json spec = 
+  let u () = `Null in
+  Printf.printf "%s\n" (Yojson.Safe.pretty_to_string (program_to_yojson u u spec))

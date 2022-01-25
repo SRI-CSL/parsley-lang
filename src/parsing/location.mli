@@ -17,6 +17,9 @@
 
 type t
 
+val to_yojson: t -> Yojson.Safe.t
+val position_to_yojson: Lexing.position -> Yojson.Safe.t
+
 val init: Lexing.lexbuf -> string -> unit
 val curr: Lexing.lexbuf -> t
 val str_of_curr_pos: Lexing.lexbuf -> string
@@ -29,6 +32,9 @@ val get_start:    t -> Lexing.position
 val get_end:      t -> Lexing.position
 
 type 'a loc
+
+val loc_to_yojson :
+            ('a -> Yojson.Safe.t) -> 'a loc -> Yojson.Safe.t
 
 val mk_loc_val:  'a -> t -> 'a loc
 val mk_ghost:    'a -> 'a loc

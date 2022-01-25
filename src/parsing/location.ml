@@ -17,10 +17,15 @@
 
 open Lexing
 
+let position_to_yojson pos = Yojson.Safe.from_string (
+  Printf.sprintf ("{\"pos_fname\": \"%s\", " ^^ " \"pos_lnum\": %d, " ^^ " \"pos_bol\": %d, "^^" \"pos_cnum\": %d}") pos.pos_fname pos.pos_lnum pos.pos_bol pos.pos_cnum
+)
+
 type t =
   {loc_start: position;
    loc_end:   position;
    loc_ghost: bool}
+   [@@deriving to_yojson];;
 
 let init lexbuf fname =
   lexbuf.lex_curr_p <-
@@ -85,6 +90,7 @@ let str_of_file_loc loc =
 type 'a loc =
   {pelem: 'a;
    ploc:  t}
+   [@@deriving to_yojson];;
 
 let mk_loc_val a l =
   {pelem = a;
