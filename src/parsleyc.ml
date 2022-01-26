@@ -19,7 +19,7 @@ module FD = Typing.Format_decorators
 module StringSet = FD.StringSet
 
 let print_ast   = ref false
-let print_ast_json   = ref false
+let use_json   = ref false
 let input_file  = ref []
 let debug_build = false
 let ent_nonterm = ref None
@@ -33,8 +33,8 @@ let options =
           Arg.Set print_ast,
           " print the parsed AST" );
         ( "-json",
-          Arg.Set print_ast_json,
-          " print the AST - json formated" );
+          Arg.Set use_json,
+          " json format output" );
         ( "-dd",
           Arg.String (fun s ->
               FD.display_decorated := StringSet.add s !FD.display_decorated
@@ -58,9 +58,7 @@ let () =
   then (Printf.eprintf "Please specify a single input file.\n";
         exit 1);
   let spec_file = List.hd !input_file in
-  let spec = SpecParser.parse_spec spec_file in
-  if   !print_ast_json
-  then Parsing.AstPrinter.print_ast_json spec;
+  let spec = SpecParser.parse_spec !use_json spec_file in
   if   !print_ast
   then Parsing.AstPrinter.print_parsed_spec spec;
   let init_envs, tenv, tspec = SpecTyper.type_check spec in

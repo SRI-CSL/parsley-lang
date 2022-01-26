@@ -25,7 +25,7 @@ let handle_exception bt msg =
   Printf.printf "%s\n" bt;
   exit 1
 
-let parse_file fname cont =
+let parse_file json fname cont =
   let lexbuf = from_channel (open_in fname) in
   let lexbuf = {lexbuf with
                  lex_curr_p = {pos_fname = fname;
@@ -50,7 +50,7 @@ let parse_file fname cont =
         Printf.sprintf "Unknown syntax error (in state %d)" st in
     Printf.fprintf stderr
       "%s: parser error at or just before this location:\n %s"
-      (Location.str_of_curr_pos lexbuf) msg;
+      (if json then Yojson.Safe.to_string (Location.position_to_yojson lexbuf.lex_curr_p) else Location.str_of_curr_pos lexbuf) msg;
     exit 1 in
   try
     I.loop_handle cont fail supplier start
@@ -86,24 +86,24 @@ let mk_filename modnm =
 module StringSet = Set.Make(struct type t = string
                                    let compare = compare
                             end)
-let rec flatten accum includes pending =
+let rec flatten json accum includes pending =
   match pending with
     | [] -> accum
     | d :: rest ->
         (match d with
            | PDecl_types (tl, l) ->
-               flatten (Decl_types (tl, l) :: accum) includes rest
+               flatten json (Decl_types (tl, l) :: accum) includes rest
            | PDecl_const c ->
-               flatten (Decl_const c :: accum) includes rest
+               flatten json (Decl_const c :: accum) includes rest
            | PDecl_fun f ->
-               flatten (Decl_fun f :: accum) includes rest
+               flatten json (Decl_fun f :: accum) includes rest
            | PDecl_recfuns r ->
-               flatten (Decl_recfuns r :: accum) includes rest
+               flatten json (Decl_recfuns r :: accum) includes rest
            | PDecl_format f ->
-               flatten (Decl_format f :: accum) includes rest
+               flatten json (Decl_format f :: accum) includes rest
            | PDecl_use u ->
                (match u.use_modules with
-                  | [] -> flatten accum includes rest
+                  | [] -> flatten json accum includes rest
                   | h :: t ->
                       (* pick the first, the others go back to pending *)
                       let pending_use = {u with use_modules = t} in
@@ -111,29 +111,29 @@ let rec flatten accum includes pending =
                       let fname = mk_filename (Location.value h) in
                       if StringSet.mem fname includes then
                         (* we've already included this, skip *)
-                        flatten accum includes pending
+                        flatten json accum includes pending
                       else
                         (*let _ = Printf.fprintf stdout " including %s ...\n" fname in*)
-                        parse_file fname (fun ast ->
+                        parse_file json fname (fun ast ->
                             (* push its decls on top of the pending list *)
-                            flatten accum
+                            flatten json accum
                               (StringSet.add fname includes)
                               (ast.pre_decls @ pending)
                           )
                )
         )
 
-let do_parse_spec f =
+let do_parse_spec json f =
   (*Printf.fprintf stdout " parsing %s ...\n" f;*)
   update_inc_dir f;
-  parse_file f (fun ast ->
-      let ast = flatten [] (StringSet.add f StringSet.empty) ast.pre_decls in
+  parse_file json f (fun ast ->
+      let ast = flatten json [] (StringSet.add f StringSet.empty) ast.pre_decls in
       {decls = List.rev ast}
     )
 
-let parse_spec f =
+let parse_spec json f =
   try
-    do_parse_spec f
+    do_parse_spec json f
   with
     | Sys_error s ->
         (Printf.eprintf "Error processing %s.\n" s;

@@ -18,25 +18,24 @@
 open Lexing
 
 type inner_pos = 
-  {_pos_fname: string;
-   _pos_lnum:  int;
-   _pos_bol:   int;
-   _pos_cnum:  int}
+  {fname: string;
+   lnum:  int;
+   bol:   int;
+   cnum:  int}
    [@@deriving to_yojson];;
 
 let position_to_yojson p = 
   let i = {
-    _pos_fname = p.pos_fname;
-    _pos_lnum = p.pos_lnum;
-    _pos_bol = p.pos_bol;
-    _pos_cnum = p.pos_cnum} in 
+    fname = p.pos_fname;
+    lnum = p.pos_lnum;
+    bol = p.pos_bol;
+    cnum = p.pos_cnum} in 
   inner_pos_to_yojson i
 
 type t =
   {loc_start: position;
    loc_end:   position;
    loc_ghost: bool}
-   [@@deriving to_yojson];;
 
 let init lexbuf fname =
   lexbuf.lex_curr_p <-
@@ -101,7 +100,6 @@ let str_of_file_loc loc =
 type 'a loc =
   {pelem: 'a;
    ploc:  t}
-   [@@deriving to_yojson];;
 
 let mk_loc_val a l =
   {pelem = a;
