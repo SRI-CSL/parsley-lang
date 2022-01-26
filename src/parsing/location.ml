@@ -17,9 +17,20 @@
 
 open Lexing
 
-let position_to_yojson pos = Yojson.Safe.from_string (
-  Printf.sprintf ("{\"pos_fname\": \"%s\", " ^^ " \"pos_lnum\": %d, " ^^ " \"pos_bol\": %d, "^^" \"pos_cnum\": %d}") pos.pos_fname pos.pos_lnum pos.pos_bol pos.pos_cnum
-)
+type inner_pos = 
+  {_pos_fname: string;
+   _pos_lnum:  int;
+   _pos_bol:   int;
+   _pos_cnum:  int}
+   [@@deriving to_yojson];;
+
+let position_to_yojson p = 
+  let i = {
+    _pos_fname = p.pos_fname;
+    _pos_lnum = p.pos_lnum;
+    _pos_bol = p.pos_bol;
+    _pos_cnum = p.pos_cnum} in 
+  inner_pos_to_yojson i
 
 type t =
   {loc_start: position;
