@@ -49,9 +49,7 @@ let get_nt_typ ctx name =
     | Some t -> t
     | None -> assert false
 
-let av_of_int ctx i loc =
-  let int = get_typ ctx "int" in
-  make_av (AV_lit (PL_int i)) int loc
+(* ANF variable utilities *)
 
 let fresh_var venv typ loc =
   let vid, venv = VEnv.gen venv in
@@ -60,6 +58,12 @@ let fresh_var venv typ loc =
 let bind_var venv v t =
   let v', venv = VEnv.bind venv v in
   make_var v' t (Location.loc v), venv
+
+(* ANF value utilities *)
+
+let av_of_int ctx i loc =
+  let int = get_typ ctx "int" in
+  make_av (AV_lit (PL_int i)) int loc
 
 let constr_av t c args typ loc =
   let t = mk_ident t loc in
@@ -1095,6 +1099,7 @@ let lower_rule (ctx: context) (b: opened) (r: rule)
    nt_entry so that it can be called from other rules. *)
 let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   let nt_name = Location.value ntd.non_term_name in
+  let orig_venv = ctx.ctx_venv in
   let typ = get_nt_typ ctx nt_name in
   let loc = ntd.non_term_loc in
   (* Ensure the NT var is bound in the rules.  If the var was not
@@ -1176,17 +1181,20 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   let b = new_labeled_block loc lfail in
   let b = add_gnode b N_pop_view unit loc in
   let ctx = close_with_fail ctx b loc lfd in
+  (* Compute the new vars that were used in constructing the CFG. *)
+  let new_vars = VEnv.new_since ctx.ctx_venv orig_venv in
   (* construct the nt_entry *)
   assert (is_static lent);
   let nte =
-    {nt_name     = ntd.non_term_name;
+    {nt_name      = ntd.non_term_name;
      nt_inh_attrs;
-     nt_typ      = typ;
-     nt_entry    = (raw_label_of lent);
-     nt_succcont = lsd;
-     nt_failcont = lfd;
-     nt_retvar   = rv;
-     nt_loc      = ntd.non_term_loc} in
+     nt_typ       = typ;
+     nt_entry     = (raw_label_of lent);
+     nt_succcont  = lsd;
+     nt_failcont  = lfd;
+     nt_retvar    = rv;
+     nt_used_vars = new_vars;
+     nt_loc       = ntd.non_term_loc} in
   (* add it to the grammar ToC *)
   let toc = FormatGToC.add nt_name nte ctx.ctx_gtoc in
   {ctx with ctx_gtoc = toc}

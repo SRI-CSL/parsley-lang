@@ -31,7 +31,7 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
         let vl = val_of_aexp s ae in
         let st_venv = VEnv.assign s.st_venv vr vl in
         {s with st_venv}
-    | N_assign_fun (fv, pvs, bd) ->
+    | N_assign_fun (fv, pvs, bd, _) ->
         let st_fenv = FEnv.assign s.st_fenv fv pvs bd in
         {s with st_fenv}
     | N_action sts ->

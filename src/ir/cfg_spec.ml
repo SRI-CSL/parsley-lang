@@ -62,8 +62,9 @@ let lower_spec (_, init_venv) tenv (spec: program) =
     let Anf.{afun_ident  = fv;
              afun_params = params;
              afun_body   = afb;
+             afun_vars   = vars;
              afun_loc    = loc; _} = af in
-    let nd = N_assign_fun (fv, params, afb) in
+    let nd = N_assign_fun (fv, params, afb, vars) in
     Cfg_rule.add_gnode fb nd afb.aexp_typ loc in
 
   (* process the spec in lexical order *)

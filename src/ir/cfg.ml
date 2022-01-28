@@ -67,8 +67,9 @@ type gnode_desc =
 
   (* Create an entry for a function and assign it to a variable.
      Since there are no first-class functions, this is usually done
-     during initialization. *)
-  | N_assign_fun of var * var list * aexp
+     during initialization.  The VSet contains all the temporary variables
+     created in lowering the body. *)
+  | N_assign_fun of var * var list * aexp * VSet.t
 
   (* side-effects *)
 
@@ -335,6 +336,8 @@ type nt_entry =
    nt_failcont:  label;       (* should always be dynamic *)
    (* a successfully matched value will be bound to this variable *)
    nt_retvar:    var;
+   (* all new vars allocated in the CFG for this non-terminal *)
+   nt_used_vars: VSet.t;
    (* the location this non-term was defined *)
    nt_loc:       Location.t}
 

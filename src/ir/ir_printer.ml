@@ -47,7 +47,7 @@ let print_gnode g =
         pp_string (Printf.sprintf "%s := "
                      (Anf_printer.string_of_var v.v));
         Anf_printer.print_aexp ae
-    | N_assign_fun (v, vs, bd) ->
+    | N_assign_fun (v, vs, bd, _) ->
         let args = List.map (fun v ->
                        Anf_printer.string_of_var Anf.(v.v)
                      ) vs in

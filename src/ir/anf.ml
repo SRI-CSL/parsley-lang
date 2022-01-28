@@ -40,6 +40,10 @@ type stmt = (typ, TypeInfer.varid) Ast.stmt
 
 type varid = string * int
 
+module VSet = Set.Make(struct type t = varid
+                              let compare = compare
+                       end)
+
 (* variable bindings *)
 type var =
   {v:     varid;
@@ -162,6 +166,7 @@ type afun =
   {afun_ident:     var;
    afun_params:    var list;
    afun_body:      aexp;
+   afun_vars:      VSet.t; (* new vars bound in the body (not including params) *)
    afun_recursive: bool;
    afun_loc:       Location.t}
 
@@ -192,6 +197,7 @@ module VEnv : sig
   val bind:      t -> TypeInfer.varid Ast.var -> varid * t
   val lookup:    t -> TypeInfer.varid Ast.var -> varid
   val is_bound:  t -> TypeInfer.varid Ast.var -> bool
+  val new_since: t -> t -> VSet.t
 end = struct
   type t = int ref * varid Bindings.t
 
@@ -225,6 +231,13 @@ end = struct
   (* checks if a variable has already been bound *)
   let is_bound (_, binds) (var: TypeInfer.varid Ast.var) =
     Bindings.mem (var_val var) binds
+
+  let new_since ((c, binds): t) ((c', binds'): t) : VSet.t =
+    assert (!c >= !c');
+    Bindings.fold (fun k v s ->
+        assert (Bindings.mem k binds);
+        VSet.add v s
+      ) binds' VSet.empty
 end
 
 type anf_error =
