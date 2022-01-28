@@ -124,7 +124,8 @@ let rec is_default_row = function
 
 let conarg_paths arity root_path =
   let rec helper acc i =
-    if i = 0 then acc
+    if   i = 0
+    then acc
     else helper ((root_path @ [i]) :: acc) (i - 1) in
   helper [] arity
 
@@ -178,7 +179,7 @@ let rec to_dectree (tenv: TypingEnvironment.environment)
                          | P_variant (c, _) ->
                              Con (c, ar), h.pattern_aux, h.pattern_loc, dt
                      ) heads in
-                 if Pattern_utils.is_complete_sig tenv (fst (List.split heads))
+                 if   Pattern_utils.is_complete_sig tenv (fst (List.split heads))
                  then Switch (path, switches)
                  else (* add the default case *)
                    let def = default m in

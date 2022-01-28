@@ -33,7 +33,7 @@ let expand_type_abbrevs env te =
              | None -> te
              | Some abb ->
                  let n = List.length abb.TEnv.type_abbrev_tvars in
-                 if n = 0
+                 if   n = 0
                  then abb.TEnv.type_abbrev_type
                  else let err =
                         TExc.PartialTypeConstructorApplication (loc, tc, n, 0)
@@ -46,17 +46,13 @@ let expand_type_abbrevs env te =
                  {te with type_expr = TE_tapp (c, args')}
              | Some abb ->
                  let n = List.length abb.TEnv.type_abbrev_tvars in
-                 if n != List.length args
-                 then
-                   let err =
-                     TExc.PartialTypeConstructorApplication
-                       (loc, tc, n, List.length args)
-                   in raise (TExc.Error err)
-                 else
-                   let args' = List.map expand args in
-                   let map = List.combine abb.TEnv.type_abbrev_tvars args' in
-                   subst map abb.TEnv.type_abbrev_type
-          )
+                 if   n != List.length args
+                 then let err = TExc.PartialTypeConstructorApplication
+                                  (loc, tc, n, List.length args) in
+                      raise (TExc.Error err)
+                 else let args' = List.map expand args in
+                      let map = List.combine abb.TEnv.type_abbrev_tvars args' in
+                      subst map abb.TEnv.type_abbrev_type)
 
       | TE_tapp (c, args) ->
           let c' = expand c in
@@ -68,7 +64,7 @@ let expand_type_abbrevs env te =
       | TE_tvar t ->
           let s = Location.value t in
           (match List.assoc_opt (TName s) map with
-             | None -> te
+             | None    -> te
              | Some te -> te)
       | TE_tapp (c, args) ->
           let c' = subst map c in
@@ -82,11 +78,9 @@ let lookup_bitfield_info tenv t =
   let l  = Location.loc t in
   let tt = TName tn in
   let adt = match TEnv.lookup_adt tenv tt with
-      | None ->
-          let err = TExc.UnboundRecord (l, tt) in
-          raise (TExc.Error err)
-      | Some adt ->
-          adt in
+      | None     -> let err = TExc.UnboundRecord (l, tt) in
+                    raise (TExc.Error err)
+      | Some adt -> adt in
   match adt with
     | {adt = Variant _; _} ->
         let err = TExc.NotRecordType t in
@@ -237,7 +231,7 @@ let rec guess_is_regexp_elem rle =
     | RE_star (rle', Some e) ->
         (match (const_fold e).expr with
            | E_literal (PL_int _) -> guess_is_regexp_elem rle'
-           | _ -> false)
+           | _                    -> false)
 
     | RE_choice rles
     | RE_seq rles
@@ -271,7 +265,7 @@ let rec is_regexp_elem tenv rle =
     | RE_star (rle', Some e) ->
         (match (const_fold e).expr with
            | E_literal (PL_int _) -> is_regexp_elem tenv rle'
-           | _ -> false)
+           | _                    -> false)
 
     | RE_choice rles
     | RE_seq rles
@@ -286,7 +280,7 @@ let rec is_regexp_elem tenv rle =
         let n = Location.value nid in
         (match TEnv.lookup_non_term_type tenv (NName n) with
            | Some t -> TypeAlgebra.is_regexp_type (TEnv.typcon_variable tenv) t
-           | None -> false)
+           | None   -> false)
 
     | RE_non_term _
     | RE_named _
@@ -327,7 +321,7 @@ let rec rule_elem_to_regexp r =
         let e' = const_fold e in
         (match e'.expr with
            | E_literal (PL_int _) -> ()
-           | _ -> assert false);
+           | _                    -> assert false);
         wrap (RX_star (rule_elem_to_regexp r', Some e'))
 
     | RE_opt r' ->

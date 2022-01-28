@@ -42,7 +42,7 @@ let pick_missed_int il =
   let module IntSet = Set.Make(Nativeint) in
   let iset = IntSet.of_list (List.map Nativeint.of_int il) in
   let rec loop i =
-    if IntSet.mem i iset
+    if   IntSet.mem i iset
     then loop (Nativeint.succ i)
     else i in
   Nativeint.to_int (loop Nativeint.zero)
@@ -50,7 +50,7 @@ let pick_missed_int il =
 let pick_missed_string sl =
   let sset = StringSet.of_list sl in
   let rec loop s =
-    if StringSet.mem s sset
+    if   StringSet.mem s sset
     then loop (String.concat s ["a"])
     else s in
   loop ""
@@ -60,7 +60,7 @@ let pick_missed_bitvector bvl width =
   let max = Int64.shift_left Int64.one width in
   let rec loop i =
     assert (i != max);
-    if BVSet.mem i bvs
+    if   BVSet.mem i bvs
     then loop (Int64.succ i)
     else int_to_bv i width in
   loop Int64.zero
@@ -143,7 +143,7 @@ let rec check_matrix tenv (mat: pmat) cols wildcard =
     | (p, _) :: _ ->
         let roots = roots tenv (first_col mat) in
         let signature = List.map fst roots in
-        if is_complete_sig tenv signature
+        if   is_complete_sig tenv signature
         then begin
             (* We could fold and terminate early for efficiency, but
              * make an exhaustive scan instead for now to debug the
@@ -180,7 +180,7 @@ let rec check_matrix tenv (mat: pmat) cols wildcard =
                   None
               | Some ps ->
                   (* found a missed instance *)
-                  if List.length signature = 0
+                  if   List.length signature = 0
                   then Some (wild :: ps)
                   else Some (pick_missed_constructor tenv signature :: ps)
           end
@@ -207,17 +207,15 @@ let check_exhaustiveness tenv col =
 (** [check_usefulness tenv col] checks whether each row in the pattern
    column [col] is useful *)
 let check_usefulness tenv col =
-  ignore (
-    List.fold_left (fun acc c ->
-        let mat = List.map (fun p -> [p], ()) acc in
-        (match check_matrix tenv mat 1 c with
-           | None ->
-               raise (Error (UselessPattern c.pattern_loc))
-           | Some exs ->
-               assert (List.length exs > 0);
-               acc @ [c])
-      ) [] col
-    )
+  ignore (List.fold_left (fun acc c ->
+              let mat = List.map (fun p -> [p], ()) acc in
+              (match check_matrix tenv mat 1 c with
+                 | None ->
+                     raise (Error (UselessPattern c.pattern_loc))
+                 | Some exs ->
+                     assert (List.length exs > 0);
+                     acc @ [c])
+            ) [] col)
 
 let check_pattern tenv col : unit =
   check_exhaustiveness tenv col;
@@ -398,7 +396,7 @@ and descend_stmt (ctx, acc) s =
         descend_expr (descend_expr (ctx, acc) e) e'
     | S_let ({pattern = P_variant (c, _); _} as p, e, ss) ->
         (* skip check for p if e is already constrained by c *)
-        let acc' = if has_constraint ctx e c
+        let acc' = if   has_constraint ctx e c
                    then acc
                    else [p] :: acc in
         List.fold_left descend_stmt (descend_expr (ctx, acc') e) ss

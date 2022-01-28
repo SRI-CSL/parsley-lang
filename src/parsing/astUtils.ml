@@ -38,11 +38,10 @@ let make_type_app_name (name : string) (args : type_expr list) loc
 
 let rec make_arrow_type (args : type_expr list) loc : type_expr =
   match args with
-    | [] -> assert false
-    | [r] -> r  (* no arrow *)
-    | h :: t ->
-        let res = make_arrow_type t loc in
-        make_type_app_name "->" [h; res] loc
+    | []     -> assert false
+    | [r]    -> r  (* no arrow *)
+    | h :: t -> let res = make_arrow_type t loc in
+                make_type_app_name "->" [h; res] loc
 
 let arrow_args (typ : type_expr) : type_expr list =
   let rec helper acc typ =

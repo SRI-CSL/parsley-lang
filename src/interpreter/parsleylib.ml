@@ -257,7 +257,7 @@ module PBits = struct
       | V_bitvector bs ->
           let i, _ =
             List.fold_left (fun (i, cnt) b ->
-                if cnt >= 64
+                if   cnt >= 64
                 then fault (Overflow (lc, "Bits.to_uint"))
                 else let i = Int64.shift_left i 1 in
                      let b = if b then Int64.one else Int64.zero in
@@ -277,7 +277,7 @@ module PBits = struct
       | V_bitvector (s :: bs) ->
           let i, _ =
             List.fold_left (fun (i, cnt) b ->
-                if cnt >= 63
+                if   cnt >= 63
                 then fault (Overflow (lc, "Bits.to_int"))
                 else let i = Int64.shift_left i 1 in
                      let b = if b then Int64.one else Int64.zero in
@@ -315,7 +315,7 @@ module PBits = struct
 
   let mk_bv lc op len v =
     (* TODO: resource bound check on len *)
-    if Int64.compare len Int64.zero >= 0
+    if   Int64.compare len Int64.zero >= 0
     then V_bitvector (List.init (Int64.to_int len) (fun _ -> v))
     else fault (Invalid_argument (lc, op, "negative size"))
 
@@ -349,9 +349,9 @@ module PSet = struct
           let etyp = vtype_of e in
           let setyp = vtype_of se in
           (* This can be expensive but can be turned off after initial testing *)
-          if List.exists (fun se -> vtype_of se != setyp) vs
+          if   List.exists (fun se -> vtype_of se != setyp) vs
           then assert false;
-          if setyp != etyp
+          if   setyp != etyp
           then internal_error (Type_error (lc, "Set.add", 2, etyp, setyp));
           let set = VSet.of_list vs in
           V_set (VSet.elements (VSet.add e set))
@@ -366,9 +366,9 @@ module PSet = struct
           let etyp = vtype_of e in
           let setyp = vtype_of se in
           (* This can be expensive but can be turned off after initial testing *)
-          if List.exists (fun se -> vtype_of se != setyp) vs
+          if   List.exists (fun se -> vtype_of se != setyp) vs
           then assert false;
-          if setyp != etyp
+          if   setyp != etyp
           then internal_error (Type_error (lc, "Set.mem", 2, etyp, setyp));
           let set = VSet.of_list vs in
           V_bool (VSet.mem e set)
@@ -392,13 +392,13 @@ module PMap = struct
           let ktyp, vtyp   = vtype_of k, vtype_of v in
           let ks, vs = List.split kvs in
           (* This can be expensive but can be turned off after initial testing *)
-          if List.exists (fun ke -> vtype_of ke != mktyp) ks
+          if   List.exists (fun ke -> vtype_of ke != mktyp) ks
           then assert false;
-          if List.exists (fun ve -> vtype_of ve != mvtyp) vs
+          if   List.exists (fun ve -> vtype_of ve != mvtyp) vs
           then assert false;
-          if mktyp != ktyp
+          if   mktyp != ktyp
           then internal_error (Type_error (lc, "Map.add", 2, ktyp, mktyp));
-          if mvtyp != vtyp
+          if   mvtyp != vtyp
           then internal_error (Type_error (lc, "Map.add", 3, vtyp, mvtyp));
           let map = VMap.of_seq (List.to_seq kvs) in
           let map = VMap.add k v map in
@@ -416,11 +416,11 @@ module PMap = struct
           let ktyp = vtype_of k in
           let ks, vs = List.split kvs in
           (* This can be expensive but can be turned off after initial testing *)
-          if List.exists (fun ke -> vtype_of ke != mktyp) ks
+          if   List.exists (fun ke -> vtype_of ke != mktyp) ks
           then assert false;
-          if List.exists (fun ve -> vtype_of ve != mvtyp) vs
+          if   List.exists (fun ve -> vtype_of ve != mvtyp) vs
           then assert false;
-          if mktyp != ktyp
+          if   mktyp != ktyp
           then internal_error (Type_error (lc, "Map.mem", 2, ktyp, mktyp));
           let map = VMap.of_seq (List.to_seq kvs) in
           V_bool (VMap.mem k map)
@@ -437,11 +437,11 @@ module PMap = struct
           let ktyp = vtype_of k in
           let ks, vs = List.split kvs in
           (* This can be expensive but can be turned off after initial testing *)
-          if List.exists (fun ke -> vtype_of ke != mktyp) ks
+          if   List.exists (fun ke -> vtype_of ke != mktyp) ks
           then assert false;
-          if List.exists (fun ve -> vtype_of ve != mvtyp) vs
+          if   List.exists (fun ve -> vtype_of ve != mvtyp) vs
           then assert false;
-          if mktyp != ktyp
+          if   mktyp != ktyp
           then internal_error (Type_error (lc, "Map.find", 2, ktyp, mktyp));
           let map = VMap.of_seq (List.to_seq kvs) in
           V_option (VMap.find_opt k map)

@@ -26,7 +26,8 @@ open TypingEnvironment
 
 let repeat p n =
   let rec iter n acc =
-    if n = 0 then acc
+    if   n = 0
+    then acc
     else iter (n - 1) (p :: acc) in
   iter n []
 
@@ -68,11 +69,9 @@ let specialize_row_constr tenv (typ, constr) ps =
                Some ((repeat p' arity) @ rest)
            | P_variant ((typ', constr'), ps)
                 when Location.value typ' = Location.value typ ->
-               if Location.value constr' = Location.value constr
-               then (
-                 assert (List.length ps = arity);
-                 Some (ps @ rest)
-               )
+               if   Location.value constr' = Location.value constr
+               then (assert (List.length ps = arity);
+                     Some (ps @ rest))
                else None
            | P_literal _ ->
                (* Type-check should forbid this. *)
@@ -163,7 +162,7 @@ let int_to_bv int width =
   let bit_to_bool i =
     Int64.logand i Int64.one == Int64.one in
   let rec iter acc cnt =
-    if cnt = width
+    if   cnt = width
     then acc
     else let int = Int64.shift_right int cnt in
          let bit = bit_to_bool int in
@@ -176,7 +175,7 @@ let check_bitvector_completeness set width =
   assert (width <= 64);
   let max = Int64.shift_left Int64.one width in
   let rec check i =
-    if Int64.equal i max
+    if   Int64.equal i max
     then true
     else if BVSet.mem i set
     then check (Int64.succ i)

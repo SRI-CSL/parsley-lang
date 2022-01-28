@@ -253,7 +253,7 @@ and normalize_exp_case (tenv: TypingEnvironment.environment)
              each pvar *)
           let letpats, venv =
             List.fold_left (fun (letpats, venv) (v, t, occ) ->
-                if VEnv.is_bound venv v
+                if   VEnv.is_bound venv v
                 then letpats, venv
                 else let avar, venv = VEnv.bind venv v in
                      let var = make_var avar t (Location.loc v) in
@@ -446,7 +446,7 @@ and normalize_stmt_case (tenv: TypingEnvironment.environment)
              each pvar *)
           let letpats, venv =
             List.fold_left (fun (letpats, venv) (v, t, occ) ->
-                if VEnv.is_bound venv v
+                if   VEnv.is_bound venv v
                 then letpats, venv
                 else let avar, venv = VEnv.bind venv v in
                      let var = make_var avar t (Location.loc v) in

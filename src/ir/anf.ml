@@ -187,11 +187,11 @@ module Bindings = Map.Make(struct type t = string * TypeInfer.varid
  *)
 module VEnv : sig
   type t
-  val empty: t
-  val gen: t -> varid * t
-  val bind: t -> TypeInfer.varid Ast.var -> varid * t
-  val lookup: t -> TypeInfer.varid Ast.var -> varid
-  val is_bound: t -> TypeInfer.varid Ast.var -> bool
+  val empty:     t
+  val gen:       t -> varid * t
+  val bind:      t -> TypeInfer.varid Ast.var -> varid * t
+  val lookup:    t -> TypeInfer.varid Ast.var -> varid
+  val is_bound:  t -> TypeInfer.varid Ast.var -> bool
 end = struct
   type t = int ref * varid Bindings.t
 

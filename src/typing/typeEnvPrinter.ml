@@ -36,7 +36,7 @@ open MultiEquation
 
 (** [name_from_int i] turns the integer [i] into a type variable name. *)
 let rec name_from_int i =
-  if i < 26
+  if   i < 26
   then String.make 1 (Char.chr (0x61 + i))
   else name_from_int (i / 26 - 1) ^ name_from_int (i mod 26)
 
@@ -89,7 +89,7 @@ let printer is_type_scheme =
     let desc = UnionFind.find v in
     let autoname () =
       let prefix, c, h =
-        if is_type_scheme && IntRank.compare desc.rank IntRank.none = 0
+        if   is_type_scheme && IntRank.compare desc.rank IntRank.none = 0
         then "'", i, history
         else "''", gi, ghistory in
       try
@@ -102,12 +102,10 @@ let printer is_type_scheme =
         result in
     (match desc.name with
        | Some (TName name) ->
-           if desc.kind <> Constant then
-             try
-               Misc.assocp (UnionFind.equivalent v) !history
-             with Not_found ->
-               history := (v, name) :: !history;
-               name
+           if   desc.kind <> Constant
+           then try  Misc.assocp (UnionFind.equivalent v) !history
+                with Not_found -> history := (v, name) :: !history;
+                                  name
            else name
        | _ -> autoname ())
     (* ^ ("["^string_of_int desc.rank^"]") *)
@@ -136,36 +134,32 @@ let printer is_type_scheme =
     (* If this variable was visited already, we mark it as ``hit
        again'', so as to record the fact that we need to print an
        equation at that node when going back up. *)
-    if is_hit v || is_visited v then
-      begin
-        desc.mark <- hit;
-        var_or_sym v
-      end
+    if   is_hit v || is_visited v
+    then (desc.mark <- hit;
+          var_or_sym v)
 
     (* If this variable was never visited, we mark it as ``being
        visited'' before processing it, so as to detect cycles.
        If, when we are done with this variable, its mark has
        changed to ``hit again'', then it must be part of a cycle,
        and we annotate it with an inline equation. *)
-    else begin
-      desc.mark <- visiting;
-      match desc.structure with
-        | None ->
-            var_or_sym v
-        | Some t ->
-            let (v', name, args, infix, assoc, p) as r =
-              print_term t in
-            if is_hit v
-            then let vname = var_name v in
-                 (v, vname ^ " =",
-                  [ Arg (v', name, args, infix, assoc, p) ],
-                  false, assoc, true)
-            else (desc.mark <- Mark.none; r)
-    end
+    else (desc.mark <- visiting;
+          match desc.structure with
+            | None ->
+                var_or_sym v
+            | Some t ->
+                let (v', name, args, infix, assoc, p) as r =
+                  print_term t in
+                if   is_hit v
+                then let vname = var_name v in
+                     (v, vname ^ " =",
+                      [ Arg (v', name, args, infix, assoc, p) ],
+                      false, assoc, true)
+                else (desc.mark <- Mark.none; r))
 
   and print_term t =
-    let at_left  = function [] -> true | [ _x ] -> false | _ -> assert false
-    and at_right = function [] -> true | [ _x ] -> false | _ -> assert false
+    let at_left     = function [] -> true | [ _x ] -> false | _ -> assert false
+    and at_right    = function [] -> true | [ _x ] -> false | _ -> assert false
     and is_enclosed = function Assoc_enclosed _ -> true  | _ -> false in
     let print = function
       | App (t1, t2) ->
@@ -179,7 +173,7 @@ let printer is_type_scheme =
               | None     -> -1 in
           let paren_t2 =
             force_paren2 ||
-              if are_equivalent op1 op2
+              if   are_equivalent op1 op2
               then let _ = assert (assoc1 = assoc2) in
                    (assoc2 = Assoc_left && at_right args2)
                    || (assoc2 = Assoc_right && at_left args1)
@@ -193,7 +187,7 @@ let printer is_type_scheme =
     in print t in
 
   let prefix () =
-    if is_type_scheme
+    if   is_type_scheme
     then match !history with
            | [] ->
                ""
@@ -206,17 +200,17 @@ let printer is_type_scheme =
 
   let as_string f r =
     let rec loop (Arg (_, name, args, infix, assoc, is_paren)) =
-      if args = []
+      if   args = []
       then name
       else paren is_paren
-             (if infix
+             (if   infix
               then Misc.print_separated_list (" " ^ name ^ " ") loop args
               else let pref, sep, suff =
                      match assoc with
                        | Assoc_enclosed (b, e) ->
                            b, ", ", " " ^ e
                        | _ ->
-                           if List.length args > 0
+                           if   List.length args > 0
                            then (name ^ "<"), ", ", " >"
                            else name, " ", "" in
                    pref

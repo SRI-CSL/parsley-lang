@@ -91,8 +91,8 @@ type state =
    st_spec_toc:     Cfg.nt_entry Cfg.FormatGToC.t;
    st_spec_ir:      Cfg.closed Cfg.FormatIR.t;
    (* static state only for debugging *)
-   st_ir_tenv:         TypingEnvironment.environment;
-   st_ir_venv:         Anf.VEnv.t;
+   st_ir_tenv:      TypingEnvironment.environment;
+   st_ir_venv:      Anf.VEnv.t;
    (* dynamic state *)
    st_mode:         mode;
    st_venv:         VEnv.t;

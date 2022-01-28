@@ -76,7 +76,7 @@ let lower_spec (_, init_venv) tenv (spec: program) =
               (* populate the consts block *)
               let c', venv =
                 Anf_exp.normalize_const ctx.ctx_tenv ctx.ctx_venv c in
-              if print_anf
+              if   print_anf
               then Anf_printer.print_const c';
               let Anf.{aconst_ident = v';
                        aconst_val = ae;
@@ -89,7 +89,7 @@ let lower_spec (_, init_venv) tenv (spec: program) =
               (* populate the funcs block *)
               let af, venv =
                 Anf_exp.normalize_fun ctx.ctx_tenv ctx.ctx_venv f in
-              if print_anf
+              if   print_anf
               then Anf_printer.print_fun af;
               let sts = add_fun sts af in
               {ctx with ctx_venv = venv}, tvenv, sts
@@ -97,7 +97,7 @@ let lower_spec (_, init_venv) tenv (spec: program) =
               (* populate the funcs block *)
               let afs, venv = Anf_exp.normalize_recfuns ctx.ctx_tenv
                                 ctx.ctx_venv r.recfuns in
-              if print_anf
+              if   print_anf
               then List.iter Anf_printer.print_fun afs;
               let sts = List.fold_left add_fun sts afs in
               {ctx with ctx_venv = venv}, tvenv, sts

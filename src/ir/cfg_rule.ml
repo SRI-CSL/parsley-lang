@@ -287,7 +287,7 @@ let rec lower_rule_elem
         let ctx, b = exit_bitmode ctx b loc in
         let venv, args =
           List.fold_left (fun (venv, args) (i, a, e) ->
-              (if a != Ast.A_eq
+              (if   a != Ast.A_eq
                then let err =
                       Unsupported_construct
                         (re.rule_elem_loc, "map-view assignment") in

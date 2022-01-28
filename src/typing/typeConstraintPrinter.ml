@@ -38,10 +38,9 @@ let print_crterm t =
 
 let print_variable v =
   let vt = print_variable false v in
-  if (UnionFind.find v).structure <> None then
-    Printf.sprintf "(%s)" vt
-  else
-    vt
+  if   (UnionFind.find v).structure <> None
+  then Printf.sprintf "(%s)" vt
+  else vt
 
 let active_mode mode =
   match mode with
@@ -54,13 +53,13 @@ let active_mode mode =
            out_flush   = r.flush;
            out_newline = r.newline;
            out_spaces  = r.spaces};
-        if r.with_tags then (
-          set_formatter_stag_functions
-            {mark_open_stag   = (fun t -> r.open_tag t; "");
-             mark_close_stag  = (fun t -> r.close_tag t; "");
-             print_open_stag  = ignore;
-             print_close_stag = ignore};
-          set_margin r.margin)
+        if   r.with_tags
+        then (set_formatter_stag_functions
+                {mark_open_stag   = (fun t -> r.open_tag t; "");
+                 mark_close_stag  = (fun t -> r.close_tag t; "");
+                 print_open_stag  = ignore;
+                 print_close_stag = ignore};
+              set_margin r.margin)
 
     | Txt out ->
           let _ = Format.set_margin 80 in
@@ -108,10 +107,9 @@ let printf_constraint mode c =
            pconstraint c;
            List.iter (fun c ->
                printf "@ %s@ " andsym;
-               if is_let c then
-                 paren (fun () -> pconstraint c)
-               else
-                 pconstraint c
+               if   is_let c
+               then paren (fun () -> pconstraint c)
+               else pconstraint c
              ) cs;
            printf ")"
 
@@ -122,11 +120,11 @@ let printf_constraint mode c =
                  chop_exists (acu @ fqs') c'
              | lc -> (acu, lc) in
            let (fqs, c) = chop_exists fqs c in
-           if (List.length fqs <> 0) then
-             print_string exists;
+           if   List.length fqs <> 0
+           then print_string exists;
            print_string (print_separated_list " " print_variable fqs);
-           if (List.length fqs <> 0) then
-             printf ".@,";
+           if   List.length fqs <> 0
+           then printf ".@,";
            printf "@[<b 2>";
            pconstraint c;
            printf "@]"
@@ -143,8 +141,8 @@ let printf_constraint mode c =
     )
 
   and printf_schemes  = function
-    | [] -> ()
-    | [ x ] -> printf_scheme x
+    | []     -> ()
+    | [ x ]  -> printf_scheme x
     | x :: q -> (printf_scheme x; print_cut (); print_string " ; ";
                  print_cut (); printf_schemes q)
 
@@ -153,15 +151,15 @@ let printf_constraint mode c =
   and printf_scheme (Scheme (_, rqs, fqs, c, header)) =
     let len = StringMap.fold (fun _x _k acu -> acu + 1) header 0 in
     printf "";
-    if (List.length rqs + List.length fqs <> 0) then
-      print_string forall;
+    if   List.length rqs + List.length fqs <> 0
+    then print_string forall;
     print_string (print_separated_list " " print_variable fqs);
-    if rqs <> [] then
-      printf " {%s}" (print_separated_list " " print_variable rqs);
-    if not (is_true c) then (
-      printf "@,[@[<b>";
-      pconstraint c;
-      printf "@]]");
+    if   rqs <> []
+    then printf " {%s}" (print_separated_list " " print_variable rqs);
+    if   not (is_true c)
+    then (printf "@,[@[<b>";
+          pconstraint c;
+          printf "@]]");
     if (len <> 0) then print_string " (";
     let f = ref true in
     let sep () = if !f then (f := false; "") else "; " in
@@ -171,14 +169,11 @@ let printf_constraint mode c =
       ) header;
     if (len <> 0) then print_string ")"
 
-  in
-  (
-    active_mode mode;
-    open_box 0;
-    pconstraint c;
-    close_box ();
-    print_newline ();
-  )
+  in (active_mode mode;
+      open_box 0;
+      pconstraint c;
+      close_box ();
+      print_newline ())
 
 let print_width_predicate = function
   | WP_less    i -> Printf.sprintf "< %d"  i
