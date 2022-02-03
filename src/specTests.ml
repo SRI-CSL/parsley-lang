@@ -70,7 +70,7 @@ let gen_ir (test_name: string) (spec: string) =
   let includes = SpecParser.StringSet.empty in
   let spec =
     parse_spec test_name spec (fun ast ->
-        let ast = SpecParser.flatten [] includes ast.pre_decls in
+        let ast = SpecParser.flatten false [] includes ast.pre_decls in
         Some {decls = List.rev ast}
       ) in
   match spec with

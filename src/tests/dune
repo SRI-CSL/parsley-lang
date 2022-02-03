@@ -1,0 +1,4 @@
+(library
+  (name tests)
+  (libraries interpreter unix)
+)
