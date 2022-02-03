@@ -22,7 +22,7 @@ type literal  = string Location.loc
 type bitint   = int    Location.loc
 type 'b var   = (string * 'b) Location.loc
 
-type bv_literal = bool list 
+type bv_literal = bool list
 
 (* names stripped of location, used in the type checker *)
 type tname = TName of string
@@ -99,7 +99,7 @@ type ('a, 'b) expr_desc =
   | E_case of ('a, 'b) expr * (('a, 'b) pattern * ('a, 'b) expr) list
   | E_let of ('a, 'b) pattern * ('a, 'b) expr * ('a, 'b) expr
   | E_cast of ('a, 'b) expr * type_expr
-  
+
 and ('a, 'b) expr =
   {expr: ('a, 'b) expr_desc;
    expr_loc: Location.t;
