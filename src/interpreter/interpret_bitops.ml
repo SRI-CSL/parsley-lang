@@ -27,19 +27,14 @@ let init_bitwise (v: view) : bitwise =
    bw_view_id = v.vu_id;
    bw_matched = []}
 
-(* initialize bitwise state and enter bit-mode *)
-let mark_bit_cursor lc (s: state) : state =
-  match s.st_mode with
-    | Mode_bitwise _ ->
-        (* should not already be in bitwise mode *)
-        assert false
-    | Mode_normal ->
-        (* cursor should be at valid offset *)
-        let v = s.st_cur_view in
-        if   v.vu_ofs >= v.vu_end
-        then fault (View_bound (lc, "start_bitwise", "end bound exceeded"))
-        else let bw = init_bitwise v in
-             {s with st_mode = Mode_bitwise bw}
+let enter_bitmode lc (s: state) : state =
+  assert (s.st_mode = Mode_normal);
+  (* cursor should be at valid offset *)
+  let v = s.st_cur_view in
+  if   v.vu_ofs >= v.vu_end
+  then fault (View_bound (lc, "start_bitwise", "end bound exceeded"))
+  else let bw = init_bitwise v in
+       {s with st_mode = Mode_bitwise bw}
 
 (* accessing bitwise state from bit-mode *)
 let get_bitwise (s: state) : bitwise =
@@ -52,12 +47,26 @@ let get_bitwise (s: state) : bitwise =
         assert (bw.bw_view_id = v.vu_id);
         bw
 
-(* exit bit-mode and return matched bits *)
-let collect_bits _lc (s: state) : bool list * state =
+let exit_bitmode _lc (s: state) : state =
   let bw = get_bitwise s in
   (* should be byte-aligned *)
   assert (bw.bw_bit_ofs = 0);
-  List.rev bw.bw_matched, {s with st_mode = Mode_normal}
+  {s with st_mode = Mode_normal}
+
+(* reset the bit-collection buffer *)
+let mark_bit_cursor lc (s: state) : state =
+  let bw = get_bitwise s in
+  let bw = {bw with bw_matched = []} in
+  (* cursor should be at valid offset *)
+  let v = s.st_cur_view in
+  if   v.vu_ofs >= v.vu_end
+  then fault (View_bound (lc, "set_bit_mark", "end bound exceeded"))
+  else {s with st_mode = Mode_bitwise bw}
+
+(* return matched bits *)
+let collect_bits _lc (s: state) : bool list * state =
+  let bw = get_bitwise s in
+  List.rev bw.bw_matched, s
 
 let check_bit_bounds lc op (v: view) (bw: bitwise) n =
   assert (bw.bw_bit_ofs < 8);
@@ -73,7 +82,6 @@ let check_bit_bounds lc op (v: view) (bw: bitwise) n =
   let  bits_left = bits_left + 8*(v.vu_end - ofs) in
   if   bits_left < n
   then fault (View_bound (lc, op, "end bound exceeded"))
-
 
 (* Extract `n` bits starting from `ofs` (big-endian): returns list in
    reverse order suitable for accumulation by list prepend *)

@@ -27,15 +27,19 @@ open Interpret_bitops
 let do_gnode (s: state) (n: Cfg.gnode) : state =
   let loc = n.node_loc in
   match n.node with
-    | N_assign (vr, fresh, ae) ->
+    | N_assign (vr, ae) ->
         let vl = val_of_aexp s ae in
-        let st_venv = VEnv.assign s.st_venv vr fresh vl in
+        let st_venv = VEnv.assign s.st_venv vr vl in
         {s with st_venv}
     | N_assign_fun (fv, pvs, bd) ->
         let st_fenv = FEnv.assign s.st_fenv fv pvs bd in
         {s with st_fenv}
     | N_action sts ->
         List.fold_left eval_stmt s sts
+    | N_enter_bitmode ->
+        enter_bitmode loc s
+    | N_exit_bitmode ->
+        exit_bitmode loc s
     | N_bits w ->
         match_bits loc (Printf.sprintf "bits<%d>" w) s w
     | N_align w ->
@@ -44,11 +48,13 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
         align_bits loc (Printf.sprintf "pad<%d>" w) s w
     | N_mark_bit_cursor ->
         mark_bit_cursor loc s
-    | N_collect_bits (v, fresh, pred) ->
+    | N_collect_bits (v, pred, obf) ->
         let bits, s = collect_bits loc s in
         if   match_bits_bound bits pred
-        then let bits = List.map (fun b -> V_bool b) bits in
-             let env = VEnv.assign s.st_venv v fresh (V_list bits) in
+        then let vl = match obf with
+                 | None    -> V_bitvector bits
+                 | Some bf -> V_bitfield (bf, bits) in
+             let env = VEnv.assign s.st_venv v vl in
              {s with st_venv = env}
         else let m = Ir_printer.string_of_mbb pred in
              let err = Internal_errors.Bitsbound_check (loc, m) in
@@ -56,7 +62,7 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
     | N_push_view ->
         let st_view_stk = s.st_cur_view :: s.st_view_stk in
         {s with st_view_stk}
-    | N_pop_view
+    | N_pop_view | N_drop_view
          when s.st_view_stk = [] ->
         let err = Internal_errors.View_stack_underflow loc in
         internal_error err
@@ -64,6 +70,9 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
         let vu, stk = List.hd s.st_view_stk, List.tl s.st_view_stk in
         {s with st_cur_view = vu;
                 st_view_stk = stk}
+    | N_drop_view ->
+        let stk = List.tl s.st_view_stk in
+        {s with st_view_stk = stk}
     | N_set_view v ->
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
         Viewlib.set_view loc s vl
@@ -81,28 +90,11 @@ let do_entry_node (s: state) (n: Cfg.Node.entry_node)
         (* this should not be needed *)
         assert false
 
-let do_pop_failcont lc (s: state) (l: Cfg.label) : state =
-  (* pop the top-most failcont, ensure that it is the specified label,
-     and return the updated state *)
-  match s.st_failcont_stk with
-    | [] ->
-        let err = Internal_errors.Failcont_stack_underflow lc in
-        internal_error err
-    | le :: stk ->
-        if   l != le
-        then let err = Internal_errors.Unexpected_failcont (lc, l, le) in
-             internal_error err
-        else {s with st_failcont_stk = stk}
-
 let do_linear_node (s: state) (n: Cfg.Node.linear_node)
     : state =
   match n with
     | Cfg.Node.N_gnode nd ->
         do_gnode s nd
-    | Cfg.Node.N_push_failcont (_, l) ->
-        {s with st_failcont_stk = l :: s.st_failcont_stk}
-    | Cfg.Node.N_pop_failcont (loc, l) ->
-        do_pop_failcont loc s l
     | _ ->
         (* this should not be needed *)
         assert false
@@ -147,8 +139,11 @@ let rec do_jump lc (s: state) (l: Cfg.label) : result =
   else let b = get_block lc s l in
        do_closed_block s b
 
+(* A failure to a static label should correspond to an entry at the
+   top of the failcont stack, and this entry is popped before
+   proceeding.  A failure to a dynamic label corresponds to a return
+   to the caller. *)
 and do_fail lc (s: state) (l: Cfg.label) : result =
-  let s = do_pop_failcont lc s l in
   if   Cfg.is_dynamic l
   then C_failure, s, l
   else let b = get_block lc s l in
@@ -156,7 +151,7 @@ and do_fail lc (s: state) (l: Cfg.label) : result =
 
 and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
   match n with
-    | Cfg.Node.N_collect_checked_bits (loc, v, fresh, (mbb, pat), lsc, lf) ->
+    | Cfg.Node.N_collect_checked_bits (loc, v, (mbb, pat), lsc, lf) ->
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
         then let m   = Ir_printer.string_of_mbb mbb in
@@ -164,7 +159,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
              internal_error err
         else if match_padding bits pat
         then let bits = List.map (fun b -> V_bool b) bits in
-             let env  = VEnv.assign s.st_venv v fresh (V_list bits) in
+             let env  = VEnv.assign s.st_venv v (V_list bits) in
              let s    = {s with st_venv = env} in
              do_jump loc s lsc
         else do_fail loc s lf
@@ -179,6 +174,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         else do_fail loc s lf
     | Cfg.Node.N_jump (loc, l) ->
         do_jump loc s l
+    | Cfg.Node.N_fail (loc, l) ->
+        do_fail loc s l
     | Cfg.Node.N_constraint (loc, v, lsc, lf) ->
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
         if   Parsleylib.cond loc vl
@@ -197,7 +194,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                do_fail loc s lf
            | Some (vl, vu) ->
                (* matched value with updated view *)
-               let env = VEnv.assign s.st_venv v true vl in
+               let env = VEnv.assign s.st_venv v vl in
                let s = {s with st_venv     = env;
                                st_cur_view = vu} in
                do_jump loc s lsc)
@@ -212,17 +209,17 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
               let vl = VEnv.lookup s.st_venv Anf.(vr.v) vr.v_loc in
               Location.value p, vl
             ) params in
-        (* The continuations should be dynamic. *)
-        assert (Cfg.is_dynamic lsc);
-        assert (Cfg.is_dynamic lf);
+        (* There is no assertion on the continuations since they need
+           not be dynamic, unlike user-defined non-terminals.  This is
+           because stdlib non-terminals are not dispatched by an
+           `nt_entry`, and hence do not have explicitly defined
+           dynamic continuation labels. *)
         (match dispatch_stdlib loc ntn s.st_cur_view pvs with
            | R_ok (vl, vu) ->
                (* Update the environment of the calling state `s`. *)
                let env = match ret with
-                   | None ->
-                       s.st_venv
-                   | Some (vr, fresh) ->
-                       VEnv.assign s.st_venv vr fresh vl in
+                   | None    -> s.st_venv
+                   | Some vr -> VEnv.assign s.st_venv vr vl in
                (* Transfer control to the success continuation. *)
                do_jump loc {s with st_venv = env;
                                    st_cur_view = vu} lsc
@@ -253,7 +250,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                       Internal_errors.Unknown_attribute (loc, ntn, pn) in
                     internal_error err
                 | Some pv ->
-                    VEnv.assign env (fst pv) true vl
+                    VEnv.assign env (fst pv) vl
             ) s.st_venv params in
         let loc = Location.loc nt in
         let b   = get_block loc s (Cfg.L_static ent.nt_entry) in
@@ -273,17 +270,19 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                let vl = VEnv.lookup s'.st_venv ent.nt_retvar.v loc in
                (* Update the environment of the calling state `s`. *)
                let env = match ret with
-                   | None ->
-                       s.st_venv
-                   | Some (vr, fresh) ->
-                       VEnv.assign s.st_venv vr fresh vl in
-               (* Transfer control to the success continuation. *)
-               do_jump loc {s with st_venv = env} lsc
+                   | None    -> s.st_venv
+                   | Some vr -> VEnv.assign s.st_venv vr vl in
+               (* Transfer control to the success continuation with
+                  the updated view. *)
+               do_jump loc {s with st_venv     = env;
+                                   st_cur_view = s'.st_cur_view} lsc
            | C_failure ->
                (* We should have terminated at the specified failure
                   continuation. *)
                assert (l = ent.nt_failcont);
-               (* Transfer control to the failure continuation. *)
+               (* Transfer control to the failure continuation without
+                  any change to the view. *)
+               assert (s.st_cur_view = s'.st_cur_view);
                do_fail loc s lf)
     | _ ->
         (* this should not be needed *)

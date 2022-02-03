@@ -342,7 +342,7 @@ let builtin_types, builtin_consts, builtin_vars,
             arrow_type (list_type (gen_tvar "byte"))
               (gen_tvar "string"));
            (Ast.DName "of_literal", [],
-            arrow_type (gen_tvar "string")
+            arrow_type (list_type (gen_tvar "byte"))
               (gen_tvar "string"))
          ];
       };
@@ -412,13 +412,22 @@ let builtin_types, builtin_consts, builtin_vars,
       };
       {mod_name   = Ast.MName "View";
        mod_values = [
-           (Ast.DName "get_base", [],
-            (arrow_type (gen_tvar "unit")
-               (gen_tvar "view")));
            (Ast.DName "get_current", [],
             (arrow_type (gen_tvar "unit")
                (gen_tvar "view")));
+           (Ast.DName "get_base", [],
+            (arrow_type (gen_tvar "unit")
+               (gen_tvar "view")));
+           (Ast.DName "get_cursor", [],
+            (arrow_type (gen_tvar "view")
+               (gen_tvar "int")));
+           (Ast.DName "get_remaining", [],
+            (arrow_type (gen_tvar "view")
+               (gen_tvar "int")));
            (Ast.DName "get_current_cursor", [],
+            (arrow_type (gen_tvar "unit")
+               (gen_tvar "int")));
+           (Ast.DName "get_current_remaining", [],
             (arrow_type (gen_tvar "unit")
                (gen_tvar "int")));
            (Ast.DName "restrict", [],
@@ -616,11 +625,11 @@ let is_regexp_type tenv t =
     | _ -> false
 
 let type_of_primitive tenv = function
-  | Ast.PL_int _ -> symbol tenv (TName "int")
-  | Ast.PL_string _ -> list tenv (symbol tenv (TName "byte"))
-  | Ast.PL_unit -> symbol tenv (TName "unit")
-  | Ast.PL_bool _ -> symbol tenv (TName "bool")
-  | Ast.PL_bit _ -> symbol tenv (TName "bit")
+  | Ast.PL_int _        -> symbol tenv (TName "int")
+  | Ast.PL_bytes _      -> list tenv (symbol tenv (TName "byte"))
+  | Ast.PL_unit         -> symbol tenv (TName "unit")
+  | Ast.PL_bool _       -> symbol tenv (TName "bool")
+  | Ast.PL_bit _        -> symbol tenv (TName "bit")
   | Ast.PL_bitvector bv -> concrete_bitvector tenv (List.length bv)
 
 let result_type tenv t =

@@ -7,9 +7,10 @@ type choice =
 format {
   Chk r {v: [byte]} :=
     (| res : choice := choice::Good("") |)
-    ( !"G"! { res := choice::Good("G") }
-    | !"B"! { res := choice::Bad("B") }
+    ((!"G"! { res := choice::Good("G") })
+    |(!"B"! { res := choice::Bad("B") })
     )
-    [res ~~ choice::Good] { r.v := "Success" }
-    [res ~~ choice::Bad]  { r.v := "Failure" }
+    (([res ~~ choice::Good] { r.v := "Success" })
+    |([res ~~ choice::Bad]  { r.v := "Failure" })
+    )
 }

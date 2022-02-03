@@ -52,15 +52,8 @@ type matched_bits_predicate =
   matched_bits_bound * Ast.bv_literal
 
 (* An optional variable to which the matched return value needs to be
-   bound.  The boolean indicates whether this is a fresh variable
-   (true) that needs to be initialized, or an existing variable
-   (false) that needs to be assigned.
-
-   Due to the presence of loops, a variable marked fresh may already
-   exist since it may occur in a loop body.  The invariant that should
-   hold, however, is that a non-fresh variable should already exist in
-   the dynamic environment.  *)
-type return = (var * bool) option
+   bound. *)
+type return = var option
 
 (* The various types of internal nodes of a block in the CFG.  These
    are the open-open nodes with linear control flow, and are
@@ -69,13 +62,12 @@ type return = (var * bool) option
 type gnode_desc =
   (* expression evaluation *)
 
-  (* Evaluate the expression and assign it to a possibly fresh
-     variable *)
-  | N_assign of var * bool * aexp
+  (* Evaluate the expression and assign it to a variable. *)
+  | N_assign of var * aexp
 
-  (* Create an entry for a function and assign it to a fresh
-     variable.  Since there are no first-class functions, this is
-     usually done during initialization. *)
+  (* Create an entry for a function and assign it to a variable.
+     Since there are no first-class functions, this is usually done
+     during initialization. *)
   | N_assign_fun of var * var list * aexp
 
   (* side-effects *)
@@ -85,16 +77,21 @@ type gnode_desc =
 
   (* The mechanism for the matching and extraction of matched bits is
      the following:
+     . a bit-sensitive parsing mode is explicitly entered using
+       N_enter_bitmode before any bit-wise parsing operation.
 
-     . the current bit-cursor location is marked (N_mark_bit_cursor)
+     . the current bit-cursor location is marked (N_mark_bit_cursor).
 
      . the cursor is updated according to the bit-matching construct
-       (bitvector, align, pad, bitfield)
+       (bitvector, align, pad, bitfield).
 
      . the bits from the marked position to the current cursor are
        collected into a variable holding the match (N_collect_bits).
        An expected number of bits (or bound on this number) is
        specified as a check on correctness.
+
+     . when a sequence of bit-wise parsing operations are finished,
+       the normal parsing mode is restored using N_exit_bitmode.
 
      It is an internal error if there is no marked position at the
      time of N_collect_bits.
@@ -102,6 +99,10 @@ type gnode_desc =
      If the matched bits are not being bound by a variable, the
      N_mark_bit_cursor and N_collect_bits are omitted.
    *)
+
+  (* Enter/exit the bitwise parsing mode *)
+  | N_enter_bitmode
+  | N_exit_bitmode
 
   (* Match a specified number of bits *)
   | N_bits of int
@@ -113,8 +114,9 @@ type gnode_desc =
   (* Mark bit-cursor location *)
   | N_mark_bit_cursor
   (* Collect matched bits from the marked position into a variable,
-     which may be fresh. *)
-  | N_collect_bits of var * bool * matched_bits_bound
+     and optionally interpret as a bitfield. *)
+  | N_collect_bits of
+      var * matched_bits_bound * TypingEnvironment.bitfield_info option
 
   (* view control *)
 
@@ -125,18 +127,18 @@ type gnode_desc =
      element from the view stack to be popped and become the current
      view.
 
-     There is an asymmetry in these two instructions: push-view leaves
-     the current-view register intact, but pushes its value onto the
-     view-stack.  pop-view pops the top-most value from the stack and
-     puts it into the current-view register, thus modifying both the
-     stack and the register.  This asymmetry is a consequence of the
-     design choice discussed below.
+     There is an asymmetry in these two instructions: `push-view`
+     leaves the current-view register intact, but pushes its value
+     onto the view-stack.  `pop-view` pops the top-most value from the
+     stack and puts it into the current-view register, thus modifying
+     both the stack and the register.  This asymmetry is a consequence
+     of the design choice discussed below.
 
-     View values on the stack are not modified due to excursions, even
-     with views derived from these values.  TODO: confirm this.  *)
+     `drop-view` drops the top-most entry on the stack. *)
 
   | N_push_view
   | N_pop_view
+  | N_drop_view
 
   (* The two view setters below are equivalent in that each could be
      expressed in terms of the other, via some glue ANF.  However,
@@ -157,12 +159,12 @@ type gnode_desc =
   | N_set_pos of var
 
 type gnode =
-  {node: gnode_desc;
+  {node:     gnode_desc;
    node_typ: typ;
    node_loc: Location.t}
 
 let mk_gnode n t l =
-  {node = n;
+  {node     = n;
    node_typ = t;
    node_loc = l}
 
@@ -211,32 +213,10 @@ let raw_label_of = function
   | L_static l  -> l
   | L_dynamic l -> l
 
-let label_to_string l =
+let string_of_label l =
   match l with
     | L_static  l -> Printf.sprintf "S%s" (Label.to_string l)
     | L_dynamic l -> Printf.sprintf "D%s" (Label.to_string l)
-
-(* Handling match failures, or back-tracking:
-
-   This is done with a stack of labels, or failconts, that point to
-   blocks from which execution should be resumed.  On a failure, the
-   top-most failcont label from the stack is popped, and execution
-   resumed from the block pointed to by the label.
-
-   All modifications to variable state are stratified according to the
-   failcont context in which they are performed.  On a match failure,
-   all state updates since the last push_failcont are undone, and that
-   execution resumes from that failcont.  On a pop_failcont, the state
-   updates since the last push_failcont are promoted to the stratum of
-   the next lower failcont.  This is because valid pop_failconts are
-   always done on success paths, where variable state should not be
-   rolled back.
-
-   This can be used to perform a limited amount of garbage collection:
-   on error, all variables allocated since the last push_failcont can
-   be deallocated when the failcont stack is popped.
-
- *)
 
 (* The node structure of the CFG *)
 
@@ -251,20 +231,16 @@ module Node = struct
 
     | N_gnode: gnode -> (Block.o, Block.o, unit) node
 
-    (* push or pop a failure continuation on the failcont stack *)
-    | N_push_failcont: Location.t * label -> (Block.o, Block.o, unit) node
-    | N_pop_failcont:  Location.t * label -> (Block.o, Block.o, unit) node
-
     (* block exits *)
 
     (* Collect matched bits from the marked position and check the
        specified predicate.  If it succeeds, N_collect_checked_bits
-       assigns the collected bitvector to the specified variable,
-       which may be fresh, and jumps to the first label; otherwise, it
-       fails to the second label.  N_check_bits does the same except
-       that it does not assign the matched bits to any variable. *)
+       assigns the collected bitvector to the specified variable, and
+       jumps to the first label; otherwise, it fails to the second
+       label.  N_check_bits does the same except that it does not
+       assign the matched bits to any variable. *)
     | N_collect_checked_bits:
-        Location.t * var * bool * matched_bits_predicate
+        Location.t * var * matched_bits_predicate
         * label * label
         -> (Block.o, Block.c, unit) node
     | N_check_bits:
@@ -272,16 +248,15 @@ module Node = struct
         * label * label
         -> (Block.o, Block.c, unit) node
 
-    (* forward jumps *)
+    (* forward jumps (typically in success path) *)
     | N_jump: Location.t * label -> (Block.o, Block.c, unit) node
+    (* forward jumps in failure path *)
+    | N_fail: Location.t * label -> (Block.o, Block.c, unit) node
 
     (* Constrained jump: the var should have been bound to the value
        of the constraint expression, and the label is the success
        continuation.  If the constraint fails (evaluates to false),
-       rewind to the top-most failcont on the failcont stack, which is
-       specified as the second label (to enable a dynamic check for
-       code-generation errors, and a more accurate successors
-       function). *)
+       rewind to the second label. *)
     | N_constraint: Location.t * var * label * label
                     -> (Block.o, Block.c, unit) node
 
@@ -294,9 +269,7 @@ module Node = struct
 
     (* Call the DFA for a regular expression.  On a successful match,
        assign the specified variable to the match, and continue at the
-       first specified label.  A failure rewinds to the top-most
-       failcont on the failcont stack, which is specified as the
-       second label (see N_constraint above). *)
+       first specified label.  A failure rewinds to the second label. *)
     | N_exec_dfa: dfa * var * label * label
                   -> (Block.o, Block.c, unit) node
 
@@ -307,8 +280,7 @@ module Node = struct
        At runtime: the specified labels are the dynamic success
        and failure continuations, which get mapped to the static
        succcont and failcont for the non-terminal's CFG, as specified
-       in its nt_entry.
-     *)
+       in its nt_entry. *)
     | N_call_nonterm:
         Ast.ident * (Ast.ident * var) list * return * label * label
         -> (Block.o, Block.c, unit) node
@@ -348,23 +320,23 @@ module StringMap = Map.Make(String)
  * stored separately, since this entry is needed for each non-terminal
  * before their CFGs can be constructed. *)
 type nt_entry =
-  {nt_name: Ast.ident;
+  {nt_name:      Ast.ident;
    (* each inherited attribute and the corresponding var used for it
     * in the CFG *)
    nt_inh_attrs: (var * typ) StringMap.t;
    (* type of the return value after parsing this non-terminal *)
-   nt_typ: typ;
+   nt_typ:       typ;
    (* the entry label for the CFG *)
-   nt_entry: Label.label; (* is implicitly static *)
+   nt_entry:     Label.label; (* is implicitly static *)
    (* a pair of success and failure continuations are assumed for the
       CFG.  these need to mapped to the current runtime success and
       failure continuations during execution *)
-   nt_succcont: label;    (* should always be dynamic *)
-   nt_failcont: label;    (* should always be dynamic *)
+   nt_succcont:  label;       (* should always be dynamic *)
+   nt_failcont:  label;       (* should always be dynamic *)
    (* a successfully matched value will be bound to this variable *)
-   nt_retvar: var;
+   nt_retvar:    var;
    (* the location this non-term was defined *)
-   nt_loc: Location.t}
+   nt_loc:       Location.t}
 
 (* The 'grammar table-of-contents' maps each non-terminal name to its
    nt_entry.  It is only a ToC and not complete since it does not
@@ -392,18 +364,20 @@ type spec_ir =
 (* The context for IR generation *)
 type context =
   {(* the typing environment *)
-   ctx_tenv: TypingEnvironment.environment;
+   ctx_tenv:     TypingEnvironment.environment;
    (* this will stay static during the construction of the IR *)
-   ctx_gtoc: nt_entry FormatGToC.t;
+   ctx_gtoc:     nt_entry FormatGToC.t;
    (* this will be updated during the construction with completed
       blocks *)
-   ctx_ir:   closed FormatIR.t;
+   ctx_ir:       closed FormatIR.t;
    (* the current variable environment *)
-   ctx_venv: VEnv.t;
+   ctx_venv:     VEnv.t;
    (* the current failure continuation *)
    ctx_failcont: label; (* may be static or dynamic *)
    (* intermediate re forms for regexp non-terminals *)
-   ctx_re_env:   re_env}
+   ctx_re_env:   re_env;
+   (* whether the current mode is bit-wise *)
+   ctx_bitmode:  bool}
 
 type error =
   | Unbound_return_expr of Location.t

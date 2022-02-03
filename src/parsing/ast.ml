@@ -72,7 +72,7 @@ type unop =
 
 type primitive_literal =
   | PL_int of int
-  | PL_string of string
+  | PL_bytes of string
   | PL_unit
   | PL_bool of bool
   | PL_bit of bool

@@ -32,25 +32,20 @@ let string_of_mbb = function
   | MB_exact i -> Printf.sprintf "ex %d" i
   | MB_below i -> Printf.sprintf "bl %d" i
 
-let string_of_fresh f =
-  if f then "/f" else ""
-
 let string_of_return (r: return) =
   match r with
     | None ->
         "noret"
-    | Some (v, f) ->
-        Printf.sprintf "ret(%s%s)"
+    | Some v ->
+        Printf.sprintf "ret(%s)"
           (Anf_printer.string_of_var v.v)
-          (string_of_fresh f)
 
 (* assumed to be called from within a hbox *)
 let print_gnode g =
   match g.node with
-    | N_assign (v, f, ae) ->
-        pp_string (Printf.sprintf "%s%s := "
-                     (Anf_printer.string_of_var v.v)
-                     (string_of_fresh f));
+    | N_assign (v, ae) ->
+        pp_string (Printf.sprintf "%s := "
+                     (Anf_printer.string_of_var v.v));
         Anf_printer.print_aexp ae
     | N_assign_fun (v, vs, bd) ->
         let args = List.map (fun v ->
@@ -71,6 +66,10 @@ let print_gnode g =
           ) ss;
         pp_string " }";
         pp_close_box ()
+    | N_enter_bitmode ->
+        pp_string "enter_bitmode"
+    | N_exit_bitmode ->
+        pp_string "exit_bitmode"
     | N_bits i ->
         pp_string (Printf.sprintf "bits %d" i)
     | N_align i ->
@@ -78,16 +77,20 @@ let print_gnode g =
     | N_pad i ->
         pp_string (Printf.sprintf "pad %d" i)
     | N_mark_bit_cursor ->
-        pp_string "bit_mark"
-    | N_collect_bits (v, f, mbb) ->
-        pp_string (Printf.sprintf "collect_bits %s%s, %s"
-                     (Anf_printer.string_of_var v.v)
-                     (string_of_fresh f)
+        pp_string "set_bit_mark"
+    | N_collect_bits (v, mbb, obf) ->
+        let bf = match obf with
+            | None    -> ""
+            | Some bf -> Printf.sprintf "<%s>" bf.bf_name in
+        pp_string (Printf.sprintf "collect_bits%s %s, %s"
+                     bf (Anf_printer.string_of_var v.v)
                      (string_of_mbb mbb))
     | N_push_view ->
         pp_string "push_view"
     | N_pop_view ->
         pp_string "pop_view"
+    | N_drop_view ->
+        pp_string "drop_view"
     | N_set_view v ->
         pp_string (Printf.sprintf "set_view %s"
                      (Anf_printer.string_of_var v.v))
@@ -109,41 +112,38 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
         pp_string (Printf.sprintf "L: %s" (Label.to_string l))
     | N_gnode g ->
         print_gnode g
-    | N_push_failcont (_, l) ->
-        pp_string (Printf.sprintf "push_fail %s" (label_to_string l))
-    | N_pop_failcont (_, l) ->
-        pp_string (Printf.sprintf "pop_fail %s" (label_to_string l))
     | N_jump (_, l) ->
-        pp_string (Printf.sprintf "jmp %s" (label_to_string l))
-    | N_collect_checked_bits (_, v, f, (mbb, bv), lsc, lf) ->
-        pp_string (Printf.sprintf "collect_checked_bits %s%s, %s%s, %s, %s"
+        pp_string (Printf.sprintf "jmp %s" (string_of_label l))
+    | N_fail (_, l) ->
+        pp_string (Printf.sprintf "fail %s" (string_of_label l))
+    | N_collect_checked_bits (_, v, (mbb, bv), lsc, lf) ->
+        pp_string (Printf.sprintf "collect_checked_bits %s, %s%s, %s, %s"
                      (Anf_printer.string_of_var v.v)
-                     (string_of_fresh f)
                      (string_of_mbb mbb)
                      (sprint_padding bv)
-                     (label_to_string lsc)
-                     (label_to_string lf))
+                     (string_of_label lsc)
+                     (string_of_label lf))
     | N_check_bits (_, (mbb, bv), lsc, lf) ->
         pp_string (Printf.sprintf "check_bits %s%s, %s, %s"
                      (string_of_mbb mbb)
                      (sprint_padding bv)
-                     (label_to_string lsc)
-                     (label_to_string lf))
+                     (string_of_label lsc)
+                     (string_of_label lf))
     | N_constraint (_, v, s, f) ->
-        pp_string (Printf.sprintf "constr %s, %s, %s"
+        pp_string (Printf.sprintf "constraint %s, %s, %s"
                      (Anf_printer.string_of_var v.v)
-                     (label_to_string s)
-                     (label_to_string f))
+                     (string_of_label s)
+                     (string_of_label f))
     | N_cond_branch (_, v, s, f) ->
         pp_string (Printf.sprintf "cbranch %s, %s, %s"
                      (Anf_printer.string_of_var v.v)
-                     (label_to_string s)
-                     (label_to_string f))
+                     (string_of_label s)
+                     (string_of_label f))
     | N_exec_dfa (_, v, s, f) ->
         pp_string (Printf.sprintf "dfa %s, %s, %s"
                      (Anf_printer.string_of_var v.v)
-                     (label_to_string s)
-                     (label_to_string f))
+                     (string_of_label s)
+                     (string_of_label f))
     | N_call_nonterm (nt, args, ret, s, f) ->
         let sargs = String.concat ","
                      (List.map (fun (a, (v: Anf.var)) ->
@@ -155,8 +155,8 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (Location.value nt)
                      sargs
                      (string_of_return ret)
-                     (label_to_string s)
-                     (label_to_string f))
+                     (string_of_label s)
+                     (string_of_label f))
 
 let print_opened (b: opened) =
   let h, ns = match b with
@@ -186,11 +186,12 @@ let print_closed (b: closed) =
   pp_close_box ()
 
 let string_of_nt_entry e =
-  Printf.sprintf "{nt: %s, entry: %s, succ: %s, fail: %s}"
-    (Location.value e.nt_name)
+  Printf.sprintf "{nt: %s, entry: %s, succ: %s, fail: %s, var: %s}"
+    (Location.value  e.nt_name)
     (Label.to_string e.nt_entry)
-    (label_to_string e.nt_succcont)
-    (label_to_string e.nt_failcont)
+    (string_of_label e.nt_succcont)
+    (string_of_label e.nt_failcont)
+    (Anf_printer.string_of_var e.nt_retvar.v)
 
 let print_gtoc toc =
   pp_string "GTOC:"; pp_newline ();
@@ -218,6 +219,7 @@ let print_statics blocks =
   pp_newline ()
 
 let print_spec ir =
+  pp_newline ();
   pp_open_vbox 0;
   print_gtoc ir.ir_gtoc;
   pp_newline ();
@@ -226,6 +228,6 @@ let print_spec ir =
   print_statics ir.ir_statics;
   pp_newline ();
   pp_string (Printf.sprintf "InitFailCont: %s"
-               (label_to_string ir.ir_init_failcont));
+               (string_of_label ir.ir_init_failcont));
   pp_newline ();
   pp_close_box ()

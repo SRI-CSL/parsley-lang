@@ -506,16 +506,18 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
               assert (hi >= lo);
               let loc = Location.loc f in
               (f, (AstUtils.make_bitvector_type (1 + hi - lo) loc)),
-              (Location.value f, hi, lo)
+              (Location.value f, (hi, lo))
             ) fields in
         let fields, finfos = List.split fields in
         let dids, drqs, (tenv, cid, crqs, let_env) =
           process_record_fields fields in
         (* Sort the fields into increasing index order *)
         let finfos =
-          List.sort (fun (_, l, _) (_, r, _) -> compare l r) finfos in
+          List.sort (fun (_, (l, _)) (_, (r, _)) -> compare l r) finfos in
         (* Fill in the adt_info *)
-        let bf_info = {bf_fields = finfos; bf_length = len} in
+        let bf_info = {bf_name   = Location.value ident;
+                       bf_fields = finfos;
+                       bf_length = len} in
         adt_ref := Some {adt = Record {adt = ident;
                                        fields;
                                        record_constructor = cid;
@@ -704,26 +706,6 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
              mk_auxexpr (E_field (exp', f)))
           )
     | E_apply ({expr = E_mod_member (m, i); _} as f, [n])
-         when Location.value m = "String"
-              && Location.value i = "of_literal" ->
-        (* special case of string literals *)
-        (match n with
-           | {expr = E_literal (PL_string s); _} ->
-               (* TODO: we could statically check s for unicode validity *)
-               let string = typcon_variable tenv (TName "string") in
-               let n' = {expr = E_literal (PL_string s);
-                         expr_loc = n.expr_loc;
-                         expr_aux = string} in
-               let ftyp = TypeConv.arrow tenv string string in
-               let _, (_, f') = infer_expr tenv venv f ftyp in
-               (string =?= t) e.expr_loc,
-               (WC_true,
-                mk_auxexpr (E_apply (f', [n'])))
-           | _ ->
-               let err = Non_literal_string_arg (n.expr_loc, m, i) in
-               raise (Error err)
-        )
-    | E_apply ({expr = E_mod_member (m, i); _} as f, [n])
          when Location.value m = "Bits"
               && (Location.value i = "ones"
                   || Location.value i = "zeros") ->
@@ -760,7 +742,8 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
         if List.length args = 0 then
           let unit = typcon_variable tenv (TName "unit") in
           let typ = TypeConv.arrow tenv unit t in
-          infer_expr tenv venv fexp typ
+          let cfun, (wc_fun, fexp') = infer_expr tenv venv fexp typ in
+          cfun, (wc_fun, mk_auxexpr (E_apply (fexp', [])))
         else
           exists_list_aux args (
               fun exs ->

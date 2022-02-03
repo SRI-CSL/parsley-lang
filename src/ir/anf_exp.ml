@@ -51,6 +51,9 @@ let rec subnorm tenv venv (e: exp) : subexp * VEnv.t =
         let v' = VEnv.lookup venv v in
         let v' = make_av (AV_var v') e.expr_aux e.expr_loc in
         S_var v', venv
+    | E_mod_member (m, f) ->
+        let v = make_av (AV_mod_member (m, f)) e.expr_aux e.expr_loc in
+        S_var v, venv
     | _ ->
         let e', venv  = normalize_exp tenv venv e in
         let vid, venv = VEnv.gen venv in

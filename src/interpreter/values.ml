@@ -40,7 +40,7 @@ type view =
    (* all locations below are absolute indices into vu_buf.
       The following invariants are maintained:
       . vu_end is 1 past the last valid read index for the buffer
-      . vu_start <= vu_ofs <= vu_end
+      . 0 <= vu_start <= vu_ofs <= vu_end
       . it is legal for vu_ofs = vu_end; however, it is illegal to use
         that offset for a read.
     *)
@@ -52,6 +52,7 @@ type view =
    inefficient representation since the Set and Map functors in
    OCaml's stdlib give predicative types, and those in `value` are
    impredicative. *)
+type bitfield_info = Typing.TypingEnvironment.bitfield_info
 type value =
   | V_unit
   | V_bool of bool
@@ -60,7 +61,8 @@ type value =
   | V_int of Int64.t
   | V_float of float
   | V_string of string
-  | V_bitvector of bool list  (* big-endian *)
+  | V_bitvector of bool list                (* big-endian *)
+  | V_bitfield of bitfield_info * bool list (* big-endian *)
   | V_option of value option
   | V_list of value list
   | V_tuple of value list
@@ -93,7 +95,7 @@ type vtype =
   | T_set of vtype
   | T_map of vtype * vtype
 
-let rec string_of_vtype t =
+let rec string_of_vtype (t: vtype) : string =
   let string_of_field (f, ft) =
     Printf.sprintf "%s: %s" f (string_of_vtype ft) in
   match t with
@@ -133,7 +135,7 @@ let rec string_of_vtype t =
                                     (string_of_vtype tv)
 
 (* the runtime type of a value *)
-let rec vtype_of v =
+let rec vtype_of (v: value) : vtype =
   let ftype_of (f, fv) = f, vtype_of fv in
   match v with
     | V_unit           -> T_unit
@@ -144,6 +146,8 @@ let rec vtype_of v =
     | V_float _        -> T_float
     | V_string _       -> T_string
     | V_bitvector _    -> T_bitvector
+    | V_bitfield (i,_) -> T_record (List.map (fun (f,_) ->
+                                        f, T_bitvector) i.bf_fields)
     | V_option None    -> T_option T_empty
     | V_option (Some o)-> T_option (vtype_of o)
     | V_list []        -> T_list T_empty
@@ -156,3 +160,65 @@ let rec vtype_of v =
     | V_set (e :: _)   -> T_set (vtype_of e)
     | V_map []         -> T_map (T_empty, T_empty)
     | V_map ((k,v)::_) -> T_map (vtype_of k, vtype_of v)
+
+let field_of_bitvector (v: bool list) (h: int) (l: int) : bool list =
+  (* Asserted version of `Builtins.bit_extract`. *)
+  let len = List.length v in
+  assert (0 <= l && l < len);
+  assert (0 <= h && h < len);
+  assert (l <= h);
+  fst (List.fold_left (fun (acc, idx) b ->
+           if   l <= idx && idx <= h
+           then b :: acc, idx + 1
+           else acc, idx + 1
+         ) ([], 0) (List.rev v))
+
+let string_of_value (v: value) : string =
+  let rec pr d v =
+    let mk_fill d = String.make (2*d + 3) ' ' in
+    let mk_sep c  = Printf.sprintf "%s\n %s" c (mk_fill d) in
+    let pr_bit b  = if b then "1" else "0" in
+    let pr_bvec v =
+      Printf.sprintf "0b%s" (String.concat "" (List.map pr_bit v)) in
+    let pr_bf v h l = pr_bvec (field_of_bitvector v h l) in
+    let srt vl    = List.sort compare vl in
+    let srt_r fs  = List.sort (fun (l, _) (r, _) -> compare l r) fs in
+    match v with
+      | V_unit            -> "()"
+      | V_bool b          -> if b then "true" else "false"
+      | V_bit  b          -> if b then "1" else "0"
+      | V_char c          -> Printf.sprintf "'%s'" (Char.escaped c)
+      | V_int  i          -> Printf.sprintf "%s (%#Lx)" (Int64.to_string i) i
+      | V_float f         -> Float.to_string f
+      | V_string s        -> Printf.sprintf "'%s'" s
+      | V_bitvector v     -> pr_bvec v
+      | V_bitfield (i, v) -> Printf.sprintf "{%s}"
+                               (String.concat (mk_sep ";")
+                                  (List.map (fun (f, (h, l)) ->
+                                       Printf.sprintf "%s: %s" f (pr_bf v h l)
+                                     ) (srt_r i.bf_fields)))
+      | V_option v        -> (match v with
+                                | None   -> "option::None()"
+                                | Some v -> Printf.sprintf "option::Some(%s)"
+                                              (pr (d + 1) v))
+      | V_list vs         -> Printf.sprintf "%s[%s]" (mk_fill d)
+                               (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
+      | V_tuple vs        -> Printf.sprintf "(%s)"
+                               (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
+      | V_constr ((t, c), vs) -> Printf.sprintf "%s(%s)"
+                                   (Parsing.AstUtils.canonicalize_dcon t c)
+                                   (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
+      | V_record fs       -> Printf.sprintf "{%s}"
+                               (String.concat (mk_sep ";")
+                                  (List.map (fun (f, v) ->
+                                       Printf.sprintf "%s: %s" f (pr (d + 1) v)
+                                     ) (srt_r fs)))
+      | V_view _v         -> "view"
+      | V_set  vs         -> Printf.sprintf "set<%s>"
+                               (String.concat (mk_sep ",") (List.map (pr (d + 1)) (srt vs)))
+      | V_map  kvs        -> Printf.sprintf "map<%s>"
+                               (String.concat (mk_sep ",")
+                                  (List.map (fun (k, v) ->
+                                       Printf.sprintf "%s: %s" (pr (d+1) k) (pr (d+1) v)
+                                     ) (srt kvs))) in
+  pr 0 v

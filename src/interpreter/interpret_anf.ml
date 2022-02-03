@@ -26,7 +26,7 @@ open Runtime_exceptions
 let val_of_lit (l: Ast.primitive_literal) : value =
   match l with
     | Ast.PL_int i       -> V_int (Int64.of_int i)
-    | Ast.PL_string s    -> V_string s
+    | Ast.PL_bytes s     -> PString.to_byte_list s
     | Ast.PL_unit        -> V_unit
     | Ast.PL_bool b      -> V_bool b
     | Ast.PL_bit b       -> V_bit b
@@ -38,6 +38,46 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
         val_of_lit l
     | Anf.AV_var v ->
         VEnv.lookup s.st_venv v av.av_loc
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "*" ->
+        assert (Location.value c = "_Tuple");
+        let vs = List.map (val_of_av s) avs in
+        V_tuple vs
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "[]" && Location.value c = "[]" ->
+        assert (List.length avs = 0);
+        V_list []
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "[]" && Location.value c = "::" ->
+        assert (List.length avs = 2);
+        let h  = val_of_av s (List.nth avs 0) in
+        let tl = val_of_av s (List.nth avs 1) in
+        PList.cons av.av_loc h tl
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "option" && Location.value c = "None" ->
+        assert (List.length avs = 0);
+        V_option None
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "option" && Location.value c = "Some" ->
+        assert (List.length avs = 1);
+        let v = val_of_av s (List.hd avs) in
+        V_option (Some v)
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "bool" && Location.value c = "True" ->
+        assert (List.length avs = 0);
+        V_bool true
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "bool" && Location.value c = "False" ->
+        assert (List.length avs = 0);
+        V_bool false
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "bit" && Location.value c = "One" ->
+        assert (List.length avs = 0);
+        V_bit true
+    | Anf.AV_constr ((t, c), avs)
+         when Location.value t = "bit" && Location.value c = "Zero" ->
+        assert (List.length avs = 0);
+        V_bit false
     | Anf.AV_constr ((t, c), avs) ->
         let t, c = Location.value t, Location.value c in
         V_constr ((t, c), List.map (val_of_av s) avs)
@@ -48,7 +88,9 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
         V_record vs
     | Anf.AV_mod_member (m, c) ->
         let m, c = Location.value m, Location.value c in
-        dispatch_stdlib av.av_loc m c []
+        if   m = "View"
+        then dispatch_viewlib av.av_loc m c s []
+        else dispatch_stdlib  av.av_loc m c []
 
 (* match helper, used for aexps and astmts *)
 let matcher loc vr vl cases =
@@ -57,16 +99,20 @@ let matcher loc vr vl cases =
       | _, [] ->
           let err = Internal_errors.Pattern_match_failure (loc, vr) in
           internal_error err
+      (* wildcard *)
       | _, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_wildcard ->
           br
+      (* literals *)
       | V_int i, (p, br) :: _
            when let ilit  = Int64.to_int i in
                 Anf.(p.apat) = Anf.AP_literal (Ast.PL_int ilit) ->
           br
-      | V_string s, (p, br) :: _
-           when Anf.(p.apat) = Anf.AP_literal (Ast.PL_string s) ->
-          br
+      | V_list _, (Anf.({apat = AP_literal (Ast.PL_bytes s);_}), br)
+                   :: rest ->
+          (match PString.try_to_string vl with
+             | Some s' when s' = s -> br
+             | _                   -> do_cases rest)
       | V_unit, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_literal Ast.PL_unit ->
           br
@@ -79,6 +125,35 @@ let matcher loc vr vl cases =
       | V_bitvector bv, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_literal (Ast.PL_bitvector bv) ->
           br
+      (* std constructed types with native representation *)
+      | V_tuple _, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("*", "_Tuple") ->
+          br
+      | V_list [], (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("[]", "[]") ->
+          br
+      | V_list (_::_), (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("[]", "::") ->
+          br
+      | V_option None, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("option", "None") ->
+          br
+      | V_option (Some _), (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("option", "Some") ->
+          br
+      | V_bool true, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("bool", "True") ->
+          br
+      | V_bool true, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("bool", "False") ->
+          br
+      | V_bit true, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("bit", "One") ->
+          br
+      | V_bit false, (p, br) :: _
+           when Anf.(p.apat) = Anf.AP_variant ("bit", "Zero") ->
+          br
+      (* endian and user constructed types *)
       | V_constr (c, _),  (p, br) :: _
            when Anf.(p.apat) = Anf.AP_variant c ->
           br
@@ -135,7 +210,7 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
         Builtins.get_field (Location.loc f) v (Location.value f)
     | AE_let (v, le, bd) ->
         let lv = val_of_aexp s le in
-        let env = VEnv.assign s.st_venv v true lv in
+        let env = VEnv.assign s.st_venv v lv in
         val_of_aexp {s with st_venv = env} bd
     | AE_cast (av, _) ->
         val_of_av s av
@@ -148,7 +223,7 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
              let err = Internal_errors.Function_arity (f.fv_loc, fn, nps, nvs) in
              internal_error err
         else let env = List.fold_left (fun env (p, v) ->
-                           VEnv.assign env p true v
+                           VEnv.assign env p v
                          ) s.st_venv (List.combine ps vs) in
              val_of_aexp {s with st_venv = env} bd
     | AE_apply (({fv = FV_mod_member (m, f); _} as fv), args) ->
@@ -160,7 +235,7 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
     | AE_letpat (p, (av, occ), bd) ->
         let v = val_of_av s av in
         let v = Builtins.subterm av.av_loc v occ in
-        let env = VEnv.assign s.st_venv p true v in
+        let env = VEnv.assign s.st_venv p v in
         val_of_aexp {s with st_venv = env} bd
     | AE_case (vr, cases) ->
         let vl = VEnv.lookup s.st_venv vr.v vr.v_loc in
@@ -171,18 +246,22 @@ let rec eval_stmt (s: state) (st: Anf.astmt) : state =
   match st.astmt with
     | AS_set_var (v, ae) ->
         let vl = val_of_aexp s ae in
-        let env = VEnv.assign s.st_venv v true vl in
+        let env = VEnv.assign s.st_venv v vl in
         {s with st_venv = env}
     | AS_set_field (r, f, ae) ->
         let fvl = val_of_aexp s ae in
-        let rvl = VEnv.lookup s.st_venv r.v loc in
+        (* `r` might not be bound since this might be the initializing
+           assignment. *)
+        let rvl = if   VEnv.bound s.st_venv r.v
+                  then VEnv.lookup s.st_venv r.v loc
+                  else V_record [] in
         let rvl =
           Builtins.set_field (Location.loc f) rvl (Location.value f) fvl in
-        let env = VEnv.assign s.st_venv r false rvl in
+        let env = VEnv.assign s.st_venv r rvl in
         {s with st_venv = env}
     | AS_let (v, ae, st') ->
         let vl = val_of_aexp s ae in
-        let env = VEnv.assign s.st_venv v true vl in
+        let env = VEnv.assign s.st_venv v vl in
         eval_stmt {s with st_venv = env} st'
     | AS_case (vr, cases) ->
         let vl = VEnv.lookup s.st_venv vr.v vr.v_loc in
@@ -192,5 +271,5 @@ let rec eval_stmt (s: state) (st: Anf.astmt) : state =
     | AS_letpat (p, (av, occ), st') ->
         let v = val_of_av s av in
         let v = Builtins.subterm av.av_loc v occ in
-        let env = VEnv.assign s.st_venv p true v in
+        let env = VEnv.assign s.st_venv p v in
         eval_stmt {s with st_venv = env} st'

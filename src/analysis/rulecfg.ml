@@ -29,59 +29,201 @@ open Dataflow
 
 type typ = Typing.MultiEquation.crterm
 
-(* A binding is represented by its unique identifier and optional
- * field.  Its name and location are tracked for error reporting
- * purposes, but they are not used for comparisons. *)
-type binding = varid * string option * (string * Location.t)
-let binding_to_string (id, fo, (n, _)) =
+(* Attributes may have record types whose fields may also be a record.
+   This leads to such an attribute possessing a tree structure of
+   locations whose initialization status needs to be tracked.
+
+   A binding is represented by the variable for the non-terminal and
+   its associated tree-structure: the synthesized attributes are the
+   immediate children of the variable, with the fields of any
+   attribute with record type forming the children of the attribute,
+   and recursively for any record fields with record type.
+
+   The primary invariants for this structure are:
+   . if a node with children is not directly initialized, it can be
+     considered initialized if all its children are initialized.
+   . if a node with children is directly initialized, the
+     initialization states of the children are irrelevant.
+ *)
+
+(* A node in the field binding tree. *)
+module BNode = struct
+  module StringMap = Map.Make(String)
+
+  type 'a node =
+    {n_fname:    string;
+     n_children: 'a node StringMap.t;
+     n_aux:      'a option}
+
+  let new_node fname =
+    {n_fname    = fname;
+     n_children = StringMap.empty;
+     n_aux      = None}
+
+  (* The field sequence `fs` denotes a path to a child node, with an
+     empty sequence denoting the `root`. *)
+  let find_node (type a) (root: a node) (fs: string list)
+      : a node option =
+    let rec finder nd fs =
+      match fs with
+        | []      -> Some nd
+        | f :: fs -> (match StringMap.find_opt f nd.n_children with
+                        | None    -> None
+                        | Some nd -> (assert (f = nd.n_fname);
+                                      finder nd fs)) in
+    finder root fs
+
+  (* Update the node info at the specified path and return the updated
+     root, creating child nodes along the path if needed. *)
+  let update_node (type a) (root: a node) (fs: string list) aux
+      : a node =
+    let rec update nd fs =
+      match fs with
+        | [] ->
+            {nd with n_aux = aux}
+        | f :: fs ->
+            let cd = match StringMap.find_opt f nd.n_children with
+                | None    -> new_node f
+                | Some cd -> assert (f = cd.n_fname);
+                             cd in
+            let cd = update cd fs in
+            {nd with n_children = StringMap.add f cd nd.n_children} in
+    update root fs
+
+  (* A node is 'subtree-defined' if either it has a set `aux` value,
+     or all of its children are 'subtree-defined'. *)
+  let is_subtree_defined (type a) (nd: a node) : bool =
+    let rec checker _fn nd =
+      match nd.n_aux with
+        | Some _ -> true
+        | None   -> if   StringMap.is_empty nd.n_children
+                    then false
+                    else StringMap.for_all checker nd.n_children in
+    checker nd.n_fname nd
+
+  (* A node is 'defined' if any parent upto the root has a set `aux`
+     value, or it is 'subtree-defined'. *)
+  let is_defined (type a) (root: a node) (fs: string list) : bool =
+    let rec checker nd fs =
+      if   nd.n_aux <> None
+      then true
+      else match fs with
+             | []      -> is_subtree_defined nd
+             | f :: fs -> (match StringMap.find_opt f nd.n_children with
+                             | None    -> false
+                             | Some nd -> checker nd fs) in
+    checker root fs
+
+  (* Two nodes are equal if they have the same `aux` value, their
+     children have the same names and are equal. *)
+  let are_equal (type a) (l: a node) (r: a node) : bool =
+    let rec eq (l, r) =
+      l.n_aux = r.n_aux
+      && (let lfs, lns = List.split (StringMap.bindings l.n_children) in
+          let rfs, rns = List.split (StringMap.bindings r.n_children) in
+          lfs = rfs
+          && List.for_all eq (List.combine lns rns)) in
+    eq (l, r)
+
+  (* List of the elements in the tree rooted at the node.  This
+     should only be called on the actual roots of a binding tree. *)
+  let elements (type a) (root: a node)
+      : (string list * a option) list =
+    let rec kids_of at_root nd =
+      if   StringMap.is_empty nd.n_children
+      then [(if at_root then [] else [nd.n_fname]), nd.n_aux]
+      else List.fold_left (fun acc (_, k) ->
+               (List.rev_map (fun (fs, a) ->
+                    (if at_root then fs else nd.n_fname :: fs), a
+                  ) (kids_of false k)
+               ) @ acc
+             ) [] (StringMap.bindings nd.n_children) in
+    kids_of true root
+
+  (* Merge two trees with the same root, using a join on their `aux`
+     fields.  The join obeys `None < Some _` on each node, and the
+     resulting tree contains a union of the nodes. *)
+  let join (type a) (l: a node) (r: a node) : a node =
+    let merge_aux = function None, a | a, None | a, _ -> a in
+    let rec merge l r =
+      assert (l.n_fname = r.n_fname);
+      (* For each child `rk` of `r`, add it to `l` if the corresponding
+         child `lk` is not present, or add `merge lk rk` to `l`
+         otherwise. *)
+      {l with
+        n_children =
+          StringMap.fold (fun rkn rk lm ->
+              match StringMap.find_opt rkn lm with
+                | None    -> StringMap.add rkn rk lm
+                | Some lk -> StringMap.add rkn (merge lk rk) lm
+            ) r.n_children l.n_children;
+        n_aux = merge_aux (l.n_aux, r.n_aux)} in
+    merge l r
+
+  let print (type a) (n: a node) =
+    let rec pr depth n =
+      let set = match n.n_aux with
+          | None   -> "?"
+          | Some _ -> "!" in
+      let fill = String.make (3 * depth + 3) ' ' in
+      Printf.eprintf "%s%s%s @ depth %d\n" fill n.n_fname set depth;
+      Seq.iter (fun (_, k) ->
+          pr (depth + 1) k
+        ) (StringMap.to_seq n.n_children) in
+    pr 0 n
+end
+
+(* The state for a variable binding is represented by its unique
+   identifier and the root node for an optional tree of fields.  Its
+   name and location are tracked for error reporting purposes, but
+   they are not used for comparisons.
+ *)
+type 'a var_info = varid * 'a BNode.node * (string * Location.t)
+
+(* A reference to a variable or one of its possibly nested fields is
+   similarly represented, except that if present, the fields form a
+   simple sequence: i.e. `a.b.c` generates `[b; c]` with head variable
+   `a`.
+ *)
+type reference = varid * string list * (string * Location.t)
+
+(* reference comparisons ignore the debug information *)
+let compare_reference (v, fs, _ig) (v', fs', _ig') =
+  compare (v, fs) (v', fs')
+
+let equal_reference (v, fs, _ig) (v', fs', _ig') =
+  v = v' && fs = fs'
+
+(* useful conversions *)
+
+let reference_to_string (id, fs, (n, _)) =
   let is = varid_to_string id in
-  match fo with
-    | Some f -> Printf.sprintf "%s[%s].%s" n is f
-    | None   -> Printf.sprintf "%s[%s]" n is
+  match fs with
+    | [] -> Printf.sprintf "%s[%s]" n is
+    | _  -> Printf.sprintf "%s[%s].%s" n is
+              (String.concat "." fs)
 
 type init_var_error =
-  | Use_of_uninit_var of binding * Location.t
+  | Use_of_uninit_var of reference * Location.t
   | Unnamed_attributed_nonterminal of ident
-  | Unassigned_attribute of ident * string * Location.t
+  | Unassigned_attribute of ident * string list * Location.t
   | Unassigned_variable  of ident * string * Location.t
 
 exception Error of init_var_error
 
-(* TODO: move this into an astutils module *)
-
-(* We track bindings that are of two types:
- *
- * . atomic symbols that are used for inherited attributes, pattern
- *   bindings in let/case expressions, and in named rule-elements
- * . record fields, such as those used for synthesized attributes
- *
- * Although the AST permits more general cases of the latter type
- * (e.g. [(e).f], where [e] is an expression and [f] is a record
- * field), we only track the case where [e] is an atomic symbol. This
- * may need to change when grammar modules are implemented, where we
- * may need to handle [M.e.f], where [e] is atomic and [M] is a module
- * name.
- *)
-
-let compare_binding (v, f, _ig) (v', f', _ig') =
-  compare (v, f) (v', f')
-
-let equal_binding (v, f, _ig) (v', f', _ig') =
-  v = v' && f = f'
-
-module Bindings = struct
-  module B = Set.Make(struct
-                 type t = binding
-                 let compare = compare_binding
+module References = struct
+  module R = Set.Make(struct
+                 type t = reference
+                 let compare = compare_reference
                end)
-  include B
+  include R
 
   let print b =
-    let es = List.map binding_to_string (elements b) in
+    let es = List.map reference_to_string (elements b) in
     String.concat ", " es
 end
 
-let vars_of_pattern (p: (typ, varid) pattern) : Bindings.t =
+let vars_of_pattern (p: (typ, varid) pattern) : References.t =
   let rec add set p =
     match p.pattern with
       | P_wildcard | P_literal _ ->
@@ -89,25 +231,35 @@ let vars_of_pattern (p: (typ, varid) pattern) : Bindings.t =
       | P_var v ->
           let v  = Location.value v in
           let ig = fst v, p.pattern_loc in
-          Bindings.add (snd v, None, ig) set
+          References.add (snd v, [], ig) set
       | P_variant (_, ps) ->
           List.fold_left add set ps in
-  add Bindings.empty p
+  add References.empty p
 
-(* if a [bound] variable set is provided, this computes the free
- * variables (i.e. that are not in [bound]) of the expression.
+(* If a `bound` variable set is provided, this computes the free
+   variables (i.e. that are not in `bound`) of the expression.
  *)
-let free_vars_of_expr (e: (typ, varid) expr) (bound: Bindings.t option)
-    : Bindings.t =
+let free_vars_of_expr (e: (typ, varid) expr) (bound: References.t)
+    : References.t =
   let rec add ((set, bound) as acc) e =
     match e.expr with
       | E_var v ->
           let v' = Location.value v in
           let ig = fst v', Location.loc v in
-          let id = snd v', None, ig in
-          if   Bindings.mem id bound
+          let id = snd v', [], ig in
+          if   References.mem id bound
           then acc
-          else Bindings.add id set, bound
+          else References.add id set, bound
+      | E_field (e', _) ->
+          (match lhs_fields e with
+             | None ->
+                 add acc e'
+             | Some (v, fs) ->
+                 let ig = fst v, e.expr_loc in
+                 let id = snd v, fs, ig in
+                 if   References.mem id bound
+                 then acc
+                 else References.add id set, bound)
       | E_constr (_, es) ->
           List.fold_left add acc es
       | E_record fs ->
@@ -116,12 +268,12 @@ let free_vars_of_expr (e: (typ, varid) expr) (bound: Bindings.t option)
           List.fold_left add (add acc f) args
       | E_case (e, cls) ->
           List.fold_left (fun (set, bound) (p, e) ->
-              let bound = Bindings.union bound (vars_of_pattern p) in
+              let bound = References.union bound (vars_of_pattern p) in
               add (set, bound) e
             ) (add acc e) cls
       | E_let (p, e', e) ->
-          let (set', bound') = add acc e' in
-          let bound' = Bindings.union bound' (vars_of_pattern p) in
+          let set', bound' = add acc e' in
+          let bound' = References.union bound' (vars_of_pattern p) in
           add (set', bound') e
       | E_binop (_, l, r) ->
           add (add acc l) r
@@ -131,26 +283,11 @@ let free_vars_of_expr (e: (typ, varid) expr) (bound: Bindings.t option)
           add acc e
       | E_literal _ | E_mod_member _ ->
           acc
-      | E_field ({expr = E_var v; _}, f) ->
-          let v  = Location.value v in
-          let ig = fst v, e.expr_loc in
-          let id = snd v, Some (Location.value f), ig in
-          if   Bindings.mem id bound
-          then acc
-          else Bindings.add id set, bound
-      | E_field (e, _) | E_unop (_, e) | E_match (e, _) | E_cast (e, _) ->
+      | E_unop (_, e) | E_match (e, _) | E_cast (e, _) ->
           add acc e in
-  let bound = match bound with
-      | None   -> Bindings.empty
-      | Some b -> b in
-  fst (add (Bindings.empty, bound) e)
+  fst (add (References.empty, bound) e)
 
-let pattern_of_var v loc aux : (typ, varid) pattern =
-  {pattern = P_var v;
-   pattern_loc = loc;
-   pattern_aux = aux}
-
-(* a node for the basic elements of the grammar language *)
+(* A node for the basic elements of the grammar language. *)
 type gn =
   | GN_regexp
   | GN_type of ident
@@ -167,22 +304,22 @@ let print_gn = function
   | GN_non_term n ->
       Printf.sprintf "(gn: <non-term> %s)" (Location.value n)
 
-type ('v) gnode =
-  {gnode: gn;
+type 'v gnode =
+  {gnode:     gn;
    gnode_loc: Location.t;
    gnode_aux: 'v}
 
 let print_gnode gn =
   print_gn gn.gnode
 
-(* a node for basic non-branching expressions (including grammar
- * constraints) and the assignment statement.
+(* A node for basic non-branching expressions (including grammar
+   constraints) and the assignment statement.
  *)
 type en =
   | EN_expr of (typ, varid) expr
   | EN_defn of (typ, varid) pattern
   (* variable/record-field assignment *)
-  | EN_binding_assign of Bindings.elt * (typ, varid) expr
+  | EN_binding_assign of References.elt * (typ, varid) expr
   (* other assignments *)
   | EN_assign of (typ, varid) expr * (typ, varid) expr
 
@@ -192,8 +329,8 @@ let print_en = function
   | EN_binding_assign _ -> "(en: <binding-assign>)"
   | EN_assign _         -> "(en: <assign>)"
 
-type ('v) enode =
-  {enode: en;
+type 'v enode =
+  {enode:     en;
    enode_loc: Location.t;
    enode_aux: 'v}
 
@@ -243,86 +380,109 @@ module G = Graph.MkGraph (Node)
 module B = G.Block
 module D = G.Body
 
-(* Reaching definitions are bindings labelled with their assigning
- * block.  A binding without a label has been declared but not
- * defined. *)
+(* The initialization state for a variable and any nested fields is
+   the label of the block in which that variable or field was
+   initialized.  This state is stored for every variable in a map
+   indexed by the variable's varid.
+ *)
 module ReachingDefns = struct
-  module RD = Set.Make(struct
-                  type t = binding * Label.label option
-                  let compare ((v, f, _), l) ((v', f', _), l') =
-                    compare (v, f, l) (v', f', l')
-                end)
-  include RD
+  type var_state = Label.label var_info
 
-  (* utility for debugging *)
-  let entry_to_string (b, ol) =
-      let sl = match ol with
-          | None   -> "?"
-          | Some l -> Label.to_string l in
-      Printf.sprintf "%s@%s" (binding_to_string b) sl
+  module VMap = Map.Make(struct
+                    type t = varid
+                    let compare = compare
+                  end)
+  type t = var_state VMap.t
 
-  (* checks whether a binding has been declared (or defined) *)
-  let binding_declared ((v, f, _) as _b) rd =
-    exists (fun (((v', f', _) as _b', _) as _ent) ->
-        match f, f' with
-          (* exact match *)
-          | Some f, Some f' -> v = v' && f = f'
-          | None,   None    -> v = v'
-          (* a more general binding is declared *)
-          | Some _, None    -> v = v'
-          | _               -> false
-      ) rd
+  let empty = VMap.empty
 
-  (* Add new definitions *)
-  let define (bs: Bindings.t) (l: Label.label) (rd: t) : t =
-    List.fold_left (fun rd b ->
-        (* remove any existing undefined binding *)
-        let rd = filter
-                   (function
-                    | (b', None) when equal_binding b b' -> false
-                    | _                                  -> true
-                   )
-                   rd in
-        add (b, Some l) rd
-      ) rd (Bindings.elements bs)
+  (* Checks whether a reference is being tracked. *)
+  let has_reference ((vid, fs, _): reference) (rd: t) : bool =
+    match fs, VMap.find_opt vid rd with
+      | _, None               -> false
+      | fs, Some (_, root, _) -> None <> BNode.find_node root fs
 
-  (* A binding is possibly undefined if a possibly more general
-   * declared but undefined binding is present *)
-  let possibly_undefined ((v, f, _) as b: binding) (rd: t) : bool =
-    (* the binding should have been declared *)
-    assert (binding_declared b rd);
-    exists (fun (((v', f', _), ol) as _ent) ->
-        let res =
-          match f', f, ol with
-            (* existing undefined binding is possibly more general *)
-            | None, _, None -> v = v'
-            (* existing undefined binding is as specific *)
-            | Some f', Some f, None -> v = v' && f = f'
-            | _, _, _ -> false in
-        (*
-        Printf.eprintf "   [possibly_undefined: checking %s against %s: %s]\n"
-          (binding_to_string b) (entry_to_string _ent)
-          (if res then "T" else "F");
-         *)
-        res
-      ) rd
+  (* List of references and their states. *)
+  let elements (rd: t) : (reference * Label.label option) list =
+    VMap.fold (fun vid (_, root, ig) acc ->
+        List.rev_map
+          (fun (fs, a) -> (vid, fs, ig), a)
+          (BNode.elements root)
+        @ acc
+      ) rd []
+
+  (* Register a variable or field binding. *)
+  let add ((vid, fs, ig): reference) aux (rd: t) : t =
+    let root, ig = match VMap.find_opt vid rd with
+        | None                -> BNode.new_node (fst ig), ig
+        | Some (_, root, ig') -> assert (fst ig = fst ig');
+                                 root, ig' in
+    let root = BNode.update_node root fs aux in
+    VMap.add vid (vid, root, ig) rd
+
+  (* Add or update initialization locations for references. *)
+  let define (rs: References.t) (l: Label.label) (rd: t) : t =
+    List.fold_left (fun rd r -> add r (Some l) rd)
+      rd (References.elements rs)
+
+  (* A reference is possibly undefined if it is undefined and none of
+     its parents are. *)
+  let possibly_undefined ((vid, fs, _): reference) (rd: t)
+      : bool =
+    match VMap.find_opt vid rd with
+      | None              -> true
+      | Some (_, root, _) -> not (BNode.is_defined root fs)
+
+  (* Equal `ReachingDefns` have the entries for the same variables,
+     with equal root binding nodes. *)
+  let equal (l: t) (r: t) : bool =
+    let lvs, lents = List.split (VMap.bindings l) in
+    let rvs, rents = List.split (VMap.bindings r) in
+    lvs = rvs && List.for_all (fun ((lid, lrt, _), (rid, rrt, _)) ->
+                     assert (lid = rid);
+                     BNode.are_equal lrt rrt
+                   ) (List.combine lents rents)
+
+  (* The union implements the lattice join on each variable and its
+     fields. *)
+  let union (l: t) (r: t) =
+    (* For each entry `re` in `r`, add it to `l` if the corresponding
+       entry `le` is not present, or merge the roots of `le` and `re`
+       and add the merged entry to `l`. *)
+    VMap.fold (fun rvid ((_, rroot, rig) as re) lm ->
+        match VMap.find_opt rvid lm with
+          | None ->
+              VMap.add rvid re lm
+          | Some (lvid, lroot, lig) ->
+              assert (lvid = rvid);
+              assert (fst lig = fst rig);
+              let le = lvid, BNode.join lroot rroot, lig in
+              VMap.add lvid le lm
+      ) r l
+
+  (* Debug printer *)
+  let print (t: t) =
+    Seq.iter (fun (_, (_, root, ig)) ->
+        Printf.eprintf "%s:\n" (fst ig);
+        BNode.print root;
+      ) (VMap.to_seq t)
 end
 
-(* The lattice for the reaching definitions analysis *)
+(* The lattice for the reaching definitions analysis. *)
 module IVLattice = struct
   type t = ReachingDefns.t
 
   let bottom = ReachingDefns.empty
 
   let join a b =
-    (if   ReachingDefns.equal a b
-     then NoChange else SomeChange),
-    ReachingDefns.union a b
+    if   ReachingDefns.equal a b
+    then NoChange, a
+    else SomeChange, ReachingDefns.union a b
 
   let print rd =
     let print (b, ol) =
       Printf.sprintf "%s@%s"
-        (binding_to_string b)
+        (reference_to_string b)
         (match ol with
            | Some l -> Label.to_string l
            | None   -> "?") in
@@ -330,63 +490,71 @@ module IVLattice = struct
     String.concat ", " es
 end
 
-(* Each node stores the bindings used and defined by it *)
+(* Each node stores the bindings used and defined by it. *)
 type v =
-  {node_use: Bindings.t;
-   node_def: Bindings.t * Label.label}
+  {node_use: References.t;
+   node_def: References.t * Label.label}
 
 let print_v v =
   Printf.sprintf "[use: %s] [def: %s]"
-    (Bindings.print v.node_use) (Bindings.print (fst v.node_def))
+    (References.print v.node_use) (References.print (fst v.node_def))
 
 type opened = (Block.c, Block.o, v) B.block
 type closed = (Block.c, Block.c, v) B.block
 
-let add_expr (env: Bindings.t) (b: opened) (e: (typ, varid) expr) =
+(* node construction and block extension *)
+
+let add_expr (env: References.t) (b: opened) (e: (typ, varid) expr) =
   let l = B.entry_label b in
-  let u = free_vars_of_expr e (Some env) in
-  let v = {node_use = u; node_def = Bindings.empty, l} in
+  let u = free_vars_of_expr e env in
+  let v = {node_use = u; node_def = References.empty, l} in
   let n = {enode = EN_expr e; enode_loc = e.expr_loc; enode_aux = v} in
-(*  Printf.eprintf "\t%s adding %s: %s\n"
-    (Label.to_string l) (Node.print (N_enode n)) (print_v v);*)
+  (* Printf.eprintf "\t%s adding expr %s: %s\n"
+    (Label.to_string l) (Node.print (N_enode n)) print_v v); *)
   B.snoc b (N_enode n)
 
-let add_pattern (_: Bindings.t) (b: opened) (p: (typ, varid) pattern) =
-  (* pattern matching binds and initializes its variables *)
+let add_pattern (_: References.t) (b: opened) (p: (typ, varid) pattern) =
+  (* Pattern matching binds and initializes its variables. *)
   let l = B.entry_label b in
   let d = vars_of_pattern p in
-  let v = {node_use = Bindings.empty; node_def = d, l} in
+  let v = {node_use = References.empty; node_def = d, l} in
   let n = {enode = EN_defn p; enode_loc = p.pattern_loc; enode_aux = v} in
-(*  Printf.eprintf "\t%s adding %s: %s\n"
-    (Label.to_string l) (Node.print (N_enode n)) (print_v v);*)
+  (*Printf.eprintf "\t%s adding pattern %s: %s\n"
+    (Label.to_string l) (Node.print (N_enode n)) print_v v);*)
   B.snoc b (N_enode n)
 
-let add_binding_assign (env: Bindings.t) (b: opened) a e =
+let add_binding_assign (env: References.t) (b: opened) a e =
   let l = B.entry_label b in
-  let u = free_vars_of_expr e (Some env) in
-  let d = Bindings.singleton a in
+  let u = free_vars_of_expr e env in
+  let d = References.singleton a in
   let v = {node_use = u; node_def = d, l} in
-  let n = {enode = EN_binding_assign (a, e);
+  let n = {enode     = EN_binding_assign (a, e);
            enode_loc = e.expr_loc;
            enode_aux = v} in
-(*  Printf.eprintf "\t%s adding %s: %s\n"
-    (Label.to_string l) (Node.print (N_enode n)) (print_v v);*)
+  (*Printf.eprintf "\t%s adding binding assignment %s: %s\n"
+   (Label.to_string l) (Node.print (N_enode n)) (print_v v);*)
   B.snoc b (N_enode n)
 
-let add_assign (env: Bindings.t) (b: opened) a e =
+(* TODO: does this ever get used in practise?  It leaves a potential
+   hole in the analysis since the defs will not get counted. *)
+let add_assign (env: References.t) (b: opened) a e =
   let l = B.entry_label b in
-  (* the lhs is a general expr, so use an empty def *)
-  let u = free_vars_of_expr e (Some env) in
-  let v = {node_use = u; node_def = Bindings.empty, l} in
-  let n = {enode = EN_assign (a, e); enode_loc = e.expr_loc; enode_aux = v} in
-(*  Printf.eprintf "\t%s adding %s: %s\n"
-    (Label.to_string l) (Node.print (N_enode n)) (print_v v);*)
+  (* The lhs is a general expr, so use an empty def. *)
+  let u = free_vars_of_expr e env in
+  let v = {node_use = u; node_def = References.empty, l} in
+  let n = {enode     = EN_assign (a, e);
+           enode_loc = e.expr_loc;
+           enode_aux = v} in
+  (*Printf.eprintf "\t%s adding assignment %s: %s\n"
+   (Label.to_string l) (Node.print (N_enode n)) (print_v v);*)
   B.snoc b (N_enode n)
+
+(* block construction *)
 
 let new_labeled_block (l: Label.label) : opened =
   let h = Node.N_label l in
-(*  Printf.eprintf "\tStarting new labeled block: %s\n" (Node.print h);*)
-  B.join_head h B.empty
+  (*Printf.eprintf "\tStarting new labeled block: %s\n" (Node.print h);*)
+ B.join_head h B.empty
 
 let new_block () : Label.label * opened =
   let l = Label.fresh_label () in
@@ -394,31 +562,36 @@ let new_block () : Label.label * opened =
 
 let end_block (b: opened) (l: Label.label list) : closed =
   let t = Node.N_jumps l in
-(*  Printf.eprintf "\tEnding block with: %s\n" (Node.print t);*)
+  (*Printf.eprintf "\tEnding block with: %s\n" (Node.print t);*)
   B.join_tail b t
 
 (* The context for generating the CFG is:
- * . an environment containing some constant bound variables
- *   (e.g. from the standard library), which are excluded from the use
- *   sets for efficiency.
- * . the accumulated set of closed blocks generated so far
- * . the current open block into which the next node should be added
+   . an environment containing some constant bound variables
+     (e.g. from the standard library), which are excluded from the use
+     sets for efficiency.
+   . the accumulated set of closed blocks generated so far
+   . the current open block into which the next node should be added
  *)
-type ctx = Bindings.t * closed list * opened
+type ctx = References.t * closed list * opened
 
 let rec add_stmt (ctx: ctx) (s: (typ, varid) stmt) : ctx =
   let bound, closed, b = ctx in
   match s.stmt with
     | S_assign ({expr = E_var v; _}, e) ->
         let ig = fst (Location.value v), Location.loc v in
-        let l = snd (Location.value v), None, ig in
+        let l = snd (Location.value v), [], ig in
         let b = add_binding_assign bound b l e in
         bound, closed, b
-    | S_assign ({expr = E_field ({expr = E_var v; _}, f); _}, e) ->
-        let ig = fst (Location.value v), s.stmt_loc in
-        let l = snd (Location.value v), Some (Location.value f), ig in
-        let b = add_binding_assign bound b l e in
-        bound, closed, b
+    | S_assign (({expr = E_field _; _} as l), e) ->
+        (match lhs_fields l with
+           | None ->
+               let b = add_assign bound b l e in
+               bound, closed, b
+           | Some (v, fs) ->
+               let ig = fst v, s.stmt_loc in
+               let l  = snd v, fs, ig in
+               let b  = add_binding_assign bound b l e in
+               bound, closed, b)
     | S_assign (l, e) ->
         let b = add_assign bound b l e in
         bound, closed, b
@@ -428,12 +601,11 @@ let rec add_stmt (ctx: ctx) (s: (typ, varid) stmt) : ctx =
         List.fold_left add_stmt (bound, closed, b) stmts
     | S_case (e, cls) ->
         let b = add_expr bound b e in
-        (* [b] will be closed below with the labels for the new blocks
-         * for the clauses.  Each of those blocks will need to jump
-         * to a new continuation block.
-         *)
+        (* `b` will be closed below with the labels for the new blocks
+           for the clauses.  Each of those blocks will need to jump
+           to a new continuation block. *)
         let cl, cb = new_block () in
-        let (lbls, closed) =
+        let lbls, closed =
           List.fold_left (fun (lbls, closed) (p, ss) ->
               let l, b = new_block () in
               let b = add_pattern bound b p in
@@ -447,18 +619,18 @@ let rec add_stmt (ctx: ctx) (s: (typ, varid) stmt) : ctx =
 
 let add_gnode (b: opened) gn loc =
   let l = B.entry_label b in
-  let v = {node_use = Bindings.empty; node_def = Bindings.empty, l} in
+  let v = {node_use = References.empty; node_def = References.empty, l} in
   let g = {gnode = gn; gnode_loc = loc; gnode_aux = v} in
-(*  Printf.eprintf "\t%s adding %s\n" (Label.to_string l) (Node.print (N_gnode g));*)
+  (* Printf.eprintf "\t%s adding gnode %s\n" (Label.to_string l) (Node.print (N_gnode g));*)
   B.snoc b (N_gnode g)
 
 (* Regular expressions use similar combinators as the production rules
- * for attributed non-terminals; they are separated out in the AST for
- * convenience in the typing rules, and they will likely also help in
- * code generation.  For control-flow convenience however, we express
- * the regexp combinators in terms of the combinators for the
- * attributed rule elements.  We leave only the primitive regexps:
- * literals and wildcards.
+   for attributed non-terminals; they are separated out in the AST for
+   convenience in the typing rules, and they will likely also help in
+   code generation.  For control-flow convenience however, we express
+   the regexp combinators in terms of the combinators for the
+   attributed rule elements.  We leave only the primitive regexps:
+   literals and wildcards.
  *)
 let rec lift_regexp rx =
   let wrap r =
@@ -480,27 +652,21 @@ let rec lift_regexp rx =
     | RX_seq rxs ->
         wrap (RE_seq_flat (List.map lift_regexp rxs))
 
-(* A helper to extract the record info for the synthesized attributes
- * of a non-terminal from a typing environment *)
-let get_synth_recinfo (tenv: TE.environment) (nt: string) =
-  match TE.lookup_non_term tenv (NName nt) with
-    | Some (_, _, nts) ->
-        (match nts with
-           | NTT_type (_, r)   -> r
-           | NTT_record (_, r) -> !r)
-    | None -> None
-
-
 (* The control flow semantics during parsing require that all
- * assignment side-effects performed after a choice point along an
- * execution path for a production rule are undone or rewound when a
- * parse failure rewinds execution back to that choice point.  From
- * the point of view of the initialization analysis, this is
- * equivalent to a control-flow that does not have any failure paths.
- * In other words, we need to ensure that all *purely* successful
- * paths for a production rule end with all uninitialized attributes
- * being initialized.
+   assignment side-effects performed after a choice point along an
+   execution path for a production rule are undone or rewound when a
+   parse failure rewinds execution back to that choice point.  From
+   the point of view of the initialization analysis, this is
+   equivalent to a control-flow that does not have any failure paths.
+   In other words, we need to ensure that all *purely* successful
+   paths for a production rule end with all uninitialized attributes
+   being initialized.
  *)
+
+let pattern_of_var v loc aux : (typ, varid) pattern =
+  {pattern     = P_var v;
+   pattern_loc = loc;
+   pattern_aux = aux}
 
 let rec add_rule_elem
           (tenv: TE.environment)
@@ -527,7 +693,7 @@ let rec add_rule_elem
                     add_expr env b e
                   ) b ias in
         pack (add_gnode b (GN_type id) r.rule_elem_loc)
-    (* bitvectors and bitfields are treated just as types *)
+    (* Bitvectors and bitfields are treated just as types. *)
     | RE_bitvector _ ->
         let bv = mk_bitvector_ident () in
         pack (add_gnode b (GN_type bv) r.rule_elem_loc)
@@ -543,7 +709,7 @@ let rec add_rule_elem
             | Some e -> add_expr env b e in
         env, closed, b
     | RE_named (n, r') ->
-        (* [n] will only be defined after [r'] executes *)
+        (* `n` will only be defined after `r'` executes *)
         let env, closed, b = add_rule_elem tenv ctx r' in
         let p = pattern_of_var n r.rule_elem_loc r.rule_elem_aux in
         let b = add_pattern env b p in
@@ -552,9 +718,9 @@ let rec add_rule_elem
         List.fold_left (fun ctx r -> add_rule_elem tenv ctx r) ctx rs
     | RE_choice rs ->
         (* This introduces a branch point, so we need to terminate
-         * this block with jumps to each of the blocks that start the
-         * choices [rs].  All the choices need a common continuation,
-         * so allocate a block for it. *)
+           this block with jumps to each of the blocks that start the
+           choices `rs`.  All the choices need a common continuation,
+           so allocate a block for it. *)
         let cl, cb = new_block () in
         let ls, closed, env =
           List.fold_left (fun (ls, closed, env) r ->
@@ -562,99 +728,97 @@ let rec add_rule_elem
               let l, b = new_block () in
               let ctx = env, closed, b in
               let env, closed, b = add_rule_elem tenv ctx r in
-              (* jump to the common continuation *)
+              (* Jump to the common continuation. *)
               let c = end_block b [cl] in
               l :: ls, c :: closed, env
             ) ([], closed, env) rs in
-        (* terminate the current block with a jump to the choices *)
+        (* Terminate the current block with a jump to the choices. *)
         let c = end_block b ls in
-        (* resume from the common continuation *)
+        (* Resume from the common continuation. *)
         env, c :: closed, cb
     | RE_star (r', Some e) when is_non_zero e ->
-        (* The count [e] is evaluated before [r'] is matched. For
-         * non-zero bounds, we have straight line execution.
-         *)
+        (* The count `e` is evaluated before `r'` is matched. For
+           non-zero bounds, we have straight line execution. *)
         let b   = add_expr env b e in
         let ctx = env, closed, b in
         add_rule_elem tenv ctx r'
     | RE_star (r', Some e)
     | RE_map_views (e, r') ->
-        (* If we can't statically determine that [e] is always
-         * non-zero for RE_star or non-empty for RE_map_views, we
-         * conservatively assume that they could be zero or empty,
-         * and create a branch point for the case that [r'] may not
-         * execute. *)
+        (* If we can't statically determine that `e` is always
+           non-zero for `RE_star` or non-empty for `RE_map_views`, we
+           conservatively assume that they could be zero or empty, and
+           create a branch point for the case that `r'` may not
+           execute. *)
         let b = add_expr env b e in
-        (* The below logic is similar to the RE_star (r', None) case. *)
+        (* The below logic is similar to the `RE_star (r', None)` case. *)
         let cl, cb = new_block () in
         let bl, bb = new_block () in
         (* End the current block with these two as possible
-         * continuations *)
+           continuations. *)
         let c = end_block b [bl; cl] in
         let ctx = env, c :: closed, bb in
         let env, closed, bb = add_rule_elem tenv ctx r' in
-        (* insert a jump to the continuation *)
+        (* Insert a jump to the continuation. *)
         let c = end_block bb [cl] in
         env, c :: closed, cb
     | RE_star (r', None)
     | RE_opt r' ->
-        (* These both create a branch point, since r' may not execute,
-         * and we could continue with the subsequent rule element.
-         * Allocate a block for that continuation, and for [r']. *)
+        (* These both create a branch point, since `r'` may not
+           execute, and we could continue with the subsequent rule
+           element.  Allocate a block for that continuation, and for
+           `r'`. *)
         let cl, cb = new_block () in
         let bl, bb = new_block () in
         (* End the current block with these two as possible
-         * continuations *)
+           continuations. *)
         let c = end_block b [bl; cl] in
         let ctx = env, c :: closed, bb in
         let env, closed, bb = add_rule_elem tenv ctx r' in
-        (* insert a jump to the continuation *)
+        (* Insert a jump to the continuation. *)
         let c = end_block bb [cl] in
         env, c :: closed, cb
     | RE_epsilon
     | RE_align _
     | RE_pad _ ->
-        (* these are nops *)
+        (* These are nops. *)
         ctx
     | RE_at_pos (e, r') | RE_at_view (e, r') ->
-        (* [e] is evaluated before [r'] is matched *)
+        (* `e` is evaluated before `r'` is matched. *)
         let b = add_expr env b e in
         let ctx = env, closed, b in
         add_rule_elem tenv ctx r'
 
-(* A CFG for a production rule, and its final exit label *)
+(* A CFG for a production rule, and its final exit label. *)
 let rule_to_cfg
       (tenv: TE.environment)
-      (env: Bindings.t)
+      (env: References.t)
       (ntd: (typ, varid) non_term_defn)
       (r: (typ, varid) rule)
     : Label.label * (Block.c, Block.c, v) G.graph * Label.label =
-  (* lookup type info for the non-terminal *)
+  (* Lookup type info for the non-terminal. *)
   let ntnm = Location.value ntd.non_term_name in
   let nti, _, _ = match TE.lookup_non_term tenv (NName ntnm) with
       | Some t -> t
       | None   -> assert false in
-  (* The cfg needs an entry label and block, which will contain the
-   * setup for the rule, viz. the binding for the non-terminal itself
-   * (if present), and the attributes bindings and temporaries.
-   *)
-  let entry_lbl = Label.fresh_label () in
-  let b = new_labeled_block entry_lbl in
-  (* add inherited attributes *)
+  (* The CFG needs an entry label and block to contain the setup for
+     the rule, viz. the binding for the non-terminal itself
+     (if present), and the attribute bindings and temporaries.  *)
+  let entry_lbl, b = new_block () in
+  (* Add inherited attributes. *)
   let b = List.fold_left (fun b (ia, _, _) ->
               let ian, _ = Location.value ia in
-              let iloc = Location.loc ia in
-              (* we could loop over [nti] itself instead of looking up,
-               * but this enables an extra asserted consistency check
-               *)
+              let iloc   = Location.loc ia in
+              (* We could loop over `nti` itself instead of looking
+                 up, but doing it this way enables an extra asserted
+                 consistency check.  *)
               let iat =
                 match Typing.Misc.StringMap.find_opt ian (fst nti) with
-                  | None -> assert false
+                  | None        -> assert false
                   | Some (t, _) -> t in
               let p = pattern_of_var ia iloc iat in
               add_pattern env b p
             ) b ntd.non_term_inh_attrs in
-  (* add any initialized synthesized attributes *)
+  (* Add any initialized synthesized attributes. *)
   let b = match ntd.non_term_syn_attrs with
       | ALT_type _ -> b
       | ALT_decls ds when List.length ds = 0 -> b
@@ -662,8 +826,8 @@ let rule_to_cfg
           let v =
             (match ntd.non_term_varname with
                | None ->
-                   (* Could assert here, since this should have been
-                    * checked before we got here. *)
+                   (* We could assert here, since this should have
+                      been checked before we got here. *)
                    let err =
                      Unnamed_attributed_nonterminal ntd.non_term_name in
                    raise (Error err)
@@ -677,28 +841,27 @@ let rule_to_cfg
                 | Some e ->
                     let l =
                       let ig = vn, Location.loc f in
-                      v, Some (Location.value f), ig in
+                      v, [Location.value f], ig in
                     add_binding_assign env b l e
             ) b ds in
-  (* add rule temporaries *)
+  (* Add rule temporaries. *)
   let b = List.fold_left (fun b (tv, _, te) ->
               let loc = Location.loc tv in
               let p = pattern_of_var tv loc te.expr_aux in
               add_pattern env b p
             ) b r.rule_temps in
-  (* the initial context *)
-  let ctx = env, [], b in
-  (* add the rule elements *)
+  let ctx = env, [], b in   (* the initial context *)
+  (* Add the rule elements. *)
   let _, closed, b =
     List.fold_left (add_rule_elem tenv) ctx r.rule_rhs in
-  (* terminate the last block with a jump to an exit label. *)
+  (* Terminate the last block with a jump to an exit label. *)
   let exit_lbl = Label.fresh_label () in
   let c = end_block b [exit_lbl] in
-  (* construct the graph body *)
+  (* Construct the graph body, *)
   let body = List.fold_left D.add_block D.empty (c :: closed) in
-  (* and the graph itself *)
+  (* and the graph itself. *)
   let g = G.from_body body in
-  (* return the graph, and the entry/exit labels *)
+  (* Return the graph, and the entry/exit labels. *)
   entry_lbl, g, exit_lbl
 
 module FB = MkFactBase (IVLattice)
@@ -717,8 +880,8 @@ let tr_co (type v)
     : Block.o VA.facts =
   match n, fb with
     | N_label l, Facts_closed fb ->
-        (* for this analysis, entry labels should always be present in
-         * the factbase *)
+        (* For this analysis, entry labels should always be present in
+         * the factbase. *)
         (match FB.lookup fb l with
            | Some f -> Facts_open f
            | None   -> assert false)
@@ -742,13 +905,13 @@ let tr_oo
       (n: (Block.o, Block.o, v) B.node)
       (f: Block.o VA.facts)
     : Block.o VA.facts =
-  let check_use (inits: ReachingDefns.t) (uses: Bindings.t) loc =
-    (* All [u] in [uses] should be in the initialized set [inits] *)
-    Bindings.iter (fun b ->
+  let check_use (inits: ReachingDefns.t) (uses: References.t) loc =
+    (* All `u` in `uses` should be in the initialized set `inits`. *)
+    References.iter (fun b ->
         if   ReachingDefns.possibly_undefined b inits
         then raise (Error (Use_of_uninit_var (b, loc)))
       ) uses in
-  (* add defs to outgoing set of initvars after checking uses *)
+  (* Add defs to outgoing set of initvars after checking uses. *)
   match f with
     | Facts_open f ->
         let out = match n with
@@ -765,7 +928,7 @@ let tr_oo
             | _ ->
                 (* this should not be needed *)
                 assert false in
-(*        Printf.eprintf
+        (*Printf.eprintf
           " transfer: @node %s: {%s} -> {%s}\n"
           (Node.print n) (IVLattice.print f) (IVLattice.print out);*)
         Facts_open out
@@ -776,100 +939,154 @@ let tr_oo
 let fwd_transfer : v VA.fwd_transfer =
   (tr_co, tr_oo, tr_oc)
 
-(* build up the base set of initialized variables:
- * . constants and functions from the prelude
- * . constants and functions defined in the spec
+(* Build up the base set of initialized variables:
+   . constants and functions from the prelude
+   . constants and functions defined in the spec
  *)
 let build_init_bindings (init_venv: VEnv.t) (tspec: (typ, varid) program) =
   let mk_elem v =
     let loc = Location.loc v in
     let n, vid = Location.value v in
-    vid, None, (n, loc) in
+    vid, [], (n, loc) in
   let init = VEnv.fold_left (fun init v ->
-                 Bindings.add (mk_elem v) init
-               ) Bindings.empty init_venv in
+                 References.add (mk_elem v) init
+               ) References.empty init_venv in
   List.fold_left (fun init d ->
       match d with
         | Decl_types _ | Decl_format _ ->
             init
         | Decl_const c ->
-            Bindings.add (mk_elem c.const_defn_ident) init
+            References.add (mk_elem c.const_defn_ident) init
         | Decl_fun f ->
-            Bindings.add (mk_elem f.fun_defn_ident) init
+            References.add (mk_elem f.fun_defn_ident) init
         | Decl_recfuns r ->
             List.fold_left (fun e f ->
-                Bindings.add (mk_elem f.fun_defn_ident) e
+                References.add (mk_elem f.fun_defn_ident) e
               ) init r.recfuns
     ) init tspec.decls
 
-(* check whether an attribute or record field is initialized *)
+(* To build a complete list of all the nested field references of an
+   attribute, all nested record types need to be traversed.  Some
+   helpers for this are first defined. *)
 
-(* check the rules for a non-terminal *)
-let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
+(* A helper to extract the record info for the synthesized attributes
+   of a non-terminal. *)
+let get_nt_recinfo (tenv: TE.environment) (nt: string)
+    : TE.record_info option =
+  match TE.lookup_non_term tenv (NName nt) with
+    | Some (_, _, nts) ->
+        (match nts with
+           | NTT_type (_, r)   -> r
+           | NTT_record (_, r) -> !r)
+    | None -> None
+
+(* Helpers to check if a type is a record, and if so, to
+   extract the fields and their types. *)
+let recinfo_of_type (tenv: TE.environment) (t: tvar)
+    : (string * type_expr) list option =
+  match TE.get_record_info tenv (TName (Location.value t)) with
+    | None    -> None
+    | Some ri -> Some (List.map (fun (f, t) ->
+                           Location.value f, t) ri.fields)
+let recinfo_of_type_expr (tenv: TE.environment) (t: type_expr)
+    : (string * type_expr) list option =
+  match t.type_expr with
+    | TE_tvar t
+    | TE_tapp ({type_expr = TE_tvar t;_}, _) ->
+        recinfo_of_type tenv t
+    | TE_tapp _ ->
+        None
+(* The builder of the complete list. *)
+let build_attribute_refs (tenv: TE.environment) recinfo =
+  let rec builder (f: string) (t: type_expr) : string list list =
+    match recinfo_of_type_expr tenv t with
+      | None ->
+          [[f]]
+      | Some fts ->
+          List.fold_left (fun acc (f', t) ->
+              (List.rev_map (fun fs -> f :: fs) (builder f' t))
+              @ acc
+            ) [] fts in
+  List.fold_left (fun acc (f, t) ->
+      (builder (Location.value f) t)
+      @ acc
+    ) [] TE.(recinfo.fields)
+
+let test_attr_builder tenv recinfo =
+  let refs = build_attribute_refs tenv recinfo in
+  let pr fs = Printf.eprintf " %s\n" (String.concat "." fs) in
+  Printf.eprintf " built the following full refs:\n";
+  List.iter pr refs
+
+(** Check whether an attribute or record field is initialized. *)
+
+(* Check the rules for a non-terminal. *)
+let check_non_term (tenv: TE.environment) (init_env: References.t) ntd =
   (*  Printf.eprintf "checking %s:\n" (Location.value ntd.non_term_name);*)
+
+  (* Set up the initial factbase: at the entry label, we only have
+     uninitialized synthesized attributes, and no initialized
+     variables (since we've pruned all entries from the prelude when
+     constructing the CFG). *)
+  let syn_attrs =
+    let ntnm = Location.value ntd.non_term_name in
+    let recinfo = get_nt_recinfo tenv ntnm in
+    match recinfo, ntd.non_term_varname with
+      | None, None ->
+          None
+      | None, Some v ->
+          Some (v, [])
+      | Some _, None ->
+          (* Initialized attributes are best modeled as assignments in
+             which the lhs is a field indexed variable.  If the
+             non-terminal is not named, this is not possible; and any
+             non-initialized attributes cannot be assigned.  For
+             simplicity, just require that a non-terminal with
+             synthesized attributes must use a local name. *)
+          let err =
+            Unnamed_attributed_nonterminal ntd.non_term_name in
+          raise (Error err)
+      | Some ri, Some v ->
+          Some (v, build_attribute_refs tenv ri) in
+  let reaching_defs =
+    match syn_attrs with
+      | None ->
+          ReachingDefns.empty
+      | Some (v, []) ->
+          (* Create an undefined binding for the variable. *)
+          let lc = Location.loc v in
+          let vn = fst (Location.value v) in
+          let v  = snd (Location.value v) in
+          let b  = v, [], (vn, lc) in
+          ReachingDefns.add b None ReachingDefns.empty
+      | Some (v, lfs) ->
+          (* Create undefined bindings for each attribute. *)
+          List.fold_left (fun rd fs ->
+              let lc = Location.loc v in
+              let vn = fst (Location.value v) in
+              let v  = snd (Location.value v) in
+              let b  = v, fs, (vn, lc) in
+              ReachingDefns.add b None rd
+            ) ReachingDefns.empty lfs in
   let rn = ref 0 in
   List.iter (fun r ->
-(*      Printf.eprintf "  building cfg for rule %d:\n" !rn;*)
-      (* get the CFG for the rule *)
+      (*Printf.eprintf "  building cfg for rule %d:\n" !rn;*)
+      (* Compute the CFG for the rule. *)
       let entry, cfg, exit = rule_to_cfg tenv init_env ntd r in
-(*      Printf.eprintf
+      (*Printf.eprintf
         "  built cfg for rule %d with entry %s and exit %s\n"
         !rn (Label.to_string entry) (Label.to_string exit);*)
       incr rn;
-      (* set up the initial factbase: at the entry label, we only
-       * have uninitialized synthesized attributes, and no initialized
-       * variables (since we've pruned all entries from the prelude
-       * when constructing the CFG) *)
-      let syn_attrs =
-        let ntnm = Location.value ntd.non_term_name in
-        let recinfo = get_synth_recinfo tenv ntnm in
-        match recinfo, ntd.non_term_varname with
-          | None, None ->
-              None
-          | None, Some v ->
-              Some (v, [])
-          | Some _, None ->
-              (* Initialized attributes are best modeled as
-               * assignments in which the lhs is a field indexed
-               * variable.  If the non-terminal is not named, this is
-               * not possible; and any non-initialized attributes
-               * cannot be assigned.  For simplicity, just require
-               * that a non-terminal with synthesized attributes must
-               * use a local name. *)
-              let err =
-                Unnamed_attributed_nonterminal ntd.non_term_name in
-              raise (Error err)
-          | Some (TE.{fields = fs; _}), Some v ->
-              Some (v, fs) in
       let init_fbase =
-        let reaching_defs =
-          match syn_attrs with
-            | None ->
-                ReachingDefns.empty
-            | Some (v, []) ->
-                (* create an undefined binding for the variable *)
-                let lc = Location.loc v in
-                let vn = fst (Location.value v) in
-                let v  = snd (Location.value v) in
-                let b  = v, None, (vn, lc) in
-                ReachingDefns.add (b, None) ReachingDefns.empty
-            | Some (v, fs) ->
-                (* create undefined bindings for each attribute *)
-                List.fold_left (fun rd (attr, _) ->
-                    let lc = Location.loc v in
-                    let vn = fst (Location.value v) in
-                    let v  = snd (Location.value v) in
-                    let b  = v, Some (Location.value attr), (vn, lc) in
-                    ReachingDefns.add (b, None) rd
-                  ) ReachingDefns.empty fs in
         FB.mk_factbase [entry, reaching_defs] in
-(*      Printf.eprintf "init_fbase:\n";
+      (*Printf.eprintf "init_fbase:\n";
       print_fbase init_fbase;*)
       let init_fbase = VA.Facts_closed init_fbase in
-      (* call the forward analysis to get final factbase at [exit] *)
+
+      (* Call the forward analysis to get final factbase at `exit`. *)
       let exit_fbase, _opt_factmap =
         VA.fwd_analysis init_fbase (JustC [entry]) cfg fwd_transfer in
-      (* collect info on assignments of synthesized attributes *)
+      (* Collect info on assignments of synthesized attributes. *)
       match syn_attrs with
         | None ->
             ()
@@ -877,60 +1094,43 @@ let check_non_term (tenv: TE.environment) (init_env: Bindings.t) ntd =
             let loc = Location.loc v in
             let vn  = fst (Location.value v) in
             let v   = snd (Location.value v) in
-            (* get the factbase at exit *)
             let exit_fbase = match exit_fbase with
                 | VA.Facts_closed fb -> fb
                 | VA.Facts_open _ -> assert false in
-(*            Printf.eprintf "exit_fbase:\n";
+            (*Printf.eprintf "exit_fbase:\n";
             print_fbase exit_fbase;*)
             let exit_fact = match FB.lookup exit_fbase exit with
                 | None -> assert false
                 | Some f -> f in
-            let b = v, None, (vn, loc) in
+            let b = v, [], (vn, loc) in
             if   ReachingDefns.possibly_undefined b exit_fact
             then let err =
                    Unassigned_variable (ntd.non_term_name, vn, r.rule_loc) in
                  raise (Error err)
-        | Some (v, fs) ->
+        | Some (v, lfs) ->
             let loc = Location.loc v in
             let vn  = fst (Location.value v) in
             let v   = snd (Location.value v) in
-            (* get the factbase at exit *)
             let exit_fbase = match exit_fbase with
                 | VA.Facts_closed fb -> fb
                 | VA.Facts_open _ -> assert false in
-(*            Printf.eprintf "exit_fbase:\n";
+            (*Printf.eprintf "exit_fbase:\n";
             print_fbase exit_fbase;*)
             let exit_fact = match FB.lookup exit_fbase exit with
                 | None -> assert false
                 | Some f -> f in
-            (* ensure all synthesized attributes are initialized at exit *)
-            List.iter (fun (f, t) ->
-                let f = Location.value f in
-                let attr = v, Some f, (vn, loc) in
-(*                Printf.eprintf " init-check for %s:\n" (binding_to_string attr);*)
+            (*Printf.eprintf "exit_reaching_defs:\n";
+            ReachingDefns.print exit_fact;*)
+            (* Ensure all synthesized attributes are initialized at exit. *)
+            List.iter (fun fs ->
+                let attr = v, fs, (vn, loc) in
+                (*Printf.eprintf " init-check for %s@%s:\n"
+                  (reference_to_string attr) (Label.to_string exit);*)
                 if   ReachingDefns.possibly_undefined attr exit_fact
-                then
-                  (* If the attribute has a record type, then it can
-                   * be considered initialized if all its fields are
-                   * initialized. *)
-                  let is_inited =
-                    match t.type_expr with
-                      | TE_tapp ({type_expr = TE_tvar r; _}, _) ->
-                          let rn = Location.value r in
-                          (match TE.get_record_info tenv (TName rn) with
-                             | None ->
-                                 false
-                             | _    ->
-                                 true
-                          )
-                      | _ ->
-                          false in
-                  if not is_inited then
-                    let err =
-                      Unassigned_attribute (ntd.non_term_name, f, r.rule_loc) in
-                    raise (Error err)
-              ) fs
+                then let err =
+                       Unassigned_attribute (ntd.non_term_name, fs, r.rule_loc) in
+                     raise (Error err)
+              ) lfs
     ) ntd.non_term_rules
 
 (* entry into this module *)
@@ -951,18 +1151,18 @@ let check_spec init_envs (tenv: TE.environment) (tspec: (typ, varid) program) =
 let msg = Location.msg
 
 let error_msg = function
-  | Use_of_uninit_var ((_v, optf, (n, _)), loc) ->
+  | Use_of_uninit_var ((_v, fs, (n, _)), loc) ->
       msg "%s:\n `%s' may be used uninitialized.\n" loc
-        (match optf with
-           | None -> n
-           | Some f -> Printf.sprintf "%s.%s" n f)
+        (match fs with
+           | [] -> n
+           | _  -> Printf.sprintf "%s.%s" n (String.concat "." fs))
   | Unnamed_attributed_nonterminal nt ->
       msg
         "%s:\n Non-terminal `%s' with synthetic attributes needs to be  given a local name.\n"
         (Location.loc nt) (Location.value nt)
-  | Unassigned_attribute (nt, f, loc) ->
+  | Unassigned_attribute (nt, fs, loc) ->
       msg "%s:\n Attribute `%s' of `%s' may be uninitialized at the end of this rule.\n"
-        loc f (Location.value nt)
+        loc (String.concat "." fs) (Location.value nt)
   | Unassigned_variable (nt, v, loc) ->
       msg "%s:\n Variable `%s' of `%s' may be uninitialized at the end of this rule.\n"
         loc v (Location.value nt)

@@ -75,7 +75,7 @@ module PList = struct
   let tail lc (v: value) : value =
     match v with
       | V_list [] -> fault (Invalid_argument (lc, "List.tail", "0-length list"))
-      | V_list (h :: _) -> h
+      | V_list (_ :: tl) -> V_list tl
       | _ -> internal_error (Type_error (lc, "List.tail", 1, vtype_of v, T_list T_empty))
 
   let index lc (l: value) (r: value) : value =
@@ -225,11 +225,27 @@ module PString = struct
       | _ ->
           assert false
 
-  let of_literal lc (v: value) : value =
+  (* internal helpers *)
+  let try_to_string (v: value) : string option =
     match v with
-      | V_string _ ->
-          v
-      | _ ->
+      | V_string s -> Some s
+      | V_list vs when List.for_all
+                         (function | V_char _ -> true | _ -> false)
+                         vs ->
+          (* Coerce conversion for a list of bytes. *)
+          let b = Buffer.create 64 in
+          List.iter (function | V_char c -> Buffer.add_char b c
+                              | _ -> assert false) vs;
+          Some (Buffer.contents b)
+      | _ -> None
+  let to_byte_list (s: string) : value =
+    V_list (List.of_seq (Seq.map (fun c -> V_char c) (String.to_seq s)))
+
+  let of_literal lc (v: value) : value =
+    match try_to_string v with
+      | Some s ->
+          V_string s
+      | None ->
           internal_error (Type_error (lc, "String.of_literal", 1, vtype_of v, T_string))
 end
 

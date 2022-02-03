@@ -133,17 +133,14 @@ let bv_and lc (l: value) (r: value) : value =
         internal_error (Type_error (lc, "&_b", 1, vtype_of l, T_bitvector))
 
 let bit_extract lc (l: bool list) (hi: int) (lo: int) =
-  let rec rextract l acc idx =
-    if   idx > hi
-    then acc
-    else let b = List.nth l idx in
-         rextract l (b :: acc) (idx + 1) in
   let len = List.length l in
-  if hi >= len
+  if   hi >= len
   then internal_error (Bitrange_index (lc, hi, len))
   else if lo >= len
   then internal_error (Bitrange_index (lc, lo, len))
-  else rextract l [] lo
+  else if lo >= hi
+  then internal_error (Bitrange_index (lc, lo, hi))
+  else field_of_bitvector l hi lo
 
 let bv_bitrange lc (l: value) (hi: int) (lo: int) : value =
   match l with
@@ -153,14 +150,14 @@ let bv_bitrange lc (l: value) (hi: int) (lo: int) : value =
         internal_error (Type_error (lc, "bitrange", 1, vtype_of l, T_bitvector))
 
 let mk_bitfield_type (bfi: TypingEnvironment.bitfield_info) =
-  let rcd = List.map (fun (f, _, _) -> f, T_bitvector) bfi.bf_fields in
+  let rcd = List.map (fun (f, _) -> f, T_bitvector) bfi.bf_fields in
   T_record rcd
 
 let rec_of_bits lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
     : value =
   match l with
     | V_bitvector l ->
-        let fs = List.fold_left (fun acc (f, hi, lo) ->
+        let fs = List.fold_left (fun acc (f, (hi, lo)) ->
                      (f, V_bitvector (bit_extract lc l hi lo)) :: acc
                    ) [] bfi.bf_fields in
         V_record fs
@@ -178,7 +175,7 @@ let bits_of_rec lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
            since they are sorted before registered into the type
            environment. *)
         let l =
-          List.fold_left (fun acc (f, hi, lo) ->
+          List.fold_left (fun acc (f, (hi, lo)) ->
               match List.assoc_opt f rv with
                   | None ->
                       internal_error (No_field (lc, f))
@@ -199,54 +196,76 @@ let bits_of_rec lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
         internal_error (Type_error (lc, op, 1, vtype_of l, ty))
 
 (* pure boolean helpers for equality and inequality *)
-let rec eq lc op l r =
-  match l, r with
-    | V_unit, V_unit               -> true
-    | V_bool l, V_bool r           -> l = r
-    | V_bit l, V_bit r             -> l = r
-    | V_int l, V_int r             -> l = r
-    | V_string l, V_string r       -> l = r
-    | V_bitvector l, V_bitvector r -> l = r
+let mand b b' =
+  match b, b' with
+    | Ok b, Ok b' -> Ok (b && b')
+    | Error e, _
+    | _, Error e  -> Error e
 
-    | V_option None, V_option None -> true
+let rec eq lc op l r : (bool, error) result =
+  match l, r with
+    | V_unit, V_unit               -> Ok true
+    | V_bool l, V_bool r           -> Ok (l = r)
+    | V_bit l, V_bit r             -> Ok (l = r)
+    | V_char l, V_char r           -> Ok (l = r)
+    | V_int l, V_int r             -> Ok (l = r)
+    | V_float l, V_float r         -> Ok (l = r)
+    | V_string l, V_string r       -> Ok (l = r)
+    | V_bitvector l, V_bitvector r -> Ok (l = r)
+
+    | V_bitfield (li, lv), V_bitfield (ri, rv)
+         when
+           let li = {li with bf_fields = List.sort compare li.bf_fields} in
+           let ri = {ri with bf_fields = List.sort compare ri.bf_fields} in
+           li = ri ->
+        Ok (lv = rv)
+
+    | V_option None, V_option None         -> Ok true
     | V_option (Some l), V_option (Some r) -> eq lc op l r
-    | V_option _, V_option _       -> false
+    | V_option _, V_option _               -> Ok false
 
     | V_list ls, V_list rs | V_tuple ls, V_tuple rs ->
-        eqs lc op true ls rs
+        eqs lc op (Ok true) ls rs
 
     | V_constr ((tl, cl), ls), V_constr ((tr, cr), rs) ->
         if tl != tr
-        then internal_error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
+        then Error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
         else if cl != cr
-        then false
-        else eqs lc op true ls rs
+        then Ok false
+        else eqs lc op (Ok true) ls rs
+    | V_record l, V_record r ->
+        (* Before comparing, normalize by sorting the fields. *)
+        let srt m =
+          List.sort (fun (fl, _) (fr, _) -> compare fl fr) m in
+        let sl, sr = srt l, srt r in
+        eqr lc op (Ok true) sl sr
 
     | V_view {vu_id = l; _}, V_view {vu_id = r; _} ->
         (* only compare their ids *)
-        l = r
+        Ok (l = r)
 
     | V_set [], V_set [] | V_map [], V_map [] ->
-        true
+        Ok true
     | V_set ls, V_set rs ->
-        eqs lc op true ls rs
+        (* Before comparing, normalize by sorting the lists. *)
+        eqs lc op (Ok true) (List.sort compare ls) (List.sort compare rs)
 
     | V_map ls, V_map rs ->
-        (* Before comparing, we need to normalize by sorting the keys. *)
+        (* Before comparing, normalize by sorting the keys. *)
         let srt m =
           List.sort (fun (kl, _) (kr, _) -> compare kl kr) m in
         let sls, srs = srt ls, srt rs in
-        eqm lc op true sls srs
+        eqm lc op (Ok true) sls srs
     | _, _  ->
-        internal_error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
+        Error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
 
 and eqs lc op acc ls rs =
   (* we don't short circuit to catch type errors, though this won't
      catch type errors if lengths are different *)
   match ls, rs with
     | [], [] -> acc
-    | hl :: tl, hr :: tr -> eqs lc op (acc && eq lc op hl hr) tl tr
-    | _, _ -> false
+    | hl :: tl, hr :: tr -> eqs lc op (mand acc (eq lc op hl hr)) tl tr
+    | _, _ -> Ok false
 and eqm lc op acc lm rm =
   (* we don't short circuit to catch type errors, though this won't
      catch type errors if lengths are different *)
@@ -254,36 +273,57 @@ and eqm lc op acc lm rm =
     | [], [] ->
         acc
     | (lk, lv) :: tl, (rk, rv) :: tr ->
-        eqm lc op (acc && eq lc op lk rk && eq lc op lv rv) tl tr
+        eqm lc op (mand (mand acc (eq lc op lk rk)) (eq lc op lv rv)) tl tr
     | _, _ ->
-        false
+        Ok false
+and eqr lc op acc lr rr =
+  match lr, rr with
+    | [], [] ->
+        acc
+    | (lf, lv) :: tl, (rf, rv) :: tr ->
+        if   lf = rf
+        then eqr lc op (mand acc (eq lc op lv rv)) tl tr
+        else Ok false
+    | _, _ ->
+        Ok false
 
 let equals lc (l: value) (r: value) : value =
-  V_bool (eq lc "=" l r)
+  match eq lc "=" l r with
+    | Ok b    -> V_bool b
+    | Error e -> internal_error e
 
 let not_equals lc (l: value) (r: value) : value =
-  V_bool (not (eq lc "!=" l r))
+  match eq lc "!=" l r with
+    | Ok b    -> V_bool (not b)
+    | Error e -> internal_error e
 
 let get_field lc (l: value) (f: string) : value =
   match l with
     | V_record fs ->
         (match List.assoc_opt f fs with
            | Some v -> v
-           | None -> internal_error (No_field (lc, f)))
+           | None   -> internal_error (No_field (lc, f)))
+    | V_bitfield (bf, v) ->
+        let hi, lo =
+          match List.assoc_opt f bf.bf_fields with
+            | Some r -> r
+            | None   -> internal_error (No_field (lc, f)) in
+        V_bitvector (bit_extract lc v hi lo)
     | _ ->
         internal_error (Type_error (lc, "." ^ f, 1, vtype_of l, T_record [f, T_empty]))
 
 let set_field lc (l: value) (f: string) (v: value) : value =
   match l with
     | V_record fs ->
-        (* Ensure the field is present *)
+        (* The field might not be present since this might be the
+           initializing assignment. *)
         (match List.assoc_opt f fs with
-           | Some _ -> ();
-           | None -> internal_error (No_field (lc, f)));
-        (* Replace the field value *)
-        V_record (List.map (fun (f', v') ->
-                      f', if f' = f then v else v'
-                    ) fs)
+           | Some _ ->
+               V_record (List.map (fun (f', v') ->
+                             f', if f' = f then v else v'
+                           ) fs)
+           | None ->
+               V_record ((f,v) :: fs))
     | _ ->
         internal_error (Type_error (lc, "." ^ f, 1, vtype_of l, T_record [f, T_empty]))
 
@@ -300,6 +340,22 @@ let subterm lc (v: value) (o: Ir.Anf.occurrence) : value =
     match v, so with
       | _, [] ->
           v
+      (* native representations *)
+      | V_option (Some v'), 1 :: tl ->
+          walk v' tl
+      | V_list (v' :: _), 1 :: tl ->
+          walk v' tl
+      | V_list (_ :: v'), 2 :: tl ->
+          walk (V_list v') tl
+      | V_tuple vs, idx :: tl ->
+          let  arity = List.length vs in
+          if   1 <= idx && idx <= arity
+          then let v' = List.nth vs (idx - 1) in
+               walk v' tl
+          else let tc = "*", "_Tuple" in
+               let err = Bad_subterm_index (lc, tc, idx, o) in
+               internal_error err
+      (* user-defined constructions *)
       | V_constr (tc, args), idx :: tl ->
           let  arity = List.length args in
           if   1 <= idx && idx <= arity

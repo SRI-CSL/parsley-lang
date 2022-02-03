@@ -67,7 +67,7 @@ let string_of_bitvector v =
 let string_of_literal l =
   match l with
     | PL_unit        -> "()"
-    | PL_string s    -> Printf.sprintf "\"%s\"" s
+    | PL_bytes s     -> Printf.sprintf "\"%s\"" s
     | PL_int i       -> string_of_int i
     | PL_bool b      -> if b then "bool::True" else "bool::False"
     | PL_bit b       -> if b then "bit::One"   else "bit::Zero"
@@ -189,12 +189,12 @@ let rec print_pattern auxp p =
 
 let rec sprint_pattern p =
   match p.pattern with
-    | P_wildcard | P_var _ -> "_"
-    | P_literal PL_unit -> "()"
-    | P_literal (PL_string s) -> "\"" ^ s ^ "\""
-    | P_literal (PL_int i) -> Printf.sprintf "%d" i
-    | P_literal (PL_bool b) -> if b then "bool::True()" else "bool::False()"
-    | P_literal (PL_bit b) -> if b then "bit::One()" else "bit::Zero()"
+    | P_wildcard | P_var _   -> "_"
+    | P_literal PL_unit      -> "()"
+    | P_literal (PL_bytes s) -> "\"" ^ s ^ "\""
+    | P_literal (PL_int i)   -> Printf.sprintf "%d" i
+    | P_literal (PL_bool b)  -> if b then "bool::True()" else "bool::False()"
+    | P_literal (PL_bit b)   -> if b then "bit::One()" else "bit::Zero()"
     | P_literal (PL_bitvector bv) ->
         "0b" ^
           (String.concat "" (List.map (fun b -> if b then "1" else "0") bv))

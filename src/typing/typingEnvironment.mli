@@ -31,7 +31,8 @@ open Parsing
 (** [bitfield_info] tracks the fields and their bit index ranges of a
     bitfield.  The range for field `f` is represented as (f, hi, lo). *)
 type bitfield_info =
-  {bf_fields: (string * int * int) list;
+  {bf_name:   string;
+   bf_fields: (string * (int * int)) list;
    bf_length: int}
 
 (** [record_info] tracks the field names, and the variables associated

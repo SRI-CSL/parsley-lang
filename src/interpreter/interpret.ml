@@ -18,14 +18,14 @@
 open Parsing
 open Ir
 open State
+open Values
 
 (* Interpret a Parsley spec on the data in a given file, given a
    top-level entry (user-defined) non-terminal. *)
-let do_execute (spec: Cfg.spec_ir) (entry_nt: string) (f: string) =
-  let view = Viewlib.from_file f in
+let do_execute (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
+  : value option =
   let venv = VEnv.empty in
   let fenv = FEnv.empty in
-  let failcont = Cfg.(spec.ir_init_failcont) in
   let s = {st_spec_toc     = Cfg.(spec.ir_gtoc);
            st_spec_ir      = Cfg.(spec.ir_blocks);
            st_ir_tenv      = Cfg.(spec.ir_tenv);
@@ -33,7 +33,6 @@ let do_execute (spec: Cfg.spec_ir) (entry_nt: string) (f: string) =
            st_mode         = Mode_normal;
            st_venv         = venv;
            st_fenv         = fenv;
-           st_failcont_stk = [failcont];
            st_view_stk     = [];
            st_cur_view     = view} in
   (* Initialize from the statics block. *)
@@ -69,22 +68,16 @@ let do_execute (spec: Cfg.spec_ir) (entry_nt: string) (f: string) =
         (* According to the calling convention, `ent.retvar`
            should hold the matched value in the value
            environment of `s'`. *)
-        let _vl = VEnv.lookup s.st_venv ent.nt_retvar.v loc in
-        Printf.printf "Parse terminated successfully.\n";
-        exit 0
+        let vl = VEnv.lookup s.st_venv ent.nt_retvar.v loc in
+        Some vl
     | C_failure ->
         (* We should have terminated at the specified failure
            continuation. *)
         assert (l = ent.nt_failcont);
-        Printf.printf "Parse terminated in failure.\n";
-        exit 1
+        None
 
-let execute spec entry_nt f =
-  try
-    do_execute spec entry_nt f
-  with
-    | Runtime_exceptions.Runtime_exception e ->
-        Printf.eprintf "%s\n" (Runtime_exceptions.error_msg e)
-    | Unix.Unix_error (e, op, _) ->
-        Printf.eprintf "Error processing %s: %s: %s.\n"
-          f op (Unix.error_message e)
+let execute_on_file spec entry_nt f =
+  do_execute spec entry_nt (Viewlib.from_file f)
+
+let execute_on_test_string test spec entry s =
+  do_execute spec entry (Viewlib.from_string test s)

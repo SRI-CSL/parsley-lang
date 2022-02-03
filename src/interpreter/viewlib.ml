@@ -44,7 +44,7 @@ module PView = struct
   let restrict lc (_s: state) (v: value) (o: value) (l: value) : value =
     match v, o, l with
       | V_view v, V_int o, V_int l ->
-          if Int64.compare o Int64.zero < 0
+          if   Int64.compare o Int64.zero < 0
           then fault (Invalid_argument (lc, "View.restrict", "negative offset"))
           else if Int64.compare l Int64.zero < 0
           then fault (Invalid_argument (lc, "View.restrict", "negative length"))
@@ -53,11 +53,11 @@ module PView = struct
               assert (v.vu_ofs <= v.vu_end);
               assert (v.vu_end <= ViewBuf.size v.vu_buf);
               let o, l = Int64.to_int o, Int64.to_int l in
-              if v.vu_ofs + o + l >= v.vu_end
+              if   v.vu_ofs + o + l > v.vu_end
               then fault (View_bound (lc, "View.restrict", "end bound exceeded"))
               else V_view {v with vu_id    = next_id ();
                                   vu_start = v.vu_ofs + o;
-                                  vu_ofs   = 0;
+                                  vu_ofs   = v.vu_ofs + o;
                                   vu_end   = v.vu_ofs + o + l}
             end
       | V_view _, V_int _, _ ->
@@ -70,7 +70,7 @@ module PView = struct
   let restrict_from lc (_s: state) (v: value) (o: value) : value =
     match v, o with
       | V_view v, V_int o ->
-          if Int64.compare o Int64.zero < 0
+          if   Int64.compare o Int64.zero < 0
           then fault (Invalid_argument (lc, "View.restrict_from", "negative offset"))
           else begin
               assert (0 <= v.vu_start && v.vu_start <= v.vu_ofs);
@@ -80,8 +80,8 @@ module PView = struct
               if   v.vu_ofs + o >= v.vu_end
               then fault (View_bound (lc, "View.restrict_from", "end bound exceeded"))
               else V_view {v with vu_id    = next_id ();
-                                  vu_start = v.vu_ofs;
-                                  vu_ofs   = 0}
+                                  vu_start = v.vu_ofs + o;
+                                  vu_ofs   = v.vu_ofs + o;}
             end
       | V_view _, _ ->
           internal_error (Type_error (lc, "View.restrict_from", 2, vtype_of o, T_int))
@@ -95,30 +95,34 @@ module PView = struct
       | _ ->
           internal_error (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
 
-  let get_base lc (s: state) (v: value) : value =
-    match v with
-      | V_unit ->
-          let vu = clone_view s.st_cur_view in
-          let vu = {vu with vu_ofs = vu.vu_start} in
-          V_view vu
-      | _ ->
-          internal_error (Type_error (lc, "View.get_base", 1, vtype_of v, T_unit))
+  let get_base _lc (s: state) : value =
+    let vu = clone_view s.st_cur_view in
+    let vu = {vu with vu_ofs = vu.vu_start} in
+    V_view vu
 
-  let get_current lc (s: state) (v: value) : value =
-    match v with
-      | V_unit ->
-          (* retain the view id *)
-          V_view s.st_cur_view
-      | _ ->
-          internal_error (Type_error (lc, "View.get_base", 1, vtype_of v, T_unit))
+  let get_current _lc (s: state) : value =
+    (* retain the view id *)
+    V_view s.st_cur_view
 
-  let get_current_cursor lc (s: state) (v: value) : value =
+  let get_cursor lc (_s: state) (v: value) : value =
     match v with
-      | V_unit ->
-          let vu = s.st_cur_view in
-          V_int (Int64.of_int vu.vu_ofs)
+      | V_view vu ->
+          V_int (Int64.of_int (vu.vu_ofs - vu.vu_start))
       | _ ->
-          internal_error (Type_error (lc, "View.get_base", 1, vtype_of v, T_unit))
+          internal_error (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
+
+  let get_remaining lc (_s: state) (v: value) : value =
+    match v with
+      | V_view vu ->
+          V_int (Int64.of_int (vu.vu_end - vu.vu_ofs))
+      | _ ->
+          internal_error (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
+
+  let get_current_cursor lc (s: state) : value =
+    get_cursor lc s (V_view s.st_cur_view)
+
+  let get_current_remaining lc (s: state) : value =
+    get_remaining lc s (V_view s.st_cur_view)
 end
 
 module DTable = Map.Make (struct type t = string * string
@@ -137,11 +141,14 @@ type dtable =
 
 let mk_dtable () : dtable =
   let arg0s = [
-    ] in
-  let arg1s = [
       ("View", "get_base"),           PView.get_base;
       ("View", "get_current"),        PView.get_current;
       ("View", "get_current_cursor"), PView.get_current_cursor;
+      ("View", "get_current_remaining"), PView.get_current_remaining;
+    ] in
+  let arg1s = [
+      ("View", "get_cursor"),         PView.get_cursor;
+      ("View", "get_remaining"),      PView.get_remaining;
       ("View", "clone"),              PView.clone;
     ] in
   let arg2s = [
@@ -161,7 +168,10 @@ let dispatch_viewlib lc (m: string) (f: string) (s: state) (vs: value list)
     : value =
   let nvs = List.length vs in
   let key = m, f in
-  if   nvs = 1 && DTable.mem  key dtable.dt_1arg
+  if   nvs = 0 && DTable.mem  key dtable.dt_0arg
+  then let fn = DTable.find key dtable.dt_0arg in
+       fn lc s
+  else if nvs = 1 && DTable.mem  key dtable.dt_1arg
   then let fn = DTable.find key dtable.dt_1arg in
        let a0 = List.nth vs 0 in
        fn lc s a0
@@ -194,6 +204,20 @@ let from_file filename : view =
    (* TODO: use (Unix.realpath filename) once OCaml 4.13 is more
       commonly installed *)
    vu_source = Src_file filename;
+   vu_id     = id;
+   vu_start  = 0;
+   vu_ofs    = 0;
+   vu_end    = size}
+
+let from_string (name: string) (data: string) : view =
+  let buf = Bigarray.Array1.of_array Bigarray.char Bigarray.c_layout
+              (Array.of_seq (String.to_seq data)) in
+  let id   = PView.next_id () in
+  let size = String.length data in
+  (* Ensure size from Unix is consistent with Bigarray. *)
+  assert (size = ViewBuf.size buf);
+  {vu_buf    = buf;
+   vu_source = Src_file name;
    vu_id     = id;
    vu_start  = 0;
    vu_ofs    = 0;
