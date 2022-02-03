@@ -15,13 +15,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type tvar     = string Location.loc 
-type ident    = string Location.loc 
-type modident = string Location.loc 
-type literal  = string Location.loc 
-type bitint   = int    Location.loc 
-type 'b var   = (string * 'b) Location.loc 
-
+type tvar     = string Location.loc
+type ident    = string Location.loc
+type modident = string Location.loc
+type literal  = string Location.loc
+type bitint   = int    Location.loc
+type 'b var   = (string * 'b) Location.loc
 
 type bv_literal = bool list 
 
@@ -36,7 +35,6 @@ type kind =
   | KStar
   | KNat
   | KArrow of kind * kind
-  
 
 type type_expr_desc =
   | TE_tvar of tvar
@@ -45,7 +43,6 @@ type type_expr_desc =
 and type_expr =
   {type_expr: type_expr_desc;
    type_expr_loc: Location.t}
-   
 
 type type_rep_desc =
   | TR_variant of (ident * type_expr option) list
@@ -56,7 +53,6 @@ type type_rep_desc =
 and type_rep =
   {type_rep: type_rep_desc;
    type_rep_loc: Location.t}
-   
 
 type binop =
   | Lt | Gt | Lteq | Gteq | Eq | Neq
@@ -64,11 +60,9 @@ type binop =
   | Or_b | And_b
   | Plus_s | At
   | Cons | Index
-  
 
 type unop =
   | Uminus | Not | Neg_b
-  
 
 type primitive_literal =
   | PL_int of int
@@ -77,20 +71,17 @@ type primitive_literal =
   | PL_bool of bool
   | PL_bit of bool
   | PL_bitvector of bv_literal
-  
 
 type ('a, 'b) pattern_desc =
   | P_wildcard
   | P_var of 'b var
   | P_literal of primitive_literal
   | P_variant of (ident * ident) * ('a, 'b) pattern list
-  
 
 and ('a, 'b) pattern =
   {pattern: ('a, 'b) pattern_desc;
    pattern_loc: Location.t;
    pattern_aux: 'a}
-   
 
 type ('a, 'b) expr_desc =
   | E_var of 'b var
@@ -113,7 +104,6 @@ and ('a, 'b) expr =
   {expr: ('a, 'b) expr_desc;
    expr_loc: Location.t;
    expr_aux: 'a}
-   
 
 type ('a, 'b) stmt_desc =
   | S_assign of ('a, 'b) expr * ('a, 'b) expr
@@ -123,12 +113,10 @@ type ('a, 'b) stmt_desc =
 and ('a, 'b) stmt =
   {stmt: ('a, 'b) stmt_desc;
    stmt_loc: Location.t}
-   
 
 type ('a, 'b) rule_action =
   {action_stmts: ('a, 'b) stmt list * ('a, 'b) expr option;
    action_loc: Location.t}
-   
 
 (* for now, use the same expression sublanguage in actions and constraints. *)
 
@@ -141,7 +129,6 @@ type literal_set_desc =
 and literal_set =
   {literal_set: literal_set_desc;
    literal_set_loc: Location.t}
-   
 
 type ('a, 'b) regexp_desc =
   | RX_empty  (* for internal use *)
@@ -157,16 +144,13 @@ and ('a, 'b) regexp =
   {regexp: ('a, 'b) regexp_desc;
    regexp_loc: Location.t;
    regexp_aux: 'a}
-   
 
 type assign =
   | A_eq
   | A_in
-  
 
 type ('a, 'b) non_term_instance =
   ident * (ident * assign * ('a, 'b) expr) list option
-  
 
 type ('a, 'b) rule_elem_desc =
   (* bit-level support *)
@@ -206,18 +190,15 @@ and ('a, 'b) rule_elem =
   {rule_elem: ('a, 'b) rule_elem_desc;
    rule_elem_loc: Location.t;
    rule_elem_aux: 'a}
-   
 
 type ('a, 'b) rule =
   {rule_rhs: ('a, 'b) rule_elem list;
    rule_temps: ('b var * type_expr * ('a, 'b) expr) list;
    rule_loc: Location.t}
-   
 
 type ('a, 'b) attr_list_type =
   | ALT_type of ident
   | ALT_decls of (ident * type_expr * 'a * ('a, 'b) expr option) list
-  
 
 type ('a, 'b) non_term_defn =
   {non_term_name: ident;
@@ -226,12 +207,10 @@ type ('a, 'b) non_term_defn =
    non_term_syn_attrs: ('a, 'b) attr_list_type; (* synthesized *)
    non_term_rules: ('a, 'b) rule list;
    non_term_loc: Location.t}
-   
 
 type use =
   {use_modules: ident list;
    use_loc: Location.t}
-   
 
 type type_decl =
   {type_decl_ident: ident;
@@ -239,7 +218,6 @@ type type_decl =
    type_decl_tvars: tvar list;
    type_decl_body: type_rep;
    type_decl_loc: Location.t}
-   
 
 type ('a, 'b) fun_defn =
   {fun_defn_ident: 'b var;
@@ -251,12 +229,10 @@ type ('a, 'b) fun_defn =
    fun_defn_synth: bool;  (* whether this was synthesized *)
    fun_defn_loc: Location.t;
    fun_defn_aux: 'a}
-   
 
 type ('a, 'b) rec_funs_defn =
   {recfuns: ('a, 'b) fun_defn list; (* mutually recursive *)
    recfuns_loc: Location.t}
-   
 
 type ('a, 'b) const_defn =
   {const_defn_ident: 'b var;
@@ -264,30 +240,25 @@ type ('a, 'b) const_defn =
    const_defn_val: ('a, 'b) expr;
    const_defn_loc: Location.t;
    const_defn_aux: 'a}
-   
 
 type deco_arg =
   | Deco_key of ident
   | Deco_keyvalue of ident * ident
-  
 
 type decorator =
   {deco_type: ident;
    deco_value: ident;
    deco_args: deco_arg list;
    deco_loc: Location.t}
-   
 
 type ('a, 'b) format_decl =
   {format_decl: ('a, 'b) non_term_defn;
    format_deco: decorator list option;
    format_decl_loc: Location.t}
-   
 
 type ('a, 'b) format =
   {format_decls: ('a, 'b) format_decl list;
    format_loc: Location.t}
-   
 
 type ('a, 'b) pre_decl =
   | PDecl_use of use
@@ -296,11 +267,9 @@ type ('a, 'b) pre_decl =
   | PDecl_fun of ('a, 'b) fun_defn
   | PDecl_recfuns of ('a, 'b) rec_funs_defn
   | PDecl_format of ('a, 'b) format
-  
 
 type ('a, 'b) pre_top_level =
   {pre_decls: ('a, 'b) pre_decl list}
-  
 
 (* flattened version after including use files *)
 type ('a, 'b) top_decl =
@@ -309,11 +278,9 @@ type ('a, 'b) top_decl =
   | Decl_fun of ('a, 'b) fun_defn
   | Decl_recfuns of ('a, 'b) rec_funs_defn
   | Decl_format of ('a, 'b) format
-  
 
 type ('a, 'b) program =
   {decls: ('a, 'b) top_decl list}
-  
 
 let var_name v =
   fst (Location.value v)
