@@ -18,10 +18,6 @@
 open Ir
 open Interpreter
 
-let handle_exception bt msg =
-  Printf.fprintf stderr "%s\n%!" msg;
-  Printf.printf "%s\n%!" bt
-
 let do_interpret spec nt f =
   try
     (match Interpret.execute_on_file spec nt f with
@@ -32,16 +28,14 @@ let do_interpret spec nt f =
                     exit 1))
   with
     | Runtime_exceptions.Runtime_exception e ->
-        (handle_exception
-           (Printexc.get_backtrace ())
-           (Printf.sprintf "%s\n" (Runtime_exceptions.error_msg e));
-         exit 1)
+        Errors.handle_exception
+          (Printexc.get_backtrace ())
+          (Printf.sprintf "%s\n" (Runtime_exceptions.error_msg e))
     | Unix.Unix_error (e, op, _) ->
-        (handle_exception
-           (Printexc.get_backtrace ())
-           (Printf.sprintf "Error processing %s: %s: %s.\n"
-              f op (Unix.error_message e));
-         exit 1)
+        Errors.handle_exception
+          (Printexc.get_backtrace ())
+          (Printf.sprintf "Error processing %s: %s: %s.\n"
+             f op (Unix.error_message e))
 
 let interpret (spec: Cfg.spec_ir) (ent_nonterm: string option)
       (data_file: string option) =

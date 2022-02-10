@@ -17,23 +17,16 @@
 
 open Ir
 
-let print_ir = ref false
-
-let handle_exception bt msg =
-  Printf.fprintf stderr "%s\n" msg;
-  Printf.printf "%s\n" bt;
-  exit 1
-
 let to_ir init_envs tenv (spec: Cfg.program) : Cfg.spec_ir =
   try
     let spec = Cfg_spec.lower_spec init_envs tenv spec in
-    if !print_ir
+    if   !Options.print_ir
     then Ir_printer.print_spec spec;
     spec
   with
     | Anf.Error e ->
-        handle_exception (Printexc.get_backtrace ()) (Anf.error_msg e)
+        Errors.handle_exception (Printexc.get_backtrace ()) (Anf.error_msg e)
     | Cfg_regexp.Error e ->
-        handle_exception (Printexc.get_backtrace ()) (Cfg_regexp.error_msg e)
+        Errors.handle_exception (Printexc.get_backtrace ()) (Cfg_regexp.error_msg e)
     | Cfg.Error e ->
-        handle_exception (Printexc.get_backtrace ()) (Cfg.error_msg e)
+        Errors.handle_exception (Printexc.get_backtrace ()) (Cfg.error_msg e)
