@@ -20,40 +20,28 @@ open Typing
 open Flow
 open Analysis
 
-let handle_exception bt msg =
-  Printf.fprintf stderr "%s\n" msg;
-  Printf.printf "%s\n" bt;
-  exit 1
-
-let print_post_macro = false
-let trace_solver     = false
-let print_types      = false
-let print_typed_ast  = false
-
 let get_tracer () =
-  if trace_solver
+  if   Options.trace_solver
   then Some (ConstraintSolver.tracer ())
   else None
 
 let check spec =
   let spec = Macros.expand_spec spec in
-  if print_post_macro
+  if   Options.print_post_macro
   then AstPrinter.print_parsed_spec spec;
   let init_tenv, init_venv, c = TypeInfer.init_env () in
   let c, wc, tenv, spec' =
     TypeInfer.generate_constraint (init_tenv, init_venv, c) spec in
   let env = ConstraintSolver.solve ?tracer:(get_tracer ()) c in
   ConstraintSolver.check_width_constraints wc;
-  if print_types then begin
-      ConstraintSolver.print_env
-        (TypeEnvPrinter.print_variable true)
-        env;
-      TypeConstraintPrinter.print_width_constraint wc
-    end
-  else
-    ();
-  if print_typed_ast then
-    AstPrinter.print_typed_spec TypeConstraintPrinter.print_crterm spec';
+  if   Options.print_types
+  then (ConstraintSolver.print_env
+          (TypeEnvPrinter.print_variable true)
+          env;
+        TypeConstraintPrinter.print_width_constraint wc)
+  else ();
+  if   Options.print_typed_ast
+  then AstPrinter.print_typed_spec TypeConstraintPrinter.print_crterm spec';
   (init_tenv, init_venv), tenv, spec'
 
 let type_check spec =
@@ -64,15 +52,15 @@ let type_check spec =
   with
     (* error messages from conversion of regexp literals *)
     | Literal_lexer.Error e ->
-        handle_exception (Printexc.get_backtrace ()) (Literal_lexer.error_msg e)
+        Errors.handle_exception (Printexc.get_backtrace ()) (Literal_lexer.error_msg e)
     | TypingExceptions.Error e ->
-        handle_exception
+        Errors.handle_exception
           (Printexc.get_backtrace ()) (TypingExceptions.error_msg e)
     | ConstraintSolver.Error e ->
-        handle_exception
+        Errors.handle_exception
           (Printexc.get_backtrace ()) (ConstraintSolver.error_msg e)
     | Unifier.Error e ->
-        handle_exception
+        Errors.handle_exception
           (Printexc.get_backtrace ()) (Unifier.error_msg e)
 
 let assignment_check init_envs tenv tspec =
@@ -80,8 +68,8 @@ let assignment_check init_envs tenv tspec =
     Analysis.Rulecfg.check_spec init_envs tenv tspec
   with
     | Graph.GraphError e ->
-        handle_exception
+        Errors.handle_exception
           (Printexc.get_backtrace ()) (Graph.error_msg e)
     | Rulecfg.Error e ->
-        handle_exception
+        Errors.handle_exception
           (Printexc.get_backtrace ()) (Rulecfg.error_msg e)

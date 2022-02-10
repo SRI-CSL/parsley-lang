@@ -15,23 +15,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let debug_build = true
-
-let () =
-  Printexc.record_backtrace debug_build;
-  Options.process_options ();
-  if   !Options.do_tests
-  then (SpecTests.do_tests ();
-        exit 0);
-  if   List.length !Options.input_file > 1 || List.length !Options.input_file = 0
-  then (Printf.eprintf "Please specify a single input file.\n";
-        exit 1);
-  let spec_file = List.hd !Options.input_file in
-  let spec = SpecParser.parse_spec spec_file in
-  if   !Options.print_ast
-  then Parsing.AstPrinter.print_parsed_spec spec;
-  let init_envs, tenv, tspec = SpecTyper.type_check spec in
-  SpecTyper.assignment_check init_envs tenv tspec;
-  let spec = SpecIR.to_ir init_envs tenv tspec in
-  Printf.printf "%s: parsed, typed, generated IR.\n" spec_file;
-  SpecInterpret.interpret spec !Options.ent_nonterm !Options.data_file
+let handle_exception bt msg =
+  Printf.fprintf stderr "%s\n" msg;
+  Printf.printf "%s\n" bt;
+  exit 1

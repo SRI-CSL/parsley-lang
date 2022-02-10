@@ -23,9 +23,11 @@ open Lexing
 module I = Parser.MenhirInterpreter
 open Interpreter
 
+(* Don't use the one from errors.ml since we don't want to exit on
+   test failure. *)
 let handle_exception msg bt =
-  Printf.fprintf stderr "%s\n%!" msg;
-  Printf.printf "%s\n%!" bt;
+  Printf.fprintf stderr "%s\n" msg;
+  Printf.printf "%s\n" bt;
   None
 
 let parse_spec test s cont =

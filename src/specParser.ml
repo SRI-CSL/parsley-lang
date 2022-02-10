@@ -20,11 +20,6 @@ open Parsing.Ast
 open Lexing
 module I = Parser.MenhirInterpreter
 
-let handle_exception bt msg =
-  Printf.fprintf stderr "%s\n" msg;
-  Printf.printf "%s\n" bt;
-  exit 1
-
 let parse_file fname cont =
   let lexbuf = from_channel (open_in fname) in
   let lexbuf = {lexbuf with
@@ -56,12 +51,12 @@ let parse_file fname cont =
     I.loop_handle cont fail supplier start
   with
     | Failure _f ->
-        handle_exception
+        Errors.handle_exception
           (Printexc.get_backtrace ())
           (Printf.sprintf "%s: invalid token at or just before this location"
              (Location.str_of_curr_pos lexbuf))
     | Parseerror.Error (e, l) ->
-        handle_exception
+        Errors.handle_exception
           (Printexc.get_backtrace ()) (Parseerror.error_msg l e)
 
 (* TODO: include directory management.
