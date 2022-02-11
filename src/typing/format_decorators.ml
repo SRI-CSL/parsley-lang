@@ -38,14 +38,14 @@ let pre_check_format_decorator =
           | Deco_key k | Deco_keyvalue (k, _) ->
               let ks = Location.value k in
               if StringSet.mem ks s
-              then raise (Error (RepeatedDecoratorKey (a, k)))
+              then raise (Error (Location.loc k, RepeatedDecoratorKey (a, k)))
               else StringSet.add ks s
           ) StringSet.empty args in
   let check_deco s a =
     let at = a.deco_type in
     let ats = Location.value at in
     if StringSet.mem ats s
-    then raise (Error (RepeatedDecoratorType at))
+    then raise (Error (Location.loc at, RepeatedDecoratorType at))
     else (ignore (check_keys a.deco_value a.deco_args);
           StringSet.add ats s) in
   function
@@ -103,7 +103,7 @@ let non_term_of_decorator_value (deco: deco_value)
     AstUtils.make_expr_loc v loc in
   let n, args = deco in
   if not (AstUtils.is_valid_nonterm_name (Location.value n))
-  then raise (Error (InvalidDecoratorName n));
+  then raise (Error (Location.loc n, InvalidDecoratorName n));
   let iattrs =
     match args with
       | [] ->
@@ -114,7 +114,7 @@ let non_term_of_decorator_value (deco: deco_value)
                 match a with
                   | Deco_key k ->
                       let err = UnvaluedDecoratorKey (n, k) in
-                      raise (Error err)
+                      raise (Error (Location.loc k, err))
                   | Deco_keyvalue (k, v) ->
                       let vs = Location.value v in
                       let loc = Location.loc v in
@@ -126,7 +126,7 @@ let non_term_of_decorator_value (deco: deco_value)
                           | _ ->
                               let err =
                                 InvalidDecoratorKeyValue (n, k, v) in
-                              raise (Error err) in
+                              raise (Error (Location.loc v, err)) in
                       av :: acc
               ) [] args in
           Some (List.rev ia) in

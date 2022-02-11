@@ -383,21 +383,19 @@ type context =
    ctx_bitmode:  bool}
 
 type error =
-  | Unbound_return_expr of Location.t
-  | Unsupported_construct of Location.t * string
+  | Unbound_return_expr
+  | Unsupported_construct of string
   | Nonterm_variable_required of Ast.ident
-exception Error of error
+
+exception Error of Location.t * error
 
 let msg = Location.msg
 
 let error_msg = function
-  | Unbound_return_expr l ->
-      msg "%s:\n The return expression in this action block is not used."
-        l
-  | Unsupported_construct (l, s) ->
-      msg "%s:\n IR generation for `%s' is currently unsupported."
-        l s
+  | Unbound_return_expr ->
+      "The return expression in this action block is not used."
+  | Unsupported_construct s ->
+      Printf.sprintf "IR generation for `%s' is currently unsupported." s
   | Nonterm_variable_required ntd ->
-      msg
-        "%s:\n Non-terminal `%s' requires a variable to indicate the matched value."
-        (Location.loc ntd) (Location.value ntd)
+      Printf.sprintf "Non-terminal `%s' requires a variable to indicate the matched value."
+        (Location.value ntd)

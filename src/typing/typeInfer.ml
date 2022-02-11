@@ -102,7 +102,7 @@ let join_fragment pos f1 f2 =
   {gamma =
      (try
         StringMap.strict_union f1.gamma f2.gamma
-      with StringMap.Strict x -> raise (Error (NonLinearPattern (pos, x))));
+      with StringMap.Strict x -> raise (Error (pos, NonLinearPattern x)));
    vars        = f1.vars @ f2.vars;
    tconstraint = f1.tconstraint ^ f2.tconstraint}
 
@@ -160,8 +160,8 @@ let infer_pat_fragment tenv (venv: VEnv.t) (p: (unit, unit) pattern) (t: crterm)
           if   List.length ps <> List.length ats
           then let nexp = List.length ats in
                let ngot = List.length ps in
-               let err  = InvalidPatternArgs (pos, c, nexp, ngot) in
-               raise (Error (err))
+               let err  = InvalidPatternArgs (c, nexp, ngot) in
+               raise (Error (pos, err))
           else let fs, ps', venv' =
                  List.fold_left
                    (fun (fs, ps', venv) (at, p) ->
@@ -189,7 +189,7 @@ let check_distinct_tvars _typid qs =
         then Some var
         else checker (StringSet.add v acc) tl in
   match checker StringSet.empty qs with
-    | Some var -> raise (Error (DuplicateTypeVariable var))
+    | Some var -> raise (Error (Location.loc var, DuplicateTypeVariable var))
     | None -> ()
 
 let check_tvars_usage tenv _t qs used_set =
@@ -200,13 +200,13 @@ let check_tvars_usage tenv _t qs used_set =
     List.fold_left (fun acc q ->
         let v = Location.value q in
         if   not (StringMap.mem v used_set)
-        then raise (Error (UnusedTypeVariable q))
+        then raise (Error (Location.loc q, UnusedTypeVariable q))
         else StringSet.add v acc
       ) StringSet.empty qs in
   (* make sure all used vars are declared or defined *)
   StringMap.iter (fun v loc ->
       if   not (StringSet.mem v decl_vs || is_defined_type tenv (TName v))
-      then raise (Error (UnboundTypeIdentifier (loc, (TName v))))
+      then raise (Error (loc, UnboundTypeIdentifier (TName v)))
     ) used_set
 
 (** [make_dc_signature adt tvars dc typ] constructs the function type
@@ -246,7 +246,8 @@ let intern_data_constructor internal adt_id qs env_info dcon_info =
   let ityp = TypeConv.intern tenv' typ in
   let _ =
     if   not (is_regular_datacon_scheme tenv (TName adt_name) rqs ityp)
-    then raise (Error (InvalidDataConstructorDefinition dname)) in
+    then let l = Location.loc dname in
+         raise (Error (l, InvalidDataConstructorDefinition dname)) in
   let pos = Location.loc dname in
   let dname = Location.value dname in
   let binding = AstUtils.canonicalize_dcon adt_name dname in
@@ -285,8 +286,9 @@ let intern_field_destructor adt_id qs env_info f_info =
   let rqs, rtenv = fresh_unnamed_rigid_vars (Location.loc adt_id) tenv qs in
   let tenv' = add_type_variables rtenv tenv in
   let ityp = TypeConv.intern tenv' destructor in
-  if   not (is_regular_field_scheme tenv (TName adt_name) rqs ityp)
-  then raise (Error (InvalidFieldDestructorDefinition fname));
+  (if   not (is_regular_field_scheme tenv (TName adt_name) rqs ityp)
+   then let l = Location.loc fname in
+        raise (Error (l, InvalidFieldDestructorDefinition fname)));
   let pos = Location.loc fname in
   let fname = Location.value fname in
   let binding = Printf.sprintf "{%s}" fname in
@@ -351,11 +353,11 @@ let check_fields bf fields : int =
         let nl, ml = Location.loc n, Location.loc m in
         let ext = Location.extent nl ml in
         if   m' < 0
-        then let err = InvalidBitrangeLowBound (ml, m') in
-             raise (Error err)
+        then let err = InvalidBitrangeLowBound m' in
+             raise (Error (ml, err))
         else if n' < m'
-        then let err = InvalidBitrangeOrder (ext, n', m') in
-             raise (Error err)
+        then let err = InvalidBitrangeOrder (n', m') in
+             raise (Error (ext, err))
         else check_ranges rest in
   check_ranges fields;
   let fields =
@@ -367,20 +369,20 @@ let check_fields bf fields : int =
     | (_, (x, n)) :: [] ->
         (if   !first && Location.value n != 0
          then let err = IncompleteBitfieldRanges (bf, 0) in
-              raise (Error err));
+              raise (Error (Location.loc bf, err)));
         1 + Location.value x
     | (f, (x, n)) :: ((f', (_, n')) :: _ as rest) ->
         (if   !first && Location.value n != 0
          then let err = IncompleteBitfieldRanges (bf, 0) in
-              raise (Error err));
+              raise (Error (Location.loc bf, err)));
         first := false;
         let x, n' = Location.value x, Location.value n' in
         if   x >= n'
         then let err = OverlappingBitfieldRanges (bf, f, f', n') in
-             raise (Error err)
+             raise (Error (Location.loc bf, err))
         else if n' > x + 1
         then let err = IncompleteBitfieldRanges (bf, x + 1) in
-             raise (Error err)
+             raise (Error (Location.loc bf, err))
         else check_cover rest in
   check_cover fields
 
@@ -575,7 +577,7 @@ let lookup_record_adt tenv fields =
   let fid = Location.value f in
   let adtid = match lookup_field_adt tenv (LName fid) with
       | Some adtid -> adtid
-      | None -> raise (Error (UnboundRecordField (Location.loc f, LName fid))) in
+      | None -> raise (Error (Location.loc f, UnboundRecordField (LName fid))) in
   let rec_info, rec_loc = match lookup_adt tenv adtid with
       | Some {adt = Record rec_info; loc = rec_loc} ->
           rec_info, rec_loc
@@ -598,13 +600,15 @@ let lookup_record_adt tenv fields =
   let useset = List.fold_left (fun acc locid ->
                    let id = Location.value locid in
                    if   StringSet.mem id acc
-                   then raise (Error (RepeatedRecordField locid))
+                   then raise (Error (Location.loc locid, RepeatedRecordField locid))
                    else if not (StringSet.mem id decset)
-                   then raise (Error (InvalidRecordField (locid, adt_ident)))
+                   then let loc = Location.loc locid in
+                        raise (Error (loc, InvalidRecordField (locid, adt_ident)))
                    else StringSet.add id acc
                  ) StringSet.empty fields in
   (match StringSet.choose_opt (StringSet.diff decset useset) with
-     | Some f -> raise (Error (IncompleteRecord (adt_ident, f)))
+     | Some f -> let loc = Location.loc adt_ident in
+                 raise (Error (loc, IncompleteRecord (adt_ident, f)))
      | None -> ());
   rec_info
 
@@ -625,8 +629,8 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
     | E_var v ->
         let v' = match VEnv.lookup venv v with
             | None ->
-                let err = UnboundIdentifier (e.expr_loc, var_name v) in
-                raise (Error err)
+                let err = UnboundIdentifier (var_name v) in
+                raise (Error (e.expr_loc, err))
             | Some v' -> v' in
         (* The type of a variable must be at least as general as [t]. *)
         (SName (var_name v) <? t) (Location.loc v),
@@ -641,7 +645,8 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
         let arity, _, _ = lookup_datacon tenv cloc (DName dcid) in
         let nargs = List.length args in
         if   nargs <> arity
-        then raise (Error (PartialDataConstructorApplication (dcon, arity, nargs)))
+        then let loc = Location.loc dcon in
+             raise (Error (loc, PartialDataConstructorApplication (dcon, arity, nargs)))
         else exists_list_aux args (
                  fun exs ->
                  let typ, c, wc, args =
@@ -705,8 +710,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
            | {expr = E_literal (PL_int w); _} ->
                (* zero-width bitvectors are invalid *)
                (if   w = 0
-                then let err = ZeroWidthBitvector e.expr_loc in
-                     raise (Error err));
+                then raise (Error (e.expr_loc, ZeroWidthBitvector)));
                (* we only need the typed ast, not the constraints *)
                let int = typcon_variable tenv (TName "int") in
                let _, (_, n') = infer_expr tenv venv n int in
@@ -721,8 +725,8 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
                     mk_auxexpr (E_apply (f', [n'])))
                  )
            | _ ->
-               let err = Non_constant_numerical_arg (n.expr_loc, m, i) in
-               raise (Error err))
+               let err = Non_constant_numerical_arg (m, i) in
+               raise (Error (n.expr_loc, err)))
     | E_apply (fexp, args) ->
         (* The constraint of an [apply] makes equal the type of the
            function expression [fexp] and the function type taking the
@@ -876,15 +880,15 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
     | E_recop (_, op, _) ->
         let loc = Location.loc op in
         let op  = Location.value op in
-        let err = InvalidRecordOperator (loc, op) in
-        raise (Error err)
+        let err = InvalidRecordOperator op in
+        raise (Error (loc, err))
     | E_bitrange (bve, n, m) ->
         if   m < 0
-        then (let err = InvalidBitrangeLowBound (e.expr_loc, m) in
-              raise (Error err));
+        then (let err = InvalidBitrangeLowBound m in
+              raise (Error (e.expr_loc, err)));
         if   m > n
-        then (let err = InvalidEmptyBitrange (e.expr_loc, n, m) in
-              raise (Error err));
+        then (let err = InvalidEmptyBitrange (n, m) in
+              raise (Error (e.expr_loc, err)));
         let w = n - m + 1 in
         let v = TypeConv.bitvector_n tenv w in
         let x = variable Flexible ~pos:bve.expr_loc () in
@@ -968,7 +972,7 @@ let infer_fun_defn tenv venv ctxt fd =
   (match VEnv.lookup venv fd.fun_defn_ident with
      | None -> ()
      | Some v -> let loc' = Location.loc v in
-                 raise (Error (DuplicateFunctionDefinition (loc, fdn, loc'))));
+                 raise (Error (loc, DuplicateFunctionDefinition (fdn, loc'))));
 
   (* for recursive functions, make sure the function name is bound *)
   let fdn', venv' = VEnv.add venv fd.fun_defn_ident in
@@ -997,7 +1001,8 @@ let infer_fun_defn tenv venv ctxt fd =
                match StringMap.find_opt pn acu_ids with
                  | Some repid ->
                      let pid = ident_of_var pid in
-                     raise (Error (RepeatedFunctionParameter (pid, repid)))
+                     let loc = Location.loc pid in
+                     raise (Error (loc, RepeatedFunctionParameter (pid, repid)))
                  | None ->
                      StringMap.add pn (ident_of_var pid) acu_ids in
              let pid', venv' = VEnv.add venv' pid in
@@ -1075,8 +1080,8 @@ let infer_recfun_defns tenv venv ctxt r =
                ()
            | Some v ->
                let lc' = Location.loc v in
-               let err = DuplicateFunctionDefinition (loc, fdn, lc') in
-               raise (Error err));
+               let err = DuplicateFunctionDefinition (fdn, lc') in
+               raise (Error (loc, err)));
         (* Bind the function name *)
         let fdn', venv' = VEnv.add venv fd.fun_defn_ident in
         (* Collect the type variables to quantify over, and register
@@ -1105,7 +1110,8 @@ let infer_recfun_defns tenv venv ctxt r =
                        | Some rid ->
                            let pid = ident_of_var pid in
                            let e = RepeatedFunctionParameter (pid, rid) in
-                           raise (Error e)
+                           let loc = Location.loc pid in
+                           raise (Error (loc, e))
                        | None ->
                            StringMap.add pn (ident_of_var pid) ids in
                    let ityp = intern_expanded_type tenv' typ in
@@ -1217,7 +1223,8 @@ let guess_nt_rhs_type tenv ntd =
   match res with
     | Some t -> t
     | None ->
-        raise (Error (NTTypeNotInferrable ntd.non_term_name))
+        let loc = Location.loc ntd.non_term_name in
+        raise (Error (loc, NTTypeNotInferrable ntd.non_term_name))
 
 let infer_non_term_attrs tenv nid attrs =
   let map, attrs', _ =
@@ -1228,7 +1235,8 @@ let infer_non_term_attrs tenv nid attrs =
           | Some (_, l) ->
               let repid = Location.mk_loc_val p l in
               let pid = ident_of_var pid in
-              raise (Error (NTRepeatedBinding (nid, pid, repid)))
+              let loc = Location.loc pid in
+              raise (Error (loc, NTRepeatedBinding (nid, pid, repid)))
           | None ->
               let pid', venv' = VEnv.add venv' pid in
               StringMap.add p (t, Location.loc pid) ats,
@@ -1261,7 +1269,8 @@ let infer_non_term_type tenv ctxt ntd =
         let tloc = Location.loc t in
         let recinfo = match get_record_info tenv (TName tn) with
             | Some info -> Some info
-            | None -> raise (Error (NTAttributesNotRecordType (ntid, t))) in
+            | None -> let loc = Location.loc t in
+                      raise (Error (loc, NTAttributesNotRecordType (ntid, t))) in
         let tvar  = lookup_type_variable ~pos:tloc tenv (TName tn) in
         (* This NT cannot be used as a type constructor since it is
            aliased to the defined type, and it is represented by a
@@ -1331,7 +1340,7 @@ let check_non_term tenv id t =
   let n = Location.value id in
   match lookup_non_term_type tenv (NName n) with
     | None ->
-        raise (Error (UnknownNonTerminal id))
+        raise (Error (Location.loc id, UnknownNonTerminal id))
     | Some t' ->
         (t =?= t') (Location.loc id)
 
@@ -1371,9 +1380,9 @@ let check_in_character_class id (ls : (literal * literal) list) =
   List.iter (fun (l, l') ->
       let c = Location.value l in
       if   String.length c != 1
-      then raise (Error (Not_a_character l'));
+      then raise (Error (Location.loc l', Not_a_character l'));
       if   not (Array.mem c.[0] chars)
-      then raise (Error (Not_in_character_set (id, l)))
+      then raise (Error (Location.loc l, Not_in_character_set (id, l)))
     ) ls
 
 (* checking a literal set generates a type constraint and the
@@ -1398,7 +1407,7 @@ let check_literals tenv ls t : tconstraint * literal_set =
     | LS_diff (({literal_set = LS_type cc; _} as lls),
                ({literal_set = LS_set ls'; _} as rls)) ->
         if   not (is_character_class cc)
-        then raise (Error (Unknown_character_class cc));
+        then raise (Error (Location.loc cc, Unknown_character_class cc));
         let ls' = List.map convert_escapes ls' in
         check_in_character_class cc ls';
         let ls', _ = List.split ls' in
@@ -1406,9 +1415,9 @@ let check_literals tenv ls t : tconstraint * literal_set =
         (t =?= bytes) ls.literal_set_loc,
         {ls with literal_set = LS_diff (lls, rls)}
     | LS_diff ({literal_set = LS_type _; _}, {literal_set_loc = l'; _}) ->
-        raise (Error (Not_literal_set l'))
+        raise (Error (l', Not_literal_set))
     | LS_diff (l, _) ->
-        raise (Error (Not_character_class l.literal_set_loc))
+        raise (Error (l.literal_set_loc, Not_character_class))
 
     | LS_range (s, e) ->
         let (s, so), (e, eo) = convert_escapes s, convert_escapes e in
@@ -1419,14 +1428,13 @@ let check_literals tenv ls t : tconstraint * literal_set =
         let es = Location.value e in
         let sl, el = String.length ss, String.length es in
         if   sl != el
-        then raise (Error (Inconsistent_range_literals
-                             (ls.literal_set_loc, so, eo, sl, el)));
+        then raise (Error (ls.literal_set_loc,
+                           Inconsistent_range_literals (so, eo, sl, el)));
         let i = ref 0 in
         while !i != sl do
           (if   Char.code ss.[!i] > Char.code es.[!i]
-           then let err = Inconsistent_literal_range
-                            (ls.literal_set_loc, so, eo, !i) in
-                raise (Error err));
+           then let err = Inconsistent_literal_range (so, eo, !i) in
+                raise (Error (ls.literal_set_loc, err)));
           incr i;
         done;
         (t =?= bytes) ls.literal_set_loc,
@@ -1585,8 +1593,8 @@ let check_aligned cursor alignment loc pos =
   assert (alignment mod 8 = 0);
   let offset = cursor mod alignment in
   if   offset <> 0
-  then let err = NotByteAligned (loc, offset, alignment, pos) in
-       raise (Error err)
+  then let err = NotByteAligned (offset, alignment, pos) in
+       raise (Error (loc, err))
 
 (* local intra-rule inter-rule-element inference context *)
 type ictx =
@@ -1648,7 +1656,7 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
         check_aligned cursor 8 re.rule_elem_loc At_begin;
         (match lookup_non_term tenv (NName n) with
            | None ->
-               raise (Error (UnknownNonTerminal nid))
+               raise (Error (Location.loc nid, UnknownNonTerminal nid))
            | Some ((inh, _), syn, _) ->
                (* Check if inherited attributes need to be specified. *)
                (match StringMap.choose_opt inh with
@@ -1660,20 +1668,22 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
                       venv,
                       0
                   | Some (id, _) ->
-                      raise (Error (NTInheritedUnspecified (nid, id)))))
+                      let loc = Location.loc nid in
+                      raise (Error (loc, NTInheritedUnspecified (nid, id)))))
     | RE_non_term (cntid, Some attrs) ->
         let cntn = Location.value cntid in
         assert (cntn <> "BitVector");
         check_aligned cursor 8 re.rule_elem_loc At_begin;
         let cnti = match lookup_non_term tenv (NName cntn) with
-            | None -> raise (Error (UnknownNonTerminal cntid))
+            | None -> raise (Error (Location.loc cntid, UnknownNonTerminal cntid))
             | Some ((inh_typ, _), _, _) -> inh_typ in
         let pids, cs, wcs, attrs' =
           List.fold_left (fun (pids, cs, wcs, attrs') (pid, assign, e) ->
               let pn = Location.value pid in
               let pids = match StringMap.find_opt pn pids with
                   | Some repid ->
-                      raise (Error (NTRepeatedBinding (cntid, pid, repid)))
+                      let loc = Location.loc pid in
+                      raise (Error (loc, NTRepeatedBinding (cntid, pid, repid)))
                   | None ->
                       StringMap.add pn pid pids in
               let typ = match assign, StringMap.find_opt pn cnti with
@@ -1682,17 +1692,20 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
                   | A_in, Some (typ, _) ->
                       if   ictx.in_map_views
                       then list (typcon_variable tenv) typ
-                      else let err =
+                      else let loc = Location.loc pid in
+                           let err =
                              NTIllegalMapAttributeAssignment (cntid, pid) in
-                           raise (Error err)
+                           raise (Error (loc, err))
                   | _, None ->
-                      raise (Error (NTUnknownInheritedAttribute (cntid, pid))) in
+                      let loc = Location.loc pid in
+                      raise (Error (loc, NTUnknownInheritedAttribute (cntid, pid))) in
               let c, (wc, e') = infer_expr tenv venv e typ in
               pids, c :: cs, wc :: wcs, (pid, assign, e') :: attrs'
             ) (StringMap.empty, [], [], []) attrs in
         StringMap.iter (fun pn _ ->
             if   not (StringMap.mem pn pids)
-            then raise (Error (NTInheritedUnspecified (cntid, pn)))
+            then let loc = Location.loc cntid in
+                 raise (Error (loc, NTInheritedUnspecified (cntid, pn)))
           ) cnti;
         pack_constraint (conj cs),
         wconj wcs,
@@ -1716,8 +1729,7 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
         let width = Location.value w in
         (* zero-width bitvectors are invalid *)
         (if   width = 0
-         then let err = ZeroWidthBitvector re.rule_elem_loc in
-              raise (Error err));
+         then raise (Error (re.rule_elem_loc, ZeroWidthBitvector)));
         let cursor = cursor + width in
         let bvt = TypeConv.bitvector_n tenv width in
         let c = (t =?= bvt) re.rule_elem_loc in
@@ -1731,11 +1743,10 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
         let align = Location.value a in
         (if   align mod 8 <> 0
          then let err = InvalidAlignment a in
-              raise (Error err));
+              raise (Error (Location.loc a, err)));
         (* Alignments matching 0 bits are currently forbidden. *)
         (if   cursor mod align = 0
-         then let err = ZeroWidthAlignment re.rule_elem_loc in
-              raise (Error err));
+         then raise (Error (re.rule_elem_loc, ZeroWidthAlignment)));
         let width = align - (cursor mod align) in
         let cursor' = cursor + width in
         assert (is_aligned cursor' align);
@@ -1754,11 +1765,10 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
         let align = Location.value a in
         (if   align mod 8 <> 0
          then let err = InvalidAlignment a in
-              raise (Error err));
+              raise (Error (Location.loc a, err)));
         (* Alignments matching 0 bits are currently forbidden. *)
         (if   cursor mod align = 0
-         then let err = ZeroWidthAlignment re.rule_elem_loc in
-              raise (Error err));
+         then raise (Error (re.rule_elem_loc, ZeroWidthAlignment)));
         let width = align - (cursor mod align) in
         let cursor' = cursor + width in
         assert (is_aligned cursor' align);
@@ -2060,7 +2070,8 @@ let infer_non_term_rule tenv venv ntd rule pids =
           let pid = ident_of_var pid in
           match StringMap.find_opt pn pids with
             | Some repid ->
-                raise (Error (NTRepeatedBinding (ntd.non_term_name, pid, repid)))
+                let loc = Location.loc pid in
+                raise (Error (loc, NTRepeatedBinding (ntd.non_term_name, pid, repid)))
             | None ->
                 StringMap.add pn pid pids in
         let ityp = intern_expanded_type tenv typ in
@@ -2090,7 +2101,7 @@ let infer_non_term_rule tenv venv ntd rule pids =
       ) ([], (fun c -> c), wcs, [], venv', 0) rule.rule_rhs in
   (* Ensure that there is at least one rule element in the rule. *)
   if   List.length rhs' = 0
-  then raise (Error (NTEmptyRule (ntd.non_term_name, rule.rule_loc)));
+  then raise (Error (rule.rule_loc, NTEmptyRule ntd.non_term_name));
   check_aligned cursor' 8 rule.rule_loc At_end;
   CLet ([ Scheme (rule.rule_loc, [],
                   bindings.vars,
@@ -2155,7 +2166,8 @@ let infer_non_term tenv venv ntd =
         let pids =
           match StringMap.find_opt pn pids with
             | Some repid ->
-                raise (Error (NTRepeatedBinding (ntd.non_term_name, pid, repid)))
+                let loc = Location.loc pid in
+                raise (Error (loc, NTRepeatedBinding (ntd.non_term_name, pid, repid)))
             | None ->
                 StringMap.add pn pid pids in
         let v = variable Flexible () in
@@ -2174,8 +2186,9 @@ let infer_non_term tenv venv ntd =
                  (fun r -> infer_non_term_rule tenv venv' ntd r pids)
                  ntd.non_term_rules in
   (* Ensure that there is at least one rule specified. *)
-  if   List.length crules' = 0
-  then raise (Error (NTNoRules ntd.non_term_name));
+  (if   List.length crules' = 0
+   then let loc = Location.loc ntd.non_term_name in
+        raise (Error (loc, NTNoRules ntd.non_term_name)));
   let cs, rules' = List.split crules' in
   let wcs, rules' = List.split rules' in
   let cprod =
@@ -2387,7 +2400,7 @@ let infer_spec tenv venv spec =
                      then let id = td.type_decl_ident in
                           let err =
                             PotentiallyRecursiveTypeAbbreviation id in
-                          raise (Error err)
+                          raise (Error (Location.loc id, err))
                      else let tenv' = infer_type_abbrev tenv td in
                           tenv', ctxt, wc, decls', venv
                  | None ->

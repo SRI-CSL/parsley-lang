@@ -403,7 +403,7 @@ let rec normalize_stmt tenv venv (s: stmt) : astmt * VEnv.t =
             | AE_let (v, ae', ae'') ->
                 wrap (AS_let (v, ae', rewrite ae''))
             | _ ->
-                raise (Error (Unassignable_expression ln.aexp_loc)) in
+                raise (Error (ln.aexp_loc, Unassignable_expression)) in
         rewrite ln, venv
     | S_let (p, e, ss) ->
         (* handle this similar to E_let *)

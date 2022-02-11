@@ -36,8 +36,8 @@ let expand_type_abbrevs env te =
                  if   n = 0
                  then abb.TEnv.type_abbrev_type
                  else let err =
-                        TExc.PartialTypeConstructorApplication (loc, tc, n, 0)
-                      in raise (TExc.Error err))
+                        TExc.PartialTypeConstructorApplication (tc, n, 0)
+                      in raise (TExc.Error (loc, err)))
       | TE_tapp ({type_expr = TE_tvar t; _} as c, args) ->
           let tc = TName (Location.value t) in
           (match TEnv.lookup_type_abbrev env tc with
@@ -48,8 +48,8 @@ let expand_type_abbrevs env te =
                  let n = List.length abb.TEnv.type_abbrev_tvars in
                  if   n != List.length args
                  then let err = TExc.PartialTypeConstructorApplication
-                                  (loc, tc, n, List.length args) in
-                      raise (TExc.Error err)
+                                  (tc, n, List.length args) in
+                      raise (TExc.Error (loc, err))
                  else let args' = List.map expand args in
                       let map = List.combine abb.TEnv.type_abbrev_tvars args' in
                       subst map abb.TEnv.type_abbrev_type)
@@ -78,16 +78,16 @@ let lookup_bitfield_info tenv t =
   let l  = Location.loc t in
   let tt = TName tn in
   let adt = match TEnv.lookup_adt tenv tt with
-      | None     -> let err = TExc.UnboundRecord (l, tt) in
-                    raise (TExc.Error err)
+      | None     -> let err = TExc.UnboundRecord tt in
+                    raise (TExc.Error (l, err))
       | Some adt -> adt in
   match adt with
     | {adt = Variant _; _} ->
         let err = TExc.NotRecordType t in
-        raise (TExc.Error err)
+        raise (TExc.Error (Location.loc t, err))
     | {adt = Record {bitfield_info = None; _}; _} ->
         let err = TExc.NotBitfieldType t in
-        raise (TExc.Error err)
+        raise (TExc.Error (Location.loc t, err))
     | {adt = Record {bitfield_info = Some bfi; _}; _} ->
         bfi
 
@@ -149,12 +149,12 @@ let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
                {e with expr = E_literal (PL_int (l * r))}
            | Mod,  E_literal (PL_int _), E_literal (PL_int r)
                 when r = 0 ->
-               raise (TExc.Error (TExc.Possible_division_by_zero e.expr_loc))
+               raise (TExc.Error (e.expr_loc, TExc.Possible_division_by_zero))
            | Mod,  E_literal (PL_int l), E_literal (PL_int r) ->
                {e with expr = E_literal (PL_int (l mod r))}
            | Div,  E_literal (PL_int _), E_literal (PL_int r)
                 when r = 0 ->
-               raise (TExc.Error (TExc.Possible_division_by_zero e.expr_loc))
+               raise (TExc.Error (e.expr_loc, TExc.Possible_division_by_zero))
            | Div,  E_literal (PL_int l), E_literal (PL_int r) ->
                {e with expr = E_literal (PL_int (l / r))}
            | Land, E_literal (PL_bool l), E_literal (PL_bool r) ->

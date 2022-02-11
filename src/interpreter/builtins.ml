@@ -25,121 +25,121 @@ open Internal_errors
 let int_uminus lc (v: value) : value =
   match v with
     | V_int i -> V_int (Int64.neg i)
-    | _ -> internal_error (Type_error (lc, "uminus", 1, vtype_of v, T_int))
+    | _ -> internal_error lc (Type_error ("uminus", 1, vtype_of v, T_int))
 
 let bool_not lc (v: value) : value =
   match v with
     | V_bool b -> V_bool (not b)
-    | _ -> internal_error (Type_error (lc, "not", 1, vtype_of v, T_bool))
+    | _ -> internal_error lc (Type_error ("not", 1, vtype_of v, T_bool))
 
 let bitvector_negate lc (v: value) : value =
   match v with
     | V_bitvector bl -> V_bitvector (List.map not bl)
-    | _ -> internal_error (Type_error (lc, "negate", 1, vtype_of v, T_bitvector))
+    | _ -> internal_error lc (Type_error ("negate", 1, vtype_of v, T_bitvector))
 
 let int_plus lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_int (Int64.add l r)
-    | V_int _, _       -> internal_error (Type_error (lc, "+", 2, vtype_of r, T_int))
-    | _, _             -> internal_error (Type_error (lc, "+", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error lc (Type_error ("+", 2, vtype_of r, T_int))
+    | _, _             -> internal_error lc (Type_error ("+", 1, vtype_of l, T_int))
 
 let int_minus lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_int (Int64.sub l r)
-    | V_int _, _       -> internal_error (Type_error (lc, "-", 2, vtype_of r, T_int))
-    | _, _             -> internal_error (Type_error (lc, "-", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error lc (Type_error ("-", 2, vtype_of r, T_int))
+    | _, _             -> internal_error lc (Type_error ("-", 1, vtype_of l, T_int))
 
 let int_mul lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_int (Int64.mul l r)
-    | V_int _, _       -> internal_error (Type_error (lc, "*", 2, vtype_of r, T_int))
-    | _, _             -> internal_error (Type_error (lc, "*", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error lc (Type_error ("*", 2, vtype_of r, T_int))
+    | _, _             -> internal_error lc (Type_error ("*", 1, vtype_of l, T_int))
 
 let int_mod lc (l: value) (r: value) : value =
   match l, r with
-    | V_int _, V_int r when r = Int64.zero -> fault (Division_by_zero lc)
+    | V_int _, V_int r when r = Int64.zero -> fault lc Division_by_zero
     | V_int l, V_int r -> V_int (Int64.rem l r)
-    | V_int _, _       -> internal_error (Type_error (lc, "%", 2, vtype_of r, T_int))
-    | _, _             -> internal_error (Type_error (lc, "%", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error lc (Type_error ("%", 2, vtype_of r, T_int))
+    | _, _             -> internal_error lc (Type_error ("%", 1, vtype_of l, T_int))
 
 let int_div lc (l: value) (r: value) : value =
   match l, r with
-    | V_int _, V_int r when r = Int64.zero -> fault (Division_by_zero lc)
+    | V_int _, V_int r when r = Int64.zero -> fault lc Division_by_zero
     | V_int l, V_int r -> V_int (Int64.div l r)
-    | V_int _, _       -> internal_error (Type_error (lc, "/", 2, vtype_of r, T_int))
-    | _, _             -> internal_error (Type_error (lc, "/", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error lc (Type_error ("/", 2, vtype_of r, T_int))
+    | _, _             -> internal_error lc (Type_error ("/", 1, vtype_of l, T_int))
 
 let less_than lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_bool (Int64.compare l r < 0)
-    | V_int _, _       -> internal_error (Type_error (lc, "<", 2, vtype_of r, T_int))
-    | _, _             -> internal_error (Type_error (lc, "<", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error lc (Type_error ("<", 2, vtype_of r, T_int))
+    | _, _             -> internal_error lc (Type_error ("<", 1, vtype_of l, T_int))
 
 let greater_than lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_bool (Int64.compare l r > 0)
-    | V_int _, _       -> internal_error (Type_error (lc, ">", 2, vtype_of r, T_int))
-    | _, _             -> internal_error (Type_error (lc, ">", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error lc (Type_error (">", 2, vtype_of r, T_int))
+    | _, _             -> internal_error lc (Type_error (">", 1, vtype_of l, T_int))
 
 let le_than lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_bool (Int64.compare l r <= 0)
-    | V_int _, _       -> internal_error (Type_error (lc, "<=", 2, vtype_of r, T_int))
-    | _, _             -> internal_error (Type_error (lc, "<=", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error lc (Type_error ("<=", 2, vtype_of r, T_int))
+    | _, _             -> internal_error lc (Type_error ("<=", 1, vtype_of l, T_int))
 
 let ge_than lc (l: value) (r: value) : value =
   match l, r with
     | V_int l, V_int r -> V_bool (Int64.compare l r >= 0)
-    | V_int _, _       -> internal_error (Type_error (lc, ">=", 2, vtype_of r, T_int))
-    | _, _             -> internal_error (Type_error (lc, ">=", 1, vtype_of l, T_int))
+    | V_int _, _       -> internal_error lc (Type_error (">=", 2, vtype_of r, T_int))
+    | _, _             -> internal_error lc (Type_error (">=", 1, vtype_of l, T_int))
 
 let bool_and lc (l: value) (r: value) : value =
   match l, r with
     | V_bool l, V_bool r -> V_bool (l && r)
-    | V_bool _, _        -> internal_error (Type_error (lc, "&&", 2, vtype_of r, T_bool))
-    | _, _               -> internal_error (Type_error (lc, "&&", 1, vtype_of l, T_bool))
+    | V_bool _, _        -> internal_error lc (Type_error ("&&", 2, vtype_of r, T_bool))
+    | _, _               -> internal_error lc (Type_error ("&&", 1, vtype_of l, T_bool))
 
 let bool_or lc (l: value) (r: value) : value =
   match l, r with
     | V_bool l, V_bool r -> V_bool (l || r)
-    | V_bool _, _        -> internal_error (Type_error (lc, "||", 2, vtype_of r, T_bool))
-    | _, _               -> internal_error (Type_error (lc, "||", 1, vtype_of l, T_bool))
+    | V_bool _, _        -> internal_error lc (Type_error ("||", 2, vtype_of r, T_bool))
+    | _, _               -> internal_error lc (Type_error ("||", 1, vtype_of l, T_bool))
 
 let bv_not lc (v: value) : value =
   match v with
     | V_bitvector bv -> V_bitvector (List.map not bv)
-    | _              -> internal_error (Type_error (lc, "~", 1, vtype_of v, T_bitvector))
+    | _              -> internal_error lc (Type_error ("~", 1, vtype_of v, T_bitvector))
 
 let bv_or lc (l: value) (r: value) : value =
   match l, r with
     | V_bitvector l, V_bitvector r when List.length l != List.length r ->
-        fault (Length_mismatch (lc, "|_b", List.length l, List.length r))
+        fault lc (Length_mismatch ("|_b", List.length l, List.length r))
     | V_bitvector l, V_bitvector r ->
         V_bitvector (List.map2 (||) l r)
     | V_bitvector _, _ ->
-        internal_error (Type_error (lc, "|_b", 2, vtype_of r, T_bitvector))
+        internal_error lc (Type_error ("|_b", 2, vtype_of r, T_bitvector))
     | _, _ ->
-        internal_error (Type_error (lc, "|_b", 1, vtype_of l, T_bitvector))
+        internal_error lc (Type_error ("|_b", 1, vtype_of l, T_bitvector))
 
 let bv_and lc (l: value) (r: value) : value =
   match l, r with
     | V_bitvector l, V_bitvector r when List.length l != List.length r ->
-        fault (Length_mismatch (lc, "&_b", List.length l, List.length r))
+        fault lc (Length_mismatch ("&_b", List.length l, List.length r))
     | V_bitvector l, V_bitvector r ->
         V_bitvector (List.map2 (&&) l r)
     | V_bitvector _, _ ->
-        internal_error (Type_error (lc, "&_b", 2, vtype_of r, T_bitvector))
+        internal_error lc (Type_error ("&_b", 2, vtype_of r, T_bitvector))
     | _, _ ->
-        internal_error (Type_error (lc, "&_b", 1, vtype_of l, T_bitvector))
+        internal_error lc (Type_error ("&_b", 1, vtype_of l, T_bitvector))
 
 let bit_extract lc (l: bool list) (hi: int) (lo: int) =
   let len = List.length l in
   if   hi >= len
-  then internal_error (Bitrange_index (lc, hi, len))
+  then internal_error lc (Bitrange_index (hi, len))
   else if lo >= len
-  then internal_error (Bitrange_index (lc, lo, len))
+  then internal_error lc (Bitrange_index (lo, len))
   else if lo >= hi
-  then internal_error (Bitrange_index (lc, lo, hi))
+  then internal_error lc (Bitrange_index (lo, hi))
   else field_of_bitvector l hi lo
 
 let bv_bitrange lc (l: value) (hi: int) (lo: int) : value =
@@ -147,7 +147,7 @@ let bv_bitrange lc (l: value) (hi: int) (lo: int) : value =
     | V_bitvector l ->
         V_bitvector (bit_extract lc l hi lo)
     | _ ->
-        internal_error (Type_error (lc, "bitrange", 1, vtype_of l, T_bitvector))
+        internal_error lc (Type_error ("bitrange", 1, vtype_of l, T_bitvector))
 
 let mk_bitfield_type (bfi: TypingEnvironment.bitfield_info) =
   let rcd = List.map (fun (f, _) -> f, T_bitvector) bfi.bf_fields in
@@ -164,7 +164,7 @@ let rec_of_bits lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
     | _ ->
         let op = Printf.sprintf "%s->record" r in
         let ty = mk_bitfield_type bfi in
-        internal_error (Type_error (lc, op, 1, vtype_of l, ty))
+        internal_error lc (Type_error (op, 1, vtype_of l, ty))
 
 let bits_of_rec lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
     : value =
@@ -178,22 +178,22 @@ let bits_of_rec lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
           List.fold_left (fun acc (f, (hi, lo)) ->
               match List.assoc_opt f rv with
                   | None ->
-                      internal_error (No_field (lc, f))
+                      internal_error lc (No_field f)
                   | Some (V_bitvector l) ->
                       let ex = List.length l in
                       let fd = hi - lo + 1 in
                       if   ex = fd
                       then l @ acc
-                      else let err = Bitfield_length_mismatch (lc, r, f, ex, fd) in
-                           internal_error err
+                      else let err = Bitfield_length_mismatch (r, f, ex, fd) in
+                           internal_error lc err
                   | Some v ->
-                      internal_error (Type_error (lc, op, 1, vtype_of v, T_bitvector))
+                      internal_error lc (Type_error (op, 1, vtype_of v, T_bitvector))
             ) [] bfi.bf_fields in
         assert (List.length l = bfi.bf_length);
         V_bitvector l
     | _ ->
         let ty = mk_bitfield_type bfi in
-        internal_error (Type_error (lc, op, 1, vtype_of l, ty))
+        internal_error lc (Type_error (op, 1, vtype_of l, ty))
 
 (* pure boolean helpers for equality and inequality *)
 let mand b b' =
@@ -228,8 +228,8 @@ let rec eq lc op l r : (bool, error) result =
         eqs lc op (Ok true) ls rs
 
     | V_constr ((tl, cl), ls), V_constr ((tr, cr), rs) ->
-        if tl != tr
-        then Error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
+        if   tl != tr
+        then Error (Type_error (op, 2, vtype_of l, vtype_of r))
         else if cl != cr
         then Ok false
         else eqs lc op (Ok true) ls rs
@@ -257,7 +257,7 @@ let rec eq lc op l r : (bool, error) result =
         let sls, srs = srt ls, srt rs in
         eqm lc op (Ok true) sls srs
     | _, _  ->
-        Error (Type_error (lc, op, 2, vtype_of l, vtype_of r))
+        Error (Type_error (op, 2, vtype_of l, vtype_of r))
 
 and eqs lc op acc ls rs =
   (* we don't short circuit to catch type errors, though this won't
@@ -290,27 +290,27 @@ and eqr lc op acc lr rr =
 let equals lc (l: value) (r: value) : value =
   match eq lc "=" l r with
     | Ok b    -> V_bool b
-    | Error e -> internal_error e
+    | Error e -> internal_error lc e
 
 let not_equals lc (l: value) (r: value) : value =
   match eq lc "!=" l r with
     | Ok b    -> V_bool (not b)
-    | Error e -> internal_error e
+    | Error e -> internal_error lc e
 
 let get_field lc (l: value) (f: string) : value =
   match l with
     | V_record fs ->
         (match List.assoc_opt f fs with
            | Some v -> v
-           | None   -> internal_error (No_field (lc, f)))
+           | None   -> internal_error lc (No_field f))
     | V_bitfield (bf, v) ->
         let hi, lo =
           match List.assoc_opt f bf.bf_fields with
             | Some r -> r
-            | None   -> internal_error (No_field (lc, f)) in
+            | None   -> internal_error lc (No_field f) in
         V_bitvector (bit_extract lc v hi lo)
     | _ ->
-        internal_error (Type_error (lc, "." ^ f, 1, vtype_of l, T_record [f, T_empty]))
+        internal_error lc (Type_error ("." ^ f, 1, vtype_of l, T_record [f, T_empty]))
 
 let set_field lc (l: value) (f: string) (v: value) : value =
   match l with
@@ -325,14 +325,14 @@ let set_field lc (l: value) (f: string) (v: value) : value =
            | None ->
                V_record ((f,v) :: fs))
     | _ ->
-        internal_error (Type_error (lc, "." ^ f, 1, vtype_of l, T_record [f, T_empty]))
+        internal_error lc (Type_error ("." ^ f, 1, vtype_of l, T_record [f, T_empty]))
 
 let constr_match lc (l: value) (c: string * string) : value =
   match l with
     | V_constr (c', _) ->
         V_bool (c = c')
     | _ ->
-        internal_error (Type_error (lc, "~~", 1, vtype_of l, T_adt_constr (c, [])))
+        internal_error lc (Type_error ("~~", 1, vtype_of l, T_adt_constr (c, [])))
 
 (* subterm extraction *)
 let subterm lc (v: value) (o: Ir.Anf.occurrence) : value =
@@ -353,17 +353,17 @@ let subterm lc (v: value) (o: Ir.Anf.occurrence) : value =
           then let v' = List.nth vs (idx - 1) in
                walk v' tl
           else let tc = "*", "_Tuple" in
-               let err = Bad_subterm_index (lc, tc, idx, o) in
-               internal_error err
+               let err = Bad_subterm_index (tc, idx, o) in
+               internal_error lc err
       (* user-defined constructions *)
       | V_constr (tc, args), idx :: tl ->
           let  arity = List.length args in
           if   1 <= idx && idx <= arity
           then let v' = List.nth args (idx - 1) in
                walk v' tl
-          else let err = Bad_subterm_index (lc, tc, idx, o) in
-               internal_error err
+          else let err = Bad_subterm_index (tc, idx, o) in
+               internal_error lc err
       | _, _ ->
-           let err = Bad_subterm_path (lc, so, o) in
-           internal_error err in
+           let err = Bad_subterm_path (so, o) in
+           internal_error lc err in
   walk v o

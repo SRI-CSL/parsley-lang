@@ -32,7 +32,7 @@ let enter_bitmode lc (s: state) : state =
   (* cursor should be at valid offset *)
   let v = s.st_cur_view in
   if   v.vu_ofs >= v.vu_end
-  then fault (View_bound (lc, "start_bitwise", "end bound exceeded"))
+  then fault lc (View_bound ("start_bitwise", "end bound exceeded"))
   else let bw = init_bitwise v in
        {s with st_mode = Mode_bitwise bw}
 
@@ -60,7 +60,7 @@ let mark_bit_cursor lc (s: state) : state =
   (* cursor should be at valid offset *)
   let v = s.st_cur_view in
   if   v.vu_ofs >= v.vu_end
-  then fault (View_bound (lc, "set_bit_mark", "end bound exceeded"))
+  then fault lc (View_bound ("set_bit_mark", "end bound exceeded"))
   else {s with st_mode = Mode_bitwise bw}
 
 (* return matched bits *)
@@ -81,7 +81,7 @@ let check_bit_bounds lc op (v: view) (bw: bitwise) n =
   (* add remaining full bytes until end of buffer *)
   let  bits_left = bits_left + 8*(v.vu_end - ofs) in
   if   bits_left < n
-  then fault (View_bound (lc, op, "end bound exceeded"))
+  then fault lc (View_bound (op, "end bound exceeded"))
 
 (* Extract `n` bits starting from `ofs` (big-endian): returns list in
    reverse order suitable for accumulation by list prepend *)

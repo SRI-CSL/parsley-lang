@@ -49,10 +49,9 @@ val unify: ?tracer:(TypeConstraint.variable -> TypeConstraint.variable -> unit) 
 
 
 type unify_error =
-  CannotUnify of Parsing.Location.t
-                 * TypeConstraint.crterm (* rigid variable *)
+  CannotUnify of TypeConstraint.crterm (* rigid variable *)
                  * TypeConstraint.crterm
 
-exception Error of unify_error
+exception Error of Parsing.Location.t * unify_error
 
 val error_msg: unify_error -> string

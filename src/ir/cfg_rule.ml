@@ -292,10 +292,8 @@ let rec lower_rule_elem
         let venv, args =
           List.fold_left (fun (venv, args) (i, a, e) ->
               (if   a != Ast.A_eq
-               then let err =
-                      Unsupported_construct
-                        (re.rule_elem_loc, "map-view assignment") in
-                    raise (Error err));
+               then let err = Unsupported_construct "map-view assignment" in
+                    raise (Error (re.rule_elem_loc, err)));
               let ae, venv =
                 Anf_exp.normalize_exp ctx.ctx_tenv venv e in
               (* allocate a variable to assign this to *)
@@ -362,8 +360,7 @@ let rec lower_rule_elem
             | Some _, None ->
                 (* Consider it an error if the user is not binding the
                    return expression *)
-                let err = Unbound_return_expr loc in
-                raise (Error err)
+                raise (Error (loc, Unbound_return_expr))
             | Some e, Some v ->
                 let ae, venv =
                   Anf_exp.normalize_exp ctx.ctx_tenv venv e in
@@ -1303,8 +1300,9 @@ let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
                              non_term_rules   = [rl]} in
          ctx, tvenv, ntd
        else
+         let loc = Location.loc ntd.non_term_name in
          let err = Nonterm_variable_required ntd.non_term_name in
-         raise (Error err)
+         raise (Error (loc, err))
       )
     else
       ctx, tvenv, ntd in

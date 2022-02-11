@@ -15,7 +15,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let handle_exception bt msg =
-  Printf.fprintf stderr "%s\n" msg;
+module Location = Parsing.Location
+
+(* `bt`  contains the backtrace if this is a debugging build.
+   `loc` contains the location of the error.
+   `msg` is the error message from the compiler. *)
+let handle_exception bt loc msg =
+  let content = Location.content_of_loc loc in
   Printf.printf "%s\n" bt;
+  Printf.fprintf stderr "%s%s: %s\n" content (Location.str_of_loc loc) msg;
   exit 1

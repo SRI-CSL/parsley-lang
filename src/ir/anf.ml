@@ -241,12 +241,10 @@ end = struct
 end
 
 type anf_error =
-  | Unassignable_expression of Location.t
+  | Unassignable_expression
 
-exception Error of anf_error
-
-let msg = Location.msg
+exception Error of Location.t * anf_error
 
 let error_msg = function
-  | Unassignable_expression l ->
-      msg "%s:\n The left side of this assignment is not assignable." l
+  | Unassignable_expression ->
+      "The left side of this assignment is not assignable."

@@ -50,7 +50,7 @@ let extent loc1 loc2 =
 
 let loc_or_ghost = function
   | Some l -> l
-  | None -> ghost_loc
+  | None   -> ghost_loc
 
 let get_pos_info pos =
   pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol
@@ -61,10 +61,10 @@ let get_start loc =
 let get_end loc =
   loc.loc_end
 
-let str_of_curr_pos lexbuf =
-  let file, line, startchar = get_pos_info lexbuf.lex_curr_p in
-  Printf.sprintf "File \"%s\", line %d, character %d"
-                 file line startchar
+let loc_of_curr_lex lexbuf =
+  {loc_start = lexbuf.lex_curr_p;
+   loc_end   = lexbuf.lex_curr_p;
+   loc_ghost = false}
 
 (* formatted to start a sentence *)
 let str_of_loc loc =
@@ -120,7 +120,7 @@ let lines_of_loc loc =
   then None
   else try Some (raw_lines_of_loc loc) with | _ -> None
 
-let content_of_loc loc lines =
+let str_of_content loc lines =
   let b    = Buffer.create 256 in
   let from = loc.loc_start.pos_cnum in
   let upto = loc.loc_end.pos_cnum in
@@ -146,17 +146,20 @@ let content_of_loc loc lines =
         (* highlight *)
         let f = max s from in
         let t = min e upto in
-        if   f < t
-        then Buffer.add_string b (String.make (t - f) '^');
+        if   f <= t
+        then let hilen = max (t - f) 1 in
+             Buffer.add_string b (String.make hilen '^');
         (* suffix *)
-        if   s < from || f < t
+        if   s < from || f <= t
         then Buffer.add_string b "\n";
       )
     ) lines;
   Buffer.contents b
 
+let content_of_loc loc =
+  match lines_of_loc loc with
+    | None    -> ""
+    | Some ls -> str_of_content loc ls
+
 let msg m loc =
-  let content = match lines_of_loc loc with
-      | None    -> ""
-      | Some ls -> content_of_loc loc ls in
-  Printf.sprintf ("%s" ^^ m) content (str_of_loc loc)
+  Printf.sprintf ("%s" ^^ m) (content_of_loc loc) (str_of_loc loc)

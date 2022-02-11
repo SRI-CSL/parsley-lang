@@ -27,13 +27,14 @@ let do_interpret spec nt f =
        | None   -> (Printf.printf "Parse terminated in failure.\n";
                     exit 1))
   with
-    | Runtime_exceptions.Runtime_exception e ->
+    | Runtime_exceptions.Runtime_exception (l, e) ->
         Errors.handle_exception
-          (Printexc.get_backtrace ())
+          (Printexc.get_backtrace ()) l
           (Printf.sprintf "%s\n" (Runtime_exceptions.error_msg e))
     | Unix.Unix_error (e, op, _) ->
         Errors.handle_exception
           (Printexc.get_backtrace ())
+          Parsing.Location.ghost_loc
           (Printf.sprintf "Error processing %s: %s: %s.\n"
              f op (Unix.error_message e))
 

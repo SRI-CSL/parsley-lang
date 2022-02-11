@@ -24,9 +24,9 @@ let to_ir init_envs tenv (spec: Cfg.program) : Cfg.spec_ir =
     then Ir_printer.print_spec spec;
     spec
   with
-    | Anf.Error e ->
-        Errors.handle_exception (Printexc.get_backtrace ()) (Anf.error_msg e)
-    | Cfg_regexp.Error e ->
-        Errors.handle_exception (Printexc.get_backtrace ()) (Cfg_regexp.error_msg e)
-    | Cfg.Error e ->
-        Errors.handle_exception (Printexc.get_backtrace ()) (Cfg.error_msg e)
+    | Anf.Error (l, e) ->
+        Errors.handle_exception (Printexc.get_backtrace ()) l (Anf.error_msg e)
+    | Cfg_regexp.Error (l, e) ->
+        Errors.handle_exception (Printexc.get_backtrace ()) l (Cfg_regexp.error_msg e)
+    | Cfg.Error (l, e) ->
+        Errors.handle_exception (Printexc.get_backtrace ()) l (Cfg.error_msg e)
