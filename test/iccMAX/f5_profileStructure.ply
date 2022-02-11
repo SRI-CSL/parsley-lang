@@ -9,10 +9,8 @@ use t63_multiProcessElementsType
 const header_len: int = 128
 const four : int = 4
 
-type void_type = {}
-
 type signature_type = {
-  sig : [byte]
+  sig_bytes : [byte]
 }
 
 type tag_entry_type = {
@@ -26,51 +24,38 @@ type tag_table_type = {
   entries : [tag_entry_type]
 }
 
-type profile_type = {
+type profile_structure_type = {
   header : [byte],
   tag_table : tag_table_type
 }
 
-recfun extract_views (tag_entries: [tag_entry_type]) -> [view] = {
+recfun create_views_from_tag_entries (v: view, tag_entries: [tag_entry_type]) -> [view] = {
   (case tag_entries of
     | [] ->  []
     | first :: rest ->
         View.restrict(View.get_current(),
-                      first.data_element_offset,
-                      first.data_element_size)
-        :: extract_views(rest)
+                      first.data_element_offset, 
+                      first.data_element_size + four_byte_padding_len(first.data_element_offset + first.data_element_size))
+        :: create_views_from_tag_entries(v, rest)
   )
 }
 
-// check that an individual data element signature corresponds to a tag element signature
+// check that an individual tag signature corresponds to a tag type signature
 // this would be a massive case statement on tag_sig where the body of each case clause 
 // contains another case statement that compares ele_sig against permissible signatures 
-// for tag_sig.
+// associated with tag_sig according to Clause 9.
 // this is out of scope for us
 fun validate_signature (tag_sig: [byte], ele_sig: [byte]) -> bool = {
   (case tag_sig of 
-    _ -> bool::True())
-}
-
-// ensure that the data element associated with each tag entry has a permissible signature
-// given the tag signature
-recfun validate_signatures (tag_entries: [tag_entry_type], signatures: [signature_type]) -> bool = {
-  (case tag_entries of 
-    | first_tag_entry :: rest_tag_entries -> 
-       (case signatures of
-        | first_sig :: rest_sigs -> 
-           validate_signature(first_tag_entry.tag_signature, first_sig.sig) && validate_signatures(rest_tag_entries, rest_sigs)
-        | [] -> bool::False())
-    | [] ->
-       (case signatures of
-        | [] -> bool::True()
-        | _ -> bool::False()))
+    | _ -> bool::True())
 }
 
 format {
 
   // this non-terminal corresponds to processing Figure 5
-  ParseFile pt {profile_type} :=
+  ParseFile pt {profile_structure_type} :=
+    
+    v = {;; View.clone(View.get_current())}
 
     // parse header and tag table
     header = (Byte^header_len)
@@ -80,52 +65,34 @@ format {
       pt.header := header;
       pt.tag_table := tag_table
     }
-  
-    // approach 1: use @# view operator - succinct but currently impossible
-    // will need to augment @# so that it allows assignment of unique arguments to each RE
-    // views = {;; extract_views(pt.tag_table.entries)}
-    // sigs = @#[views, ProcessTaggedElementDataSetOld]
-    // [validate_signatures(pt.tag_table.entries, sigs)]
 
-    // approach 2: process the data element sets individual
-    views = {;; extract_views(pt.tag_table.entries)}
-    curr_view = {}
-    ProcessTaggedElementData<entry_num = 0, tag_table = pt.tag_table, views = views>
+    // create views for tag data elements and then parse tagged element data
+    views = {;; create_views_from_tag_entries(v, pt.tag_table.entries)} 
+    @#[views, ProcessTaggedElementData<te <- (pt.tag_table.entries)>]
     ;;
 
-  // process all tagged element data
-  ProcessTaggedElementData (entry_num: int, tag_table: tag_table_type, views: [view]) {void_type} :=
-    [entry_num < tag_table.count]
-    @[views[entry_num], ProcessTaggedElementDataSet<te = tag_table.entries[entry_num]>]
-    ProcessTaggedElementData<entry_num = entry_num + 1, tag_table = tag_table, views = views>
-    ;
-    [entry_num = tag_table.count]
-    ;;
-
-  // process the tagged element data set corresponding to a single entry
+  // process the tagged element data corresponding to a single entry
   // validate signature against tag entry type
   // and then process the tagged element data set
-  ProcessTaggedElementDataSet (te: tag_entry_type) {void_type} :=
+  ProcessTaggedElementData (te: tag_entry_type) {void_type} :=
     ele_sig = (Byte^4)
     [validate_signature(te.tag_signature, ele_sig)]
-    @[View.get_base(), ProcessTaggedElementDataSetHelper<te = te, ele_sig = ele_sig>]
+    @[View.get_base(), ProcessTaggedElementDataHelper<te = te, ele_sig = ele_sig>]
+    
+    // NEED TO FINISH...CHECK PADDING.
+    // padding_len = { ;; four_byte_padding_len(te.data_element_size)}
+    //@[View.restrict(View.get_base(), te.data_element_size, padding_len), AlignFourBytes]
     ;;
 
-  // helper for ProcessTaggedElementDataSet
+  // helper for ProcessTaggedElementData
   // process tagged element data after ele_sig has been validated
-  // we only test for mpet right now
-  ProcessTaggedElementDataSetHelper (te: tag_entry_type, ele_sig: [byte]) {void_type} :=
+  // we only validate mpet right now
+  ProcessTaggedElementDataHelper (te: tag_entry_type, ele_sig: [byte]) {void_type} :=
     [ele_sig = "mpet"]
     MultiProcessElements<len = te.data_element_size>
     ;
     [ele_sig != "mpet"]
     ;;
-
-  ProcessTaggedElementDataSetOld pe {signature_type} :=
-    sig = (Byte^4)
-    {
-      pe.sig := sig
-    };;
 
   TagTable tt {tag_table_type} :=
     tt_count = UInt32<endian=endian::Big()>

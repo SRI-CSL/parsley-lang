@@ -1,6 +1,8 @@
 use aux
+use t84_generalElement
+//use t85_calculatorElement
 
-type mpet_type = {
+type mpe_type = {
   f: int,
   t: int,
   n: int,
@@ -8,12 +10,16 @@ type mpet_type = {
 }
 
 format {
-  MultiProcessElements mpet (len: int) {mpet_type} :=
+  MultiProcessElements mpet (len: int) {mpe_type} :=
+   
+    v = {;; View.clone(View.get_current())}
+ 
     !"mpet"!
     !"0000"!
     f = UInt16<endian=endian::Big()>
     t = UInt16<endian=endian::Big()>
     n = UInt32<endian=endian::Big()>
+    [n >= 1] // // constraint is imposed in first paragraph after t63
     process_element_positions_table = (PositionNumber^n)
     data_start = {
       mpet.f := f;
@@ -22,13 +28,20 @@ format {
       mpet.process_element_positions_table := process_element_positions_table;;
       16 + 8*n
     }
-    ProcessMPETElements<pos = 1, table = mpet.process_element_positions_table>
-    ;; 
+    [List.length(mpet.process_element_positions_table) = n] // a constraint based on t63 description
+
+    views = {;; create_views(v, mpet.process_element_positions_table)}
+
+    //pmpetes_res = @[v, ProcessMPETElements<table = mpet.process_element_positions_table, table_len = n, f = f>]
+    //[pmpetes_res = t] // ensure t of mpet type is the same as the t for the last contained type
+    //;;
+
+    //ProcessMPETElements<pos = 1, table = mpet.process_element_positions_table>
+    //;; 
   
-  ProcessMPETElements (pos: int, table: [position_number]) {void_type} :=
-    [table = []]
-    ;
-    [table != []]
-    
+  //ProcessMPETElements (pos: int, table: [position_number]) {void_type} :=
+    //[table = []]
+    //;
+    //[table != []]
 
 }

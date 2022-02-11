@@ -1,8 +1,43 @@
 type void_type = {}
 
+// position number as specified in 4.4 of the v4.3.0.0 icc spec
 type position_number = {
   offset: int,
   size: int
+}
+
+fun four_byte_padding_len(offset: int) -> int = { 
+  (case (offset - (4 * (offset / 4))) of  
+    | 0 -> 0
+    | 1 -> 3
+    | 2 -> 2
+    | 3 -> 1
+    | _ -> 0 // this should never happen...
+  )
+} 
+
+// checks each position number within a given position number table
+// to ensure that the corresponding data elements lie within the
+// bounds specified by the lower_bound and upper_bound arguments
+recfun validate_position_number_table(table: [position_number], lower_bound: int, upper_bound: int) -> bool = { 
+  (case table of  
+    | first :: rest -> ((first.offset > lower_bound) 
+                         && (first.offset + first.size < upper_bound)
+                         && validate_position_number_table(rest, lower_bound, upper_bound))
+    | [] -> bool::True())
+}
+
+// create views corresponding to the position offset and size values in table
+// each created view is constructed relative to the current view
+recfun create_views(v: view, table: [position_number]) -> [view] = {
+  (case table of
+    | [] ->  []
+    | first :: rest ->
+        View.restrict(v,
+                      first.offset,
+                      first.size)
+        :: create_views(v, rest)
+  )
 }
 
 format {
@@ -13,4 +48,9 @@ format {
       pn.offset := position_number_offset;
       pn.size := position_number_size
     }
+    ;;
+
+  CheckPadding (padding_len: int) {void_type} :=
+    !"0"!^padding_len
+ 
 }

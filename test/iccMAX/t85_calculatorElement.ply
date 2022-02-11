@@ -17,7 +17,7 @@ type cee_type = {
 format {
   CalculatorElementEncoding cee {cee_type} :=
     !"calc"!
-    !"0000"!
+    !"\x00\x00\x00\x00"!
     p = UInt16<endian=endian::Big()>
     q = UInt16<endian=endian::Big()>
     e = UInt32<endian=endian::Big()>
@@ -29,10 +29,12 @@ format {
       cee.e := e;
       cee.main_function_position := position_number;
       cee.subelement_positions := subelement_positions
-    };;
+    }
 
     // to do: sub-element positions
     // to do: data for calculator element
+    ;;
+
 
     PositionNumber pn {position_number} :=
       position_number_offset = UInt32<endian=endian::Big()>

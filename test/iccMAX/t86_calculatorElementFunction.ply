@@ -14,7 +14,7 @@ type cefe_type = {
 format {
     CalculatorElementFunctionEncoding cefe {c: cefe_type} :=
         !"func"!
-        !"0000"! 
+        !"\x00\x00\x00\x00"!
         n = UInt32<endian=endian::Big()>
 
         {
