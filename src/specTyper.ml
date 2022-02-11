@@ -51,17 +51,17 @@ let type_check spec =
     init_envs, tenv, spec'
   with
     (* error messages from conversion of regexp literals *)
-    | Literal_lexer.Error e ->
-        Errors.handle_exception (Printexc.get_backtrace ()) (Literal_lexer.error_msg e)
-    | TypingExceptions.Error e ->
+    | Literal_lexer.Error (l, e) ->
+        Errors.handle_exception (Printexc.get_backtrace ()) l (Literal_lexer.error_msg e)
+    | TypingExceptions.Error (l, e) ->
         Errors.handle_exception
-          (Printexc.get_backtrace ()) (TypingExceptions.error_msg e)
-    | ConstraintSolver.Error e ->
+          (Printexc.get_backtrace ()) l (TypingExceptions.error_msg e)
+    | ConstraintSolver.Error (l, e) ->
         Errors.handle_exception
-          (Printexc.get_backtrace ()) (ConstraintSolver.error_msg e)
-    | Unifier.Error e ->
+          (Printexc.get_backtrace ()) l (ConstraintSolver.error_msg e)
+    | Unifier.Error (l, e) ->
         Errors.handle_exception
-          (Printexc.get_backtrace ()) (Unifier.error_msg e)
+          (Printexc.get_backtrace ()) l (Unifier.error_msg e)
 
 let assignment_check init_envs tenv tspec =
   try
@@ -69,7 +69,7 @@ let assignment_check init_envs tenv tspec =
   with
     | Graph.GraphError e ->
         Errors.handle_exception
-          (Printexc.get_backtrace ()) (Graph.error_msg e)
-    | Rulecfg.Error e ->
+          (Printexc.get_backtrace ()) Location.ghost_loc (Graph.error_msg e)
+    | Rulecfg.Error (l, e) ->
         Errors.handle_exception
-          (Printexc.get_backtrace ()) (Rulecfg.error_msg e)
+          (Printexc.get_backtrace ()) l (Rulecfg.error_msg e)

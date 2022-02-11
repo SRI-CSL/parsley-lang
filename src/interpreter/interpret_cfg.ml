@@ -57,15 +57,15 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
              let env = VEnv.assign s.st_venv v vl in
              {s with st_venv = env}
         else let m = Ir_printer.string_of_mbb pred in
-             let err = Internal_errors.Bitsbound_check (loc, m) in
-             internal_error err
+             let err = Internal_errors.Bitsbound_check m in
+             internal_error loc err
     | N_push_view ->
         let st_view_stk = s.st_cur_view :: s.st_view_stk in
         {s with st_view_stk}
     | N_pop_view | N_drop_view
          when s.st_view_stk = [] ->
-        let err = Internal_errors.View_stack_underflow loc in
-        internal_error err
+        let err = Internal_errors.View_stack_underflow in
+        internal_error loc err
     | N_pop_view ->
         let vu, stk = List.hd s.st_view_stk, List.tl s.st_view_stk in
         {s with st_cur_view = vu;
@@ -155,8 +155,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
         then let m   = Ir_printer.string_of_mbb mbb in
-             let err = Internal_errors.Bitsbound_check (loc, m) in
-             internal_error err
+             let err = Internal_errors.Bitsbound_check m in
+             internal_error loc err
         else if match_padding bits pat
         then let bits = List.map (fun b -> V_bool b) bits in
              let env  = VEnv.assign s.st_venv v (V_list bits) in
@@ -167,8 +167,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
         then let m   = Ir_printer.string_of_mbb mbb in
-             let err = Internal_errors.Bitsbound_check (loc, m) in
-             internal_error err
+             let err = Internal_errors.Bitsbound_check m in
+             internal_error loc err
         else if match_padding bits pat
         then do_jump loc s lsc
         else do_fail loc s lf
@@ -245,10 +245,9 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
               let pn = Location.value p in
               match Cfg.StringMap.find_opt pn iattrs with
                 | None ->
-                    let loc = Location.loc p in
                     let err =
-                      Internal_errors.Unknown_attribute (loc, ntn, pn) in
-                    internal_error err
+                      Internal_errors.Unknown_attribute (ntn, pn) in
+                    internal_error (Location.loc p) err
                 | Some pv ->
                     VEnv.assign env (fst pv) vl
             ) s.st_venv params in

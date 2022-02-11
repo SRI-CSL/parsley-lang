@@ -43,21 +43,18 @@ let parse_file fname cont =
         ParseErrorMessages.message st
       with Not_found ->
         Printf.sprintf "Unknown syntax error (in state %d)" st in
-    Printf.fprintf stderr
-      "%s: parser error at or just before this location:\n %s"
-      (Location.str_of_curr_pos lexbuf) msg;
-    exit 1 in
+    Errors.handle_exception "" (Location.loc_of_curr_lex lexbuf)
+      (Printf.sprintf "parser error at or just before this location:\n %s"
+         msg) in
   try
     I.loop_handle cont fail supplier start
   with
     | Failure _f ->
-        Errors.handle_exception
-          (Printexc.get_backtrace ())
-          (Printf.sprintf "%s: invalid token at or just before this location"
-             (Location.str_of_curr_pos lexbuf))
+        Errors.handle_exception (Printexc.get_backtrace ()) (Location.loc_of_curr_lex lexbuf)
+          "invalid token at or just before this location"
     | Parseerror.Error (e, l) ->
-        Errors.handle_exception
-          (Printexc.get_backtrace ()) (Parseerror.error_msg l e)
+        Errors.handle_exception (Printexc.get_backtrace ()) l
+          (Parseerror.error_msg e)
 
 (* TODO: include directory management.
  * make this a list specifiable via cli -I options.

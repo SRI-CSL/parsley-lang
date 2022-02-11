@@ -19,7 +19,8 @@ type t
 
 val init: Lexing.lexbuf -> string -> unit
 val curr: Lexing.lexbuf -> t
-val str_of_curr_pos: Lexing.lexbuf -> string
+
+val loc_of_curr_lex: Lexing.lexbuf -> t
 
 val ghost_loc : t
 val mk_loc: Lexing.position -> Lexing.position -> t
@@ -38,4 +39,5 @@ val loc:         'a loc -> t
 val str_of_loc:      t -> string (* full location, including file name *)
 val str_of_file_loc: t -> string (* location without file name *)
 
+val content_of_loc:  t -> string (* snippet of source code at location *)
 val msg: (string -> 'a, unit, string) format -> t -> 'a

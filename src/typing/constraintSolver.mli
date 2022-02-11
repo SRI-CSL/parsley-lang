@@ -57,31 +57,31 @@ val print_env: (TypeConstraint.variable -> string) -> environment -> unit
 type solver_error =
   (* [TypingError] is raised when an inconsistency is detected during
      constraint solving. *)
-  | TypingError of Parsing.Location.t
+  | TypingError
 
   (* [UnboundIdentifier] is raised when an identifier is undefined in
      a particular context. *)
-  | UnboundIdentifier of Parsing.Location.t * string
+  | UnboundIdentifier of string
 
   (* [CannotGeneralize] when the type of an expression cannot be
      generalized contrary to what is specified by the programmers
      using type annotations. *)
-  | CannotGeneralizeNonVariable of Parsing.Location.t * TypeConstraint.variable
-  | CannotGeneralizeRank of Parsing.Location.t * TypeConstraint.variable * IntRank.t
+  | CannotGeneralizeNonVariable of TypeConstraint.variable
+  | CannotGeneralizeRank of TypeConstraint.variable * IntRank.t
 
   (* [NonDistinctVariables] is raised when two rigid type variables have
      been unified. *)
-  | NonDistinctVariables of Parsing.Location.t * (TypeConstraint.variable list)
+  | NonDistinctVariables of (TypeConstraint.variable list)
 
   (* [Not_a_bitvector] is raised when a type does not resolve to a bitvecor *)
-  | Not_a_bitvector of Parsing.Location.t
+  | Not_a_bitvector
   (* [Cannot_resolve_width] is raised when a width does not resolve to an integer *)
-  | Not_a_bitwidth of Parsing.Location.t * string option
+  | Not_a_bitwidth of string option
   (* [Invalid_bitwidth i pred] is raised when the bitwidth [i] does not
      satisfy the inferred predicate [pred] *)
-  | Invalid_bitwidth of Parsing.Location.t * int * TypeConstraint.width_predicate
+  | Invalid_bitwidth of int * TypeConstraint.width_predicate
 
-exception Error of solver_error
+exception Error of Parsing.Location.t * solver_error
 
 val error_msg: solver_error -> string
 

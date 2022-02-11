@@ -55,7 +55,7 @@ module VEnv = struct
 
   let lookup (t: t) (v: Anf.varid) (l: Location.t) : Values.value =
     match Bindings.find_opt v t with
-      | None         -> internal_error (No_binding_for_read (l, v))
+      | None         -> internal_error l (No_binding_for_read v)
       | Some (vl, _) -> vl
 
   let bound (t: t) (v: Anf.varid) : bool =
@@ -71,14 +71,14 @@ module FEnv = struct
   let assign (t: t) (fv: Anf.var) (params: Anf.var list) (b: Anf.aexp) : t =
     if   Bindings.mem (Anf.(fv.v)) t
     then let fs = Anf_printer.string_of_var fv.v in
-         let err = Duplicate_function_binding (fv.v_loc, fs) in
-         internal_error err
+         let err = Duplicate_function_binding fs in
+         internal_error fv.v_loc  err
     else Bindings.add Anf.(fv.v) (fv, params, b) t
 
   let lookup (t: t) (v: Anf.varid) (l: Location.t)
       : (Anf.var list * Anf.aexp) =
     match Bindings.find_opt v t with
-      | None         -> internal_error (No_binding_for_read (l, v))
+      | None         -> internal_error l (No_binding_for_read v)
       | Some (_, ps, bd) -> ps, bd
 end
 
@@ -110,15 +110,15 @@ let get_block lc (s: state) (l: Cfg.label) : Cfg.closed =
     | Some b ->
         b
     | None ->
-        let err = Internal_errors.No_block_for_label (lc, l) in
-        internal_error err
+        let err = Internal_errors.No_block_for_label l in
+        internal_error lc err
 
 let get_ntentry (s: state) (nt: Ast.ident) : Cfg.nt_entry =
   let ntn = Location.value nt in
   match Cfg.FormatGToC.find_opt ntn s.st_spec_toc with
     | None ->
         let err = Internal_errors.No_nonterm_entry nt in
-        internal_error err
+        internal_error (Location.loc nt) err
     | Some ent ->
         ent
 

@@ -24,7 +24,7 @@ open Runtime_exceptions
 type 'a result =
   | R_nomatch
   | R_ok  of 'a
-  | R_err of error
+  | R_err of Location.t * error
 
 type val_result = (value * view) result
 
@@ -34,8 +34,8 @@ let general_byte lc (vu: view) (nt: string) (pred: char -> bool) (to_list: bool)
   let ofs  = vu.vu_ofs in
   let vend = vu.vu_end in
   if   ofs >= vend
-  then let err = View_bound (lc, nt, "end bound exceeded") in
-       R_err err
+  then let err = View_bound (nt, "end bound exceeded") in
+       R_err (lc, err)
   else let c  = buf.{ofs} in
        if   pred c
        then let vu = {vu with vu_ofs = ofs + 1} in
@@ -108,8 +108,8 @@ let int_of_byte lc (vu: view) (nt: string) : (int * view) result =
   let ofs  = vu.vu_ofs in
   let vend = vu.vu_end in
   if   ofs >= vend
-  then let err = View_bound (lc, nt, "end bound exceeded") in
-       R_err err
+  then let err = View_bound (nt, "end bound exceeded") in
+       R_err (lc, err)
   else let i = Char.code buf.{ofs} in
        let vu = {vu with vu_ofs = ofs + 1} in
        R_ok (i, vu)
@@ -118,7 +118,7 @@ let uint8 lc (vu: view) : val_result =
   match int_of_byte lc vu "UInt8" with
     | R_ok (i, vu) -> R_ok (V_int (Int64.of_int i), vu)
     | R_nomatch    -> R_nomatch
-    | R_err e      -> R_err e
+    | R_err (l, e) -> R_err (l, e)
 
 let int8 lc (vu: view) : val_result =
   match int_of_byte lc vu "UInt8" with
@@ -127,7 +127,7 @@ let int8 lc (vu: view) : val_result =
                               else i - 256 in
                       R_ok (V_int (Int64.of_int i), vu)
     | R_nomatch    -> R_nomatch
-    | R_err e      -> R_err e
+    | R_err (l, e) -> R_err (l, e)
 
 (* parses `n` bytes and on success returns
   `i : Int64.t` with `0 <= i < 2^(8*n)`
@@ -138,7 +138,7 @@ let int_of_nbytes lc (vu: view) (nt: string) (n: int) (e: endian)
     if   idx = n
     then R_ok (acc, vu)
     else match int_of_byte lc vu nt with
-           | R_err e      -> R_err e
+           | R_err (l, e) -> R_err (l, e)
            | R_nomatch    -> R_nomatch
            | R_ok (i, vu) -> let i = Int64.of_int i in
                              let acc, i =
@@ -158,7 +158,7 @@ let impl_uint16 lc (vu: view) (e: endian) : val_result =
       | E_little -> "UInt16.Little"
       | E_big    -> "UInt16.Big" in
   match int_of_nbytes lc vu nt 2 e with
-    | R_err e      -> R_err e
+    | R_err (l, e) -> R_err (l, e)
     | R_nomatch    -> R_nomatch
     | R_ok (i, vu) -> R_ok (V_int i, vu)
 
@@ -167,7 +167,7 @@ let impl_int16 lc (vu: view) (e: endian) : val_result =
       | E_little -> "Int16.Little"
       | E_big    -> "Int16.Big" in
   match int_of_nbytes lc vu nt 2 e with
-    | R_err e      -> R_err e
+    | R_err (l, e) -> R_err (l, e)
     | R_nomatch    -> R_nomatch
     | R_ok (i, vu) -> let i = if   Int64.compare i 32768L < 0
                               then i
@@ -179,7 +179,7 @@ let impl_uint32 lc (vu: view) (e: endian) : val_result =
       | E_little -> "UInt32.Little"
       | E_big    -> "UInt32.Big" in
   match int_of_nbytes lc vu nt 4 e with
-    | R_err e      -> R_err e
+    | R_err (l, e) -> R_err (l, e)
     | R_nomatch    -> R_nomatch
     | R_ok (i, vu) -> R_ok (V_int i, vu)
 
@@ -188,7 +188,7 @@ let impl_int32 lc (vu: view) (e: endian) : val_result =
       | E_little -> "Int32.Little"
       | E_big    -> "Int32.Big" in
   match int_of_nbytes lc vu nt 4 e with
-    | R_err e      -> R_err e
+    | R_err (l, e) -> R_err (l, e)
     | R_nomatch    -> R_nomatch
     | R_ok (i, vu) -> let i = if   Int64.compare i 2147483648L < 0
                               then i
@@ -201,7 +201,7 @@ let impl_uint64 lc (vu: view) (e: endian) : val_result =
       | E_little -> "UInt64.Little"
       | E_big    -> "UInt64.Big" in
   match int_of_nbytes lc vu nt 8 e with
-    | R_err e      -> R_err e
+    | R_err (l, e) -> R_err (l, e)
     | R_nomatch    -> R_nomatch
     | R_ok (i, vu) -> R_ok (V_int i, vu)
 
@@ -210,7 +210,7 @@ let impl_int64 lc (vu: view) (e: endian) : val_result =
       | E_little -> "Int64.Little"
       | E_big    -> "Int64.Big" in
   match int_of_nbytes lc vu nt 8 e with
-    | R_err e      -> R_err e
+    | R_err (l, e) -> R_err (l, e)
     | R_nomatch    -> R_nomatch
     | R_ok (i, vu) -> R_ok (V_int i, vu)
 
@@ -223,18 +223,18 @@ let get_int_endian lc nt (s, v) : endian =
     | "endian", V_constr (c, args) ->
         let nargs = List.length args in
         let err =
-          Internal_errors.Invalid_constructor_value (lc, c, nargs) in
-        internal_error err
+          Internal_errors.Invalid_constructor_value (c, nargs) in
+        internal_error lc err
     | "endian", _ ->
         let f   = Printf.sprintf "%s(endian:)" nt in
         let t = T_adt "endian" in
         let err =
-          Internal_errors.Type_error (lc, f, 1, vtype_of v, t) in
-        internal_error err
+          Internal_errors.Type_error (f, 1, vtype_of v, t) in
+        internal_error lc err
     | a, _ ->
         let err =
-          Internal_errors.Unknown_attribute (lc, nt, a) in
-        internal_error err
+          Internal_errors.Unknown_attribute (nt, a) in
+        internal_error lc err
 
 let wrap int_impl lc vu pv : val_result =
   let e = get_int_endian lc "UInt16" pv in
@@ -294,5 +294,5 @@ let dispatch_stdlib lc (nt: string) (vu: view) (vs: (string * value) list)
   then let fn = DTable.find nt dtable.dt_1arg in
        let a0 = List.nth vs 0 in
        fn lc vu a0
-  else let err = Internal_errors.Unknown_std_nonterm (lc, nt, nvs) in
-       internal_error err
+  else let err = Internal_errors.Unknown_std_nonterm (nt, nvs) in
+       internal_error lc err

@@ -31,7 +31,7 @@ type rule_pos =
 type typing_error =
   (* [UnboundTypeIdentifier] is raised when an unbound type identifier
      is found. *)
-  | UnboundTypeIdentifier of Location.t * Ast.tname
+  | UnboundTypeIdentifier of Ast.tname
 
   (* [DuplicateTypeVariable] is raised when a type variable declaration
      is repeated in a type definition. *)
@@ -43,36 +43,36 @@ type typing_error =
 
   (* [InvalidTypeVariableIdentifier] is raised when a type variable is
      overwriting a type constructor. *)
-  | InvalidTypeVariableIdentifier of Location.t * Ast.tname
+  | InvalidTypeVariableIdentifier of Ast.tname
 
   (* [DuplicateTypeDefinition t] is raised when a type [t] is defined
      multiple times. *)
-  | DuplicateTypeDefinition of Location.t * Ast.tname
+  | DuplicateTypeDefinition of Ast.tname
 
   (* [UnboundDataConstructor] is raised when a constructor identifier is
      used although it has not been defined. *)
-  | UnboundDataConstructor of Location.t * Ast.dname
+  | UnboundDataConstructor of Ast.dname
 
   (* [DuplicateDataConstructor dc t] is raised when a constructor
      identifier [dc] of type [t] is defined multiple times, perhaps in
      different types. *)
   | DuplicateDataConstructor
     (* current definition *) (* previous definition *)
-    of Location.t * Ast.dname * Ast.tname * Location.t
+    of Ast.dname * Ast.tname * Location.t
 
   (* [UnboundRecordField] is raised when a field label is
      used although it has not been defined. *)
-  | UnboundRecordField of Location.t * Ast.lname
+  | UnboundRecordField of Ast.lname
 
   (* [UnboundRecord] is raised when a record is used although it has
      not been defined. *)
-  | UnboundRecord of Location.t * Ast.tname
+  | UnboundRecord of Ast.tname
 
   (* [DuplicateRecordField] is raised when a field label is
      defined multiple times, perhaps in different types. *)
   | DuplicateRecordField
     (* current definition *) (* previous definition *)
-    of Location.t * Ast.lname * Ast.tname * Location.t
+    of Ast.lname * Ast.tname * Location.t
 
   (* [RepeatedRecordField] is raised when a field label is
      repeated in a record. *)
@@ -96,26 +96,26 @@ type typing_error =
 
   (* [UnboundTypeVariable] is raised when a variable identifier is
      used although it has not been defined. *)
-  | UnboundTypeVariable of Location.t * Ast.tname
+  | UnboundTypeVariable of Ast.tname
 
   (* [PartialTypeConstructorApplication t d u] is raised when the
      arity [d] of a type constructor [t] does not match the provided
      number [u] of arguments. *)
-  | PartialTypeConstructorApplication of Location.t * Ast.tname * int * int
+  | PartialTypeConstructorApplication of Ast.tname * int * int
 
   (* [NonLinearPattern] is raised when at least two occurrences of a variable
      appear in a pattern. *)
-  | NonLinearPattern of Location.t * string
+  | NonLinearPattern of string
 
   (* [InvalidPatternArgs c exp fnd] is raised when the arity [exp] of
      data constructor [c] is not respected in a pattern of arity [fnd]. *)
-  | InvalidPatternArgs of Location.t * Ast.ident * int * int
+  | InvalidPatternArgs of Ast.ident * int * int
 
   (* [UnboundConstructor] is raised when a type constructor is unbound. *)
-  | UnboundTypeConstructor of Location.t * Ast.tname
+  | UnboundTypeConstructor of Ast.tname
 
   (* [KindError] is raised when the kind of types are not correct. *)
-  | KindError of Location.t
+  | KindError
 
   (* [PartialDataConstructorApplication c d u] is raised when the
      arity [d] of a data constructor [c] does not match the provided
@@ -124,7 +124,7 @@ type typing_error =
 
   (* [DuplicateFunctionDefinition id loc] is raised when a function
      [id] is redefined with a previous definition at [loc]. *)
-  | DuplicateFunctionDefinition of Location.t * string * Location.t
+  | DuplicateFunctionDefinition of string * Location.t
 
   (* [RepeatedFunctionParameter id idrep] is raised when a parameter
      with the same name [id] is repeated in a function definition. *)
@@ -132,15 +132,15 @@ type typing_error =
 
   (* [DuplicateModItem mid vid] is raised when a module [mid]
      contains multiple definitions of a value named [vid]. **)
-  | DuplicateModItem of Location.t * Ast.mname * Ast.dname * Location.t
+  | DuplicateModItem of Ast.mname * Ast.dname * Location.t
 
   (* [UnknownModule mid] is raised when a module name [mid] is
      referenced but not defined *)
-  | UnknownModule of Location.t * Ast.mname
+  | UnknownModule of Ast.mname
 
   (* [UnknownModItem mid vid] is raised when a value [vid] of module [mid] is
      referenced but not defined *)
-  | UnknownModItem of Location.t * Ast.mname * Ast.dname
+  | UnknownModItem of Ast.mname * Ast.dname
 
   (* [UnknownNonTerminal id] is raised when a non-terminal with name
      [id] has not been defined *)
@@ -148,7 +148,7 @@ type typing_error =
 
   (* [DuplicateNonTerminal id] is raised when a non-terminal with name
      [id] has already been defined *)
-  | DuplicateNonTerminal of Location.t * Ast.nname * Location.t
+  | DuplicateNonTerminal of Ast.nname * Location.t
 
   (* [NTAttrsNotRecordType ntid t] is raised when the type [t] given
      for the attributes of the non-terminal [ntid] is not a record
@@ -166,7 +166,7 @@ type typing_error =
 
   (* [NTEmptyRule ntid] is raised when an empty production rule has been
      specified for the non-terminal [ntid]. *)
-  | NTEmptyRule of Ast.ident * Location.t
+  | NTEmptyRule of Ast.ident
 
   (* [NTRepeatedBinding nt id id'] is raised when a rule for
      non-terminal [nt] has a binding [id] with the same name as
@@ -195,30 +195,30 @@ type typing_error =
      exhaustive and provides an example pattern p which is not covered
      by the match. *)
   (*Note: p is given as a string to avoid a dependency cycle *)
-  | UnmatchedPattern of Location.t * string
+  | UnmatchedPattern of string
 
   (* [UselessPattern pos] is raised when a pattern match is
      redundant. *)
-  | UselessPattern of Location.t
+  | UselessPattern
 
   (* [UnboundIdentifier] is raised when an identifier is undefined in
      a particular context. *)
-  | UnboundIdentifier of Location.t * string
+  | UnboundIdentifier of string
 
   (* [ZeroWidthBitVector] is raised when a bitvector<0> is specified. *)
-  | ZeroWidthBitvector of Location.t
+  | ZeroWidthBitvector
 
   (* [InvalidBitrangeLowBound i] is raised when the lower bound of
      a bitrange is invalid (i.e. it is negative) *)
-  | InvalidBitrangeLowBound of Location.t * int
+  | InvalidBitrangeLowBound of int
 
   (* [InvalidEmptyBitrange n m ] is raised when the selected range of
      bits is empty *)
-  | InvalidEmptyBitrange of Location.t * int * int
+  | InvalidEmptyBitrange of int * int
 
   (* [InvalidBitrangeOrder n m] is raised when the endpoints of the
      range are not specified in decreasing order. *)
-  | InvalidBitrangeOrder of Location.t * int * int
+  | InvalidBitrangeOrder of int * int
 
   (* [IncompleteBitfieldRanges bf n] is raised when the ranges of a
      bitfield [bf] do not cover index [n]. *)
@@ -230,7 +230,7 @@ type typing_error =
 
   (* [InvalidRecordOperator op ] is raised when an unknown record
      operator [op] is specified. *)
-  | InvalidRecordOperator of Location.t * string
+  | InvalidRecordOperator of string
 
   (* [NotRecordType t] is raised when an record operator is applied on a
      non-record type [t]. *)
@@ -242,7 +242,7 @@ type typing_error =
 
   (* [NotByteAligned ofs align pos] is raised when a rule element is not
      aligned to [align] bits at [pos] and is off by [ofs] bits. *)
-  | NotByteAligned of Location.t * int * int * rule_pos
+  | NotByteAligned of int * int * rule_pos
 
   (* [InvalidAlignment a] is raised when an alignment value that is
      not a multiple of 8 is specified *)
@@ -250,25 +250,25 @@ type typing_error =
 
   (* [ZeroWidthAlignment] is raised when an alignment spec or padding
      is not necessary since it matches 0 bits *)
-  | ZeroWidthAlignment of Location.t
+  | ZeroWidthAlignment
 
   (* [Non_constant_numerical_arg m i] is raised when a non-numerical
      argument is given to a standard library api 'm.i' that expects a
      numerical argument. *)
-  | Non_constant_numerical_arg of Location.t * Ast.ident * Ast.ident
+  | Non_constant_numerical_arg of Ast.ident * Ast.ident
 
   (* [Possible_division_by_zero] is raised during constant folding *)
-  | Possible_division_by_zero of Location.t
+  | Possible_division_by_zero
 
   (* [Non_literal_string_arg s] is raised when a non-literal argument
      is given to a standard library api 'm.i' that expects a literal
      string argument. *)
-  | Non_literal_string_arg of Location.t * Ast.ident * Ast.ident
+  | Non_literal_string_arg of Ast.ident * Ast.ident
 
   (* [Not_character_class] is raised when a character class is
      not provided as a regular expression (e.g. as the left operand
      of a difference operator). *)
-  | Not_character_class of Location.t
+  | Not_character_class
 
   (* [Unknown_character_class] is raised when an unknown character class is
      specified. *)
@@ -276,7 +276,7 @@ type typing_error =
 
   (* [Not_literal_set] is raised when a set of literals is expected
      (e.g. as the right operand of a difference operator). *)
-  | Not_literal_set of Location.t
+  | Not_literal_set
 
   (* [Not_in_character_set id l] is raised when a literal [l] is not
      a member of character class [id]. *)
@@ -285,13 +285,12 @@ type typing_error =
   (* [Inconsistent_range_literals s e sl el] is raised when the starting [s]
      and ending literals [e] in a literal range have unequal lengths
      [sl] and [el] respectively. *)
-  | Inconsistent_range_literals of
-      Location.t * Ast.literal * Ast.literal * int * int
+  | Inconsistent_range_literals of Ast.literal * Ast.literal * int * int
 
   (* [Inconsistent_literal_ranges s e idx] is raised when the starting [s]
      and ending literal [e] in a literal range are inconsistent at
      index [idx]. *)
-  | Inconsistent_literal_range of Location.t * Ast.literal * Ast.literal * int
+  | Inconsistent_literal_range of Ast.literal * Ast.literal * int
 
   (* [Not_a_character] is raised when a literal does not decode to a
      valid character. *)
@@ -333,311 +332,289 @@ type typing_error =
   (* [FunctionCallArity f d u] is raised when the number of arguments
      [d] defined for function [f] does not match the provided
      number [u] of arguments. *)
-  | FunctionCallArity of Location.t * string * int * int
+  | FunctionCallArity of string * int * int
 
   (* [IncompatibleArityFunctionArgument [ho hoa f fa ] is raised when
    * the arity [fa] of function [f] is incompatible with arity [hoa]
    * expected by higher-order construct [ho]. *)
-  | IncompatibleArityFunctionArgument of Location.t * string * int * string * int
+  | IncompatibleArityFunctionArgument of string * int * string * int
 
-exception Error of typing_error
+exception Error of Location.t * typing_error
 
 let str_of_rule_pos = function
   | At_begin -> "beginning"
   | At_end   -> "end"
 
-let msg = Location.msg
-
 let error_msg = function
-  | UnboundTypeIdentifier (p, TName t) ->
-      msg "%s:\n Unbound type identifier `%s'.\n" p t
+  | UnboundTypeIdentifier (TName t) ->
+      Printf.sprintf "Unbound type identifier `%s'." t
 
   | DuplicateTypeVariable t ->
-      msg "%s:\n Duplicate type variable `%s'.\n"
-        (Location.loc t) (Location.value t)
+      Printf.sprintf "Duplicate type variable `%s'." (Location.value t)
 
   | UnusedTypeVariable t ->
-      msg "%s:\n Unused type variable `%s'.\n"
-        (Location.loc t) (Location.value t)
+      Printf.sprintf "Unused type variable `%s'." (Location.value t)
 
-  | InvalidTypeVariableIdentifier (p, TName v) ->
-      msg "%s:\n `%s' type constructor is used as a type variable.\n"
-        p v
-  | DuplicateTypeDefinition (p, TName t) ->
-      msg "%s:\n Type '%s' has already been defined.\n" p t
+  | InvalidTypeVariableIdentifier (TName v) ->
+      Printf.sprintf "`%s' type constructor is used as a type variable." v
+  | DuplicateTypeDefinition (TName t) ->
+      Printf.sprintf "Type '%s' has already been defined." t
 
-  | PartialTypeConstructorApplication (p, (TName t), d, u) ->
-      msg
-        "%s:\n Type constructor `%s' needs %d argument%s but %d are provided.\n"
-        p  t d
+  | PartialTypeConstructorApplication ((TName t), d, u) ->
+      Printf.sprintf
+        "Type constructor `%s' needs %d argument%s but %d are provided."
+        t d
         (if d > 1 then "s" else "")
         u
 
-  | UnboundDataConstructor (p, DName t) ->
-      msg "%s:\n Unbound data constructor `%s'.\n" p t
+  | UnboundDataConstructor (DName t) ->
+      Printf.sprintf "Unbound data constructor `%s'." t
 
-  | DuplicateDataConstructor (ldc, DName dc, TName adt, ladt) ->
-      msg
-        "%s:\n Data constructor `%s' has already been defined by ADT `%s' at %s.\n"
-        ldc dc adt (Location.str_of_file_loc ladt)
+  | DuplicateDataConstructor (DName dc, TName adt, ladt) ->
+      Printf.sprintf
+        "Data constructor `%s' has already been defined by ADT `%s' at %s."
+        dc adt (Location.str_of_file_loc ladt)
 
-  | UnboundRecordField (p, LName t) ->
-      msg "%s:\n Unbound record field `%s'.\n" p t
+  | UnboundRecordField (LName t) ->
+      Printf.sprintf "Unbound record field `%s'." t
 
-  | UnboundRecord (p, TName t) ->
-      msg "%s:\n Unbound record `%s'.\n" p t
+  | UnboundRecord (TName t) ->
+      Printf.sprintf "Unbound record `%s'." t
 
-  | DuplicateRecordField (lr, LName f, TName adt, ladt) ->
-      msg
-        "%s:\n Record field `%s' has already been defined by ADT `%s' at %s.\n"
-        lr f adt (Location.str_of_file_loc ladt)
+  | DuplicateRecordField (LName f, TName adt, ladt) ->
+      Printf.sprintf
+        "Record field `%s' has already been defined by ADT `%s' at %s."
+        f adt (Location.str_of_file_loc ladt)
 
   | RepeatedRecordField l ->
-      msg "%s:\n Record field `%s' is repeated.\n"
-        (Location.loc l) (Location.value l)
+      Printf.sprintf "Record field `%s' is repeated." (Location.value l)
 
   | IncompleteRecord (t, l) ->
-      msg "%s:\n Field `%s' of `%s' is not initialized.\n"
-        (Location.loc t) l (Location.value t)
+      Printf.sprintf "Field `%s' of `%s' is not initialized."
+        l (Location.value t)
 
   | InvalidRecordField (l, t) ->
-      msg "%s:\n Field `%s' of `%s' is not declared.\n"
-        (Location.loc l) (Location.value l) (Location.value t)
+      Printf.sprintf "Field `%s' of `%s' is not declared."
+        (Location.value l) (Location.value t)
 
   | InvalidDataConstructorDefinition k ->
-      msg "%s:\n The type of the data constructor '%s' is incorrect.\n"
-        (Location.loc k) (Location.value k)
+      Printf.sprintf "The type of the data constructor '%s' is incorrect."
+        (Location.value k)
 
   | InvalidFieldDestructorDefinition f ->
-      msg "%s:\n The type of the field destructor `%s' is incorrect.\n"
-        (Location.loc f) (Location.value f)
+      Printf.sprintf "The type of the field destructor `%s' is incorrect."
+        (Location.value f)
 
-  | UnboundTypeVariable (p, TName t) ->
-      msg "%s:\n Unbound type variable `%s'.\n" p t
+  | UnboundTypeVariable (TName t) ->
+      Printf.sprintf "Unbound type variable `%s'." t
 
-  | NonLinearPattern (p, x) ->
-      msg "%s:\n The pattern variable '%s' cannot appear more than once.\n" p x
+  | NonLinearPattern x ->
+      Printf.sprintf "The pattern variable '%s' cannot appear more than once." x
 
-  | InvalidPatternArgs (p, c, e, f) ->
-      msg "%s:\n %d pattern arguments used for constructor `%s', expecting %d.\n"
-        p f (Location.value c) e
+  | InvalidPatternArgs (c, e, f) ->
+      Printf.sprintf "%d pattern arguments used for constructor `%s', expecting %d."
+        f (Location.value c) e
 
-  | UnboundTypeConstructor (p, TName t) ->
-      msg "%s:\n Unbound type constructor `%s'.\n" p t
+  | UnboundTypeConstructor (TName t) ->
+      Printf.sprintf "Unbound type constructor `%s'." t
 
-  | KindError p ->
-      msg "%s:\n  Kind error.\n" p
+  | KindError ->
+      "Kind error."
 
   | PartialDataConstructorApplication (dc, d, u) ->
-      msg
-        "%s:\n The constructor `%s' needs %d argument%s not %d.\n"
-        (Location.loc dc) (Location.value dc) d
+      Printf.sprintf
+        "The constructor `%s' needs %d argument%s not %d."
+        (Location.value dc) d
         (if d > 1 then "s" else "")
         u
-  | DuplicateFunctionDefinition (p, f, p') ->
-      msg "%s:\n Redefinition of function `%s' at %s.\n"
-        p f (Location.str_of_file_loc p')
+
+  | DuplicateFunctionDefinition (f, p') ->
+      Printf.sprintf "Redefinition of function `%s' at %s."
+        f (Location.str_of_file_loc p')
 
   | RepeatedFunctionParameter (p, p') ->
-      msg "%s:\n Parameter `%s' is repeated at %s.\n"
-        (Location.loc p) (Location.value p)
-        (Location.str_of_file_loc (Location.loc p'))
+      Printf.sprintf "Parameter `%s' is repeated at %s."
+        (Location.value p) (Location.str_of_file_loc (Location.loc p'))
 
-  | DuplicateModItem (p, MName m, DName v, loc) ->
-      msg "%s:\n Redefinition of value `%s' of module `%s' defined at %s.\n"
-        p v m (Location.str_of_file_loc loc)
+  | DuplicateModItem (MName m, DName v, loc) ->
+      Printf.sprintf "Redefinition of value `%s' of module `%s' defined at %s."
+        v m (Location.str_of_file_loc loc)
 
-  | UnknownModule (p, MName mid) ->
-      msg "%s:\n Unknown module `%s'\n."
-        p mid
+  | UnknownModule (MName mid) ->
+      Printf.sprintf "Unknown module `%s'." mid
 
-  | UnknownModItem (p, MName mid, DName vid) ->
-      msg "%s:\n Undefined value `%s' of module `%s'.\n"
-        p vid mid
+  | UnknownModItem (MName mid, DName vid) ->
+      Printf.sprintf "Undefined value `%s' of module `%s'." vid mid
 
   | UnknownNonTerminal nid ->
-      msg "%s:\n Non-terminal `%s' is not declared.\n"
-        (Location.loc nid) (Location.value nid)
+      Printf.sprintf "Non-terminal `%s' is not declared." (Location.value nid)
 
-  | DuplicateNonTerminal (p, NName s, p') ->
-      msg "%s:\n Non-terminal `%s' was already defined at `%s'.\n"
-        p s (Location.str_of_file_loc p')
+  | DuplicateNonTerminal (NName s, p') ->
+      Printf.sprintf "Non-terminal `%s' was already defined at `%s'."
+        s (Location.str_of_file_loc p')
 
   | NTAttributesNotRecordType (ntid, t) ->
-      msg "%s:\n Type `%s' for the attributes of `%s' is not a record type.\n"
-        (Location.loc t) (Location.value t) (Location.value ntid)
+      Printf.sprintf "Type `%s' for the attributes of `%s' is not a record type."
+        (Location.value t) (Location.value ntid)
 
   | NTTypeNotInferrable ntid ->
-      msg
-        "%s:\n Non-terminal `%s' has an undeclared type that cannot be inferred.\n"
-        (Location.loc ntid) (Location.value ntid)
+      Printf.sprintf
+        "Non-terminal `%s' has an undeclared type that cannot be inferred."
+        (Location.value ntid)
 
   | NTNoRules ntid ->
-      msg
-        "%s\n Non-terminal `%s' has no valid production rules."
-        (Location.loc ntid) (Location.value ntid)
+      Printf.sprintf "Non-terminal `%s' has no valid production rules."
+        (Location.value ntid)
 
-  | NTEmptyRule (ntid, loc) ->
-      msg
-        "%s\n Invalid empty production rule for non-terminal `%s'."
-        loc (Location.value ntid)
+  | NTEmptyRule ntid ->
+      Printf.sprintf
+        "Invalid empty production rule for non-terminal `%s'."
+        (Location.value ntid)
 
   | NTRepeatedBinding (ntid, id, id') ->
-      msg
-        "%s:\n Binding `%s' of non-terminal `%s' collides with the binding at %s.\n"
-        (Location.loc id) (Location.value id) (Location.value ntid)
+      Printf.sprintf
+        "Binding `%s' of non-terminal `%s' collides with the binding at %s."
+        (Location.value id) (Location.value ntid)
         (Location.str_of_file_loc (Location.loc id'))
 
   | NTInheritedUnspecified (ntid, id) ->
-      msg
-        "%s:\n Inherited attribute `%s' of non-terminal `%s' is unspecified.\n"
-        (Location.loc ntid) id (Location.value ntid)
+      Printf.sprintf
+        "Inherited attribute `%s' of non-terminal `%s' is unspecified."
+        id (Location.value ntid)
 
   | NTUnknownInheritedAttribute (ntid, id) ->
-      msg
-        "%s:\n Non-terminal `%s' does not define inherited attribute `%s'.\n"
-        (Location.loc id) (Location.value ntid) (Location.value id)
+      Printf.sprintf
+        "Non-terminal `%s' does not define inherited attribute `%s'."
+        (Location.value ntid) (Location.value id)
 
   | NTIllegalMapAttributeAssignment (ntid, id) ->
-      msg
-        "%s:\n A map-assignment is being used for inherited attribute `%s' when non-terminal `%s' is not directly in the scope of a map-views.\n"
-        (Location.loc id) (Location.value ntid) (Location.value id)
+      Printf.sprintf
+        "A map-assignment is being used for inherited attribute `%s' when non-terminal `%s' is not directly in the scope of a map-views."
+        (Location.value ntid) (Location.value id)
 
   | PotentiallyRecursiveTypeAbbreviation id ->
-      msg
-        "%s:\n Type abbreviations (e.g. `%s') are not supported in type definition sets.\n"
-        (Location.loc id) (Location.value id)
+      Printf.sprintf
+        "Type abbreviations (e.g. `%s') are not supported in type definition sets."
+        (Location.value id)
 
-  | UnmatchedPattern (loc, p) ->
-      msg
-        "%s:\n Pattern matching is not exhaustive: an example of unmatched value: %s\n"
-        loc p
+  | UnmatchedPattern p ->
+      Printf.sprintf
+        "Pattern matching is not exhaustive: an example of unmatched value: %s."
+        p
 
-  | UselessPattern loc ->
-      msg
-        "%s:\n This pattern is redundant, and may indicate an error.\n"
-        loc
+  | UselessPattern ->
+      "This pattern is redundant, and may indicate an error."
 
-  | UnboundIdentifier (p, t) ->
-      msg "%s:\n Unbound identifier `%s'.\n" p t
+  | UnboundIdentifier t ->
+      Printf.sprintf "Unbound identifier `%s'." t
 
-  | ZeroWidthBitvector l ->
-      msg "%s:\n A zero-width bitvector is not a valid type.\n" l
+  | ZeroWidthBitvector ->
+      "A zero-width bitvector is not a valid type."
 
-  | InvalidBitrangeLowBound (loc, b) ->
-      msg "%s:\n %d is an invalid low bound for bitvector range.\n" loc b
+  | InvalidBitrangeLowBound b ->
+      Printf.sprintf "%d is an invalid low bound for bitvector range." b
 
-  | InvalidEmptyBitrange (loc, n, m) ->
-      msg "%s:\n %d-%d is an invalid (empty) range.\n" loc n m
+  | InvalidEmptyBitrange (n, m) ->
+      Printf.sprintf "%d-%d is an invalid (empty) range." n m
 
-  | InvalidBitrangeOrder (loc, n, m) ->
-      msg "%s:\n Index range %d-%d is in an invalid order.\n" loc n m
+  | InvalidBitrangeOrder (n, m) ->
+      Printf.sprintf "Index range %d-%d is in an invalid order." n m
 
   | IncompleteBitfieldRanges (bf, idx) ->
-      msg
-        "%s:\n Specified ranges of bitfield `%s' do not cover index %d.\n"
-        (Location.loc bf) (Location.value bf) idx
-
-  | OverlappingBitfieldRanges (bf, f, f', idx) ->
-      msg
-        "%s:\n Fields `%s' and `%s' of bitfield `%s' overlap at index %d.\n"
-        (Location.loc bf) (Location.value f) (Location.value f')
+      Printf.sprintf
+        "Specified ranges of bitfield `%s' do not cover index %d."
         (Location.value bf) idx
 
-  | InvalidRecordOperator(loc, op) ->
-      msg "%s:\n Invalid record operator `%s'.\n" loc op
+  | OverlappingBitfieldRanges (bf, f, f', idx) ->
+      Printf.sprintf
+        "Fields `%s' and `%s' of bitfield `%s' overlap at index %d."
+        (Location.value f) (Location.value f') (Location.value bf) idx
+
+  | InvalidRecordOperator op ->
+      Printf.sprintf "Invalid record operator `%s'." op
 
   | NotRecordType t ->
-      msg "%s:\n `%s' is not a record type.\n"
-        (Location.loc t) (Location.value t)
+      Printf.sprintf "`%s' is not a record type." (Location.value t)
 
   | NotBitfieldType t ->
-      msg "%s:\n `%s' is not a bitfield type.\n"
-        (Location.loc t) (Location.value t)
+      Printf.sprintf "`%s' is not a bitfield type." (Location.value t)
 
-  | NotByteAligned (loc, ofs, align, pos) ->
-      msg
-        "%s:\n The %s of this rule element is not aligned to %d bits (off by %d bits).\n"
-        loc (str_of_rule_pos pos) align ofs
+  | NotByteAligned (ofs, align, pos) ->
+      Printf.sprintf
+        "The %s of this rule element is not aligned to %d bits (off by %d bits)."
+        (str_of_rule_pos pos) align ofs
   | InvalidAlignment a ->
-      msg "%s:\n Alignment %d is not byte-aligned.\n"
-        (Location.loc a) (Location.value a)
-  | ZeroWidthAlignment l ->
-      msg "%s:\n Unnecessary alignment (matches 0 bits).\n" l
-  | Non_constant_numerical_arg (loc, m, i) ->
-      msg
-        "%s:\n Operation `%s.%s' requires this to be a constant numerical argument.\n"
-        loc (Location.value m) (Location.value i)
+      Printf.sprintf "Alignment %d is not byte-aligned." (Location.value a)
+  | ZeroWidthAlignment ->
+      "Unnecessary alignment (matches 0 bits)."
+  | Non_constant_numerical_arg (m, i) ->
+      Printf.sprintf
+        "Operation `%s.%s' requires this to be a constant numerical argument."
+        (Location.value m) (Location.value i)
 
-  | Possible_division_by_zero l ->
-      msg "%s:\n Possible division by zero.\n" l
+  | Possible_division_by_zero ->
+      "Possible division by zero."
 
-  | Non_literal_string_arg (loc, m, i) ->
-      msg
-        "%s:\n Operation `%s.%s' requires this to be a literal string argument.\n"
-        loc (Location.value m) (Location.value i)
+  | Non_literal_string_arg (m, i) ->
+      Printf.sprintf
+        "Operation `%s.%s' requires this to be a literal string argument."
+        (Location.value m) (Location.value i)
 
-  | Not_character_class loc ->
-      msg "%s:\n A character class was expected.\n"
-        loc
+  | Not_character_class ->
+      "A character class was expected."
   | Unknown_character_class id ->
-      msg "%s:\n Unknown character class `%s'.\n"
-        (Location.loc id) (Location.value id)
-  | Not_literal_set loc ->
-      msg "%s:\n A literal set was expected.\n"
-        loc
+      Printf.sprintf "Unknown character class `%s'." (Location.value id)
+  | Not_literal_set ->
+      "A literal set was expected."
   | Not_in_character_set (id, l) ->
-      msg "%s:\n Literal `%s' is not in character class `%s'."
-        (Location.loc l) (Location.value l) (Location.value id)
-  | Inconsistent_range_literals (loc, s, e, sl, el) ->
+      Printf.sprintf "Literal `%s' is not in character class `%s'."
+        (Location.value l) (Location.value id)
+  | Inconsistent_range_literals (s, e, sl, el) ->
       let ss, se = Location.value s, Location.value e in
-      msg
-        "%s:\n Starting (`%s') and ending (`%s') literals in range have inconsistent lengths %d and %d."
-        loc ss se sl el
-  | Inconsistent_literal_range (loc, s, e, idx) ->
-      msg
-        "%s:\n Starting literal `%s' at position %d of range is not smaller than ending literal `%s'."
-        loc (Location.value s) idx (Location.value e)
+      Printf.sprintf
+        "Starting (`%s') and ending (`%s') literals in range have inconsistent lengths %d and %d."
+        ss se sl el
+  | Inconsistent_literal_range (s, e, idx) ->
+      Printf.sprintf
+        "Starting literal `%s' at position %d of range is not smaller than ending literal `%s'."
+        (Location.value s) idx (Location.value e)
 
   | Not_a_character l ->
-      msg "%s:\n Not a valid character `%s'."
-        (Location.loc l) (Location.value l)
+      Printf.sprintf "Not a valid character `%s'." (Location.value l)
 
   | RepeatedDecoratorType a ->
-      msg "%s:\n Decorator `%s' cannot be repeated."
-        (Location.loc a) (Location.value a)
+      Printf.sprintf "Decorator `%s' cannot be repeated."
+        (Location.value a)
 
   | InvalidDecoratorName a ->
-      msg "%s:\n Decorator `%s' is invalid as a non-terminal name."
-        (Location.loc a) (Location.value a)
+      Printf.sprintf "Decorator `%s' is invalid as a non-terminal name."
+        (Location.value a)
 
   | RepeatedDecoratorKey (a, k) ->
-      msg "%s:\n Key `%s' of decorator `%s' cannot be repeated."
-        (Location.loc k) (Location.value k) (Location.value a)
+      Printf.sprintf "Key `%s' of decorator `%s' cannot be repeated."
+        (Location.value k) (Location.value a)
 
   | UnvaluedDecoratorKey (a, k) ->
-      msg "%s:\n Key `%s' of decorator `%s' does not have a value."
-        (Location.loc k) (Location.value k) (Location.value a)
+      Printf.sprintf "Key `%s' of decorator `%s' does not have a value."
+        (Location.value k) (Location.value a)
 
   | InvalidDecoratorKeyValue (a, k, v) ->
-      msg "%s:\n Key `%s' of decorator `%s' has non-boolean value `%s'."
-        (Location.loc v)
+      Printf.sprintf "Key `%s' of decorator `%s' has non-boolean value `%s'."
         (Location.value k) (Location.value a) (Location.value v)
 
   | IllegalBinding (m, i) ->
-      msg "%s:\n `%s.%s' cannot be bound to a variable."
-        (Location.loc m) (Location.value m) (Location.value i)
+      Printf.sprintf "`%s.%s' cannot be bound to a variable."
+        (Location.value m) (Location.value i)
 
   | IllegalFunctionArgument (m, f) ->
-      msg "%s:\n The function argument in the call to `%s.%s' is illegal."
-        (Location.extent (Location.loc m) (Location.loc f))
+      Printf.sprintf "The function argument in the call to `%s.%s' is illegal."
         (Location.value m) (Location.value f)
 
-  | FunctionCallArity (l, f, d, u) ->
-      msg "%s:\n Function `%s' expects %d arguments but %d are provided."
-        l f d u
+  | FunctionCallArity (f, d, u) ->
+      Printf.sprintf "Function `%s' expects %d arguments but %d are provided."
+        f d u
 
-  | IncompatibleArityFunctionArgument (loc, ho, hoa, f, fa) ->
-      msg
-        "%s:\n The function `%s' takes %d arguments, but %s expects a function argument that takes %d args."
-        loc f fa ho hoa
+  | IncompatibleArityFunctionArgument (ho, hoa, f, fa) ->
+      Printf.sprintf
+        "The function `%s' takes %d arguments, but %s expects a function argument that takes %d args."
+        f fa ho hoa

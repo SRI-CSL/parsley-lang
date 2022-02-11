@@ -29,31 +29,31 @@ open CoreAlgebra
 type solver_error =
   (* [TypingError] is raised when an inconsistency is detected during
      constraint solving. *)
-  | TypingError of Parsing.Location.t
+  | TypingError
 
   (* [UnboundIdentifier] is raised when an identifier is undefined in
      a particular context. *)
-  | UnboundIdentifier of Parsing.Location.t * string
+  | UnboundIdentifier of string
 
   (* [CannotGeneralize] when the type of an expression cannot be
      generalized contrary to what is specified by the programmers
      using type annotations. *)
-  | CannotGeneralizeNonVariable of Parsing.Location.t * TypeConstraint.variable
-  | CannotGeneralizeRank of Parsing.Location.t * TypeConstraint.variable * IntRank.t
+  | CannotGeneralizeNonVariable of TypeConstraint.variable
+  | CannotGeneralizeRank of TypeConstraint.variable * IntRank.t
 
   (* [NonDistinctVariables] is raised when two rigid type variables have
      been unified. *)
-  | NonDistinctVariables of Parsing.Location.t * (TypeConstraint.variable list)
+  | NonDistinctVariables of (TypeConstraint.variable list)
 
   (* [Not_a_bitvector] is raised when a type does not resolve to a bitvecor *)
-  | Not_a_bitvector of Parsing.Location.t
+  | Not_a_bitvector
   (* [Cannot_resolve_width] is raised when a width does not resolve to an integer *)
-  | Not_a_bitwidth of Parsing.Location.t * string option
+  | Not_a_bitwidth of string option
   (* [Invalid_bitwidth i pred] is raised when the bitwidth [i] does not
      satisfy the inferred predicate [pred] *)
-  | Invalid_bitwidth of Parsing.Location.t * int * TypeConstraint.width_predicate
+  | Invalid_bitwidth of int * TypeConstraint.width_predicate
 
-exception Error of solver_error
+exception Error of Parsing.Location.t * solver_error
 
 type tconstraint = TypeConstraint.tconstraint
 
@@ -87,7 +87,7 @@ let rec lookup pos name = function
       else lookup pos name env
 
   | EEmpty ->
-      raise (Error (UnboundIdentifier (pos, name)))
+      raise (Error (pos, UnboundIdentifier (name)))
 
 (* [generalize] *)
 
@@ -246,7 +246,7 @@ let distinct_variables pos vl =
                    let desc = UnionFind.find v in
                      match desc.structure with
                        | Some _ ->
-                           raise (Error (CannotGeneralizeNonVariable (pos, v)))
+                           raise (Error (pos, CannotGeneralizeNonVariable v))
                        | _ ->
                            if Mark.same desc.mark m then
                              raise (DuplicatedMark m);
@@ -256,7 +256,7 @@ let distinct_variables pos vl =
       let vl' = List.filter (fun v -> Mark.same (UnionFind.find v).mark m)
                  vl
       in
-        raise (Error (NonDistinctVariables (pos, vl')))
+        raise (Error (pos, NonDistinctVariables vl'))
 
 (** [generic_variables vl] checks that every variable in the list [vl]
     has rank [none]. *)
@@ -264,7 +264,7 @@ let generic_variables pos vl =
   List.iter (fun v ->
                let desc = UnionFind.find v in
                  if IntRank.compare desc.rank IntRank.none <> 0 then (
-                   raise (Error (CannotGeneralizeRank (pos, v, desc.rank))))
+                   raise (Error (pos, CannotGeneralizeRank (v, desc.rank))))
             ) vl
 
 (* [solve] *)
@@ -275,7 +275,7 @@ let solve tracer env pool c =
     let pos = cposition c in
       try
         solve_constraint env pool c
-      with Inconsistency -> raise (Error (TypingError pos))
+      with Inconsistency -> raise (Error (pos, TypingError))
 
   and solve_constraint env pool c =
     tracer (Solve c);
@@ -448,15 +448,15 @@ let check_width_constraints wc =
        || v'.kind <> Constant
        || v'.name = None
     then
-      (let err = Not_a_bitvector loc in
-       raise (Error err));
+      (let err = Not_a_bitvector in
+       raise (Error (loc, err)));
     match v'.name with
       | None -> assert false
       | Some (TName s) ->
           (match int_of_string_opt s with
              | None ->
-                 let err = Not_a_bitwidth (loc, Some s) in
-                 raise (Error err)
+                 let err = Not_a_bitwidth (Some s) in
+                 raise (Error (loc, err))
              | Some i ->
                  i) in
   let check_pred v p loc =
@@ -469,8 +469,8 @@ let check_width_constraints wc =
         | WP_less_eq i -> w <= i
         | WP_more_eq i -> w >= i in
     if not b then
-      let err = Invalid_bitwidth (loc, w, p) in
-      raise (Error err) in
+      let err = Invalid_bitwidth (w, p) in
+      raise (Error (loc, err)) in
   let rec checker wc =
     match wc with
       | WC_true -> ()
@@ -478,38 +478,30 @@ let check_width_constraints wc =
       | WC_conjunction l -> List.iter checker l in
   checker wc
 
-let msg = Parsing.Location.msg
-
 let error_msg = function
-  | TypingError p ->
-      msg "%s:\n Typing error.\n" p
-
-  | UnboundIdentifier (p, t) ->
-      msg "%s:\n Unbound identifier `%s'.\n" p t
-
-  | CannotGeneralizeNonVariable (p, v) ->
-      msg "%s:\n Cannot generalize non-variable `%s'.\n"
-        p (TypeEnvPrinter.print_variable false v)
-
-  | CannotGeneralizeRank (p, v, r) ->
-      msg "%s:\n Cannot generalize `%s' of rank %d.\n"
-        p (TypeEnvPrinter.print_variable false v) r
-
-  | NonDistinctVariables (p, vs) ->
+  | TypingError ->
+      "Typing error."
+  | UnboundIdentifier t ->
+      Printf.sprintf "Unbound identifier `%s'." t
+  | CannotGeneralizeNonVariable v ->
+      Printf.sprintf "Cannot generalize non-variable `%s'."
+        (TypeEnvPrinter.print_variable false v)
+  | CannotGeneralizeRank (v, r) ->
+      Printf.sprintf "Cannot generalize `%s' of rank %d."
+        (TypeEnvPrinter.print_variable false v) r
+  | NonDistinctVariables vs ->
       let lvs = Misc.print_separated_list ";"
                   (TypeEnvPrinter.print_variable false) vs in
-      msg
-        ("%s:\n The following non-distinct variables have been unified: [%s].\n")
-        p lvs
-
-  | Not_a_bitvector loc ->
-      msg "%s:\n This does not type as a bitvector." loc
-
-  | Not_a_bitwidth (loc, s) ->
-      msg "%s:\n This does not type as a bitwidth%s." loc
+      Printf.sprintf
+        "The following non-distinct variables have been unified: [%s]."
+        lvs
+  | Not_a_bitvector ->
+      "This does not type as a bitvector."
+  | Not_a_bitwidth s ->
+      Printf.sprintf "This does not type as a bitwidth%s."
         (match s with
            | Some s -> Printf.sprintf ": %s" s
            | None -> "")
-  | Invalid_bitwidth (loc, i, p) ->
-      msg "%s:\n Bitwidth %d does not satisfy %s." loc
+  | Invalid_bitwidth (i, p) ->
+      Printf.sprintf "Bitwidth %d does not satisfy %s."
         i (TypeConstraintPrinter.print_width_predicate p)

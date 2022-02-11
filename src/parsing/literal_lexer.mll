@@ -23,27 +23,24 @@
 
 {
   type error =
-    | Illegal_backslash of Location.t
-    | Unterminated_backslash of Location.t
-    | Illegal_escape of Location.t * string * string
+    | Illegal_backslash
+    | Unterminated_backslash
+    | Illegal_escape of string * string
 
-  exception Error of error
-
-  let msg m loc =
-      Printf.sprintf m (Location.str_of_loc loc)
+  exception Error of Location.t * error
 
   let error_msg = function
-    | Illegal_backslash l ->
-        msg "%s:\n Illegal backslash" l
-    | Unterminated_backslash l ->
-        msg "%s:\n Unterminated backslash" l
-    | Illegal_escape (l, s, r) ->
-        msg "%s:\n Illegal escape '%s': %s" l s r
+    | Illegal_backslash ->
+        "Illegal backslash"
+    | Unterminated_backslash ->
+        "Unterminated backslash"
+    | Illegal_escape (s, r) ->
+        Printf.sprintf "Illegal escape '%s': %s" s r
 
   let illegal_escape lexbuf reason =
     let loc = Location.curr lexbuf in
-    let err = Illegal_escape (loc, Lexing.lexeme lexbuf, reason) in
-    raise (Error err)
+    let err = Illegal_escape (Lexing.lexeme lexbuf, reason) in
+    raise (Error (loc, err))
 
   (* computing literal values *)
 
@@ -131,11 +128,11 @@ rule literal = parse
 
 | '\\' _
     { let loc = Location.curr lexbuf in
-      raise (Error (Illegal_backslash loc)) }
+      raise (Error (loc, Illegal_backslash)) }
 
 | '\\' eof
     { let loc = Location.curr lexbuf in
-      raise (Error (Unterminated_backslash loc)) }
+      raise (Error (loc, Unterminated_backslash)) }
 
 | (_ as c)
     { store_char c;

@@ -516,35 +516,36 @@ let expand_call ctx ((m, i, l), rl) (args: (unit, unit) expr list)
              | Some fd ->
                  (None, fid), fsig_of_fun_defn fd
              | None ->
-                 let err = UnboundIdentifier (a.expr_loc, fn) in
-                 raise (Error err))
+                 let err = UnboundIdentifier fn in
+                 raise (Error (a.expr_loc, err)))
       | E_mod_member (m, f) ->
           let mn, fn = Location.value m, Location.value f in
           (match StdlibMap.find_opt (mn, fn) ctx.ctx_stddefs with
              | Some d ->
                  (Some m, f), fsig_of_builtin d
              | None ->
-                 let err = UnknownModItem (a.expr_loc, MName mn, DName fn) in
-                 raise (Error err))
+                 let err = UnknownModItem (MName mn, DName fn) in
+                 raise (Error (a.expr_loc, err)))
       | _ ->
-          raise (Error (IllegalFunctionArgument (m, i))) in
+          let loc = Location.extent (Location.loc m) (Location.loc i) in
+          raise (Error (loc, IllegalFunctionArgument (m, i))) in
   let mk_synth_name hoi_prefix fname ssig =
     hoi_prefix ^ stringify_fname fname ^ "_" ^ stringify_fsig ssig in
   let (fname, fsig), (sname, ssig), args, synther, replacer =
     match Location.value m, Location.value i with
       | "List", "map" ->
           let nargs = List.length args in
-          (if nargs != 2
-           then let err = FunctionCallArity (l, "List.map", 2, nargs) in
-                raise (Error err));
+          (if   nargs != 2
+           then let err = FunctionCallArity ("List.map", 2, nargs) in
+                raise (Error (l, err)));
           let fname, fsig = get_func (List.hd args) in
           let mk_synth_sig (tvs, args, ret) =
             let nargs = List.length args in
-            if nargs != 1
+            if   nargs != 1
             then let f = string_of_fname fname in
                  let err = IncompatibleArityFunctionArgument
-                             (rl, "List.map", 1, f, nargs) in
-                 raise (Error err)
+                             ("List.map", 1, f, nargs) in
+                 raise (Error (rl, err))
             else (tvs, [mk_list_of (List.hd args);
                         mk_list_of ret], (* accumulator *)
                   mk_list_of ret) in
@@ -554,17 +555,17 @@ let expand_call ctx ((m, i, l), rl) (args: (unit, unit) expr list)
           synth_list_map, replace_list_map
       | "List", "map2" ->
           let nargs = List.length args in
-          (if nargs != 3
-           then let err = FunctionCallArity (l, "List.map2", 3, nargs) in
-                raise (Error err));
+          (if   nargs != 3
+           then let err = FunctionCallArity ("List.map2", 3, nargs) in
+                raise (Error (l, err)));
           let fname, fsig = get_func (List.hd args) in
           let mk_synth_sig (tvs, args, ret) =
             let nargs = List.length args in
-            if nargs != 2
+            if   nargs != 2
             then let f = string_of_fname fname in
                  let err = IncompatibleArityFunctionArgument
-                             (rl, "List.map2", 2, f, nargs) in
-                 raise (Error err)
+                             ("List.map2", 2, f, nargs) in
+                 raise (Error (rl, err))
             else let a = List.hd args in
                  let b = List.hd (List.tl args) in
                  (tvs, [mk_list_of a;
@@ -587,7 +588,7 @@ let expand_call ctx ((m, i, l), rl) (args: (unit, unit) expr list)
              hoi_retloc     = rl;
              hoi_synthsig   = ssig;
              hoi_synthname  = sname} in
-  let ctx = if SynthCache.mem sname ctx.ctx_cache
+  let ctx = if   SynthCache.mem sname ctx.ctx_cache
             then ctx
             else let sf = synther hoi in
                  let ctx_cache =
@@ -607,8 +608,9 @@ let expand_call ctx ((m, i, l), rl) (args: (unit, unit) expr list)
 let rec check_ho_binding def =
   match def.expr with
     | E_mod_member (m, i) ->
-        if TypeAlgebra.is_higher_order (m, i)
-        then raise (Error (IllegalBinding (m, i)))
+        if   TypeAlgebra.is_higher_order (m, i)
+        then let loc = Location.extent (Location.loc m) (Location.loc i) in
+             raise (Error (loc, IllegalBinding (m, i)))
     | E_constr (_, args) ->
         ignore (List.map check_ho_binding args)
     (* Remember to also look under records if we add support for

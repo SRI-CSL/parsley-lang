@@ -55,7 +55,7 @@ let parse_spec test s cont =
         Printf.sprintf "Unknown syntax error (in state %d)" st in
     Printf.fprintf stderr
       "%s: parser error at or just before this location:\n %s"
-      (Location.str_of_curr_pos lexbuf) msg;
+      (Location.str_of_loc (Location.loc_of_curr_lex lexbuf)) msg;
     None in
   try I.loop_handle cont fail supplier start
   with
@@ -63,10 +63,10 @@ let parse_spec test s cont =
         handle_exception
           (Printexc.get_backtrace ())
           (Printf.sprintf "%s: invalid token at or just before this location"
-             (Location.str_of_curr_pos lexbuf))
-    | Parseerror.Error (e, l) ->
+             (Location.str_of_loc (Location.loc_of_curr_lex lexbuf)))
+    | Parseerror.Error (e, _) ->
         handle_exception
-          (Printexc.get_backtrace ()) (Parseerror.error_msg l e)
+          (Printexc.get_backtrace ()) (Parseerror.error_msg e)
 
 let gen_ir (test_name: string) (spec: string) =
   let includes = SpecParser.StringSet.empty in
@@ -84,7 +84,7 @@ let gen_ir (test_name: string) (spec: string) =
 let exe_ir (test: string) (ir: Ir.Cfg.spec_ir) (entry: string) (data: string) =
   try  Interpret.execute_on_test_string test ir entry data
   with
-    | Runtime_exceptions.Runtime_exception e ->
+    | Runtime_exceptions.Runtime_exception (_, e) ->
         (* Catch the backtrace before error_msg has an exception
            trying to open the fake input-file for the spec. *)
         handle_exception

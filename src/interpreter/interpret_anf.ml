@@ -97,8 +97,8 @@ let matcher loc vr vl cases =
   let rec do_cases cases =
     match vl, cases with
       | _, [] ->
-          let err = Internal_errors.Pattern_match_failure (loc, vr) in
-          internal_error err
+          let err = Internal_errors.Pattern_match_failure vr in
+          internal_error loc err
       (* wildcard *)
       | _, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_wildcard ->
@@ -220,8 +220,8 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
         let nps, nvs = List.length ps, List.length vs in
         if   nps != nvs
         then let fn = Anf_printer.string_of_var v in
-             let err = Internal_errors.Function_arity (f.fv_loc, fn, nps, nvs) in
-             internal_error err
+             let err = Internal_errors.Function_arity (fn, nps, nvs) in
+             internal_error f.fv_loc err
         else let env = List.fold_left (fun env (p, v) ->
                            VEnv.assign env p v
                          ) s.st_venv (List.combine ps vs) in

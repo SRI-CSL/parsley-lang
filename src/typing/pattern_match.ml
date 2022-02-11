@@ -201,7 +201,7 @@ let check_exhaustiveness tenv col =
            | Some exs ->
                assert (List.length exs > 0);
                let ex = AstPrinter.sprint_pattern (List.hd exs) in
-               raise (Error (UnmatchedPattern (p.pattern_loc, ex)))
+               raise (Error (p.pattern_loc, UnmatchedPattern ex))
         )
 
 (** [check_usefulness tenv col] checks whether each row in the pattern
@@ -211,7 +211,7 @@ let check_usefulness tenv col =
               let mat = List.map (fun p -> [p], ()) acc in
               (match check_matrix tenv mat 1 c with
                  | None ->
-                     raise (Error (UselessPattern c.pattern_loc))
+                     raise (Error (c.pattern_loc, UselessPattern))
                  | Some exs ->
                      assert (List.length exs > 0);
                      acc @ [c])

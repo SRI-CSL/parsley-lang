@@ -45,55 +45,55 @@ module PView = struct
     match v, o, l with
       | V_view v, V_int o, V_int l ->
           if   Int64.compare o Int64.zero < 0
-          then fault (Invalid_argument (lc, "View.restrict", "negative offset"))
+          then fault lc (Invalid_argument ("View.restrict", "negative offset"))
           else if Int64.compare l Int64.zero < 0
-          then fault (Invalid_argument (lc, "View.restrict", "negative length"))
+          then fault lc (Invalid_argument ("View.restrict", "negative length"))
           else begin
               assert (0 <= v.vu_start && v.vu_start <= v.vu_ofs);
               assert (v.vu_ofs <= v.vu_end);
               assert (v.vu_end <= ViewBuf.size v.vu_buf);
               let o, l = Int64.to_int o, Int64.to_int l in
               if   v.vu_ofs + o + l > v.vu_end
-              then fault (View_bound (lc, "View.restrict", "end bound exceeded"))
+              then fault lc (View_bound ("View.restrict", "end bound exceeded"))
               else V_view {v with vu_id    = next_id ();
                                   vu_start = v.vu_ofs + o;
                                   vu_ofs   = v.vu_ofs + o;
                                   vu_end   = v.vu_ofs + o + l}
             end
       | V_view _, V_int _, _ ->
-          internal_error (Type_error (lc, "View.restrict", 3, vtype_of l, T_int))
+          internal_error lc (Type_error ("View.restrict", 3, vtype_of l, T_int))
       | V_view _, _, _ ->
-          internal_error (Type_error (lc, "View.restrict", 2, vtype_of o, T_int))
+          internal_error lc (Type_error ("View.restrict", 2, vtype_of o, T_int))
       | _, _, _ ->
-          internal_error (Type_error (lc, "View.restrict", 1, vtype_of v, T_view))
+          internal_error lc (Type_error ("View.restrict", 1, vtype_of v, T_view))
 
   let restrict_from lc (_s: state) (v: value) (o: value) : value =
     match v, o with
       | V_view v, V_int o ->
           if   Int64.compare o Int64.zero < 0
-          then fault (Invalid_argument (lc, "View.restrict_from", "negative offset"))
+          then fault lc (Invalid_argument ("View.restrict_from", "negative offset"))
           else begin
               assert (0 <= v.vu_start && v.vu_start <= v.vu_ofs);
               assert (v.vu_ofs <= v.vu_end);
               assert (v.vu_end <= ViewBuf.size v.vu_buf);
               let o = Int64.to_int o in
               if   v.vu_ofs + o >= v.vu_end
-              then fault (View_bound (lc, "View.restrict_from", "end bound exceeded"))
+              then fault lc (View_bound ("View.restrict_from", "end bound exceeded"))
               else V_view {v with vu_id    = next_id ();
                                   vu_start = v.vu_ofs + o;
                                   vu_ofs   = v.vu_ofs + o;}
             end
       | V_view _, _ ->
-          internal_error (Type_error (lc, "View.restrict_from", 2, vtype_of o, T_int))
+          internal_error lc (Type_error ("View.restrict_from", 2, vtype_of o, T_int))
       | _, _ ->
-          internal_error (Type_error (lc, "View.restrict_from", 1, vtype_of v, T_view))
+          internal_error lc (Type_error ("View.restrict_from", 1, vtype_of v, T_view))
 
   let clone lc (_s: state) (v: value) : value =
     match v with
       | V_view vu ->
           V_view (clone_view vu)
       | _ ->
-          internal_error (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
+          internal_error lc (Type_error ("View.clone", 1, vtype_of v, T_view))
 
   let get_base _lc (s: state) : value =
     let vu = clone_view s.st_cur_view in
@@ -109,14 +109,14 @@ module PView = struct
       | V_view vu ->
           V_int (Int64.of_int (vu.vu_ofs - vu.vu_start))
       | _ ->
-          internal_error (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
+          internal_error lc (Type_error ("View.clone", 1, vtype_of v, T_view))
 
   let get_remaining lc (_s: state) (v: value) : value =
     match v with
       | V_view vu ->
           V_int (Int64.of_int (vu.vu_end - vu.vu_ofs))
       | _ ->
-          internal_error (Type_error (lc, "View.clone", 1, vtype_of v, T_view))
+          internal_error lc (Type_error ("View.clone", 1, vtype_of v, T_view))
 
   let get_current_cursor lc (s: state) : value =
     get_cursor lc s (V_view s.st_cur_view)
@@ -186,8 +186,8 @@ let dispatch_viewlib lc (m: string) (f: string) (s: state) (vs: value list)
        let a1 = List.nth vs 1 in
        let a2 = List.nth vs 2 in
        fn lc s a0 a1 a2
-  else let err = Internal_errors.Unknown_stdlib (lc, m, f, nvs) in
-       internal_error err
+  else let err = Internal_errors.Unknown_stdlib (m, f, nvs) in
+       internal_error lc err
 
 (* helpers for runtime *)
 
@@ -228,7 +228,7 @@ let set_view lc (s: state) (v: value) : state =
     | V_view vu ->
         {s with st_cur_view = vu}
     | _ ->
-        internal_error (Type_error (lc, "set-view", 1, vtype_of v, T_view))
+        internal_error lc (Type_error ("set-view", 1, vtype_of v, T_view))
 
 let set_pos lc (s: state) (v: value) : state =
   match v with
@@ -236,10 +236,10 @@ let set_pos lc (s: state) (v: value) : state =
         let i = Int64.to_int i in
         let vu = s.st_cur_view in
         if   i < 0
-        then fault (View_bound (lc, "set-pos", "negative offset specified"))
+        then fault lc (View_bound ("set-pos", "negative offset specified"))
         else if vu.vu_start + i >= vu.vu_end
-        then fault (View_bound (lc, "set-pos", "end bound exceeded"))
+        then fault lc (View_bound ("set-pos", "end bound exceeded"))
         else let vu = {vu with vu_ofs = vu.vu_start + i} in
              {s with st_cur_view = vu}
     | _ ->
-        internal_error (Type_error (lc, "set-pos", 1, vtype_of v, T_int))
+        internal_error lc (Type_error ("set-pos", 1, vtype_of v, T_int))

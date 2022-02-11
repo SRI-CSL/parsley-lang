@@ -24,21 +24,18 @@ open Dfa
 
 type regexp_error =
   | Unknown_regexp_nonterm of Ast.ident
-  | Negative_seq_bound of Location.t
-  | Nonconstant_seq_bound of Location.t
+  | Negative_seq_bound
+  | Nonconstant_seq_bound
 
-exception Error of regexp_error
-
-let msg = Location.msg
+exception Error of Location.t * regexp_error
 
 let error_msg = function
   | Unknown_regexp_nonterm id ->
-      msg "%s:\n Unknown regexp nonterminal `%s'."
-        (Location.loc id) (Location.value id)
-  | Negative_seq_bound l ->
-      msg "%s:\n Regexp bounds cannot be negative." l
-  | Nonconstant_seq_bound l ->
-      msg "%s:\n Non-constant regexp bounds are not supported." l
+      Printf.sprintf "Unknown regexp nonterminal `%s'." (Location.value id)
+  | Negative_seq_bound ->
+      "Regexp bounds cannot be negative."
+  | Nonconstant_seq_bound ->
+      "Non-constant regexp bounds are not supported."
 
 (* position generator *)
 let get_pos_generator () =
@@ -139,8 +136,9 @@ let re_of_litset (renv: re_env) new_pos (ls: Ast.literal_set) : unit re =
         mk_re (R_chars (chars, new_pos ()))
     | LS_type id ->
         (match StringMap.find_opt (Location.value id) renv with
-           | None -> raise (Error (Unknown_regexp_nonterm id))
            | Some (_, re) -> re
+           | None         -> let loc = Location.loc id in
+                             raise (Error (loc, Unknown_regexp_nonterm id))
         )
     | LS_set lls ->
         (* a literal set is converted into a choice tree whose root
@@ -190,18 +188,19 @@ let rec simplify (renv: re_env) new_pos (r: regexp) : unit re =
         mk_re (wildcard_re new_pos)
     | RX_type id ->
         (match StringMap.find_opt (Location.value id) renv with
-           | None -> raise (Error (Unknown_regexp_nonterm id))
-           | Some (_, re) -> relocate new_pos re)
+           | Some (_, re) -> relocate new_pos re
+           | None         -> let loc = Location.loc id in
+                             raise (Error (loc, Unknown_regexp_nonterm id)))
     | RX_star (r', None) ->
         mk_re (R_star (simplify renv new_pos r'))
     | RX_star (r', Some e) ->
         (match (TypedAstUtils.const_fold e).expr with
            | E_literal (PL_int i) when i < 0 ->
-               raise (Error (Negative_seq_bound e.expr_loc))
+               raise (Error (e.expr_loc, Negative_seq_bound))
            | E_literal (PL_int i) ->
                bounded_rep (simplify renv new_pos r') i new_pos
            | _ ->
-               raise (Error (Nonconstant_seq_bound e.expr_loc)))
+               raise (Error (e.expr_loc, Nonconstant_seq_bound)))
     | RX_opt r' ->
         mk_re (R_choice (simplify renv new_pos r', mk_re R_empty))
     | RX_choice rs ->

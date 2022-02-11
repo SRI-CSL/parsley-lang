@@ -204,12 +204,12 @@ let reference_to_string (id, fs, (n, _)) =
               (String.concat "." fs)
 
 type init_var_error =
-  | Use_of_uninit_var of reference * Location.t
+  | Use_of_uninit_var of reference
   | Unnamed_attributed_nonterminal of ident
-  | Unassigned_attribute of ident * string list * Location.t
-  | Unassigned_variable  of ident * string * Location.t
+  | Unassigned_attribute of ident * string list
+  | Unassigned_variable  of ident * string
 
-exception Error of init_var_error
+exception Error of Location.t * init_var_error
 
 module References = struct
   module R = Set.Make(struct
@@ -828,9 +828,10 @@ let rule_to_cfg
                | None ->
                    (* We could assert here, since this should have
                       been checked before we got here. *)
+                   let loc = Location.loc ntd.non_term_name in
                    let err =
                      Unnamed_attributed_nonterminal ntd.non_term_name in
-                   raise (Error err)
+                   raise (Error (loc, err))
                | Some v -> v) in
           let v  = Location.value v in
           let vn = fst v in
@@ -909,7 +910,7 @@ let tr_oo
     (* All `u` in `uses` should be in the initialized set `inits`. *)
     References.iter (fun b ->
         if   ReachingDefns.possibly_undefined b inits
-        then raise (Error (Use_of_uninit_var (b, loc)))
+        then raise (Error (loc, Use_of_uninit_var b))
       ) uses in
   (* Add defs to outgoing set of initvars after checking uses. *)
   match f with
@@ -1043,9 +1044,10 @@ let check_non_term (tenv: TE.environment) (init_env: References.t) ntd =
              non-initialized attributes cannot be assigned.  For
              simplicity, just require that a non-terminal with
              synthesized attributes must use a local name. *)
+          let loc = Location.loc ntd.non_term_name in
           let err =
             Unnamed_attributed_nonterminal ntd.non_term_name in
-          raise (Error err)
+          raise (Error (loc, err))
       | Some ri, Some v ->
           Some (v, build_attribute_refs tenv ri) in
   let reaching_defs =
@@ -1105,8 +1107,8 @@ let check_non_term (tenv: TE.environment) (init_env: References.t) ntd =
             let b = v, [], (vn, loc) in
             if   ReachingDefns.possibly_undefined b exit_fact
             then let err =
-                   Unassigned_variable (ntd.non_term_name, vn, r.rule_loc) in
-                 raise (Error err)
+                   Unassigned_variable (ntd.non_term_name, vn) in
+                 raise (Error (r.rule_loc, err))
         | Some (v, lfs) ->
             let loc = Location.loc v in
             let vn  = fst (Location.value v) in
@@ -1128,8 +1130,8 @@ let check_non_term (tenv: TE.environment) (init_env: References.t) ntd =
                   (reference_to_string attr) (Label.to_string exit);*)
                 if   ReachingDefns.possibly_undefined attr exit_fact
                 then let err =
-                       Unassigned_attribute (ntd.non_term_name, fs, r.rule_loc) in
-                     raise (Error err)
+                       Unassigned_attribute (ntd.non_term_name, fs) in
+                     raise (Error (r.rule_loc, err))
               ) lfs
     ) ntd.non_term_rules
 
@@ -1148,21 +1150,18 @@ let check_spec init_envs (tenv: TE.environment) (tspec: (typ, varid) program) =
 
 (* error messages *)
 
-let msg = Location.msg
-
 let error_msg = function
-  | Use_of_uninit_var ((_v, fs, (n, _)), loc) ->
-      msg "%s:\n `%s' may be used uninitialized.\n" loc
+  | Use_of_uninit_var ((_v, fs, (n, _))) ->
+      Printf.sprintf "`%s' may be used uninitialized."
         (match fs with
            | [] -> n
            | _  -> Printf.sprintf "%s.%s" n (String.concat "." fs))
   | Unnamed_attributed_nonterminal nt ->
-      msg
-        "%s:\n Non-terminal `%s' with synthetic attributes needs to be  given a local name.\n"
-        (Location.loc nt) (Location.value nt)
-  | Unassigned_attribute (nt, fs, loc) ->
-      msg "%s:\n Attribute `%s' of `%s' may be uninitialized at the end of this rule.\n"
-        loc (String.concat "." fs) (Location.value nt)
-  | Unassigned_variable (nt, v, loc) ->
-      msg "%s:\n Variable `%s' of `%s' may be uninitialized at the end of this rule.\n"
-        loc v (Location.value nt)
+      Printf.sprintf "Non-terminal `%s' with synthetic attributes needs to be  given a local name."
+        (Location.value nt)
+  | Unassigned_attribute (nt, fs) ->
+      Printf.sprintf "Attribute `%s' of `%s' may be uninitialized at the end of this rule."
+        (String.concat "." fs) (Location.value nt)
+  | Unassigned_variable (nt, v) ->
+      Printf.sprintf "Variable `%s' of `%s' may be uninitialized at the end of this rule."
+        v (Location.value nt)

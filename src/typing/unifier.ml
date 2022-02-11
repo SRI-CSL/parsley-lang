@@ -36,9 +36,9 @@ open CoreAlgebra
 open MultiEquation
 
 type unify_error =
-  CannotUnify of Parsing.Location.t * crterm * crterm
+  CannotUnify of crterm * crterm
 
-exception Error of unify_error
+exception Error of Parsing.Location.t * unify_error
 
 (* [unify register v1 v2] equates the variables [v1] and [v2]. That
    is, it adds the equation [v1 = v2] to the constraint which it
@@ -178,10 +178,10 @@ let unify ?tracer pos register =
            a structure. *)
 
         | None, _, _, _ (* v1 is rigid. *) ->
-            raise (Error (CannotUnify (pos, TVariable v1, TVariable v2)))
+            raise (Error (pos, CannotUnify (TVariable v1, TVariable v2)))
 
         | _, None, _, _ (* v2 is rigid. *) ->
-            raise (Error (CannotUnify (pos, TVariable v2, TVariable v1)))
+            raise (Error (pos, CannotUnify (TVariable v2, TVariable v1)))
 
         (* Both multi-equations contain terms whose head symbol belong
            to the free algebra [A]. Merge the multi-equations
@@ -199,10 +199,8 @@ let unify ?tracer pos register =
 
   in unify pos
 
-let msg = Parsing.Location.msg
-
 open TypeConstraintPrinter
 let error_msg = function
-  | CannotUnify (p, r, t) ->
-      msg "%s:\n %s and %s are not compatible.\n"
-        p (print_crterm t) (print_crterm r)
+  | CannotUnify (r, t) ->
+      Printf.sprintf "%s and %s are not compatible."
+        (print_crterm t) (print_crterm r)
