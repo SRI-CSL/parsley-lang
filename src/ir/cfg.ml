@@ -389,8 +389,6 @@ type error =
 
 exception Error of Location.t * error
 
-let msg = Location.msg
-
 let error_msg = function
   | Unbound_return_expr ->
       "The return expression in this action block is not used."

@@ -18,16 +18,23 @@
 type t
 
 val init: Lexing.lexbuf -> string -> unit
-val curr: Lexing.lexbuf -> t
 
+(* constructors *)
+
+val ghost_loc:       t
+val curr:            Lexing.lexbuf -> t
 val loc_of_curr_lex: Lexing.lexbuf -> t
+val mk_loc:          Lexing.position -> Lexing.position -> t
+val extent:          t -> t -> t
+val loc_or_ghost:    t option -> t
 
-val ghost_loc : t
-val mk_loc: Lexing.position -> Lexing.position -> t
-val extent: t -> t -> t
-val loc_or_ghost: t option -> t
+(* accessors *)
+
 val get_start:    t -> Lexing.position
 val get_end:      t -> Lexing.position
+val is_ghost:     t -> bool
+
+(* carrier type *)
 
 type 'a loc
 
@@ -36,8 +43,8 @@ val mk_ghost:    'a -> 'a loc
 val value:       'a loc -> 'a
 val loc:         'a loc -> t
 
+(* string utilities *)
+
 val str_of_loc:      t -> string (* full location, including file name *)
 val str_of_file_loc: t -> string (* location without file name *)
-
 val content_of_loc:  t -> string (* snippet of source code at location *)
-val msg: (string -> 'a, unit, string) format -> t -> 'a

@@ -61,6 +61,9 @@ let get_start loc =
 let get_end loc =
   loc.loc_end
 
+let is_ghost loc =
+  loc.loc_ghost
+
 let loc_of_curr_lex lexbuf =
   {loc_start = lexbuf.lex_curr_p;
    loc_end   = lexbuf.lex_curr_p;
@@ -160,6 +163,3 @@ let content_of_loc loc =
   match lines_of_loc loc with
     | None    -> ""
     | Some ls -> str_of_content loc ls
-
-let msg m loc =
-  Printf.sprintf ("%s" ^^ m) (content_of_loc loc) (str_of_loc loc)
