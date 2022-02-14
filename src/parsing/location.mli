@@ -48,3 +48,10 @@ val loc:         'a loc -> t
 val str_of_loc:      t -> string (* full location, including file name *)
 val str_of_file_loc: t -> string (* location without file name *)
 val content_of_loc:  t -> string (* snippet of source code at location *)
+
+(* json support *)
+
+type pos
+
+val position_to_pos:    Lexing.position -> pos
+val pos_to_yojson:      pos -> Yojson.Safe.t    

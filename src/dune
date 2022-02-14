@@ -1,5 +1,6 @@
 (executable
  (name parsleyc)
- (libraries parsing typing analysis ir interpreter tests)
+ (libraries parsing typing analysis ir interpreter tests yojson ppx_deriving_yojson.runtime)
  (link_deps parsing/parseErrorMessages.check)
+ (preprocess (pps ppx_deriving_yojson))
 )

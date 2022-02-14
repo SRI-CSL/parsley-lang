@@ -25,6 +25,7 @@ let print_ast   = ref false
 let input_file  = ref []
 let ent_nonterm = ref None
 let data_file   = ref None
+let json_out    = ref false
 
 (* internal to specTyper *)
 let print_post_macro = false
@@ -57,6 +58,9 @@ let options =
         ( "-test",
           Arg.Set do_tests,
           " run internal tests");
+        ( "-json",
+          Arg.Set json_out,
+          " output to stderr a json formatted string");
     ])
 
 let usage = Printf.sprintf

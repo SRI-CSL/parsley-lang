@@ -17,6 +17,20 @@
 
 open Lexing
 
+type pos = {
+  fname: string;
+  lnum: int;
+  bol: int;
+  cnum: int;
+}
+[@@deriving to_yojson];;
+
+let position_to_pos pos = {
+  fname = pos.pos_fname; 
+  lnum = pos.pos_lnum; 
+  bol = pos.pos_bol; 
+  cnum = pos.pos_cnum}
+
 type t =
   {loc_start: position;
    loc_end:   position;
