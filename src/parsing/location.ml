@@ -17,7 +17,7 @@
 
 open Lexing
 
-type inner_pos = {
+type pos = {
   fname: string;
   lnum: int;
   bol: int;
@@ -25,30 +25,17 @@ type inner_pos = {
 }
 [@@deriving to_yojson];;
 
-let position_to_yojson pos =
-  let inner = {fname = pos.pos_fname; lnum = pos.pos_lnum; bol = pos.pos_bol; cnum = pos.pos_cnum} in
-  inner_pos_to_yojson inner
-
-type inner_loc = {
-  _start: position;
-  _end: position;
-  _ghost: bool;
-  _reason: string;
-}[@@deriving to_yojson];;
+let position_to_pos pos = {
+  fname = pos.pos_fname; 
+  lnum = pos.pos_lnum; 
+  bol = pos.pos_bol; 
+  cnum = pos.pos_cnum}
 
 type t =
   {loc_start: position;
    loc_end:   position;
    loc_ghost: bool}
 
-let error_of_loc t msg =
-  let inner = {
-    _start = t.loc_start;
-    _end = t.loc_end;
-    _ghost = t.loc_ghost;
-    _reason = msg
-  } in
-  inner_loc_to_yojson inner
 
 let init lexbuf fname =
   lexbuf.lex_curr_p <-

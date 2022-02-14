@@ -17,6 +17,21 @@
 
 module Location = Parsing.Location
 
+type errormsg = {
+  _start: Location.pos;
+  _end: Location.pos;
+  _ghost: bool;
+  _reason: string;
+}[@@deriving to_yojson];;
+
+let mk_json_errormsg t msg =
+  let err = {
+    _start = Location.position_to_pos t.loc_start;
+    _end = Location.position_to_pos t.loc_end;
+    _ghost = t.loc_ghost;
+    _reason = msg
+  } in
+  errormsg_to_yojson inner
 
 (* `bt`  contains the backtrace if this is a debugging build.
    `loc` contains the location of the error.
@@ -24,7 +39,7 @@ module Location = Parsing.Location
 let handle_exception bt loc msg =
    if !Options.json_out
    then (
-      Printf.fprintf stderr "%s" (Yojson.Safe.to_string (Location.error_of_loc loc msg));
+      Printf.fprintf stderr "%s" (Yojson.Safe.to_string (mk_json_errormsg loc msg));
       exit 1
    )
    else (
