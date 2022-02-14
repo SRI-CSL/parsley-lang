@@ -9,7 +9,7 @@
 
 (library
   (name parsing)
-  (libraries menhirLib yojson ppx_deriving_yojson.runtime)
+  (libraries menhirLib)
   (preprocess (pps ppx_deriving_yojson))
 )
 
