@@ -1,4 +1,4 @@
 (library
   (name tests)
-  (libraries interpreter)
+  (libraries parsing typing ir interpreter)
 )

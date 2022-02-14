@@ -40,12 +40,10 @@ let handle_exception bt loc msg =
    if !Options.json_out
    then (
       Printf.fprintf stderr "%s" (Yojson.Safe.to_string (mk_json_errormsg loc msg));
-      exit 1
    )
    else (
       let content = Location.content_of_loc loc in
       Printf.printf "%s\n" bt;
       Printf.fprintf stderr "%s%s: %s\n" content (Location.str_of_loc loc) msg;
-      exit 1
    )
-   
+   exit 1
