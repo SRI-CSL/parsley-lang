@@ -18,6 +18,10 @@ type operation =
  | Flip of resource
  | Pop of resource
 
+ // BH note: Table 98, Stack operations by signature - Matrix operations, pg. 105
+ | Solv of resource
+ | Tran of resource
+
 recfun num_ops (o: operation) -> int = {
   (case o of
    | operation::If(_, s) ->
