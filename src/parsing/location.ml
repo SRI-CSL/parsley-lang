@@ -32,6 +32,7 @@ let position_to_yojson pos =
 type inner_loc = {
   _start: position;
   _end: position;
+  _ghost: bool;
   _reason: string;
 }[@@deriving to_yojson];;
 
@@ -44,6 +45,7 @@ let error_of_loc t msg =
   let inner = {
     _start = t.loc_start;
     _end = t.loc_end;
+    _ghost = t.loc_ghost;
     _reason = msg
   } in
   inner_loc_to_yojson inner
