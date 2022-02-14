@@ -13,7 +13,7 @@ type udp_packet = {
   source_port: int,
   destination_port: int,
   length: int,
-  checksum: [byte]
+  checksum: [byte],
   data: [byte]
 }
 
