@@ -17,11 +17,20 @@
 
 module Location = Parsing.Location
 
+
 (* `bt`  contains the backtrace if this is a debugging build.
    `loc` contains the location of the error.
    `msg` is the error message from the compiler. *)
 let handle_exception bt loc msg =
-  let content = Location.content_of_loc loc in
-  Printf.printf "%s\n" bt;
-  Printf.fprintf stderr "%s%s: %s\n" content (Location.str_of_loc loc) msg;
-  exit 1
+   if !Options.json_out
+   then (
+      Printf.fprintf stderr "%s" (Yojson.Safe.to_string (Location.error_of_loc loc msg));
+      exit 1
+   )
+   else (
+      let content = Location.content_of_loc loc in
+      Printf.printf "%s\n" bt;
+      Printf.fprintf stderr "%s%s: %s\n" content (Location.str_of_loc loc) msg;
+      exit 1
+   )
+   
