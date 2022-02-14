@@ -18,18 +18,18 @@
 module Location = Parsing.Location
 
 type errormsg = {
-  first_pos: Location.pos;
-  last_pos: Location.pos;
-  ghost: bool;
-  reason: string;
+  loc_start: Location.pos;
+  loc_end: Location.pos;
+  loc_ghost: bool;
+  err_reason: string;
 }[@@deriving to_yojson];;
 
 let mk_json_errormsg t msg =
   let err = {
-    first_pos = Location.position_to_pos (Location.get_start t);
-    last_pos = Location.position_to_pos (Location.get_end t);
-    ghost = Location.is_ghost t;
-    reason = msg
+    loc_start = Location.position_to_pos (Location.get_start t);
+    loc_end = Location.position_to_pos (Location.get_end t);
+    loc_ghost = Location.is_ghost t;
+    err_reason = msg
   } in
   errormsg_to_yojson err
 
