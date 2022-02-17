@@ -81,32 +81,46 @@ rule token = parse
       token lexbuf }
 | blank +
     { token lexbuf }
-| "//"
-    { eol_comment lexbuf }
-| "\""
-    { reset_token_buffer ();
-      quote lexbuf;
-      let t = get_stored_token () in
-      reset_token_buffer ();
-      let t = Location.mk_loc_val t (Location.curr lexbuf) in
-      LITERAL t
-    }
-| "|_b"  { BAR_B }
-| "&_b"  { AND_B }
-| "+_s"  { PLUS_S }
+
+| "|_b" { BAR_B }
+| "&_b" { AND_B }
+| "+_s" { PLUS_S }
+| "@#[" { AT_MAP }
+| "@^[" { SET_VIEW }
+
+| "//" { eol_comment lexbuf }
+
 | "#[" { DECO }
 | "(#" { SYN_BEGIN }
 | "#)" { SYN_END }
 | "@(" { AT_POS }
 | "@[" { AT_VIEW }
-| "@#["{ AT_MAP }
-| "@^["{ SET_VIEW }
-| "@"  { AT }
 | "(|" { LPARBAR }
 | "|)" { RPARBAR }
 | "[[" { LLBRACK }
 | "]]" { RRBRACK }
 | "[]" { LBRACKRBRACK }
+| ":=" { COLONEQ }
+| "::" { COLONCOLON }
+| ";;" { SEMISEMI }
+| "<-" { LARROW }
+| "->" { ARROW }
+| "&&" { LAND }
+| "||" { LOR }
+| "<=" { LTEQ }
+| ">=" { GTEQ }
+| "!=" { NEQ }
+| "~~" { CONSTR_MATCH }
+| ".." { DOTDOT }
+
+| "\"" { reset_token_buffer ();
+         quote lexbuf;
+         let t = get_stored_token () in
+         reset_token_buffer ();
+         let t = Location.mk_loc_val t (Location.curr lexbuf) in
+         LITERAL t }
+| "\\" { BACKSLASH }
+| "@"  { AT }
 | "|"  { BAR }
 | "{"  { LBRACE }
 | "}"  { RBRACE }
@@ -116,34 +130,21 @@ rule token = parse
 | "]"  { RBRACK }
 | "."  { DOT }
 | ","  { COMMA }
-| ":=" { COLONEQ }
-| "::" { COLONCOLON }
 | ":"  { COLON }
-| ";;" { SEMISEMI }
 | ";"  { SEMICOLON}
 | "+"  { PLUS }
-| "<-" { LARROW }
-| "->" { ARROW }
 | "~"  { TILDE }
 | "-"  { MINUS }
 | "*"  { STAR }
 | "%"  { MOD }
 | "/"  { DIV }
-| "&&" { LAND }
-| "||" { LOR }
-| "<=" { LTEQ }
-| ">=" { GTEQ }
-| "!=" { NEQ }
 | "!"  { EXCLAIM }
 | "<"  { LT }
 | ">"  { GT }
 | "="  { EQ }
-| "~~" { CONSTR_MATCH }
 | "?"  { QUESTION }
-| "\\" { BACKSLASH }
 | "^"  { CARET }
 | "#"  { HASH }
-| ".." { DOTDOT }
 
 | upper ident*
     { let id = Lexing.lexeme lexbuf in
