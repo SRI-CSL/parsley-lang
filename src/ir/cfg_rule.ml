@@ -268,6 +268,18 @@ let rec lower_rule_elem
         let ctx = close_block {ctx with ctx_venv = venv} b nd in
         ctx, new_labeled_block loc lsc
 
+    | RE_scan scan ->
+        let ctx, b = exit_bitmode ctx b loc in
+        (* variable for the return value *)
+        let v, venv =
+          match ret with
+            | None    -> fresh_var ctx.ctx_venv typ loc
+            | Some v' -> v', ctx.ctx_venv in
+        let lsc = fresh_static () in
+        let nd = Node.N_scan (loc, scan, v, lsc, ctx.ctx_failcont) in
+        let ctx = close_block {ctx with ctx_venv = venv} b nd in
+        ctx, new_labeled_block loc lsc
+
     | RE_non_term (nt, None) ->
         let ctx, b = exit_bitmode ctx b loc in
         (* The jump to the CFG for the non-term causes the current

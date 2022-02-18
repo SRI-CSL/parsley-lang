@@ -474,6 +474,29 @@ A *regular expression non-terminal* can be used as a regular
 expression element composable with other regular expressions using the
 regular expression combinators.
 
+===== Scanning
+
+Although scanning for specific tag bytes can be expressed as a regular
+expression, the regular expression can be complicated and hence
+inconvenient to write by hand.  There is explicit support for such use
+cases using the *forward scan* (denoted with `/sf`) and *backward
+scan* (denoted with `/sb`) operators.  A forward scan for the bytes
+`tag` would be written as `/sf["tag"]`; similarly, the corresponding
+backward scan would be `/sb["tag"]`.  After a successful forward scan,
+the cursor would be positioned on the last tag byte (`g` in the case
+of `/sf["tag"]`) example), whereas after a successful backward scan,
+it is on the first tag byte (`t` in the case of `/sb["tag"]`).  The
+bytes returned as the match correspond to all the bytes from the
+starting cursor position to the final position, inclusive.  Matched
+bytes are always returned in forwards order, i.e. from the smallest
+matching cursor position to the largest.
+
+For example, if the view contains the bytes `123abcxyz` and the cursor
+is positioned on the `a`, `/sf["xy"]` will return `abcxy` as matched
+bytes, leaving the cursor positioned on `y`, while `/sb["12"]` from
+the same cursor position will return `123a` as matched bytes, leaving
+the cursor on `1`.
+
 === Assigning Synthesized Attributes in Rules
 
 As mentioned above, the definition of a non-terminal is given by a

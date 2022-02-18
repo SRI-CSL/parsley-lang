@@ -341,6 +341,7 @@ and descend_rule_elem (ctx, acc) re =
     | RE_align _
     | RE_pad _
     | RE_bitfield _
+    | RE_scan _
     | RE_epsilon ->
         ctx, acc
     | RE_regexp re ->

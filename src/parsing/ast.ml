@@ -149,6 +149,10 @@ type assign =
   | A_eq
   | A_in
 
+type scan_direction =
+  | Scan_forward
+  | Scan_backward
+
 type ('a, 'b) non_term_instance =
   ident * (ident * assign * ('a, 'b) expr) list option
 
@@ -162,6 +166,7 @@ type ('a, 'b) rule_elem_desc =
   (* other basic primitives *)
   | RE_regexp of ('a, 'b) regexp
   | RE_non_term of ('a, 'b) non_term_instance
+  | RE_scan of (literal * scan_direction)
 
   (* binding for return values *)
   | RE_named of 'b var * ('a, 'b) rule_elem

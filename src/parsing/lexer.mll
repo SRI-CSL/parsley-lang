@@ -82,6 +82,9 @@ rule token = parse
 | blank +
     { token lexbuf }
 
+| "/sf[" { SLASH_SF_LBRACK }
+| "/sb[" { SLASH_SB_LBRACK }
+
 | "|_b" { BAR_B }
 | "&_b" { AND_B }
 | "+_s" { PLUS_S }

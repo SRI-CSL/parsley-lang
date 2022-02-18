@@ -25,6 +25,7 @@ open AstUtils
 %token FORMAT TYPE BITFIELD AND FUN RECFUN USE OF CASE LET IN CONST
 %token DECO
 %token EPSILON PAD ALIGN USE_BITFIELD
+%token SLASH_SF_LBRACK SLASH_SB_LBRACK
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LLBRACK RRBRACK LBRACKRBRACK
 %token LPARBAR RPARBAR SYN_BEGIN SYN_END
@@ -661,6 +662,10 @@ rule_elem:
   { make_rule_elem (RE_map_views (e, r)) $startpos $endpos }
 | SET_VIEW e=expr RBRACK
   { make_rule_elem (RE_set_view e) $startpos $endpos }
+| SLASH_SF_LBRACK s=LITERAL RBRACK
+  { make_rule_elem (RE_scan (s, Scan_forward)) $startpos $endpos }
+| SLASH_SB_LBRACK s=LITERAL RBRACK
+  { make_rule_elem (RE_scan (s, Scan_backward)) $startpos $endpos }
 
 rule:
 | LPARBAR d=temp_decls RPARBAR l=list(rule_elem)

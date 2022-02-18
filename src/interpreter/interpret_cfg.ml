@@ -198,6 +198,20 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                let s = {s with st_venv     = env;
                                st_cur_view = vu} in
                do_jump loc s lsc)
+    | Cfg.Node.N_scan (loc, (tag, dir), v, lsc, lf) ->
+        let tag = Location.value tag in
+        let run = Interpret_dfa.scan s.st_cur_view tag dir in
+        (match run with
+           | None ->
+               (* tag not found *)
+               do_fail loc s lf
+           | Some (vl, vu) ->
+               (* matched value with updated view *)
+               let venv = VEnv.assign s.st_venv v vl in
+               let s = {s with st_venv     = venv;
+                               st_cur_view = vu} in
+               do_jump loc s lsc)
+
     | Cfg.Node.N_call_nonterm (nt, params, ret, lsc, lf)
          when is_std_nonterm (Location.value nt) ->
         (* We don't have an nt_entry for stdlib non-terminals, so

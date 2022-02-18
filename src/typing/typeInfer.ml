@@ -1650,6 +1650,16 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
         mk_aux_rule_elem (RE_regexp r'),
         venv,
         0
+    | RE_scan scan ->
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
+        (* Scans result in matched bytes, and hence are equivalent in
+           type to regular expressions. *)
+        let c = (t =?= mk_regexp_type ()) re.rule_elem_loc in
+        pack_constraint c,
+        WC_true,
+        mk_aux_rule_elem (RE_scan scan),
+        venv,
+        0
     | RE_non_term (nid, None) ->
         let n = Location.value nid in
         assert (n <> "BitVector");
@@ -1992,7 +2002,7 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
         venv,
         cursor
 
-    | RE_set_view (vu) ->
+    | RE_set_view vu ->
         (* Non-sequence combinators can only start and end at
            bit-aligned positions. *)
         check_aligned cursor 8 re.rule_elem_loc At_begin;

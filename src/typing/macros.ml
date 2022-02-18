@@ -780,7 +780,8 @@ and expand_regexps ctx res =
 let rec expand_rule_elem ctx re
         : context * (unit, unit) rule_elem list =
   match re.rule_elem with
-    | RE_bitvector _ | RE_align _ | RE_pad _ | RE_bitfield _ | RE_epsilon ->
+    | RE_bitvector _ | RE_align _ | RE_pad _ | RE_bitfield _ | RE_scan _
+    | RE_epsilon ->
         ctx, [re]
     | RE_regexp r ->
         let ctx, r = expand_regexp ctx r in
@@ -898,7 +899,6 @@ let rec expand_rule_elem ctx re
             | [re'] -> re'
             | _     -> {re' with rule_elem = RE_seq re''} in
         ctx, [{re with rule_elem = RE_map_views (e, re')}]
-
     | RE_seq_flat res ->
         let ctx, res = expand_rule_elems ctx res in
         ctx, [{re with rule_elem = RE_seq_flat res}]

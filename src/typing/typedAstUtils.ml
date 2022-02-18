@@ -219,7 +219,11 @@ let lhs_fields (type b) e : ((string * b) * string list) option =
    Since no environment is provided, it assumes any non-terminals are
    not regular expressions.  This is more lenient than
    `is_regexp_elem` since it allows constraints.  It is typically
-   called for the rules of a regexp-nonterminal. *)
+   called for the rules of a regexp-nonterminal.
+
+   Since scans are not handled as regular expressions, treat them as
+   non-regexp rule elements.
+ *)
 let rec guess_is_regexp_elem rle =
   match rle.rule_elem with
     | RE_epsilon
@@ -245,6 +249,7 @@ let rec guess_is_regexp_elem rle =
     | RE_bitfield _
     | RE_align _
     | RE_pad _
+    | RE_scan _
     | RE_at_pos _
     | RE_at_view _
     | RE_set_view _
@@ -290,6 +295,7 @@ let rec is_regexp_elem tenv rle =
     | RE_bitfield _
     | RE_align _
     | RE_pad _
+    | RE_scan _
     | RE_at_pos _
     | RE_at_view _
     | RE_set_view _

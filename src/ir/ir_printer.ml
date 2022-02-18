@@ -106,6 +106,9 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
     if   List.length bv = 0
     then ""
     else ", padding<0b" ^ sbv ^ ">" in
+  let sprint_scan_dir = function
+    | Ast.Scan_forward  -> "fw"
+    | Ast.Scan_backward -> "bw" in
   let open Node in
   match n with
     | N_label (_, l) ->
@@ -141,6 +144,13 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (string_of_label f))
     | N_exec_dfa (_, v, s, f) ->
         pp_string (Printf.sprintf "dfa %s, %s, %s"
+                     (Anf_printer.string_of_var v.v)
+                     (string_of_label s)
+                     (string_of_label f))
+    | N_scan (_, (t, d), v, s, f) ->
+        pp_string (Printf.sprintf "scan-%s \"%s\", %s, %s, %s"
+                     (sprint_scan_dir d)
+                     (Location.value t)
                      (Anf_printer.string_of_var v.v)
                      (string_of_label s)
                      (string_of_label f))

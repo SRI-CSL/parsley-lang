@@ -779,7 +779,8 @@ let rec add_rule_elem
         env, c :: closed, cb
     | RE_epsilon
     | RE_align _
-    | RE_pad _ ->
+    | RE_pad _
+    | RE_scan _ ->
         (* These are nops. *)
         ctx
     | RE_at_pos (e, r') | RE_at_view (e, r') ->

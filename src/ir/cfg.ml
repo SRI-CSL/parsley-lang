@@ -273,6 +273,11 @@ module Node = struct
        first specified label.  A failure rewinds to the second label. *)
     | N_exec_dfa: dfa * var * label * label
                   -> (Block.o, Block.c, unit) node
+    (* Special case for tag scanning. *)
+    | N_scan:
+        Location.t * (Ast.literal * Ast.scan_direction)
+        * (*return*) var * label * label
+        -> (Block.o, Block.c, unit) node
 
     (* Call the CFG for the specified non-terminal with the specified
        expressions for the inherited attributes.  On a successful
@@ -298,10 +303,15 @@ module Node = struct
 
   let successors (type e v) (n: (e, Block.c, v) node) =
     match n with
+      | N_collect_checked_bits (_, _, _, sc, fl)
+      | N_check_bits (_, _, sc, fl)
       | N_constraint (_, _, sc, fl)
       | N_cond_branch (_, _, sc, fl)
+      | N_exec_dfa (_, _, sc, fl)
+      | N_scan (_, _, _, sc, fl)
       | N_call_nonterm (_, _, _, sc, fl)
         -> [raw_label_of sc; raw_label_of fl]
+      | N_fail (_, l)
       | N_jump (_, l) -> [raw_label_of l]
       (* this should not be needed *)
       | _ -> assert false

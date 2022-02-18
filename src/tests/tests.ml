@@ -362,6 +362,22 @@ let tests = [
                           #[whitespace(WS:allow_empty=false)]
                           NT n {a: int} :=  A B              {n.a := 1}}",
      "NT", " [ ] ", V_record ["a", V_int 1L]);
+    ("sf_success", "format {SF s {sf: [byte], pos: int} :=
+                               bs=/sf[\"tg\"]
+                              {s.sf  := bs;
+                               s.pos := View.get_current_cursor()}}",
+     "SF", "jnktgabc", V_record ["sf", V_list [V_char 'j'; V_char 'n'; V_char 'k'; V_char 't'; V_char 'g'];
+                                 "pos", V_int 4L]);
+    ("sb_success", "format {SB s {sb: [byte], off1: int, off2: int} :=
+                               /sf[\"abc\"]
+                               off1={;; View.get_current_cursor()}
+                               bs=/sb[\"tg\"]
+                              {s.sb   := bs;
+                               s.off1 := off1;
+                               s.off2 := View.get_current_cursor()}}",
+     "SB", "jnktgabc", V_record ["sb", V_list [V_char 't'; V_char 'g'; V_char 'a'; V_char 'b'; V_char 'c'];
+                                 "off1", V_int 7L;
+                                 "off2", V_int 3L]);
   ]
 
 let do_tests gen_ir exe_ir =

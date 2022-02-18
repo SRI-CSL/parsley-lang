@@ -39,11 +39,19 @@ format {
     {s.x := Int.of_byte(x); s.y := y};;
 
   // Constraints
-  C p {c:[byte]} :=
+  C p {c: [byte]} :=
       i=(# [ "0" .. "9" ] #)
       (([more_than_five(i)] { p.c := "gt 5" })
         | { p.c := "leq 5 or not int" }
       );;
+
+  // Scanning for a tag: forwards
+  SF s {sf: [byte]} :=
+     bs=/sf["tag"] { s.sf := bs };;
+
+  // Scanning for a tag: backwards
+  SB s {sb: [byte]} :=
+     bs=/sb["tag"] { s.sb := bs };;
 
   // Example of a common dependent type:
   // 'c' captures a byte that represents the length of a vector of

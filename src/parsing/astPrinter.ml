@@ -523,6 +523,10 @@ let print_action auxp a =
   pp_string " }";
   pp_close_box ()
 
+let tok_of_scan_dir = function
+  | Scan_forward  -> "/sf["
+  | Scan_backward -> "/sb["
+
 let rec print_rule_elem auxp rl =
   match rl.rule_elem with
     | RE_regexp re ->
@@ -621,6 +625,10 @@ let rec print_rule_elem auxp rl =
         pp_string ", ";
         print_rule_elem auxp rl;
         pp_string "]"
+
+    | RE_scan (tag, dir) ->
+        pp_string (Printf.sprintf "%s \"%s\" ]"
+                     (tok_of_scan_dir dir) (Location.value tag))
 
 let print_rule auxp rl =
   if   List.length rl.rule_temps > 0
