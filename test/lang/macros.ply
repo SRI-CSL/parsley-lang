@@ -1,0 +1,24 @@
+type t =
+ | A
+ | B
+fun couple (l: t, r: t) -> int = {
+  (case (l, r) of
+  | (t::A(), t::A()) -> 0
+  | (t::A(), t::B()) -> 1
+  | (t::B(), t::A()) -> 2
+  | (t::B(), t::B()) -> 3
+  )
+}
+format {
+  A a {i: [int]} := { let l = [t::A(); t::B(); t::A(); t::B()] in
+                      let r = [t::A(); t::A(); t::B(); t::B()] in
+		      a.i := List.map2(couple, l, r) }
+}
+
+fun accum (acc: int, b: byte) -> int = {
+  acc + Int.of_byte(b)
+}
+
+fun do_fold(bl: [byte]) -> int = {
+  List.fold(accum, 0, bl)
+}
