@@ -1,0 +1,11 @@
+fun test (i: int) -> int = {
+  (case i = 0 of
+    | bool::True -> 0
+    | bool::False -> ( case (i > 0) of
+                         | bool::True -> 1
+                         | bool::False -> (case (i < 0) of
+                                             | bool::True -> 1
+                                          )
+                     )
+  )
+}

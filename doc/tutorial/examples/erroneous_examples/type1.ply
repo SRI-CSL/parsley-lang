@@ -1,0 +1,10 @@
+format {
+  NonTerm nt {anInt: int, anotherInt: int} :=
+    readInt = UInt8
+    readByte = Byte
+    { 
+      nt.anInt := readInt;
+      nt.anotherInt := readByte
+    }
+}
+

@@ -1,0 +1,4 @@
+type int_point = {
+  x: int
+  y: int
+}

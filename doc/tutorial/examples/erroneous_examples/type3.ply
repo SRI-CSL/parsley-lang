@@ -1,0 +1,8 @@
+format {
+  NonTerm nt (inhInt: bool) {synInt: int} :=
+    readInt = UInt8
+    { 
+      nt.synInt := inhInt + readInt
+    }
+}
+
