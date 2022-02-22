@@ -27,6 +27,7 @@ let pp_close_box = AstPrinter.pp_close_box
 let pp_break     = AstPrinter.pp_break
 let pp_newline   = AstPrinter.pp_newline
 let pp_space     = AstPrinter.pp_space
+let pp_flush     = AstPrinter.pp_flush
 
 let string_of_mbb = function
   | MB_exact i -> Printf.sprintf "ex %d" i
@@ -240,4 +241,5 @@ let print_spec ir =
   pp_string (Printf.sprintf "InitFailCont: %s"
                (string_of_label ir.ir_init_failcont));
   pp_newline ();
-  pp_close_box ()
+  pp_close_box ();
+  pp_flush ()
