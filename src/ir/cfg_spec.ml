@@ -21,9 +21,7 @@ open Parsing
 open Typing
 open Cfg
 
-let print_anf = false
-
-let lower_spec (_, init_venv) tenv (spec: program) =
+let lower_spec (_, init_venv) tenv (spec: program) print_anf =
   (* VEnv creates globally unique bindings for all variables bound in
      the spec; however, the predefined/builtin variables from the
      standard library are not bound in the spec, so the VEnv needs to

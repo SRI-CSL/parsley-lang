@@ -34,7 +34,8 @@ let print_types      = false
 let print_typed_ast  = false
 
 (* internal to specIR *)
-let print_ir = ref false
+let print_anf = ref false
+let print_ir  = ref false
 
 let options =
   Arg.align ([

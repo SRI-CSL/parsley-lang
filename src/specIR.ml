@@ -19,7 +19,7 @@ open Ir
 
 let to_ir init_envs tenv (spec: Cfg.program) : Cfg.spec_ir =
   try
-    let spec = Cfg_spec.lower_spec init_envs tenv spec in
+    let spec = Cfg_spec.lower_spec init_envs tenv spec !Options.print_anf in
     if   !Options.print_ir
     then Ir_printer.print_spec spec;
     spec
