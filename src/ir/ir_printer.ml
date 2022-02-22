@@ -221,7 +221,7 @@ let print_ir_blocks blocks =
       print_closed b;
       pp_newline ();
       pp_close_box ()
-    ) (FormatIR.to_seq blocks)
+    ) (LabelMap.to_seq blocks)
 
 let print_statics blocks =
   pp_string "Statics:"; pp_newline ();

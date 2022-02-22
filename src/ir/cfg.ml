@@ -241,12 +241,10 @@ module Node = struct
        label.  N_check_bits does the same except that it does not
        assign the matched bits to any variable. *)
     | N_collect_checked_bits:
-        Location.t * var * matched_bits_predicate
-        * label * label
+        Location.t * var * matched_bits_predicate * label * label
         -> (Block.o, Block.c, unit) node
     | N_check_bits:
-        Location.t * matched_bits_predicate
-        * label * label
+        Location.t * matched_bits_predicate * label * label
         -> (Block.o, Block.c, unit) node
 
     (* forward jumps (typically in success path) *)
@@ -358,16 +356,18 @@ module FormatGToC = Map.Make(struct type t = string
                                     let compare = compare
                              end)
 
+module LabelOrdSet = struct type t = Label.label
+                            let compare = compare
+                     end
+
 (* This is the complete set of CFG blocks in the specification,
    indexed by their entry label. *)
-module FormatIR = Map.Make(struct type t = Label.label
-                                  let compare = compare
-                           end)
+module LabelMap = Map.Make(LabelOrdSet)
 
 (* the IR for the entire specification *)
 type spec_ir =
   {ir_gtoc:          nt_entry FormatGToC.t;
-   ir_blocks:        closed FormatIR.t;
+   ir_blocks:        closed LabelMap.t;
    ir_statics:       opened; (* constants and functions *)
    ir_init_failcont: label;  (* should always be dynamic *)
    (* debugging state for the interpreter *)
@@ -382,7 +382,7 @@ type context =
    ctx_gtoc:     nt_entry FormatGToC.t;
    (* this will be updated during the construction with completed
       blocks *)
-   ctx_ir:       closed FormatIR.t;
+   ctx_ir:       closed LabelMap.t;
    (* the current variable environment *)
    ctx_venv:     VEnv.t;
    (* the current failure continuation *)

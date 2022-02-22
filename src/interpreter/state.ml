@@ -89,7 +89,7 @@ module LBindings = Map.Make (struct type t = Label.label
 type state =
   {(* static state *)
    st_spec_toc:     Cfg.nt_entry Cfg.FormatGToC.t;
-   st_spec_ir:      Cfg.closed Cfg.FormatIR.t;
+   st_spec_ir:      Cfg.closed Cfg.LabelMap.t;
    (* static state only for debugging *)
    st_ir_tenv:      TypingEnvironment.environment;
    st_ir_venv:      Anf.VEnv.t;
@@ -106,7 +106,7 @@ let get_block lc (s: state) (l: Cfg.label) : Cfg.closed =
   (* We should only be given static labels. *)
   assert (Cfg.is_static l);
   let l = Cfg.raw_label_of l in
-  match Cfg.FormatIR.find_opt l s.st_spec_ir with
+  match Cfg.LabelMap.find_opt l s.st_spec_ir with
     | Some b ->
         b
     | None ->

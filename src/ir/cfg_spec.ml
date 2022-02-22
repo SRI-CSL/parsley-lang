@@ -46,7 +46,7 @@ let lower_spec (_, init_venv) tenv (spec: program) =
   let init_failcont = fresh_dynamic () in
   let ctx = {ctx_tenv       = tenv;
              ctx_gtoc       = FormatGToC.empty;
-             ctx_ir         = FormatIR.empty;
+             ctx_ir         = LabelMap.empty;
              ctx_venv       = venv;
              ctx_failcont   = init_failcont;
              ctx_re_env     = re_env;

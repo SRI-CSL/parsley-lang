@@ -91,16 +91,16 @@ let add_gnode b nd typ loc =
 let close_with_jump ctx b loc l =
   let nd = Node.N_jump (loc, l) in
   let b = B.join_tail b nd in
-  {ctx with ctx_ir = FormatIR.add (B.entry_label b) b ctx.ctx_ir}
+  {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
 
 let close_with_fail ctx b loc l =
   let nd = Node.N_fail (loc, l) in
   let b = B.join_tail b nd in
-  {ctx with ctx_ir = FormatIR.add (B.entry_label b) b ctx.ctx_ir}
+  {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
 
 let close_block ctx b nd =
   let b = B.join_tail b nd in
-  {ctx with ctx_ir = FormatIR.add (B.entry_label b) b ctx.ctx_ir}
+  {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
 
 (* returns the labels to use for failure continuations for a set of
    ordered choices.  each choice fails to the next one, except for the
