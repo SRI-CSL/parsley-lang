@@ -15,11 +15,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Convert a spec into its CFG/ANF form *)
+(* Generate the IR for a spec. *)
 
 open Parsing
 open Typing
 open Cfg
+
+let debug = false
 
 let lower_spec (_, init_venv) tenv (spec: program) print_anf =
   (* VEnv creates globally unique bindings for all variables bound in
@@ -33,14 +35,14 @@ let lower_spec (_, init_venv) tenv (spec: program) print_anf =
                  venv
                ) Anf.VEnv.empty init_venv in
   let gl = Location.ghost_loc in
-  (* Initialize the re (i.e. compiled regexp) environment *)
+  (* Initialize the re (i.e. compiled regexp) environment. *)
   let re_env =
     List.fold_left (fun acc (s, cc) ->
         let re = Cfg_regexp.re_of_character_class cc in
         Dfa.StringMap.add s (gl, re) acc
       ) Dfa.StringMap.empty TypeAlgebra.character_classes in
 
-  (* initialize the context with a dummy failure label *)
+  (* Initialize the context with a dummy failure label. *)
   let init_failcont = fresh_dynamic () in
   let ctx = {ctx_tenv       = tenv;
              ctx_gtoc       = FormatGToC.empty;
@@ -50,12 +52,12 @@ let lower_spec (_, init_venv) tenv (spec: program) print_anf =
              ctx_re_env     = re_env;
              ctx_bitmode    = false} in
 
-  (* create a block for evaluating the statics, i.e. constants and
-     function definitions.  its label will be
-     the start label for the spec *)
+  (* Create a block for evaluating the statics, i.e. constants and
+     function definitions.  Its label will be the start label for the
+     spec. *)
   let _, sts = Cfg_rule.new_block gl () in
 
-  (* add a function to the function block *)
+  (* Add a function to the function block. *)
   let add_fun fb af =
     let Anf.{afun_ident  = fv;
              afun_params = params;
@@ -65,7 +67,7 @@ let lower_spec (_, init_venv) tenv (spec: program) print_anf =
     let nd = N_assign_fun (fv, params, afb, vars) in
     Cfg_rule.add_gnode fb nd afb.aexp_typ loc in
 
-  (* process the spec in lexical order *)
+  (* Process the spec in lexical order. *)
   let ctx, _, sts =
     List.fold_left (fun (ctx, tvenv, sts) d ->
         match d with
@@ -108,9 +110,28 @@ let lower_spec (_, init_venv) tenv (spec: program) print_anf =
                   ctx, tvenv, sts
                 ) (ctx, tvenv, sts) f.format_decls
       ) (ctx, init_venv, sts) spec.decls in
-  {ir_gtoc          = ctx.ctx_gtoc;
-   ir_blocks        = ctx.ctx_ir;
-   ir_statics       = sts;
-   ir_init_failcont = init_failcont;
-   ir_tenv          = ctx.ctx_tenv;
-   ir_venv          = ctx.ctx_venv}
+  let spec =
+    {ir_gtoc          = ctx.ctx_gtoc;
+     ir_blocks        = ctx.ctx_ir;
+     ir_statics       = sts;
+     ir_init_failcont = init_failcont;
+     ir_tenv          = ctx.ctx_tenv;
+     ir_venv          = ctx.ctx_venv} in
+
+  (* Check consistency of the IR. *)
+  if   debug
+  then (Printf.printf "%! Original spec:\n%!";
+        Ir_printer.print_spec spec);
+  Cfg_optimize.validate spec false debug;
+
+  (* Optimize the IR. *)
+  let opt_spec = Cfg_optimize.optimize spec debug in
+
+  (* Check consistency of optimized IR. *)
+  if   debug
+  then (Printf.printf "%! Optimized spec:\n%!";
+        Ir_printer.print_spec opt_spec);
+  Cfg_optimize.validate opt_spec true debug;
+
+  (* Return the optimized spec. *)
+  opt_spec

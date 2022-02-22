@@ -331,7 +331,7 @@ module StringMap = Map.Make(String)
 type nt_entry =
   {nt_name:      Ast.ident;
    (* each inherited attribute and the corresponding var used for it
-    * in the CFG *)
+      in the CFG *)
    nt_inh_attrs: (var * typ) StringMap.t;
    (* type of the return value after parsing this non-terminal *)
    nt_typ:       typ;
@@ -364,7 +364,7 @@ module LabelOrdSet = struct type t = Label.label
    indexed by their entry label. *)
 module LabelMap = Map.Make(LabelOrdSet)
 
-(* the IR for the entire specification *)
+(* The IR for the entire specification. *)
 type spec_ir =
   {ir_gtoc:          nt_entry FormatGToC.t;
    ir_blocks:        closed LabelMap.t;
@@ -374,7 +374,7 @@ type spec_ir =
    ir_tenv:          TypingEnvironment.environment;
    ir_venv:          VEnv.t}
 
-(* The context for IR generation *)
+(* The context for IR generation. *)
 type context =
   {(* the typing environment *)
    ctx_tenv:     TypingEnvironment.environment;
