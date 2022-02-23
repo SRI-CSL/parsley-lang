@@ -308,6 +308,10 @@ let builtin_types, builtin_consts, builtin_vars,
             arrow_type (arrow_type (gen_tvar "a") (gen_tvar "b"))
               (arrow_type (list_type (gen_tvar "a"))
                  (list_type (gen_tvar "b"))));
+           (Ast.DName "fold", [ TName "a"; TName "b" ],
+            arrow_type (arrow_type (gen_tvar "b")
+                          (arrow_type (gen_tvar "a") (gen_tvar "b")))
+              (arrow_type (list_type (gen_tvar "a")) (gen_tvar "b")));
            (Ast.DName "rev", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (list_type (gen_tvar "a")));
@@ -479,6 +483,7 @@ let higher_order =
   ModuleMembers.of_list [
       ("List", "map");
       ("List", "map2");
+      ("List", "fold");
       (* add similar functions for Set and Map *)
     ]
 let is_higher_order (m, i) =

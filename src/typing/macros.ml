@@ -446,6 +446,77 @@ let synth_list_map2 hoi =
    fun_defn_loc       = Location.ghost_loc;
    fun_defn_aux       = ()}
 
+let synth_list_fold hoi =
+  (*  List.fold(fn: acct -> t -> acct, acc: acct, lst: lstt (i.e. [t]))
+
+    -~-~>
+
+      recfun synth_func(acc: acct, lst: lstt) -> acct = {
+        case (lst) of {
+          | []     -> acc
+          | h :: t -> synth_func(fn(acc, h), t)
+        }
+      }
+   *)
+
+  (* locations.  use ghost locations for tuples *)
+  assert (List.length hoi.hoi_arglocs = 2);
+  let acloc, lloc = match hoi.hoi_arglocs with
+      | a :: l :: _ -> a, l
+      | _ -> assert false in
+  let rloc = hoi.hoi_retloc in
+  (* synthesized signature *)
+  let stvs, sargs, sret = hoi.hoi_synthsig in
+  (* type expressions *)
+  let acct, lstt  = List.hd sargs, List.hd (List.tl sargs) in
+  (* variables *)
+  let accv = mk_var "acc" acloc in
+  let lstv = mk_var "lst" lloc in
+  let acc  = mk_expr (E_var accv) acloc in
+  let lst  = mk_expr (E_var lstv) lloc in
+  (* pattern variables *)
+  let hv  = mk_var "h" lloc in
+  let tv  = mk_var "t" lloc in
+  let hp  = mk_pat (P_var hv) lloc in
+  let tp  = mk_pat (P_var tv) lloc in
+  (* patterns *)
+  (* [] *)
+  let m = Location.mk_loc_val "[]" lloc in
+  let c = Location.mk_loc_val "[]" lloc in
+  let empty = mk_pat (P_variant ((m, c), [])) lloc in
+  (* h :: t *)
+  let c = Location.mk_loc_val "::" lloc in
+  let cons = mk_pat (P_variant ((m, c), [hp; tp])) lloc in
+  (* build the recursive call: _list_fold_func_(func(h, acc), t) *)
+  let h  = mk_expr (E_var hv) lloc in
+  let t  = mk_expr (E_var tv) lloc in
+  let func = match hoi.hoi_fname with
+      | None, f ->
+          mk_expr (E_var (var_of_ident f)) (Location.loc f)
+      | Some m, f ->
+          mk_expr (E_mod_member (m, f))
+            (Location.extent (Location.loc m) (Location.loc f)) in
+  let acc_arg = mk_expr (E_apply (func, [acc; h])) acloc in
+  let reccall =
+    let f = mk_var hoi.hoi_synthname func.expr_loc in
+    mk_expr (E_apply ((mk_expr (E_var f) func.expr_loc),
+                      [acc_arg; t]))
+      rloc in
+  (* case (lst) ... *)
+  let case =
+    mk_expr (E_case (lst, [empty, acc;
+                           cons,  reccall])) rloc in
+  let fun_ident = Location.mk_loc_val hoi.hoi_synthname lloc in
+  {fun_defn_ident     = var_of_ident fun_ident;
+   fun_defn_tvars     = stvs;
+   fun_defn_params    = [accv, acct, (); lstv, lstt, ()];
+   fun_defn_res_type  = sret;
+   fun_defn_body      = case;
+   fun_defn_recursive = true;
+   fun_defn_synth     = true;
+   fun_defn_loc       = Location.ghost_loc;
+   fun_defn_aux       = ()}
+
 
 (* Each higher-order invocation needs to be replaced by a call to
    the synthesized function.  The replacer functions construct this
@@ -464,6 +535,12 @@ let replace_list_map2 hoi args : (unit, unit) expr =
   let fv = mk_var hoi.hoi_synthname hoi.hoi_retloc in
   let fn = mk_expr (E_var fv) hoi.hoi_retloc in
   let args = args @ [mk_empty_list hoi.hoi_retloc] in
+  mk_expr (E_apply (fn, args)) hoi.hoi_retloc
+
+let replace_list_fold hoi args : (unit, unit) expr =
+  assert (List.length args = 2);
+  let fv = mk_var hoi.hoi_synthname hoi.hoi_retloc in
+  let fn = mk_expr (E_var fv) hoi.hoi_retloc in
   mk_expr (E_apply (fn, args)) hoi.hoi_retloc
 
 (** Scan the specification looking for higher-order invocations, and
@@ -576,6 +653,26 @@ let expand_call ctx ((m, i, l), rl) (args: (unit, unit) expr list)
           let sname = mk_synth_name "_list_map2_" fname ssig in
           (fname, fsig), (sname, ssig), List.tl args,
           synth_list_map2, replace_list_map2
+      | "List", "fold" ->
+          let nargs = List.length args in
+          (if   nargs != 3
+           then let err = FunctionCallArity ("List.fold", 3, nargs) in
+                raise (Error (l, err)));
+          let fname, fsig = get_func (List.hd args) in
+          let mk_synth_sig (tvs, args, ret) =
+            let nargs = List.length args in
+            if   nargs != 2
+            then let f = string_of_fname fname in
+                 let err = IncompatibleArityFunctionArgument
+                             ("List.fold", 2, f, nargs) in
+                 raise (Error (rl, err))
+            else let a = List.hd args in
+                 let t = List.hd (List.tl args) in
+                 (tvs, [a; mk_list_of t], ret) in
+          let ssig = mk_synth_sig fsig in
+          let sname = mk_synth_name "_list_fold_" fname ssig in
+          (fname, fsig), (sname, ssig), List.tl args,
+          synth_list_fold, replace_list_fold
       | _ ->
           assert false in
   let hoi = {hoi_name       = Some m, i;
