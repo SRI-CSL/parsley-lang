@@ -1,0 +1,76 @@
+// This Parsley file is based on the 
+// UDP specification: https://tools.ietf.org/html/rfc768 .
+
+// We make no assumption about whether we are using IPv4 or IPv6.
+// However, we also do not perform some of the requisite checks
+// using length and checksum as they would require knowing what
+// version of IP we are using.
+
+// We assume network byte order (big-endian) in accordance with the 
+// Assigned Numbers RFC: https://tools.ietf.org/html/rfc1700 .
+
+fun ones_complement_sum(a: int, b: int) -> int = {
+ a + b // placeholder
+}
+
+fun ones_complement_int(a: int) -> int = {
+  a // placeholder
+}
+
+type udp_packet = {
+  source_port: int,
+  destination_port: int,
+  length: int,
+  checksum: int,
+  data: [byte]
+}
+
+format {
+
+  UDPPacket udpp {u: udp_packet} := 
+    (| checksum_fold_sum: int := 0, checksum_res: int := 0|)
+    
+    // clone view
+    pre_parse_view = {;; View.clone(View.get_current())}
+
+    source_port = UInt16<endian=endian::Big()>
+    destination_port = UInt16<endian=endian::Big()>
+    length = UInt16<endian=endian::Big()>
+    checksum = UInt16<endian=endian::Big()>
+    [length >= 8] // length field must be at least 8, the UDP header length
+    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
+    {
+      udpp.u.source_port := source_port;
+      udpp.u.destination_port := destination_port;
+      udpp.u.length := length;
+      udpp.u.checksum := checksum;
+      udpp.u.data := data
+    }
+
+    computed_checksum = @[pre_parse_view, ComputeChecksum<packet_length = length>]
+    [computed_checksum = checksum];;
+
+  ComputeChecksum cc (packet_length: int) {computed_checksum: int := 0} :=
+    (| checksum_fold_sum: int := 0, checksum_res: int := 0|)
+   
+    [packet_length % 2 = 0] // even packet length
+    checksum_data = UInt16<endian=endian::Big()>^packet_length
+
+    computed_checksum = { checksum_fold_sum := List.fold(ones_complement_sum, 0, checksum_data);
+                          checksum_res := ones_complement_int(checksum_fold_sum)
+                          ;;
+                          checksum_res }
+  ; (| checksum_fold_sum: int := 0, checksum_res: int := 0|)
+
+    [packet_length % 2 = 1] // odd packet length
+    packet_length_minus_one = {;; packet_length - 1}
+    checksum_data = UInt16<endian=endian::Big()>^packet_length_minus_one
+    last_int = UInt8^1
+
+    computed_checksum = { let checksum_all_data = List.concat(checksum_data, last_int) in
+                          checksum_fold_sum := List.fold(ones_complement_sum, 0, checksum_all_data);
+                          checksum_res := ones_complement_int(checksum_fold_sum)
+                          ;;  
+                          checksum_res }    
+}
+
