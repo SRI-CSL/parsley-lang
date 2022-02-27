@@ -78,21 +78,29 @@ type gnode_desc =
 
   (* The mechanism for the matching and extraction of matched bits is
      the following:
-     . a bit-sensitive parsing mode is explicitly entered using
-       N_enter_bitmode before any bit-wise parsing operation.
+     . A bit-sensitive parsing mode is explicitly entered using
+       N_enter_bitmode before any bit-wise parsing operation.  This
+       must be at a byte-aligned offset; this offset is restored on
+       any bit-wise parsing failure.
 
-     . the current bit-cursor location is marked (N_mark_bit_cursor).
+     . The current bit-cursor location is marked (N_mark_bit_cursor).
 
-     . the cursor is updated according to the bit-matching construct
+     . The cursor is updated according to the bit-matching construct
        (bitvector, align, pad, bitfield).
 
-     . the bits from the marked position to the current cursor are
+     . The bits from the marked position to the current cursor are
        collected into a variable holding the match (N_collect_bits).
        An expected number of bits (or bound on this number) is
        specified as a check on correctness.
 
-     . when a sequence of bit-wise parsing operations are finished,
-       the normal parsing mode is restored using N_exit_bitmode.
+     . When a sequence of bit-wise parsing operations are finished,
+       the normal parsing mode is restored using N_exit_bitmode
+       at a byte-aligned offset.
+
+     . When a bit-wise parsing operation fails (at any bit offset),
+       the normal parsing mode is restored using N_fail_bitmode to the
+       byte-aligned view offset at which the sequence of bit-wise
+       parsing operations began with N_enter_bitmode.
 
      It is an internal error if there is no marked position at the
      time of N_collect_bits.
@@ -104,16 +112,11 @@ type gnode_desc =
   (* Enter/exit the bitwise parsing mode *)
   | N_enter_bitmode
   | N_exit_bitmode
+  | N_fail_bitmode
 
-  (* Match a specified number of bits *)
-  | N_bits of int
-  (* Align to the specified width *)
-  | N_align of int
-  (* Match the specified number of bits as padding.  The padding
-     pattern is specified in the following N_collect_bits node *)
-  | N_pad of int
   (* Mark bit-cursor location *)
   | N_mark_bit_cursor
+
   (* Collect matched bits from the marked position into a variable,
      and optionally interpret as a bitfield. *)
   | N_collect_bits of
@@ -234,6 +237,19 @@ module Node = struct
 
     (* block exits *)
 
+    (* bit-mode matching *)
+
+    (* Match a specified number of bits *)
+    | N_bits:
+        Location.t * int * label * label -> (Block.o, Block.c, unit) node
+    (* Align to the specified width *)
+    | N_align:
+        Location.t * int * label * label -> (Block.o, Block.c, unit) node
+    (* Match the specified number of bits as padding.  The padding
+       pattern is specified in the following N_collect_bits node *)
+    | N_pad:
+        Location.t * int * label * label -> (Block.o, Block.c, unit) node
+
     (* Collect matched bits from the marked position and check the
        specified predicate.  If it succeeds, N_collect_checked_bits
        assigns the collected bitvector to the specified variable, and
@@ -301,6 +317,9 @@ module Node = struct
 
   let successors (type e v) (n: (e, Block.c, v) node) =
     match n with
+      | N_bits (_, _, sc, fl)
+      | N_align (_, _, sc, fl)
+      | N_pad (_, _, sc, fl)
       | N_collect_checked_bits (_, _, _, sc, fl)
       | N_check_bits (_, _, sc, fl)
       | N_constraint (_, _, sc, fl)

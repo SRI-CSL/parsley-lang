@@ -24,7 +24,7 @@ open Runtime_exceptions
 
 let init_bitwise (v: view) : bitwise =
   {bw_bit_ofs = 0;
-   bw_view_id = v.vu_id;
+   bw_view    = v;
    bw_matched = []}
 
 let enter_bitmode lc (s: state) : state =
@@ -44,7 +44,7 @@ let get_bitwise (s: state) : bitwise =
     | Mode_bitwise bw ->
         (* should be in the same view *)
         let v = s.st_cur_view in
-        assert (bw.bw_view_id = v.vu_id);
+        assert (bw.bw_view.vu_id = v.vu_id);
         bw
 
 let exit_bitmode _lc (s: state) : state =
@@ -52,6 +52,12 @@ let exit_bitmode _lc (s: state) : state =
   (* should be byte-aligned *)
   assert (bw.bw_bit_ofs = 0);
   {s with st_mode = Mode_normal}
+
+let fail_bitmode _lc (s: state) : state =
+  (* rewind the view to the offset of the bitmode entry *)
+  let bw = get_bitwise s in
+  {s with st_mode     = Mode_normal;
+          st_cur_view = bw.bw_view}
 
 (* reset the bit-collection buffer *)
 let mark_bit_cursor lc (s: state) : state =
@@ -68,7 +74,7 @@ let collect_bits _lc (s: state) : bool list * state =
   let bw = get_bitwise s in
   List.rev bw.bw_matched, s
 
-let check_bit_bounds lc op (v: view) (bw: bitwise) n =
+let valid_bit_bounds (v: view) (bw: bitwise) n : bool =
   assert (bw.bw_bit_ofs < 8);
   assert (v.vu_ofs <= v.vu_end);
   (* count remaining bits within current byte *)
@@ -80,8 +86,8 @@ let check_bit_bounds lc op (v: view) (bw: bitwise) n =
          v.vu_ofs + 1 in
   (* add remaining full bytes until end of buffer *)
   let  bits_left = bits_left + 8*(v.vu_end - ofs) in
-  if   bits_left < n
-  then fault lc (View_bound (op, "end bound exceeded"))
+  (* check that there are enough bits left in the view *)
+  bits_left >= n
 
 (* Extract `n` bits starting from `ofs` (big-endian): returns list in
    reverse order suitable for accumulation by list prepend *)
@@ -95,38 +101,39 @@ let byte_to_nbits (c: char) ofs n : bool list =
   loop [] 0
 
 (* match `n` bits *)
-let match_bits lc op (s: state) n : state =
+let match_bits _lc _op (s: state) n : (state, state) result =
   let bw = get_bitwise s in
   let v = s.st_cur_view in
-  check_bit_bounds lc op v bw n;
-  (* extract n' bits from specified byte and bit offsets *)
-  let buf = v.vu_buf in
-  let rec loop (byte_ofs, bit_ofs) n' acc =
-    assert (n' >= 0);
-    if   n' = 0
-    then (byte_ofs, bit_ofs), acc
-    else let c = buf.{byte_ofs} in
-         let nbits = min n' (8 - bit_ofs) in
-         let bits  = byte_to_nbits c bit_ofs nbits in
-         let acc   = bits @ acc in
-         let byte_ofs, bit_ofs =
-           if   nbits < n'
-           then byte_ofs + 1, 0
-           else if bit_ofs + nbits < 8
-           then byte_ofs, bit_ofs + nbits
-           else byte_ofs + 1, 0 in
-         loop (byte_ofs, bit_ofs) (n' - nbits) acc in
-  let (byte_ofs, bit_ofs), acc =
-    loop (v.vu_ofs, bw.bw_bit_ofs) n bw.bw_matched in
-  (* return updated state *)
-  let bw = {bw with bw_bit_ofs = bit_ofs;
-                    bw_matched = acc} in
-  let v = {v with vu_ofs = byte_ofs} in
-  {s with st_mode = Mode_bitwise bw;
-          st_cur_view = v}
+  if   not (valid_bit_bounds v bw n)
+  then Error s
+  else (* extract n' bits from specified byte and bit offsets *)
+       let buf = v.vu_buf in
+       let rec loop (byte_ofs, bit_ofs) n' acc =
+         assert (n' >= 0);
+         if   n' = 0
+         then (byte_ofs, bit_ofs), acc
+         else let c = buf.{byte_ofs} in
+              let nbits = min n' (8 - bit_ofs) in
+              let bits  = byte_to_nbits c bit_ofs nbits in
+              let acc   = bits @ acc in
+              let byte_ofs, bit_ofs =
+                if   nbits < n'
+                then byte_ofs + 1, 0
+                else if bit_ofs + nbits < 8
+                then byte_ofs, bit_ofs + nbits
+                else byte_ofs + 1, 0 in
+              loop (byte_ofs, bit_ofs) (n' - nbits) acc in
+       let (byte_ofs, bit_ofs), acc =
+         loop (v.vu_ofs, bw.bw_bit_ofs) n bw.bw_matched in
+       (* return updated state *)
+       let bw = {bw with bw_bit_ofs = bit_ofs;
+                         bw_matched = acc} in
+       let v = {v with vu_ofs = byte_ofs} in
+       Ok {s with st_mode = Mode_bitwise bw;
+                  st_cur_view = v}
 
 (* align `n` bits *)
-let align_bits lc op (s: state) n : state =
+let align_bits lc op (s: state) n : (state, state) result =
   assert (n mod 8 = 0);
   let bw = get_bitwise s in
   let v  = s.st_cur_view in

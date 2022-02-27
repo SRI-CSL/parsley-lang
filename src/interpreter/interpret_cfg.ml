@@ -40,12 +40,8 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
         enter_bitmode loc s
     | N_exit_bitmode ->
         exit_bitmode loc s
-    | N_bits w ->
-        match_bits loc (Printf.sprintf "bits<%d>" w) s w
-    | N_align w ->
-        align_bits loc (Printf.sprintf "align<%d>" w) s w
-    | N_pad w ->
-        align_bits loc (Printf.sprintf "pad<%d>" w) s w
+    | N_fail_bitmode ->
+        fail_bitmode loc s
     | N_mark_bit_cursor ->
         mark_bit_cursor loc s
     | N_collect_bits (v, pred, obf) ->
@@ -151,6 +147,18 @@ and do_fail lc (s: state) (l: Cfg.label) : result =
 
 and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
   match n with
+    | N_bits (loc, w, lsc, lf) ->
+        (match match_bits loc (Printf.sprintf "bits<%d>" w) s w with
+           | Ok s    -> do_jump loc s lsc
+           | Error s -> do_fail loc s lf)
+    | N_align (loc, w, lsc, lf) ->
+        (match align_bits loc (Printf.sprintf "align<%d>" w) s w with
+           | Ok s    -> do_jump loc s lsc
+           | Error s -> do_fail loc s lf)
+    | N_pad (loc, w, lsc, lf) ->
+        (match align_bits loc (Printf.sprintf "pad<%d>" w) s w with
+           | Ok s    -> do_jump loc s lsc
+           | Error s -> do_fail loc s lf)
     | Cfg.Node.N_collect_checked_bits (loc, v, (mbb, pat), lsc, lf) ->
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
@@ -177,15 +185,18 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
     | Cfg.Node.N_fail (loc, l) ->
         do_fail loc s l
     | Cfg.Node.N_constraint (loc, v, lsc, lf) ->
+        assert (s.st_mode = Mode_normal);
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
         if   Parsleylib.cond loc vl
         then do_jump loc s lsc
         else do_fail loc s lf
     | Cfg.Node.N_cond_branch (loc, v, lsc, lf) ->
+        assert (s.st_mode = Mode_normal);
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
         let b = Parsleylib.cond v.v_loc vl in
         do_jump loc s (if b then lsc else lf)
     | Cfg.Node.N_exec_dfa (dfa, v, lsc, lf) ->
+        assert (s.st_mode = Mode_normal);
         let loc = Ir.Dfa.DFA.loc dfa in
         let run = Interpret_dfa.run dfa s.st_cur_view in
         (match run with
@@ -199,6 +210,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                                st_cur_view = vu} in
                do_jump loc s lsc)
     | Cfg.Node.N_scan (loc, (tag, dir), v, lsc, lf) ->
+        assert (s.st_mode = Mode_normal);
         let tag = Location.value tag in
         let run = Interpret_dfa.scan s.st_cur_view tag dir in
         (match run with
@@ -214,6 +226,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
 
     | Cfg.Node.N_call_nonterm (nt, params, ret, lsc, lf)
          when is_std_nonterm (Location.value nt) ->
+        assert (s.st_mode = Mode_normal);
         (* We don't have an nt_entry for stdlib non-terminals, so
            just evaluate the attribute values and dispatch. *)
         let ntn = Location.value nt in
@@ -244,6 +257,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                do_fail loc s lf
         )
     | Cfg.Node.N_call_nonterm (nt, params, ret, lsc, lf) ->
+        assert (s.st_mode = Mode_normal);
         let ent = get_ntentry s nt in
         let ntn = Location.value nt in
         (* sanity check *)

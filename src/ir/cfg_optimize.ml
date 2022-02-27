@@ -137,6 +137,18 @@ let retarget_label (map: Label.label LabelMap.t) (l: label)
 let retarget_exit (map: Label.label LabelMap.t) (nd: Node.exit_node)
     : Node.exit_node =
   match nd with
+    | N_bits (l, w, ls, lf) ->
+        let ls = retarget_label map ls in
+        let lf = retarget_label map lf in
+        N_bits (l, w, ls, lf)
+    | N_align (l, w, ls, lf) ->
+        let ls = retarget_label map ls in
+        let lf = retarget_label map lf in
+        N_align (l, w, ls, lf)
+    | N_pad (l, w, ls, lf) ->
+        let ls = retarget_label map ls in
+        let lf = retarget_label map lf in
+        N_pad (l, w, ls, lf)
     | N_collect_checked_bits (l, v, p, ls, lf) ->
         let ls = retarget_label map ls in
         let lf = retarget_label map lf in

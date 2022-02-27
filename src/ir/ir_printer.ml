@@ -71,12 +71,8 @@ let print_gnode g =
         pp_string "enter_bitmode"
     | N_exit_bitmode ->
         pp_string "exit_bitmode"
-    | N_bits i ->
-        pp_string (Printf.sprintf "bits %d" i)
-    | N_align i ->
-        pp_string (Printf.sprintf "align %d" i)
-    | N_pad i ->
-        pp_string (Printf.sprintf "pad %d" i)
+    | N_fail_bitmode ->
+        pp_string "fail_bitmode"
     | N_mark_bit_cursor ->
         pp_string "set_bit_mark"
     | N_collect_bits (v, mbb, obf) ->
@@ -120,6 +116,15 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
         pp_string (Printf.sprintf "jmp %s" (string_of_label l))
     | N_fail (_, l) ->
         pp_string (Printf.sprintf "fail %s" (string_of_label l))
+    | N_bits (_, i, lsc, lf) ->
+        pp_string (Printf.sprintf "bits %d, %s, %s"
+                     i (string_of_label lsc) (string_of_label lf))
+    | N_align (_, i, lsc, lf) ->
+        pp_string (Printf.sprintf "align %d, %s, %s"
+                     i (string_of_label lsc) (string_of_label lf))
+    | N_pad (_, i, lsc, lf) ->
+        pp_string (Printf.sprintf "pad %d, %s, %s"
+                     i (string_of_label lsc) (string_of_label lf))
     | N_collect_checked_bits (_, v, (mbb, bv), lsc, lf) ->
         pp_string (Printf.sprintf "collect_checked_bits %s, %s%s, %s, %s"
                      (Anf_printer.string_of_var v.v)

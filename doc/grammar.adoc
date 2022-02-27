@@ -582,6 +582,10 @@ expressions, non-terminals, and invocations of choice, star, option,
 and view-mapping combinators need to occur at byte-aligned positions
 in the parsing buffer.
 
+If a failure is experienced while parsing a sequence of bits, the next
+parsing choice continues at the byte-aligned location at which the bit
+matching started.
+
 An example of the use of the bitvector and bitfield support is shown
 below.  The rule for non-terminal `N` matches 24 bits, with the first
 byte being ignored, the next 7 bits stored in attribute `v`, and the

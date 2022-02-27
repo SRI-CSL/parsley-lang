@@ -85,6 +85,10 @@ let tests = [
                                     "f", V_bitfield (bf, [true;false;false;false;false;false;false;true;true]);
                                     "t", V_bitvector [true;false];
                                     "b", V_bitvector [false;false;false;false;false;true;true]]);
+    ("bitvector2", "format {N n {v: bitvector<3>} :=
+                               ((v=BitVector<3> BitVector<13> {n.v := v})
+                               |(v=BitVector<3> BitVector<5>  {n.v := v}))}",
+     "N", "\xa0", V_record ["v", V_bitvector [true; false; true]]);
     ("choice1", "type choice = | Good of [byte] | Bad of [byte]
                  format {Chk r {v: [byte]} :=
                         (|res : choice := choice::Good(\"\")|)

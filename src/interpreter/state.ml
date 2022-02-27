@@ -28,7 +28,7 @@ open Internal_errors
 
 type bitwise =
   {bw_bit_ofs: int;
-   bw_view_id: Int64.t;
+   bw_view:    Values.view; (* view to rewind to on failure *)
    bw_matched: bool list}
 
 type mode =
