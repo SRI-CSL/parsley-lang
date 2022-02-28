@@ -29,6 +29,7 @@ module Internal_errors = struct
     | No_binding_for_write of Anf.var
     | Bitrange_index of int * int
     | No_field of string
+    | No_field_specified
     | Bitfield_length_mismatch of string * string * int * int
     | Duplicate_function_binding of string
     | Function_arity of string * int * int
@@ -65,6 +66,8 @@ module Internal_errors = struct
           idx len
     | No_field f ->
         Printf.sprintf "Internal Error: record does not have field `%s'." f
+    | No_field_specified ->
+        Printf.sprintf "Internal Error: no field specified."
     | Bitfield_length_mismatch (bf, f, ex, fd) ->
         Printf.sprintf "Internal Error: field `%s' of bitfield `%s' has %d bits instead of %d"
           f bf fd ex

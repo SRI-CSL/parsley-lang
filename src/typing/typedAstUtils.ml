@@ -365,3 +365,11 @@ let rules_to_regexp rs =
   {regexp     = RX_choice rxs;
    regexp_loc = Location.extent rxh.regexp_loc rxt.regexp_loc;
    regexp_aux = rxh.regexp_aux}
+
+(* Separate out the trailing fields for a nested record expression. *)
+let fields_suffix e =
+  let rec split e fs =
+    match e.expr with
+      | E_field (e', f) -> split e' (f :: fs)
+      | _               -> e, fs in
+  split e []

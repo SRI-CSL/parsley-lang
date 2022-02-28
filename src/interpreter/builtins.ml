@@ -297,6 +297,13 @@ let not_equals lc (l: value) (r: value) : value =
     | Ok b    -> V_bool (not b)
     | Error e -> internal_error lc e
 
+let lookup_field lc (l: value) (f: string) : value option =
+  match l with
+    | V_record fs ->
+        List.assoc_opt f fs
+    | _ ->
+        internal_error lc (Type_error ("." ^ f, 1, vtype_of l, T_record [f, T_empty]))
+
 let get_field lc (l: value) (f: string) : value =
   match l with
     | V_record fs ->

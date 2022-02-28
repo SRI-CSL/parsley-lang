@@ -59,6 +59,11 @@ let tests = [
     ("recdnt", "type recd = {t: byte}
                 format {NonTerm nt {recd} := c=Byte {nt.t := c}}",
      "NonTerm", "B", V_record ["t", V_char 'B']);
+    ("nrec", "type r = {f1: int, f2: int}
+              format {NR n {n: r} := {n.n.f1 := 1;
+                                      n.n.f2 := 2}}",
+     "NR", "", V_record ["n", V_record ["f1", V_int 1L;
+                                        "f2", V_int 2L]]);
     ("depntvec", "type recd = {t: byte}
                   fun byte_of_recd(r: recd) -> byte = {r.t}
                   format {NonTerm n {recd} := c=Byte {n.t := c};;

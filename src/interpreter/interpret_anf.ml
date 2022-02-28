@@ -248,15 +248,31 @@ let rec eval_stmt (s: state) (st: Anf.astmt) : state =
         let vl = val_of_aexp s ae in
         let env = VEnv.assign s.st_venv v vl in
         {s with st_venv = env}
-    | AS_set_field (r, f, ae) ->
+    | AS_set_field (r, fs, ae) ->
         let fvl = val_of_aexp s ae in
         (* `r` might not be bound since this might be the initializing
            assignment. *)
         let rvl = if   VEnv.bound s.st_venv r.v
                   then VEnv.lookup s.st_venv r.v loc
                   else V_record [] in
-        let rvl =
-          Builtins.set_field (Location.loc f) rvl (Location.value f) fvl in
+        (* Create records as needed for initializing assignments of
+           fields of nested records. *)
+        let rec set_fields rvl fs =
+          match fs with
+            | []      -> let err = Internal_errors.No_field_specified in
+                         internal_error loc err
+            | [f]     -> let lc = Location.loc f in
+                         let f  = Location.value f in
+                         Builtins.set_field lc rvl f fvl
+            | f :: fs -> let lc = Location.loc f in
+                         let f  = Location.value f in
+                         let rvl' =
+                           match Builtins.lookup_field lc rvl f with
+                             | None   -> Values.empty_record
+                             | Some r -> r in
+                         let fvl' = set_fields rvl' fs in
+                         Builtins.set_field lc rvl f fvl' in
+        let rvl = set_fields rvl fs in
         let env = VEnv.assign s.st_venv r rvl in
         {s with st_venv = env}
     | AS_let (v, ae, st') ->

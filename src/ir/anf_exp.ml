@@ -388,23 +388,33 @@ let rec normalize_stmt tenv venv (s: stmt) : astmt * VEnv.t =
                           astmt_loc = s.stmt_loc} in
   match s.stmt with
     | S_assign (l, r) ->
+       (* Initialization of deeply nested records can happen
+          inside-out; i.e. outer fields of a nested record may not
+          exist before their inner fields are initialized.  Extract
+          the suffix of fields in `l` to combine their initialization
+          and assignment. *)
+        let l, fs    = TypedAstUtils.fields_suffix l in
         let ln, venv = normalize_exp tenv venv l in
         let rn, venv = normalize_exp tenv venv r in
-        (* the left hand side can be a possibly empty sequence of
-           lets terminated by a variable or a record field *)
-        let rec rewrite ae =
-          match ae.aexp with
-            | AE_val {av = AV_var v; _} ->
+        (* The left hand side can be a possibly empty sequence of
+           lets terminated by a variable or a record field; hoist the
+           lets out of the assignment. *)
+        let rec hoist_lets ae =
+          match ae.aexp, fs with
+            | AE_val {av = AV_var v; _}, [] ->
                 let v = make_var v ln.aexp_typ ln.aexp_loc in
                 wrap (AS_set_var (v, rn))
-            | AE_field ({av = AV_var v; _}, f) ->
+            | AE_val {av = AV_var v; _}, _ :: _ ->
                 let v = make_var v ln.aexp_typ ln.aexp_loc in
-                wrap (AS_set_field (v, f, rn))
-            | AE_let (v, ae', ae'') ->
-                wrap (AS_let (v, ae', rewrite ae''))
+                wrap (AS_set_field (v, fs, rn))
+            | AE_field (_, _), _ ->
+                (* This should have been part of the fields suffix. *)
+                assert false
+            | AE_let (v, ae', ae''), _ ->
+                wrap (AS_let (v, ae', hoist_lets ae''))
             | _ ->
                 raise (Error (ln.aexp_loc, Unassignable_expression)) in
-        rewrite ln, venv
+        hoist_lets ln, venv
     | S_let (p, e, ss) ->
         (* handle this similar to E_let *)
         let se, venv  = subnorm tenv venv e in

@@ -73,6 +73,8 @@ type value =
   | V_set of value list
   | V_map of (value * value) list
 
+let empty_record = V_record []
+
 (* a type to describe the runtime type of the value *)
 type vtype =
   | T_empty (* used for empty options, lists, sets and maps *)

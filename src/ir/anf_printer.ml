@@ -243,10 +243,12 @@ and print_stmt s =
         pp_string (string_of_var v.v);
         pp_string " := ";
         print_aexp e
-    | AS_set_field (v, f, e) ->
+    | AS_set_field (v, fs, e) ->
         pp_string (string_of_var v.v);
-        pp_string ".";
-        pp_string (Location.value f);
+        List.iter (fun f ->
+            pp_string ".";
+            pp_string (Location.value f)
+          ) fs;
         pp_string " := ";
         print_aexp e
     | AS_let (v, e, s) ->
