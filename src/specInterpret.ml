@@ -18,14 +18,26 @@
 open Ir
 open Interpreter
 
-let do_interpret spec nt f =
+let interpret spec nt f loop =
+  let do_loop () =
+    let vs = Interpret.loop_on_file spec nt f in
+    let n  = List.length vs in
+    Printf.printf "%d values extracted%s\n\n"
+      n (if n = 0 then "." else ":");
+    List.iter (fun v ->
+        Printf.printf "%s\n\n%!" (Values.string_of_value v)
+      ) vs in
+  let do_once () =
+    match Interpret.once_on_file spec nt f with
+      | Some v -> (Printf.printf "Parse terminated successfully with:\n";
+                   Printf.printf "%s\n%!" (Values.string_of_value v);
+                   exit 0)
+      | None   -> (Printf.printf "Parse terminated in failure.\n";
+                   exit 1) in
   try
-    (match Interpret.execute_on_file spec nt f with
-       | Some v -> (Printf.printf "Parse terminated successfully with:\n";
-                    Printf.printf "%s\n%!" (Values.string_of_value v);
-                    exit 0)
-       | None   -> (Printf.printf "Parse terminated in failure.\n";
-                    exit 1))
+    if   loop
+    then do_loop ()
+    else do_once ()
   with
     | Runtime_exceptions.Runtime_exception (l, e) ->
         Errors.handle_exception
@@ -48,4 +60,4 @@ let interpret (spec: Cfg.spec_ir) (ent_nonterm: string option)
     | None, Some f ->
         Printf.eprintf "No entry non-terminal specified for `%s'.\n" f
     | Some nt, Some f ->
-        do_interpret spec nt f
+        interpret spec nt f !Options.loop

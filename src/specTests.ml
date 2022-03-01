@@ -82,7 +82,7 @@ let gen_ir (test_name: string) (spec: string) =
                 Some (SpecIR.to_ir ies te ts)
 
 let exe_ir (test: string) (ir: Ir.Cfg.spec_ir) (entry: string) (data: string) =
-  try  Interpret.execute_on_test_string test ir entry data
+  try  Interpret.once_on_test_string test ir entry data
   with
     | Runtime_exceptions.Runtime_exception (_, e) ->
         (* Catch the backtrace before error_msg has an exception

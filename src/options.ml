@@ -26,6 +26,7 @@ let input_file  = ref []
 let ent_nonterm = ref None
 let data_file   = ref None
 let json_out    = ref false
+let loop        = ref false
 
 (* internal to specTyper *)
 let print_post_macro = false
@@ -59,6 +60,9 @@ let options =
         ( "-test",
           Arg.Set do_tests,
           " run internal tests");
+        ( "-lp",
+          Arg.Set loop,
+          " loop over input");
         ( "-json",
           Arg.Set json_out,
           " output to stderr a json formatted string");
