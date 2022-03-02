@@ -130,20 +130,18 @@ type code =
 type result = code * state * Cfg.label  (* this label should always be dynamic *)
 
 let rec do_jump lc (s: state) (l: Cfg.label) : result =
-  if   Cfg.is_dynamic l
-  then C_success, s, l
-  else let b = get_block lc s l in
-       do_closed_block s b
+  assert (Cfg.is_static l);
+  let b = get_block lc s l in
+  do_closed_block s b
 
-(* A failure to a static label should correspond to an entry at the
-   top of the failcont stack, and this entry is popped before
-   proceeding.  A failure to a dynamic label corresponds to a return
-   to the caller. *)
 and do_fail lc (s: state) (l: Cfg.label) : result =
-  if   Cfg.is_dynamic l
-  then C_failure, s, l
-  else let b = get_block lc s l in
-       do_closed_block s b
+  assert (Cfg.is_static l);
+  let b = get_block lc s l in
+  do_closed_block s b
+
+and do_return _lc (c: code) (s: state) (l: Cfg.label) : result =
+  assert (Cfg.is_dynamic l);
+  c, s, l
 
 and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
   match n with
@@ -184,6 +182,10 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         do_jump loc s l
     | Cfg.Node.N_fail (loc, l) ->
         do_fail loc s l
+    | Cfg.Node.N_succ_return (loc, l) ->
+        do_return loc C_success s l
+    | Cfg.Node.N_fail_return (loc, l) ->
+        do_return loc C_failure s l
     | Cfg.Node.N_constraint (loc, v, lsc, lf) ->
         assert (s.st_mode = Mode_normal);
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in

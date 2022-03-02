@@ -179,9 +179,9 @@ let mk_gnode n t l =
    by specifying the label of the target block.
 
    Labels are of two types: static and dynamic.  Static labels are
-   used to designate fixed control-flow targets, i.e. targets that do
-   not change during execution.  Dynamic labels are used when a target
-   is only known during execution.
+   used to designate control-flow targets within the CFG of a
+   non-terminal.  Dynamic labels are used for control-flow transfer
+   (calls and returns) between the CFGs of different non-terminals.
 
    When lowering the rules for a non-terminal to a CFG, the success
    and continuation targets for the non-terminal are only known during
@@ -191,8 +191,7 @@ let mk_gnode n t l =
    control to the targets in effect at the time the CFG for the
    non-terminal is executed.
 
-   The entry node of a block is always static; however, jump targets,
-   failure continuations and success continuations may be dynamic.
+   The entry node of a block is always static.
  *)
 
 type label =
@@ -267,6 +266,15 @@ module Node = struct
     | N_jump: Location.t * label -> (Block.o, Block.c, unit) node
     (* forward jumps in failure path *)
     | N_fail: Location.t * label -> (Block.o, Block.c, unit) node
+    (* return jump: The label must be dynamic, indicating a successful
+       return if to a success continuation, or an error return if to a
+       failure continuation.  This is used to return from the CFG of
+       a *user-defined* non-terminal.  Stdlib non-terminals are
+       handled specially since they don't have a CFG. *)
+    (* Success and failure returns are differentiated temporarily, to
+       ease materializing the interpreter control stack. *)
+    | N_succ_return: Location.t * label -> (Block.o, Block.c, unit) node
+    | N_fail_return: Location.t * label -> (Block.o, Block.c, unit) node
 
     (* Constrained jump: the var should have been bound to the value
        of the constraint expression, and the label is the success
@@ -329,7 +337,9 @@ module Node = struct
       | N_call_nonterm (_, _, _, sc, fl)
         -> [raw_label_of sc; raw_label_of fl]
       | N_fail (_, l)
-      | N_jump (_, l) -> [raw_label_of l]
+      | N_jump (_, l)
+      | N_succ_return (_, l)
+      | N_fail_return (_, l) -> [raw_label_of l]
       (* this should not be needed *)
       | _ -> assert false
 end

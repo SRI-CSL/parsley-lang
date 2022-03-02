@@ -89,12 +89,16 @@ let add_gnode b nd typ loc =
   add_node b (Node.N_gnode nd)
 
 let close_with_jump ctx b loc l =
-  let nd = Node.N_jump (loc, l) in
+  let nd = if   is_dynamic l
+           then Node.N_succ_return (loc, l)
+           else Node.N_jump        (loc, l) in
   let b = B.join_tail b nd in
   {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
 
 let close_with_fail ctx b loc l =
-  let nd = Node.N_fail (loc, l) in
+  let nd = if   is_dynamic l
+           then Node.N_fail_return (loc, l)
+           else Node.N_fail        (loc, l) in
   let b = B.join_tail b nd in
   {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
 
