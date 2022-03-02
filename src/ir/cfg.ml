@@ -271,10 +271,7 @@ module Node = struct
        failure continuation.  This is used to return from the CFG of
        a *user-defined* non-terminal.  Stdlib non-terminals are
        handled specially since they don't have a CFG. *)
-    (* Success and failure returns are differentiated temporarily, to
-       ease materializing the interpreter control stack. *)
-    | N_succ_return: Location.t * label -> (Block.o, Block.c, unit) node
-    | N_fail_return: Location.t * label -> (Block.o, Block.c, unit) node
+    | N_return: Location.t * label -> (Block.o, Block.c, unit) node
 
     (* Constrained jump: the var should have been bound to the value
        of the constraint expression, and the label is the success
@@ -338,8 +335,7 @@ module Node = struct
         -> [raw_label_of sc; raw_label_of fl]
       | N_fail (_, l)
       | N_jump (_, l)
-      | N_succ_return (_, l)
-      | N_fail_return (_, l) -> [raw_label_of l]
+      | N_return (_, l) -> [raw_label_of l]
       (* this should not be needed *)
       | _ -> assert false
 end

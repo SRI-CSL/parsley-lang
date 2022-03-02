@@ -105,27 +105,14 @@ let do_linear_node (s: state) (n: Cfg.Node.linear_node)
    hence to terminate the execution of the blocks in the
    non-terminal's CFG.
 
-   `N_call_nonterm` (i.e. starting and ending a non-terminal parse) is
-   the only node that is not processed tail-recursively; i.e. it
-   maintains state on the interpreter's stack.  `N_call_nonterm` needs
-   to process the result of the non-terminal parse differently
-   depending on whether the parse succeeded or failed.  So it waits on
-   the stack until control reaches one of its dynamic labels, i.e. the
-   label for either the success or the failure continuation.
-   Terminating block execution at a dynamic label allows control to
-   return to `N_call_nonterm`.  The termination code indicates the
-   type of termination (success or failure).
-
    Non-terminal production rules are in terms of other non-terminals;
    this manifests in a non-terminal CFG containing `N_call_nonterm`
    nodes to these other non-terminals.  A sequence of such calls
-   during execution results in state being built up on the
-   interpreter's stack, as each non-terminal waits for its "child"
-   non-terminal to terminate execution. *)
-
-type code =
-  | C_success
-  | C_failure
+   during execution results in call frames being built up in the
+   control stack, as each non-terminal waits for its "child"
+   non-terminal to terminate execution.  These calls terminate with a
+   `N_return` instruction, which pops a call frame and continues
+   execution from the continuations specified in it. *)
 
 type result = value option * state
 
@@ -139,7 +126,7 @@ and do_fail lc (s: state) (l: Cfg.label) : result =
   let b = get_block lc s l in
   do_closed_block s b
 
-and do_return _lc (c: code) (s': state) (l: Cfg.label) : result =
+and do_return _lc (s': state) (l: Cfg.label) : result =
   assert (Cfg.is_dynamic l);
   match s'.st_ctrl_stk with
     | [] ->
@@ -147,51 +134,45 @@ and do_return _lc (c: code) (s': state) (l: Cfg.label) : result =
         assert false
     | cf :: stk ->
         let loc = Location.loc cf.cf_nt in
-        (match c with
-           | C_success ->
-               (* We should have terminated at the specified success
-                  continuation. *)
-               assert (l = cf.cf_nt_succcont);
-               (* According to the calling convention, `cf_nt_retvar`
-                  should hold the matched value in the value
-                  environment of `s`. *)
-               let vl = VEnv.lookup s'.st_venv cf.cf_nt_retvar.v loc in
-               (* Update the environment of the calling state `s`. *)
-               let s = cf.cf_call_state in
-               let env = match cf.cf_call_retvar with
-                   | None    -> s.st_venv
-                   | Some vr -> VEnv.assign s.st_venv vr vl in
-               (* Update the view and pop the control stack. *)
-               let s = {s with st_venv     = env;
-                               st_ctrl_stk = stk;
-                               st_cur_view = s'.st_cur_view} in
-               (match cf.cf_conts with
-                  | Some (lsc, _) ->
-                      (* Transfer control to the success continuation. *)
-                      do_jump loc s lsc
-                  | None ->
-                      (* Return to the top-level *)
-                      assert (stk = []);
-                      Some vl, s)
-           | C_failure ->
-               (* We should have terminated at the specified failure
-                  continuation. *)
-               assert (l = cf.cf_nt_failcont);
-               let s = cf.cf_call_state in
-               (* The view should not be modified by the call
-                  (except when the call is from the top-level). *)
-               assert (stk = [] || s.st_cur_view = s'.st_cur_view);
-               (* Pop the control stack. *)
-               let s = {s with st_ctrl_stk = stk} in
-               (match cf.cf_conts with
-                  | Some (_, lf) ->
-                      (* Transfer control to the failure continuation
-                         without any change to the view. *)
-                      do_fail loc s lf
-                  | None ->
-                      (* Return to the top-level *)
-                      assert (stk = []);
-                      None, s))
+        if   l = cf.cf_nt_succcont
+        then (* According to the calling convention, `cf_nt_retvar`
+                should hold the matched value in the value environment
+                of `s'`. *)
+             let vl = VEnv.lookup s'.st_venv cf.cf_nt_retvar.v loc in
+             (* Update the environment of the calling state `s`. *)
+             let s = cf.cf_call_state in
+             let env = match cf.cf_call_retvar with
+                 | None    -> s.st_venv
+                 | Some vr -> VEnv.assign s.st_venv vr vl in
+             (* Update the view and pop the control stack. *)
+             let s = {s with st_venv     = env;
+                             st_ctrl_stk = stk;
+                             st_cur_view = s'.st_cur_view} in
+             match cf.cf_conts with
+               | Some (lsc, _) ->
+                   (* Transfer control to the success continuation. *)
+                   do_jump loc s lsc
+               | None ->
+                   (* Return to the top-level *)
+                   assert (stk = []);
+                   Some vl, s
+        else if l = cf.cf_nt_failcont
+        then let s = cf.cf_call_state in
+             (* The view should not be modified by the call (except
+                when the  call is from the top-level). *)
+             assert (stk = [] || s.st_cur_view = s'.st_cur_view);
+             (* Pop the control stack. *)
+             let s = {s with st_ctrl_stk = stk} in
+             match cf.cf_conts with
+               | Some (_, lf) ->
+                   (* Transfer control to the failure continuation
+                      without any change to the view. *)
+                   do_fail loc s lf
+               | None ->
+                   (* Return to the top-level *)
+                   assert (stk = []);
+                   None, s
+        else assert false (* Unrecognized label. *)
 
 and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
   match n with
@@ -232,10 +213,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         do_jump loc s l
     | Cfg.Node.N_fail (loc, l) ->
         do_fail loc s l
-    | Cfg.Node.N_succ_return (loc, l) ->
-        do_return loc C_success s l
-    | Cfg.Node.N_fail_return (loc, l) ->
-        do_return loc C_failure s l
+    | Cfg.Node.N_return (loc, l) ->
+        do_return loc s l
     | Cfg.Node.N_constraint (loc, v, lsc, lf) ->
         assert (s.st_mode = Mode_normal);
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in

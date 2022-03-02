@@ -116,10 +116,8 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
         pp_string (Printf.sprintf "jmp %s" (string_of_label l))
     | N_fail (_, l) ->
         pp_string (Printf.sprintf "fail %s" (string_of_label l))
-    | N_succ_return (_, l) ->
-        pp_string (Printf.sprintf "succ-return %s" (string_of_label l))
-    | N_fail_return (_, l) ->
-        pp_string (Printf.sprintf "fail-return %s" (string_of_label l))
+    | N_return (_, l) ->
+        pp_string (Printf.sprintf "return %s" (string_of_label l))
     | N_bits (_, i, lsc, lf) ->
         pp_string (Printf.sprintf "bits %d, %s, %s"
                      i (string_of_label lsc) (string_of_label lf))

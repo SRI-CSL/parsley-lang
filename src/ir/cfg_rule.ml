@@ -88,17 +88,19 @@ let add_gnode b nd typ loc =
   let nd = mk_gnode nd typ loc in
   add_node b (Node.N_gnode nd)
 
+(* Jumps/fails to dynamic labels are returns. *)
+
 let close_with_jump ctx b loc l =
   let nd = if   is_dynamic l
-           then Node.N_succ_return (loc, l)
-           else Node.N_jump        (loc, l) in
+           then Node.N_return (loc, l)
+           else Node.N_jump   (loc, l) in
   let b = B.join_tail b nd in
   {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
 
 let close_with_fail ctx b loc l =
   let nd = if   is_dynamic l
-           then Node.N_fail_return (loc, l)
-           else Node.N_fail        (loc, l) in
+           then Node.N_return (loc, l)
+           else Node.N_fail   (loc, l) in
   let b = B.join_tail b nd in
   {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
 
@@ -106,9 +108,9 @@ let close_block ctx b nd =
   let b = B.join_tail b nd in
   {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
 
-(* returns the labels to use for failure continuations for a set of
-   ordered choices.  each choice fails to the next one, except for the
-   last choice, which fails to the provided continuation.  for
+(* Returns the labels to use for failure continuations for a set of
+   ordered choices.  Each choice fails to the next one, except for the
+   last choice, which fails to the provided continuation.  For
    convenience in a list folder, provide a boolean to indicate whether
    the label is the last one.  *)
 let mk_choice_labels choices (final_cont : label) =

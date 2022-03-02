@@ -42,8 +42,7 @@ let is_jmp_block (b: closed) : bool =
   let _, b = B.split_head b in
   let b, x = B.split_tail b in
   let exit_is_jmp = match x with
-      | Node.N_succ_return _
-      | Node.N_fail_return _
+      | Node.N_return _
       | Node.N_jump _
       | Node.N_fail _ -> true
       | _             -> false in
@@ -165,12 +164,9 @@ let retarget_exit (map: Label.label LabelMap.t) (nd: Node.exit_node)
     | N_fail (l, t) ->
         let t = retarget_label map t in
         N_fail (l, t)
-    | N_succ_return (l, t) ->
+    | N_return (l, t) ->
         let t = retarget_label map t in
-        N_succ_return (l, t)
-    | N_fail_return (l, t) ->
-        let t = retarget_label map t in
-        N_fail_return (l, t)
+        N_return (l, t)
     | N_constraint (l, v, ls, lf) ->
         let ls = retarget_label map ls in
         let lf = retarget_label map lf in
