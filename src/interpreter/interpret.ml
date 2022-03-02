@@ -23,7 +23,7 @@ open Values
 (* Returns the entry block for the given non-terminal along with the
    interpreter state that is initialized by executing the static block. *)
 let init (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
-  : Cfg.nt_entry * state * Cfg.closed =
+  : state * Cfg.closed =
   let venv = VEnv.empty in
   let fenv = FEnv.empty in
   let s = {st_spec_toc     = Cfg.(spec.ir_gtoc);
@@ -34,7 +34,8 @@ let init (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
            st_venv         = venv;
            st_fenv         = fenv;
            st_view_stk     = [];
-           st_cur_view     = view} in
+           st_cur_view     = view;
+           st_ctrl_stk     = []} in
   (* Initialize from the statics block. *)
   let s = Interpret_cfg.do_opened_block s Cfg.(spec.ir_statics) in
   (* Look up the entry non-terminal. *)
@@ -55,53 +56,33 @@ let init (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
           "The non-terminal `%s' has %d inherited attributes.\n"
           entry_nt niattrs;
         exit 1);
+  (* Set up the top-level call frame (with no return
+     continuations). *)
+  let cf = {cf_nt          = ent.nt_name;
+            cf_conts       = None;
+            cf_nt_succcont = ent.nt_succcont;
+            cf_nt_failcont = ent.nt_failcont;
+            cf_nt_retvar   = ent.nt_retvar;
+            cf_call_retvar = None;
+            cf_call_state  = s} in
+  let s = {s with st_ctrl_stk = [cf]} in
   (* Get the entry block *)
   let loc = Location.loc ent.nt_name in
   let b   = get_block loc s (Cfg.L_static ent.nt_entry) in
-  ent, s, b
+  s, b
 
-let run_once ((ent: Cfg.nt_entry), (s: state), (b: Cfg.closed))
+let run_once ((s: state), (b: Cfg.closed))
     : value option =
-  let loc = Location.loc ent.nt_name in
-  let code, s, l = Interpret_cfg.do_closed_block s b in
-  match code with
-    | C_success ->
-        (* We should have terminated at the specified success
-           continuation. *)
-        assert (l = ent.nt_succcont);
-        (* According to the calling convention, `ent.retvar`
-           should hold the matched value in the value
-           environment of `s'`. *)
-        let vl = VEnv.lookup s.st_venv ent.nt_retvar.v loc in
-        Some vl
-    | C_failure ->
-        (* We should have terminated at the specified failure
-           continuation. *)
-        assert (l = ent.nt_failcont);
-        None
+  fst (Interpret_cfg.do_closed_block s b)
 
-let run_loop ((ent: Cfg.nt_entry), (s: state), (b: Cfg.closed))
+let run_loop ((s: state), (b: Cfg.closed))
     : value list =
-  let loc = Location.loc ent.nt_name in
   let rec loop acc s_init =
-    let code, s, l = Interpret_cfg.do_closed_block s_init b in
-    match code with
-      | C_success ->
-          (* We should have terminated at the specified success
-             continuation. *)
-          assert (l = ent.nt_succcont);
-          (* According to the calling convention, `ent.retvar`
-             should hold the matched value in the value
-             environment of `s'`. *)
-          let vl = VEnv.lookup s.st_venv ent.nt_retvar.v loc in
-          (* Restore clean state but with updated view *)
-          let s = {s_init with st_cur_view = s.st_cur_view} in
-          loop (vl :: acc) s
-    | C_failure ->
-        (* We should have terminated at the specified failure
-           continuation. *)
-        assert (l = ent.nt_failcont);
-        List.rev acc in
+    match Interpret_cfg.do_closed_block s_init b with
+      | Some vl, s ->
+          loop (vl :: acc) {s_init with st_cur_view = s.st_cur_view}
+      | None, _ ->
+          List.rev acc in
   loop [] s
 
 let once_on_file spec entry f =

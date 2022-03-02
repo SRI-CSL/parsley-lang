@@ -86,7 +86,19 @@ end
 module LBindings = Map.Make (struct type t = Label.label
                                     let compare = compare
                              end)
-type state =
+
+(* Control stack entry, set up/pushed by N_call_nonterm and
+   used/popped by N_*_return. *)
+type call_frame =
+  {cf_nt:          Ast.ident;                     (* (user-defined) non-terminal being called *)
+   cf_conts:       (Cfg.label* Cfg.label) option; (* success/fail continuations for return *)
+   cf_nt_retvar:   Anf.var;                       (* variable for successful match *)
+   cf_call_retvar: Cfg.return;                    (* (optional) return variable for this call *)
+   cf_call_state:  state;                         (* call state *)
+   cf_nt_succcont: Cfg.label;                     (* continuations for call *)
+   cf_nt_failcont: Cfg.label}                     (*   (sanity check only)  *)
+
+and state =
   {(* static state *)
    st_spec_toc:     Cfg.nt_entry Cfg.FormatGToC.t;
    st_spec_ir:      Cfg.closed Cfg.LabelMap.t;
@@ -98,8 +110,8 @@ type state =
    st_venv:         VEnv.t;
    st_fenv:         FEnv.t;
    st_view_stk:     Values.view list;  (* stack of views (minus top-of-stack) *)
-   st_cur_view:     Values.view}       (* current view (top-of-view-stack) *)
-
+   st_cur_view:     Values.view;       (* current view (top-of-view-stack) *)
+   st_ctrl_stk:     call_frame list}
 (* helpers *)
 
 let get_block lc (s: state) (l: Cfg.label) : Cfg.closed =
