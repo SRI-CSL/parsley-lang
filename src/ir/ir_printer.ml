@@ -114,8 +114,6 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
         print_gnode g
     | N_jump (_, l) ->
         pp_string (Printf.sprintf "jmp %s" (string_of_label l))
-    | N_fail (_, l) ->
-        pp_string (Printf.sprintf "fail %s" (string_of_label l))
     | N_return (_, l) ->
         pp_string (Printf.sprintf "return %s" (string_of_label l))
     | N_bits (_, i, lsc, lf) ->

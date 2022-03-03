@@ -121,11 +121,6 @@ let rec do_jump lc (s: state) (l: Cfg.label) : result =
   let b = get_block lc s l in
   do_closed_block s b
 
-and do_fail lc (s: state) (l: Cfg.label) : result =
-  assert (Cfg.is_static l);
-  let b = get_block lc s l in
-  do_closed_block s b
-
 and do_return _lc (s': state) (l: Cfg.label) : result =
   assert (Cfg.is_dynamic l);
   match s'.st_ctrl_stk with
@@ -167,7 +162,7 @@ and do_return _lc (s': state) (l: Cfg.label) : result =
                | Some (_, lf) ->
                    (* Transfer control to the failure continuation
                       without any change to the view. *)
-                   do_fail loc s lf
+                   do_jump loc s lf
                | None ->
                    (* Return to the top-level *)
                    assert (stk = []);
@@ -179,15 +174,15 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
     | N_bits (loc, w, lsc, lf) ->
         (match match_bits loc (Printf.sprintf "bits<%d>" w) s w with
            | Ok s    -> do_jump loc s lsc
-           | Error s -> do_fail loc s lf)
+           | Error s -> do_jump loc s lf)
     | N_align (loc, w, lsc, lf) ->
         (match align_bits loc (Printf.sprintf "align<%d>" w) s w with
            | Ok s    -> do_jump loc s lsc
-           | Error s -> do_fail loc s lf)
+           | Error s -> do_jump loc s lf)
     | N_pad (loc, w, lsc, lf) ->
         (match align_bits loc (Printf.sprintf "pad<%d>" w) s w with
            | Ok s    -> do_jump loc s lsc
-           | Error s -> do_fail loc s lf)
+           | Error s -> do_jump loc s lf)
     | Cfg.Node.N_collect_checked_bits (loc, v, (mbb, pat), lsc, lf) ->
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
@@ -199,7 +194,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
              let env  = VEnv.assign s.st_venv v (V_list bits) in
              let s    = {s with st_venv = env} in
              do_jump loc s lsc
-        else do_fail loc s lf
+        else do_jump loc s lf
     | Cfg.Node.N_check_bits (loc, (mbb, pat), lsc, lf) ->
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
@@ -208,11 +203,9 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
              internal_error loc err
         else if match_padding bits pat
         then do_jump loc s lsc
-        else do_fail loc s lf
+        else do_jump loc s lf
     | Cfg.Node.N_jump (loc, l) ->
         do_jump loc s l
-    | Cfg.Node.N_fail (loc, l) ->
-        do_fail loc s l
     | Cfg.Node.N_return (loc, l) ->
         do_return loc s l
     | Cfg.Node.N_constraint (loc, v, lsc, lf) ->
@@ -220,7 +213,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
         if   Parsleylib.cond loc vl
         then do_jump loc s lsc
-        else do_fail loc s lf
+        else do_jump loc s lf
     | Cfg.Node.N_cond_branch (loc, v, lsc, lf) ->
         assert (s.st_mode = Mode_normal);
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
@@ -233,7 +226,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         (match run with
            | None ->
                (* no match *)
-               do_fail loc s lf
+               do_jump loc s lf
            | Some (vl, vu) ->
                (* matched value with updated view *)
                let env = VEnv.assign s.st_venv v vl in
@@ -247,7 +240,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         (match run with
            | None ->
                (* tag not found *)
-               do_fail loc s lf
+               do_jump loc s lf
            | Some (vl, vu) ->
                (* matched value with updated view *)
                let venv = VEnv.assign s.st_venv v vl in
@@ -285,7 +278,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
                (* These are operationally equivalent but can be used
                   for debugging. *)
                (* Transfer control to the failure continuation. *)
-               do_fail loc s lf
+               do_jump loc s lf
         )
     | Cfg.Node.N_call_nonterm (nt, params, ret, lsc, lf) ->
         assert (s.st_mode = Mode_normal);

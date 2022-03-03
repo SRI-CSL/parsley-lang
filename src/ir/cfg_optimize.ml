@@ -30,21 +30,17 @@ module LabelMap = Map.Make(LabelOrdSet)
    intermediate "trivial" target block `l` can be removed.
 
    This generalizes to other source control-transfer instructions.
-   The target block generalizes as slightly well: it can consist only
-   of a `jump` or `fail` node.
-
    This also generalizes to a sequence of jumps where the intermediate
    jump blocks are trivial.
  *)
 
-(* Trivial jump blocks consist of a single jump/fail node. *)
+(* Trivial jump blocks consist of a single jump or return node. *)
 let is_jmp_block (b: closed) : bool =
   let _, b = B.split_head b in
   let b, x = B.split_tail b in
   let exit_is_jmp = match x with
       | Node.N_return _
-      | Node.N_jump _
-      | Node.N_fail _ -> true
+      | Node.N_jump _ -> true
       | _             -> false in
   let is_trivial = match B.to_list b with
       | [] -> true
@@ -161,9 +157,6 @@ let retarget_exit (map: Label.label LabelMap.t) (nd: Node.exit_node)
     | N_jump (l, t) ->
         let t = retarget_label map t in
         N_jump (l, t)
-    | N_fail (l, t) ->
-        let t = retarget_label map t in
-        N_fail (l, t)
     | N_return (l, t) ->
         let t = retarget_label map t in
         N_return (l, t)

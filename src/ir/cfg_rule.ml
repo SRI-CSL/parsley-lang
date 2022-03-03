@@ -97,13 +97,6 @@ let close_with_jump ctx b loc l =
   let b = B.join_tail b nd in
   {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
 
-let close_with_fail ctx b loc l =
-  let nd = if   is_dynamic l
-           then Node.N_return (loc, l)
-           else Node.N_fail   (loc, l) in
-  let b = B.join_tail b nd in
-  {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
-
 let close_block ctx b nd =
   let b = B.join_tail b nd in
   {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
@@ -144,7 +137,7 @@ let fail_bitmode_trampoline (ctx: context) (b: opened)
   assert ctx.ctx_bitmode;
   let typ = get_typ ctx "unit" in
   let b = add_gnode b N_fail_bitmode typ loc in
-  close_with_fail ctx b loc lfc
+  close_with_jump ctx b loc lfc
 
 (* handle inserting a mark_bit_cursor if needed for a return value *)
 let prepare_cursor
@@ -811,7 +804,7 @@ let rec lower_rule_elem
         (* create the trampoline failcont block that restores the view *)
         let tfb = new_labeled_block loc lf in
         let tfb = add_gnode tfb N_pop_view unit loc in
-        let ctx = close_with_fail ctx tfb loc orig_failcont in
+        let ctx = close_with_jump ctx tfb loc orig_failcont in
         (* proceed with the current block *)
         ctx, b
 
@@ -843,7 +836,7 @@ let rec lower_rule_elem
         (* create the trampoline failcont block that restores the view *)
         let tfb = new_labeled_block loc lf in
         let tfb = add_gnode tfb N_pop_view unit loc in
-        let ctx = close_with_fail ctx tfb loc orig_failcont in
+        let ctx = close_with_jump ctx tfb loc orig_failcont in
         (* proceed with the current block *)
         ctx, b
 
@@ -1000,7 +993,7 @@ let rec lower_rule_elem
         (* create the trampoline failcont block that restores the view *)
         let tfb = new_labeled_block loc lf in
         let tfb = add_gnode tfb N_pop_view unit e.expr_loc in
-        let ctx = close_with_fail ctx tfb loc ctx.ctx_failcont in
+        let ctx = close_with_jump ctx tfb loc ctx.ctx_failcont in
         (* restore the view in the exit block *)
         let b = new_labeled_block loc lx in
         let b = add_gnode b N_pop_view unit e.expr_loc in
@@ -1110,7 +1103,7 @@ let rec lower_rule_elem
         (* create the trampoline failcont block that restores the view *)
         let tfb = new_labeled_block loc lf in
         let tfb = add_gnode tfb N_pop_view unit e.expr_loc in
-        let ctx = close_with_fail ctx tfb loc orig_failcont in
+        let ctx = close_with_jump ctx tfb loc orig_failcont in
         (* restore the view in the exit block *)
         let b = new_labeled_block loc lx in
         let b = add_gnode b N_pop_view unit e.expr_loc in
@@ -1235,7 +1228,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
      continues to the final dynamic failure cont. *)
   let b = new_labeled_block loc lfail in
   let b = add_gnode b N_pop_view unit loc in
-  let ctx = close_with_fail ctx b loc lfd in
+  let ctx = close_with_jump ctx b loc lfd in
   (* Compute the new vars that were used in constructing the CFG. *)
   let new_vars = VEnv.new_since ctx.ctx_venv orig_venv in
   (* construct the nt_entry *)

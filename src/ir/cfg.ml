@@ -262,10 +262,8 @@ module Node = struct
         Location.t * matched_bits_predicate * label * label
         -> (Block.o, Block.c, unit) node
 
-    (* forward jumps (typically in success path) *)
+    (* forward jumps *)
     | N_jump: Location.t * label -> (Block.o, Block.c, unit) node
-    (* forward jumps in failure path *)
-    | N_fail: Location.t * label -> (Block.o, Block.c, unit) node
     (* return jump: The label must be dynamic, indicating a successful
        return if to a success continuation, or an error return if to a
        failure continuation.  This is used to return from the CFG of
@@ -333,7 +331,6 @@ module Node = struct
       | N_scan (_, _, _, sc, fl)
       | N_call_nonterm (_, _, _, sc, fl)
         -> [raw_label_of sc; raw_label_of fl]
-      | N_fail (_, l)
       | N_jump (_, l)
       | N_return (_, l) -> [raw_label_of l]
       (* this should not be needed *)
