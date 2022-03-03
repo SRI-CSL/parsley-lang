@@ -64,10 +64,10 @@ let analyze (spec: spec_ir) : info =
         assert (l = B.entry_label b);
         List.fold_left (fun m t ->
             (* `t` is a raw label, and could correspond to either a
-               static or dynamic label.  If it is static, there should
+               static or virtual label.  If it is static, there should
                be a corresponding block `b'` in `blocks`.  If `b` is
                optimized out, `b'` would need to be adjusted.  If `t`
-               is dynamic, it doesn't correspond to a block, and can
+               is virtual, it doesn't correspond to a block, and can
                be ignored.  *)
             match LabelMap.find_opt t blocks with
               | None   -> m
@@ -121,15 +121,15 @@ let build_target_map (info: info) : Label.label LabelMap.t =
 
 let retarget_label (map: Label.label LabelMap.t) (l: label)
     : label =
-  (* This relies on the implementation detail that the dynamic and
+  (* This relies on the implementation detail that the virtual and
      static labels share the underlying raw label space; i.e. that
-     static and dynamic labels can never have aliased raw labels. *)
+     static and virtual labels can never have aliased raw labels. *)
   let rl = raw_label_of l in
   match LabelMap.find_opt rl map with
     | None   -> l
     | Some t -> if   is_static l
                 then L_static  t
-                else L_dynamic t
+                else L_virtual t
 
 let retarget_exit (map: Label.label LabelMap.t) (nd: Node.exit_node)
     : Node.exit_node =
@@ -221,7 +221,7 @@ let optimize (spec: spec_ir) (debug: bool) : spec_ir =
   let info = analyze spec in
   let blocks = spec.ir_blocks in
   (* Entries in the reverse map cannot exceed the total number of
-     blocks.  This assertion can catch erroneous entries for dynamic
+     blocks.  This assertion can catch erroneous entries for virtual
      labels. *)
   assert (LabelMap.cardinal info.info_rev_map <= LabelMap.cardinal blocks);
   let ir_blocks = optimize_blocks info blocks in
@@ -235,15 +235,15 @@ let optimize (spec: spec_ir) (debug: bool) : spec_ir =
 
    . The entry label for each non-terminal should correspond to a
      defined block, and its success and failure continuations should
-     be dynamic.
+     be virtual.
 
    . Each non-terminal should have a unique entry block.
 
    . All static labels of all exit nodes in the IR should point to
-     defined blocks, and dynamic labels should be known.
+     defined blocks, and virtual labels should be known.
 
    . Entry blocks for non-terminals should not have static callers
-     (since their invocation is dynamic).  Similarly, blocks with
+     (since their invocation is virtual).  Similarly, blocks with
      static callers should not be entry blocks.
 
    These invariants should hold pre- and post- optimization.
@@ -262,12 +262,12 @@ let validate (spec: spec_ir) (optimized: bool) (debug: bool) : unit =
   (* An optimized IR should not contain jump blocks. *)
   if   optimized
   then assert (LabelMap.cardinal info.info_jmp_blks = 0);
-  (* Construct the set of known dynamic labels. *)
+  (* Construct the set of known virtual labels. *)
   let _, dyn_labels =
     FormatGToC.fold (fun nt ent (em, dls) ->
-        (* The continuations should be dynamic. *)
-        assert (is_dynamic ent.nt_succcont);
-        assert (is_dynamic ent.nt_failcont);
+        (* The continuations should be virtual. *)
+        assert (is_virtual ent.nt_succcont);
+        assert (is_virtual ent.nt_failcont);
         (* They should also be unique. *)
         let ls = raw_label_of ent.nt_succcont in
         let lf = raw_label_of ent.nt_failcont in
@@ -306,16 +306,16 @@ let validate (spec: spec_ir) (optimized: bool) (debug: bool) : unit =
             assert (   (is_entry && not has_caller)
                     || (not is_entry && has_caller)));
       (* Exits from `b` should be well-defined; i.e. static labels
-         should go to defined blocks and dynamic labels should be
+         should go to defined blocks and virtual labels should be
          known.  Since `successors` doesn't tell us whether a label
-         is static or dynamic, we can check that one of these
+         is static or virtual, we can check that one of these
          properties holds, but we can't tell whether the right
          property holds. *)
       let succs = B.successors b in
       List.iter (fun l ->
-          let is_known_dynamic  = LabelSet.mem l dyn_labels in
+          let is_known_virtual  = LabelSet.mem l dyn_labels in
           let is_defined_static = LabelMap.mem l spec.ir_blocks in
-          assert (is_known_dynamic || is_defined_static)
+          assert (is_known_virtual || is_defined_static)
         ) succs;
     ) spec.ir_blocks;
   (* It is possible for unoptimized IR to have garbage (i.e. unused)

@@ -88,10 +88,10 @@ let add_gnode b nd typ loc =
   let nd = mk_gnode nd typ loc in
   add_node b (Node.N_gnode nd)
 
-(* Jumps/fails to dynamic labels are returns. *)
+(* Jumps/fails to virtual labels are returns. *)
 
 let close_with_jump ctx b loc l =
-  let nd = if   is_dynamic l
+  let nd = if   is_virtual l
            then Node.N_return (loc, l)
            else Node.N_jump   (loc, l) in
   let b = B.join_tail b nd in
@@ -1216,16 +1216,16 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
                      Some b in
         ctx, b
       ) ({ctx with ctx_venv = venv}, Some b) rls in
-  (* Create the dynamic success and failure conts. *)
-  let lsd = fresh_dynamic () in
-  let lfd = fresh_dynamic () in
+  (* Create the virtual success and failure conts. *)
+  let lsd = fresh_virtual () in
+  let lfd = fresh_virtual () in
   (* The success trampoline _drops_ the last saved view, and then
-     continues to the final dynamic success cont. *)
+     continues to the final virtual success cont. *)
   let b = new_labeled_block loc lsucc in
   let b = add_gnode b N_drop_view unit loc in
   let ctx = close_with_jump ctx b loc lsd in
   (* The failure trampoline _pops_ the last saved view, and then
-     continues to the final dynamic failure cont. *)
+     continues to the final virtual failure cont. *)
   let b = new_labeled_block loc lfail in
   let b = add_gnode b N_pop_view unit loc in
   let ctx = close_with_jump ctx b loc lfd in

@@ -33,7 +33,7 @@ type format         = (typ, TypeInfer.varid) Ast.format
 type program        = (typ, TypeInfer.varid) Ast.program
 
 (* The IR for the grammar language is a control-flow graph (CFG) with
-   explicit control flow for the grammar matching.  The most important
+   explicit control-flow for the grammar matching.  The most important
    aspect that is made explicit is the handling of match failure and
    the next choice to back-track to.
 
@@ -55,9 +55,13 @@ type matched_bits_predicate =
    bound. *)
 type return = var option
 
-(* The various types of internal nodes of a block in the CFG.  These
-   are the open-open nodes with linear control flow, and are
-   typically directly related to elements of the grammar language. *)
+(* There are two main types of internal nodes of a block in the CFG.
+   The first (`gnode`) consists of the open-open nodes with linear
+   control-flow, and are typically directly related to evaluation of
+   the expression sublanguage, or adjusting the state of the parsing
+   machine.  The second (`Node.node`) consist mainly of open-closed
+   nodes with branching control-flow, and typically involve a parsing
+   operation which could either succeed or fail. *)
 
 type gnode_desc =
   (* expression evaluation *)
@@ -67,47 +71,48 @@ type gnode_desc =
 
   (* Create an entry for a function and assign it to a variable.
      Since there are no first-class functions, this is usually done
-     during initialization.  The VSet contains all the temporary variables
-     created in lowering the body. *)
+     during initialization.  The VSet contains all the temporary
+     variables created in lowering the body. *)
   | N_assign_fun of var * var list * aexp * VSet.t
 
   (* side-effects *)
 
-  (* Any return value from the action will be handled by an _assign *)
+  (* Any return value from the action will be handled by an `N_assign`. *)
   | N_action of astmt list
 
   (* The mechanism for the matching and extraction of matched bits is
      the following:
+
      . A bit-sensitive parsing mode is explicitly entered using
-       N_enter_bitmode before any bit-wise parsing operation.  This
+       `N_enter_bitmode` before any bit-wise parsing operation.  This
        must be at a byte-aligned offset; this offset is restored on
        any bit-wise parsing failure.
 
-     . The current bit-cursor location is marked (N_mark_bit_cursor).
+     . The current bit-cursor location is marked
+       (`N_mark_bit_cursor`).
 
      . The cursor is updated according to the bit-matching construct
        (bitvector, align, pad, bitfield).
 
      . The bits from the marked position to the current cursor are
-       collected into a variable holding the match (N_collect_bits).
-       An expected number of bits (or bound on this number) is
-       specified as a check on correctness.
+       collected into a variable holding the match
+       (`N_collect_bits`). An expected number of bits (or bound on
+       this number) is specified as a check on correctness.
 
      . When a sequence of bit-wise parsing operations are finished,
-       the normal parsing mode is restored using N_exit_bitmode
+       the normal parsing mode is restored using `N_exit_bitmode`
        at a byte-aligned offset.
 
      . When a bit-wise parsing operation fails (at any bit offset),
-       the normal parsing mode is restored using N_fail_bitmode to the
-       byte-aligned view offset at which the sequence of bit-wise
+       the normal parsing mode is restored using `N_fail_bitmode` to
+       the byte-aligned view offset at which the sequence of bit-wise
        parsing operations began with N_enter_bitmode.
 
      It is an internal error if there is no marked position at the
-     time of N_collect_bits.
+     time of `N_collect_bits`.
 
      If the matched bits are not being bound by a variable, the
-     N_mark_bit_cursor and N_collect_bits are omitted.
-   *)
+     `N_mark_bit_cursor` and `N_collect_bits` are omitted. *)
 
   (* Enter/exit the bitwise parsing mode *)
   | N_enter_bitmode
@@ -147,11 +152,11 @@ type gnode_desc =
   (* The two view setters below are equivalent in that each could be
      expressed in terms of the other, via some glue ANF.  However,
      that would require a hidden View API to modify the view,
-     e.g. View.set_cursor() or View.set_view().  This API would need
-     to be hidden, and would violate the separation of concerns: the
-     expression language should not be able to directly (i.e. without
-     going through the grammar language) modify the cursor or view
-     location.
+     e.g. `View.set_cursor()` or `View.set_view()`.  This API would
+     need to be hidden, and would violate the separation of concerns:
+     the expression language should not be able to directly
+     (i.e. without going through the grammar language) modify the
+     cursor or view location.
 
      To avoid this kind of hidden violation of the separation of
      concerns, each of the two is a primitive in the CFG IR.  Each
@@ -174,80 +179,92 @@ let mk_gnode n t l =
 
 (* Labels are used to designate the unique entry node of a block, and
    therefore also used to designate the block itself.  The interior of
-   a block contains CFG nodes that have linear control flow, and the
+   a block contains CFG nodes that have linear control-flow, and the
    block is terminated by a node to transfer control to another block
    by specifying the label of the target block.
 
-   Labels are of two types: static and dynamic.  Static labels are
+   Labels are of two types: static and virtual.  *Static* labels are
    used to designate control-flow targets within the CFG of a
-   non-terminal.  Dynamic labels are used for control-flow transfer
-   (calls and returns) between the CFGs of different non-terminals.
+   non-terminal.  A CFG always has two exits: a success or a failure
+   continuation.  These are denoted by virtual labels.
 
-   When lowering the rules for a non-terminal to a CFG, the success
-   and continuation targets for the non-terminal are only known during
-   execution, and may change for each invocation.  Hence, the CFG for
-   a non-terminal is generated using dynamic labels for the success
-   and failure continuations, and these labels will be use to transfer
-   control to the targets in effect at the time the CFG for the
-   non-terminal is executed.
+   When a CFG of a non-terminal `A` calls into the CFG of another
+   non-terminal `B` (via a `N_call_nonterm` node), the virtual exit
+   labels of `B`'s CFG get mapped to the actual labels used for the
+   continuations of the call (i.e. the labels in the `N_call_nonterm`
+   node).  This mapping is done in the call-frame for the call in the
+   control stack.
 
-   The entry node of a block is always static.
- *)
+   The entry node of a block is always static.  *)
 
 type label =
-  | L_static of Label.label
-  | L_dynamic of Label.label
+  | L_static  of Label.label
+  | L_virtual of Label.label
 
 let fresh_static () =
   L_static (Label.fresh_label ())
 
-let fresh_dynamic () =
-  L_dynamic (Label.fresh_label ())
+let fresh_virtual () =
+  L_virtual (Label.fresh_label ())
 
 let is_static = function
   | L_static _  -> true
-  | L_dynamic _ -> false
+  | L_virtual _ -> false
 
-let is_dynamic = function
+let is_virtual = function
   | L_static _  -> false
-  | L_dynamic _ -> true
+  | L_virtual _ -> true
 
 let raw_label_of = function
-  | L_static l  -> l
-  | L_dynamic l -> l
+  | L_static  l -> l
+  | L_virtual l -> l
 
 let string_of_label l =
   match l with
     | L_static  l -> Printf.sprintf "S%s" (Label.to_string l)
-    | L_dynamic l -> Printf.sprintf "D%s" (Label.to_string l)
+    | L_virtual l -> Printf.sprintf "V%s" (Label.to_string l)
 
 (* The node structure of the CFG *)
 
 module Node = struct
-  (* Other nodes mostly concerned with control flow and book-keeping *)
-  type ('e, 'x, 'v) node =
-    (* block entry, denoted by an implicitly static label *)
 
+  (* The `node` type mainly consists of nodes that perform actual
+     parsing actions or evaluate constraints or conditions, and hence
+     which can branch (and hence 'exit' the IR block) due to the
+     action either succeeding or failing, and nodes that are purely
+     for control-flow between blocks such as jumps, calls and returns.
+
+     The type also includes as special cases the book-keeping entry
+     node `N_label`, and the linear open-open `N_gnode gnode` nodes
+     described above.
+
+     The CFG for a single non-terminal consists of a connected set of
+     blocks containing these nodes.  Control transfer between the CFGs
+     of different non-terminals is effected by the `N_call_nonterm`
+     and `N_return` nodes, which implement bracketed cross-CFG
+     control-flow.  *)
+
+  type ('e, 'x, 'v) node =
+    (* block entry node, denoted by an implicitly static label *)
     | N_label: Location.t * Label.label -> (Block.c, Block.o, unit) node
 
-    (* non-control-flow blocks *)
-
+    (* non-control-flow or 'linear' nodes *)
     | N_gnode: gnode -> (Block.o, Block.o, unit) node
 
-    (* block exits *)
+    (* exit nodes *)
 
     (* bit-mode matching *)
 
     (* Match a specified number of bits *)
-    | N_bits:
-        Location.t * int * label * label -> (Block.o, Block.c, unit) node
+    | N_bits: Location.t * int * label * label
+              -> (Block.o, Block.c, unit) node
     (* Align to the specified width *)
-    | N_align:
-        Location.t * int * label * label -> (Block.o, Block.c, unit) node
+    | N_align: Location.t * int * label * label
+               -> (Block.o, Block.c, unit) node
     (* Match the specified number of bits as padding.  The padding
        pattern is specified in the following N_collect_bits node *)
-    | N_pad:
-        Location.t * int * label * label -> (Block.o, Block.c, unit) node
+    | N_pad: Location.t * int * label * label
+             -> (Block.o, Block.c, unit) node
 
     (* Collect matched bits from the marked position and check the
        specified predicate.  If it succeeds, N_collect_checked_bits
@@ -262,9 +279,10 @@ module Node = struct
         Location.t * matched_bits_predicate * label * label
         -> (Block.o, Block.c, unit) node
 
-    (* forward jumps *)
+    (* forward jump: The label must be static. *)
     | N_jump: Location.t * label -> (Block.o, Block.c, unit) node
-    (* return jump: The label must be dynamic, indicating a successful
+
+    (* return jump: The label must be virtual, indicating a successful
        return if to a success continuation, or an error return if to a
        failure continuation.  This is used to return from the CFG of
        a *user-defined* non-terminal.  Stdlib non-terminals are
@@ -291,19 +309,18 @@ module Node = struct
     | N_exec_dfa: dfa * var * label * label
                   -> (Block.o, Block.c, unit) node
     (* Special case for tag scanning. *)
-    | N_scan:
-        Location.t * (Ast.literal * Ast.scan_direction)
-        * (*return*) var * label * label
-        -> (Block.o, Block.c, unit) node
+    | N_scan: Location.t * (Ast.literal * Ast.scan_direction)
+              * (*return*) var * label * label
+              -> (Block.o, Block.c, unit) node
 
     (* Call the CFG for the specified non-terminal with the specified
        expressions for the inherited attributes.  On a successful
        continuation, continue at the first specified label.  The
        second label is the current failcont.
-       At runtime: the specified labels are the dynamic success
-       and failure continuations, which get mapped to the static
-       succcont and failcont for the non-terminal's CFG, as specified
-       in its nt_entry. *)
+       At runtime: the labels specified in the node are the success
+       and failure continuations, which get mapped to the virtual
+       labels of the `nt_succcont` and `nt_failcont` for the
+       non-terminal's CFG, as specified in its `nt_entry`. *)
     | N_call_nonterm:
         Ast.ident * (Ast.ident * var) list * return * label * label
         -> (Block.o, Block.c, unit) node
@@ -332,7 +349,8 @@ module Node = struct
       | N_call_nonterm (_, _, _, sc, fl)
         -> [raw_label_of sc; raw_label_of fl]
       | N_jump (_, l)
-      | N_return (_, l) -> [raw_label_of l]
+      | N_return (_, l)
+        -> [raw_label_of l]
       (* this should not be needed *)
       | _ -> assert false
 end
@@ -362,8 +380,8 @@ type nt_entry =
    (* a pair of success and failure continuations are assumed for the
       CFG.  these need to mapped to the current runtime success and
       failure continuations during execution *)
-   nt_succcont:  label;       (* should always be dynamic *)
-   nt_failcont:  label;       (* should always be dynamic *)
+   nt_succcont:  label;       (* must always be virtual *)
+   nt_failcont:  label;       (* must always be virtual *)
    (* a successfully matched value will be bound to this variable *)
    nt_retvar:    var;
    (* all new vars allocated in the CFG for this non-terminal *)
@@ -391,7 +409,7 @@ type spec_ir =
   {ir_gtoc:          nt_entry FormatGToC.t;
    ir_blocks:        closed LabelMap.t;
    ir_statics:       opened; (* constants and functions *)
-   ir_init_failcont: label;  (* should always be dynamic *)
+   ir_init_failcont: label;  (* should always be virtual *)
    (* debugging state for the interpreter *)
    ir_tenv:          TypingEnvironment.environment;
    ir_venv:          VEnv.t}
@@ -408,7 +426,7 @@ type context =
    (* the current variable environment *)
    ctx_venv:     VEnv.t;
    (* the current failure continuation *)
-   ctx_failcont: label; (* may be static or dynamic *)
+   ctx_failcont: label; (* may be static or virtual *)
    (* intermediate re forms for regexp non-terminals *)
    ctx_re_env:   re_env;
    (* whether the current mode is bit-wise *)

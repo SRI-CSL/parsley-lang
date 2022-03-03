@@ -24,6 +24,9 @@ open Runtime_exceptions
 open Interpret_anf
 open Interpret_bitops
 
+(* Executions of linear or non-control flow nodes return an
+   updated state. *)
+
 let do_gnode (s: state) (n: Cfg.gnode) : state =
   let loc = n.node_loc in
   match n.node with
@@ -95,24 +98,35 @@ let do_linear_node (s: state) (n: Cfg.Node.linear_node)
         (* this should not be needed *)
         assert false
 
-(* A block executes its nodes in sequence.  If its exit node transfers
-   control to a static label, execution continues directly (and
-   tail-recursively) to the block with that label.  Execution stops
-   (i.e. "returns to caller") when control flow reaches a dynamic
-   label.
+(* The below functions process control-flow nodes and closed blocks
+   (i.e. blocks that end with a control-flow or exit node).  These
+   functions tail-recurse into each other, updating the control-stack
+   in the state at call/return nodes.
 
-   Dynamic labels are used to terminate the CFG of a non-terminal, and
-   hence to terminate the execution of the blocks in the
-   non-terminal's CFG.
+   The executed blocks and nodes span the CFGs of the different
+   non-terminals in the grammar.  The transition (or 'call') from one
+   CFG into another occurs at a `N_call_nonterm` node, while the
+   transition back occurs at `N_return`.
 
-   Non-terminal production rules are in terms of other non-terminals;
-   this manifests in a non-terminal CFG containing `N_call_nonterm`
-   nodes to these other non-terminals.  A sequence of such calls
-   during execution results in call frames being built up in the
-   control stack, as each non-terminal waits for its "child"
-   non-terminal to terminate execution.  These calls terminate with a
-   `N_return` instruction, which pops a call frame and continues
-   execution from the continuations specified in it. *)
+   The nodes of a block are executed in sequence.  If its exit node
+   transfers control to a static label, execution continues directly (and
+   tail-recursively) to the block with that label.  Execution
+   'returns to caller' when control flow reaches a virtual label via a
+   `N_return` node.
+
+   A sequence of such calls during execution results in call frames
+   being built up in the control stack, as each caller non-terminal
+   waits for its callee non-terminal to terminate execution.  These
+   calls terminate with a `N_return` instruction, which pops a call
+   frame and continues execution from the continuations specified in
+   it.
+
+   The execution ends when there is no continuation at which to
+   proceed (as set in the very first call-frame); equivalently, it
+   ends when the call control-stack is empty.  The return value of the
+   execution is the value (if any) of the match, along with the final
+   state (which contains the final view with its offset).
+ *)
 
 type result = value option * state
 
@@ -122,7 +136,7 @@ let rec do_jump lc (s: state) (l: Cfg.label) : result =
   do_closed_block s b
 
 and do_return _lc (s': state) (l: Cfg.label) : result =
-  assert (Cfg.is_dynamic l);
+  assert (Cfg.is_virtual l);
   match s'.st_ctrl_stk with
     | [] ->
         (* We should have an activation frame to match the return. *)
@@ -261,10 +275,10 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
               Location.value p, vl
             ) params in
         (* There is no assertion on the continuations since they need
-           not be dynamic, unlike user-defined non-terminals.  This is
+           not be virtual, unlike user-defined non-terminals.  This is
            because stdlib non-terminals are not dispatched by an
            `nt_entry`, and hence do not have explicitly defined
-           dynamic continuation labels. *)
+           virtual continuation labels. *)
         (match dispatch_stdlib loc ntn s.st_cur_view pvs with
            | R_ok (vl, vu) ->
                (* Update the environment of the calling state `s`. *)

@@ -43,7 +43,7 @@ let lower_spec (_, init_venv) tenv (spec: program) print_anf =
       ) Dfa.StringMap.empty TypeAlgebra.character_classes in
 
   (* Initialize the context with a dummy failure label. *)
-  let init_failcont = fresh_dynamic () in
+  let init_failcont = fresh_virtual () in
   let ctx = {ctx_tenv       = tenv;
              ctx_gtoc       = FormatGToC.empty;
              ctx_ir         = LabelMap.empty;

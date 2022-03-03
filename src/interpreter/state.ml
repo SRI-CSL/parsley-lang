@@ -87,8 +87,8 @@ module LBindings = Map.Make (struct type t = Label.label
                                     let compare = compare
                              end)
 
-(* Control stack entry, set up/pushed by N_call_nonterm and
-   used/popped by N_*_return. *)
+(* Control stack entry, set up/pushed by `N_call_nonterm` and
+   used/popped by `N_return`. *)
 type call_frame =
   {cf_nt:          Ast.ident;                     (* (user-defined) non-terminal being called *)
    cf_conts:       (Cfg.label* Cfg.label) option; (* success/fail continuations for return *)
@@ -112,6 +112,7 @@ and state =
    st_view_stk:     Values.view list;  (* stack of views (minus top-of-stack) *)
    st_cur_view:     Values.view;       (* current view (top-of-view-stack) *)
    st_ctrl_stk:     call_frame list}
+
 (* helpers *)
 
 let get_block lc (s: state) (l: Cfg.label) : Cfg.closed =

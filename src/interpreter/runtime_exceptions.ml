@@ -45,7 +45,6 @@ module Internal_errors = struct
     | No_nonterm_entry of Ast.ident
     | Unknown_attribute of string * string
     | Invalid_constructor_value of (string * string) * int
-    | No_binding_for_label of Label.label
     | No_block_for_label of Label.label
 
   let error_msg =
@@ -111,9 +110,6 @@ module Internal_errors = struct
     | Invalid_constructor_value ((t, c), nargs) ->
         Printf.sprintf "Internal Error: illegal constructed value `%s::%s' with %d args."
           t c nargs
-    | No_binding_for_label l ->
-        Printf.sprintf "Internal Error: no static binding found for dynamic label `%s'."
-          (Label.to_string l)
     | No_block_for_label l ->
         Printf.sprintf "Internal Error: no block found for label `%s'."
           (Label.to_string l)
