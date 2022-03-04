@@ -565,9 +565,14 @@ non-bit-oriented constructs need to be byte-aligned.  An alignment
 specifier can be used to restore this alignment.
 
 A bitvector of length `n` can be matched using the non-terminal
-`BitVector<n>`.  A user-defined bitfield `bf` covering `n` bits can be
-matched using the specifier `$bitfield(bf)`, which converts the `n`
-matched bits into a value of the `bf` bitfield type.
+`BitVector<n>`.  Bits in bitvectors are indexed from 0, with 0 mapped
+to the least-significant bit.  So, for example, the bits in a
+`BitVector<8>` that matches `0x0F` are arranged from `7:0`, with bits
+in `7:4` matching `0b0000` and those in `3:0` matching `0b1111`.
+
+A user-defined bitfield `bf` covering `n` bits can be matched using
+the specifier `$bitfield(bf)`, which converts the `n` matched bits
+into a value of the `bf` bitfield type.
 
 The `$align<n>$` operator can be used to skip over bits to the next
 byte boundary lying at a multiple of `n` bits, where `n` must be a
@@ -604,6 +609,9 @@ next 9 bits converted into a bitfield `bf` and stored in attribute
         n.f := f }
   }
 ....
+
+If `$bitfield(bf)` matches `0b100000011` above, `f.top` will be `0b10`
+and `f.bot` will be `0b0000011`.
 
 == Annotations
 
