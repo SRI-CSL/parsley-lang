@@ -94,6 +94,22 @@ let tests = [
                                ((v=BitVector<3> BitVector<13> {n.v := v})
                                |(v=BitVector<3> BitVector<5>  {n.v := v}))}",
      "N", "\xa0", V_record ["v", V_bitvector [true; false; true]]);
+    ("bitfield", "bitfield bitf = {ign: 7:2,
+                                   i: 1,
+                                   e: 0}
+                  format {Info d {f: bitf, bi: bit, be: bit} :=
+                               flags=$bitfield(bitf)
+                               [Bits.to_bool(Bits.to_bit(flags.i)) = bool::True()]
+                               {d.f  := flags;
+                                d.bi := Bits.to_bit(flags.i);
+                                d.be := Bits.to_bit(flags.e)}}",
+     "Info", "\x06", let bf = Typing.TypingEnvironment.(
+                         {bf_name   = "bitf";
+                          bf_fields = [("ign", (7,2)); ("i", (1,1)); ("e", (0, 0))];
+                          bf_length = 8}) in
+                     V_record ["f",  V_bitfield (bf, [false;false;false;false;false;true;true;false]);
+                               "bi", V_bit true;
+                               "be", V_bit false]);
     ("choice1", "type choice = | Good of [byte] | Bad of [byte]
                  format {Chk r {v: [byte]} :=
                         (|res : choice := choice::Good(\"\")|)

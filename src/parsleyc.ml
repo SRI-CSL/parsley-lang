@@ -15,7 +15,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let debug_build = true
+let debug_build = false
 
 let () =
   Printexc.record_backtrace debug_build;

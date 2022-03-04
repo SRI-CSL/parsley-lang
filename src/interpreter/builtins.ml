@@ -138,8 +138,8 @@ let bit_extract lc (l: bool list) (hi: int) (lo: int) =
   then internal_error lc (Bitrange_index (hi, len))
   else if lo >= len
   then internal_error lc (Bitrange_index (lo, len))
-  else if lo >= hi
-  then internal_error lc (Bitrange_index (lo, hi))
+  else if lo > hi
+  then internal_error lc (Bitrange_range (hi, lo))
   else field_of_bitvector l hi lo
 
 let bv_bitrange lc (l: value) (hi: int) (lo: int) : value =

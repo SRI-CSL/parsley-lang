@@ -28,6 +28,7 @@ module Internal_errors = struct
     | No_binding_for_read of Anf.varid
     | No_binding_for_write of Anf.var
     | Bitrange_index of int * int
+    | Bitrange_range of int (* hi *) * int (* lo *)
     | No_field of string
     | No_field_specified
     | Bitfield_length_mismatch of string * string * int * int
@@ -63,6 +64,9 @@ module Internal_errors = struct
     | Bitrange_index (idx, len) ->
         Printf.sprintf "Internal Error: bitrange index %d is out of range for list of length %d."
           idx len
+    | Bitrange_range (hi, lo) ->
+        Printf.sprintf "Internal Error: bitrange %d-%d is invalid."
+          hi lo
     | No_field f ->
         Printf.sprintf "Internal Error: record does not have field `%s'." f
     | No_field_specified ->
