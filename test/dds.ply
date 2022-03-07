@@ -16,16 +16,22 @@ type locator = {kind: int, port: int, address: [byte]}
 
 // We use this bitfield type to extract flags from the InfoTS type
 bitfield bitf_infots = {
-  ignore: 5:0,
-  i: 6,
-  e: 7
+  ignore: 7:2,
+  i: 1,
+  e: 0
 }
 
 // We use this bitfield type to extract flags from the InfoReply type
 bitfield bitf_inforeply = {
-  ig: 5:0,
-  m: 6,
-  e1: 7
+  ig: 7:2,
+  m: 1,
+  e1: 0
+}
+
+// We use this bitfield type to extract flags from the Pads type
+bitfield bitf_pads = {
+  ign: 7:1,
+  e2: 0
 }
 
 format {
@@ -65,7 +71,7 @@ format {
 
   // Section 9.4.2.10
   // Locator and LocatorList mainly used in InfoReply type
-  Locator l {locator} := kind=UInt32<endian=endian::Little()>
+  Locator l (endian: bool) {locator} := ([endian = bool::True()] kind=UInt32<endian=endian::Little()>
                                                         port=UInt32<endian=endian::Little()>
                                                         octet=(Byte ^ 16)
                                                         {
@@ -73,14 +79,30 @@ format {
                                                           l.port := port;
                                                           l.address := octet
                                                         }
+                                        ) |
+                                        ([endian = bool::False()] kind=UInt32<endian=endian::Big()>
+                                                        port=UInt32<endian=endian::Big()>
+                                                        octet=(Byte ^ 16)
+                                                        {
+                                                          l.kind := kind;
+                                                          l.port := port;
+                                                          l.address := octet
+                                                        }
+                                        )
   ;;
 
-  LocatorList l {numlocators: int, locators: [locator]} := nums=UInt32<endian=endian::Little()>
-                                                            locators=(Locator ^ nums)
+  LocatorList l (endian: bool) {numlocators: int, locators: [locator]} := ([endian = bool::True()] nums=UInt32<endian=endian::Little()>
+                                                            locators=(Locator<endian = endian> ^ nums)
                                                             {
                                                               l.numlocators := nums;
                                                               l.locators := locators
-                                                            }
+                                                            }) |
+                                                            ([endian = bool::True()] nums=UInt32<endian=endian::Big()>
+                                                            locators=(Locator<endian = endian> ^ nums)
+                                                            {
+                                                              l.numlocators := nums;
+                                                              l.locators := locators
+                                                            })
   ;;
   // Section 9.4.5.2
   AckNack d {acknackcount: int} := magic=!"\x06"!
@@ -99,7 +121,7 @@ format {
                                       flags = Byte
                                       octetsToNextHeader=UInt16<endian=endian::Little()>
                                       extraflags=(Byte^2)
-                                      readerEntityID=UInt16<endian=endian::Little()>
+                                      readerEntityID=UInt32<endian=endian::Little()>
                                       writerEntityID=UInt32<endian=endian::Little()>
                                       writerSeqNumber=UInt64<endian=endian::Little()>
                                       serializedData=(Byte)*
@@ -174,8 +196,9 @@ format {
   // // Section 9.4.5.9
   InfoReply if {flags1: bitf_inforeply} := magic=!"\x0d"!
                       flags=$bitfield(bitf_inforeply)
-                      ((unicast=LocatorList) |
-                      (unicast=LocatorList multicast=LocatorList
+                      ((unicast=LocatorList<endian = Bits.to_bool(Bits.to_bit(flags.e1))>) |
+                      (unicast=LocatorList<endian = Bits.to_bool(Bits.to_bit(flags.e1))>
+                        multicast=LocatorList<endian = Bits.to_bool(Bits.to_bit(flags.e1))>
                         [Bits.to_bool(Bits.to_bit(flags.m)) = bool::True()]))
                       // if M is 1, then locatorlist present
                       {if.flags1 := flags}
@@ -201,11 +224,19 @@ format {
   ;;
 
   // Section 9.4.5.12
+  // Flag e = 1 means little endian, e=0 means bit endian
   Pad d {octet: int} := magic=!"\x01"!
-                                           flags=Byte
+                                           flags=$bitfield(bitf_pads)
+                                           (([Bits.to_bool(Bits.to_bit(flags.e2)) = bool::True()]
                                            octetsToNextHeader=UInt16<endian=endian::Little()>
                                            {d.octet := octetsToNextHeader}
                                            skip=(Byte ^ octetsToNextHeader)
+                                           ) |
+                                           ([Bits.to_bool(Bits.to_bit(flags.e2)) = bool::False()]
+                                           octetsToNextHeader=UInt16<endian=endian::Big()>
+                                           {d.octet := octetsToNextHeader}
+                                           skip=(Byte ^ octetsToNextHeader)
+                                           ))
   ;;
 
   // Section 9.4.5.11
