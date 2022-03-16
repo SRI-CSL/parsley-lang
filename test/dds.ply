@@ -11,7 +11,7 @@
 // we do not throw an error. This needs to be looked into. Parsley possibly needs an
 // improvement with an additional feature.
 
-type submessage = {messagetype: string, data: [byte]}
+type submessage = {messagetype: string, data: [byte], nextoctet: int}
 type locator = {kind: int, port: int, address: [byte]}
 
 // We use this bitfield type to extract flags from the InfoTS type
@@ -40,24 +40,25 @@ format {
                                                                                 vendor=VendorId
                                                                                 prefix=(Byte ^ 12)
                                                                                 submessages=(SubMessage)*
+                                                                                checkbytes=(Byte)*
+  [List.length(submessages) > 0 && List.length(checkbytes) = 0]
   {d.magic := magic; d.imajor := version.major ; d.iminor := version.minor; d.submessages := submessages}
-  [List.length(submessages) > 0]
   // Ensure we have at least one submessage
   ;;
 
   // Submessage IDs we use conform to Section 9.4.5.1.1
-  SubMessage sub {submessage} := a=HeartBeat {sub.messagetype := String.of_bytes_unsafe("HeartBeat"); sub.data:= []} ;
-                                      a = DataFrag {sub.messagetype := String.of_bytes_unsafe("DataFrag"); sub.data:= a.fragserializeddata} ;
-                                      a = InfoDest {sub.messagetype := String.of_bytes_unsafe("InfoDest"); sub.data:= []} ;
-                                      a=AckNack {sub.messagetype := String.of_bytes_unsafe("AckNack"); sub.data:= []} ;
-                                      a=Data {sub.messagetype := String.of_bytes_unsafe("Data"); sub.data:= a.serializeddata} ;
-                                      a=Gap {sub.messagetype := String.of_bytes_unsafe("Gap"); sub.data:= []} ;
-                                      a=InfoTS {sub.messagetype := String.of_bytes_unsafe("InfoTS"); sub.data:= a.timestamp} ;
-                                      a=InfoSrc {sub.messagetype := String.of_bytes_unsafe("InfoSrc"); sub.data:= []} ;
-                                      a=HeartBeatFrag {sub.messagetype := String.of_bytes_unsafe("HeartBeatFrag"); sub.data:= []} ;
-                                      a=NackFrag {sub.messagetype := String.of_bytes_unsafe("AckNackFrag"); sub.data:= []} ;
-                                      a=Pad {sub.messagetype := String.of_bytes_unsafe("Pad"); sub.data:= []} ;
-                                      a=InfoReply {sub.messagetype := String.of_bytes_unsafe("InfoReply"); sub.data:= []}
+  SubMessage sub {submessage} := a=HeartBeat {sub.messagetype := String.of_bytes_unsafe("HeartBeat"); sub.data:= []; sub.nextoctet := 0} ;
+                                      a = DataFrag {sub.messagetype := String.of_bytes_unsafe("DataFrag"); sub.data:= a.fragserializeddata; sub.nextoctet := 0} ;
+                                      a = InfoDest {sub.messagetype := String.of_bytes_unsafe("InfoDest"); sub.data:= []; sub.nextoctet := 0} ;
+                                      a=AckNack {sub.messagetype := String.of_bytes_unsafe("AckNack"); sub.data:= []; sub.nextoctet := 0} ;
+                                      a=Data {sub.messagetype := String.of_bytes_unsafe("Data"); sub.data:= a.serializeddata; sub.nextoctet := 0} ;
+                                      a=Gap {sub.messagetype := String.of_bytes_unsafe("Gap"); sub.data:= []; sub.nextoctet := 0} ;
+                                      a=InfoTS {sub.messagetype := String.of_bytes_unsafe("InfoTS"); sub.data:= a.timestamp; sub.nextoctet := a.octets_ts} ;
+                                      a=InfoSrc {sub.messagetype := String.of_bytes_unsafe("InfoSrc"); sub.data:= []; sub.nextoctet := 0} ;
+                                      a=HeartBeatFrag {sub.messagetype := String.of_bytes_unsafe("HeartBeatFrag"); sub.data:= []; sub.nextoctet := 0} ;
+                                      a=NackFrag {sub.messagetype := String.of_bytes_unsafe("AckNackFrag"); sub.data:= []; sub.nextoctet := 0} ;
+                                      a=Pad {sub.messagetype := String.of_bytes_unsafe("Pad"); sub.data:= []; sub.nextoctet := 0} ;
+                                      a=InfoReply {sub.messagetype := String.of_bytes_unsafe("InfoReply"); sub.data:= []; sub.nextoctet := 0}
                                       // Only data from Data, DataFrag, and InfoTS are useful and stored.
                                       ;;
 
@@ -97,23 +98,68 @@ format {
                                                               l.numlocators := nums;
                                                               l.locators := locators
                                                             }) |
-                                                            ([endian = bool::True()] nums=UInt32<endian=endian::Big()>
+                                                            ([endian = bool::False()] nums=UInt32<endian=endian::Big()>
                                                             locators=(Locator<endian = endian> ^ nums)
                                                             {
                                                               l.numlocators := nums;
                                                               l.locators := locators
                                                             })
   ;;
+
+  // SequenceNumberSet type
+  SequenceNumberSet s (endian: bool) {n: int, bitmaps: [int]} :=
+            bitmapbase=SequenceNumber<endian = endian>
+  ([endian = bool::True()]
+      numbits = UInt32<endian=endian::Little()>
+      {s.n := (numbits + 31)/32}
+      bitmaps=(UInt32<endian=endian::Little()> ^ s.n)
+      {s.bitmaps := bitmaps}
+  ) |
+  ([endian = bool::False()]
+      numbits = UInt32<endian=endian::Big()>
+      {s.n := (numbits + 31)/32}
+      bitmaps=(UInt32<endian=endian::Big()> ^ s.n)
+      {s.bitmaps := bitmaps}
+  )
+  ;;
+
+  SequenceNumber s (endian: bool) {bitmapbase: int} := ([endian = bool::True()]
+      bitmapbase = UInt64<endian=endian::Little()>
+      {s.bitmapbase := bitmapbase}
+     ) |
+  ([endian = bool::False()]
+      bitmapbase = UInt64<endian=endian::Big()>
+      {s.bitmapbase := bitmapbase}
+  )
+  ;;
+
+  OctetsToNextHeader o (endian: bool) {octets: int} := ([endian = bool::True()]
+      bitmapbase = UInt16<endian=endian::Little()>
+      {o.octets := bitmapbase}
+     ) |
+  ([endian = bool::False()]
+      bitmapbase = UInt16<endian=endian::Big()>
+      {o.octets := bitmapbase}
+  )
+  ;;
+
   // Section 9.4.5.2
   AckNack d {acknackcount: int} := magic=!"\x06"!
-                                    flags=Byte
+                                    flags=$bitfield(bitf_pads)
+                                    (([Bits.to_bool(Bits.to_bit(flags.e2)) = bool::True()]
                                     octetsToNextHeader=UInt16<endian=endian::Little()>
                                     readerEntityID=UInt32<endian=endian::Little()>
                                     writerEntityID=UInt32<endian=endian::Little()>
-                                    num=SNBits
-                                    rep=(Byte^num.size)
+                                    readerSNState=SequenceNumberSet<endian = bool::True()>
                                     count=UInt32<endian=endian::Little()>
-                                    {d.acknackcount := count}
+                                    {d.acknackcount := count}) |
+                                    ([Bits.to_bool(Bits.to_bit(flags.e2)) = bool::True()]
+                                    octetsToNextHeader=UInt16<endian=endian::Little()>
+                                    readerEntityID=UInt32<endian=endian::Little()>
+                                    writerEntityID=UInt32<endian=endian::Little()>
+                                    readerSNState=SequenceNumberSet<endian = bool::False()>
+                                    count=UInt32<endian=endian::Little()>
+                                    {d.acknackcount := count}))
   ;;
 
   // Section 9.4.5.3
@@ -135,7 +181,7 @@ format {
                                                               extraflags=(Byte^2)
                                                               readerEntityID=UInt16<endian=endian::Little()>
                                                               writerEntityID=UInt32<endian=endian::Little()>
-                                                              writerSeqNumber=UInt64<endian=endian::Little()>
+                                                              writerSeqNumber=SequenceNumber<endian = bool::False()>
                                                               fragmentStartingNum=UInt32<endian=endian::Little()>
                                                               fragmentsInSubmessage=UInt16<endian=endian::Little()>
                                                               fragmentSize=UInt16<endian=endian::Little()>
@@ -145,15 +191,14 @@ format {
   ;;
 
   // Section 9.4.5.5
-  Gap d {bitmapBase: int, numBits: int} := magic=!"\x08"!
+  Gap d {bitmap_list: [int], numBits: int} := magic=!"\x08"!
                                             flags=Byte
                                             octetsToNextHeader=UInt16<endian=endian::Little()>
-                                            readerEntityID=UInt16<endian=endian::Little()>
+                                            readerEntityID=UInt32<endian=endian::Little()>
                                             writerEntityID=UInt32<endian=endian::Little()>
-                                            gapStart=UInt64<endian=endian::Little()>
-                                            bitmapBase=UInt64<endian=endian::Little()>
-                                            numBits=UInt32<endian=endian::Little()>
-                                            {d.bitmapBase := bitmapBase; d.numBits := numBits}
+                                            gapStart=SequenceNumber<endian = bool::True()>
+                                            gapList=SequenceNumberSet<endian = bool::True()>
+                                            {d.bitmap_list := gapList.bitmaps; d.numBits := gapList.n}
   ;;
 
   // Section 9.4.5.6
@@ -162,8 +207,8 @@ format {
                               octetsToNextHeader=UInt16<endian=endian::Little()>
                               readerEntityId=UInt32<endian=endian::Little()>
                               writerEntityId=UInt32<endian=endian::Little()>
-                              firstAvailableSeqNumber=UInt64<endian=endian::Little()>
-                              lastSeqNumber=UInt64<endian=endian::Little()>
+                              firstAvailableSeqNumber=SequenceNumber<endian = bool::True()>
+                              lastSeqNumber=SequenceNumber<endian = bool::True()>
                               count=UInt32<endian=endian::Little()>
                               {b.count := count}
   ;;
@@ -173,8 +218,7 @@ format {
                                         flags=Byte octetsToNextHeader=UInt16<endian=endian::Little()>
                                         readerEntityId=UInt32<endian=endian::Little()>
                                         writerEntityId=UInt32<endian=endian::Little()>
-                                        firstAvailableSeqNumber=UInt64<endian=endian::Little()>
-                                        lastSeqNumber=UInt64<endian=endian::Little()>
+                                        writerSN=SequenceNumber<endian = bool::True()>
                                         lastFragmentNumber=UInt32<endian=endian::Little()>
                                         count=UInt32<endian=endian::Little()>
                                         {b.frag_count := count}
@@ -196,6 +240,7 @@ format {
   // // Section 9.4.5.9
   InfoReply if {flags1: bitf_inforeply} := magic=!"\x0d"!
                       flags=$bitfield(bitf_inforeply)
+                      octets=OctetsToNextHeader<endian = Bits.to_bool(Bits.to_bit(flags.e1))>
                       ((unicast=LocatorList<endian = Bits.to_bool(Bits.to_bit(flags.e1))>) |
                       (unicast=LocatorList<endian = Bits.to_bool(Bits.to_bit(flags.e1))>
                         multicast=LocatorList<endian = Bits.to_bool(Bits.to_bit(flags.e1))>
@@ -205,9 +250,12 @@ format {
   ;;
 
   // Section 9.4.5.10
-  InfoSrc d {infosrcguidprefix: [byte]} := magic=!"\x0e"!
+  InfoSrc d {infosrcguidprefix: [byte]} := magic=!"\x0c"!
                                            flags=Byte
                                            octetsToNextHeader=UInt16<endian=endian::Little()>
+                                           unused=(Byte^4)
+                                           version=ProtocolVersion
+                                           vendor=VendorId
                                            guidprefix=(Byte ^ 12)
                                            {d.infosrcguidprefix := guidprefix}
   ;;
@@ -218,7 +266,8 @@ format {
                                             octetsToNextHeader=UInt16<endian=endian::Little()>
                                             readerEntityID=UInt32<endian=endian::Little()>
                                             writerEntityID=UInt32<endian=endian::Little()>
-                                            num=SNBits rep=(Byte^num.size)
+                                            writerSN=SequenceNumber<endian = bool::True()>
+                                            fragmentNumberState=SequenceNumberSet<endian = bool::True()>
                                             count=UInt32<endian=endian::Little()>
                                             {d.nackfragcount := count}
   ;;
@@ -240,10 +289,20 @@ format {
   ;;
 
   // Section 9.4.5.11
-  InfoTS d {timestamp: [byte], f: bitf_infots} := magic=!"\x09"! flags=$bitfield(bitf_infots) {d.f := flags}
+  InfoTS d {timestamp: [byte], f: bitf_infots, octets_ts: int} := magic=!"\x09"! flags=$bitfield(bitf_infots) {d.f := flags}
       // We have two choices based on I
       // If I is false, then we have a timestamp. If I is true then no timestamp: skip to the next byte
-      ((octetsToNextHeader=UInt16<endian=endian::Little()> timestamp=(Byte ^ 8) {d.timestamp := timestamp} [Bits.to_bool(Bits.to_bit(flags.i)) = bool::False()]) |
-                                (octetsToNextHeader=UInt16<endian=endian::Little()>  [Bits.to_bool(Bits.to_bit(flags.i)) = bool::True()] {d.timestamp := []}))
-}
+      ((
+        [Bits.to_bool(Bits.to_bit(flags.i)) = bool::False()]
+        octetsToNextHeader=OctetsToNextHeader<endian=Bits.to_bool(Bits.to_bit(flags.e))>
+        timestamp=(Byte ^ 8) {d.timestamp := timestamp}
+        {d.octets_ts := octetsToNextHeader.octets - 8}
+        ) |
 
+        ([Bits.to_bool(Bits.to_bit(flags.i)) = bool::True()]
+          octetsToNextHeader=OctetsToNextHeader<endian=Bits.to_bool(Bits.to_bit(flags.e))>
+         {d.timestamp := []}
+        {d.octets_ts := octetsToNextHeader.octets}
+        ))
+        skip = (Byte ^ (d.octets_ts))
+}
