@@ -1119,7 +1119,7 @@ toplevel: FORMAT LBRACE UID COLONEQ LBRACK EXCLAIM LITERAL USE
 ## In state 215, spurious reduction of production expr -> EXCLAIM expr
 ##
 
-Ill-formed argument expression for the '!' operator.
+Ill-formed constraint expression.
 
 toplevel: FORMAT LBRACE UID COLONEQ LBRACK EXCLAIM USE
 ##
