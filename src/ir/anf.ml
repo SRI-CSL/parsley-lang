@@ -173,6 +173,7 @@ type afun =
 type astmt_desc =
   | AS_set_var of var * aexp
   | AS_set_field of var * Ast.ident list * aexp
+  | AS_print of av
   | AS_let of var * aexp * astmt
   | AS_case of var * (apat * astmt) list
   | AS_block of astmt list

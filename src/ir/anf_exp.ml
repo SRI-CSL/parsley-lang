@@ -445,6 +445,11 @@ let rec normalize_stmt tenv venv (s: stmt) : astmt * VEnv.t =
         let sn, venv = normalize_stmt_case tenv venv av cases loc in
         let sn = make_lets binds sn in
         sn, venv
+    | S_print e ->
+        let se, venv = subnorm tenv venv e in
+        let binds, av = get_subnorm_binds se in
+        let sn = make_lets binds (wrap (AS_print av)) in
+        sn, venv
 
 and normalize_stmt_case (tenv: TypingEnvironment.environment)
       (venv: VEnv.t) (scrutinee: av) (cases: (pat * stmt list) list) loc

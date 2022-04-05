@@ -616,6 +616,9 @@ let rec add_stmt (ctx: ctx) (s: (typ, varid) stmt) : ctx =
             ) ([], closed) cls in
         let c = end_block b lbls in
         bound, c :: closed, cb
+    | S_print e ->
+        let b = add_expr bound b e in
+        bound, closed, b
 
 let add_gnode (b: opened) gn loc =
   let l = B.entry_label b in

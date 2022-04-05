@@ -408,6 +408,8 @@ and descend_stmt (ctx, acc) s =
         List.fold_left (fun (ctx, acc) s ->
             List.fold_left descend_stmt (ctx, acc)  s
           ) (descend_expr (ctx, pmat :: acc) e) ss
+    | S_print e ->
+        descend_expr (ctx, acc) e
 
 let check_patterns tenv (spec: (MultiEquation.crterm, TypeInfer.varid) Ast.program)  =
   let ctx = ExpConstraint.empty in

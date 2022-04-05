@@ -501,6 +501,10 @@ and print_stmt auxp s =
         print_clauses auxp clauses;
         pp_close_box ();
         pp_string ")"
+    | S_print e ->
+        pp_string "$print(";
+        print_expr auxp e;
+        pp_string ")"
 
 let print_action auxp a =
   let (stmts, e_opt) = a.action_stmts in
