@@ -289,3 +289,15 @@ let rec eval_stmt (s: state) (st: Anf.astmt) : state =
         let v = Builtins.subterm av.av_loc v occ in
         let env = VEnv.assign s.st_venv p v in
         eval_stmt {s with st_venv = env} st'
+    | AS_print av ->
+        let v = val_of_av s av in
+        let svl = string_of_value v in
+        let svr = match av.av with
+            | Anf.AV_var v -> Some (Anf_printer.string_of_var v)
+            | _            -> None in
+        Printf.eprintf "%s = %s\n"
+          (match svr with
+             | Some s -> s  (* print var *)
+             | None   -> Location.str_of_file_loc loc)
+          svl;
+        s

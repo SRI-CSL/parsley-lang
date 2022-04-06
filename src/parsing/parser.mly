@@ -22,7 +22,7 @@ open AstUtils
 %}
 
 %token EOF
-%token FORMAT TYPE BITFIELD AND FUN RECFUN USE OF CASE LET IN CONST
+%token FORMAT TYPE BITFIELD AND FUN RECFUN USE OF CASE LET IN CONST PRINT
 %token DECO
 %token EPSILON PAD ALIGN USE_BITFIELD
 %token SLASH_SF_LBRACK SLASH_SB_LBRACK
@@ -540,6 +540,8 @@ stmt:
   { make_stmt (S_let (p, e, s)) $startpos $endpos }
 | LPAREN CASE e=expr OF option(BAR) c=separated_list(BAR, branchstmt) RPAREN
   { make_stmt (S_case (e, c)) $startpos $endpos }
+| PRINT LPAREN e=expr RPAREN
+  { make_stmt (S_print e) $startpos $endpos }
 
 branchstmt:
 | p=pattern ARROW s=stmt

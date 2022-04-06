@@ -109,6 +109,7 @@ type ('a, 'b) stmt_desc =
   | S_assign of ('a, 'b) expr * ('a, 'b) expr
   | S_let of ('a, 'b) pattern * ('a, 'b) expr * ('a, 'b) stmt list
   | S_case of ('a, 'b) expr * (('a, 'b) pattern * ('a, 'b) stmt list) list
+  | S_print of ('a, 'b) expr
 
 and ('a, 'b) stmt =
   {stmt: ('a, 'b) stmt_desc;

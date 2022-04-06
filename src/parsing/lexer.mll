@@ -41,6 +41,7 @@
         "$pad",      PAD;
         "$align",    ALIGN;
         "$bitfield", USE_BITFIELD;
+        "$print",    PRINT;
       ];
     tbl
 

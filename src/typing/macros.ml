@@ -819,6 +819,9 @@ let rec expand_stmt ctx s : context * (unit, unit) stmt =
               ctx, (p, ss) :: bs
             ) (ctx, []) bs in
         ctx, {s with stmt = S_case (e, List.rev bs)}
+    | S_print e ->
+        let ctx, e = expand_expr ctx e in
+        ctx, {s with stmt = S_print e}
 
 and expand_stmts ctx ss : context * (unit, unit) stmt list =
   let ctx, ss =

@@ -376,6 +376,22 @@ let rec normalize_stmt tenv venv (s: stmt) : astmt * VEnv.t =
   let wrap s' =
     {astmt     = s';
      astmt_loc = loc} in
+  (* flatten any nested expression-level lets along with any
+     statement-level ones *)
+  let get_subnorm_binds se =
+    let rec get_binds acc ae =
+      match ae.aexp with
+        | AE_let (v', ae', bd') ->
+            get_binds ((v', ae') :: acc) bd'
+        | _ ->
+            acc, ae in
+    match se with
+      | S_var av ->
+          [], av
+      | S_let (v, ae, av) ->
+          let binds, ae' = get_binds [] ae in
+          (* this S_let will be the inner-most binding *)
+          (v, ae') :: binds, av in
   let rec make_lets binds sn =
     (* The bindings in [binds] are executed in reverse order,
        relying on the fact that the [binds] are themselves in
@@ -418,20 +434,21 @@ let rec normalize_stmt tenv venv (s: stmt) : astmt * VEnv.t =
     | S_let (p, e, ss) ->
         (* handle this similar to E_let *)
         let se, venv  = subnorm tenv venv e in
-        let binds, av = match se with
-            | S_var av          -> [], av
-            | S_let (v, ae, av) -> [v, ae], av in
+        let binds, av = get_subnorm_binds se in
         let cases = [p, ss] in
         let sn, venv = normalize_stmt_case tenv venv av cases loc in
         let sn = make_lets binds sn in
         sn, venv
     | S_case (e, cases) ->
         let se, venv = subnorm tenv venv e in
-        let binds, av = match se with
-            | S_var av          -> [], av
-            | S_let (v, ae, av) -> [v, ae], av in
+        let binds, av = get_subnorm_binds se in
         let sn, venv = normalize_stmt_case tenv venv av cases loc in
         let sn = make_lets binds sn in
+        sn, venv
+    | S_print e ->
+        let se, venv = subnorm tenv venv e in
+        let binds, av = get_subnorm_binds se in
+        let sn = make_lets binds (wrap (AS_print av)) in
         sn, venv
 
 and normalize_stmt_case (tenv: TypingEnvironment.environment)

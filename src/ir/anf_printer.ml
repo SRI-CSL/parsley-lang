@@ -281,3 +281,6 @@ and print_stmt s =
         print_av av;
         pp_string (string_of_occurrence occ);
         print_stmt b
+    | AS_print av ->
+        pp_string "$print ";
+        print_av av

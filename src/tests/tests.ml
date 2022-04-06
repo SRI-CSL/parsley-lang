@@ -130,6 +130,13 @@ let tests = [
                         |([res ~~ choice::Bad]  {r.v := \"Fail\"})
                         )}",
      "Chk", "B", V_record ["v", V_list[V_char 'F'; V_char 'a'; V_char 'i'; V_char 'l']]);
+    ("choicebt", "format {ITS i { b: byte, d: byte } :=
+                           ( (b=Byte [Int.of_byte(b)=0] d=Byte
+                              {i.b := b; i.d := d})
+                           | (b=Byte [Int.of_byte(b)=1] d=Byte
+                              {i.b := b; i.d := d})
+                           )}",
+     "ITS", "\x01\x02", V_record ["b", V_char '\x01'; "d", V_char '\x02']);
     ("views1", "format {P1 := (# [\"0\" .. \"5\"]* #);;
                         P2 := (# [\"0\" .. \"9\"]* #);;
                         Twice pt {p1: [byte], p2: [byte]} :=
