@@ -389,4 +389,8 @@ bit-width).
 | `int`
 | Matches eight bytes
 
+| `BitVector<n>`
+| `bitvector<n>`
+| Matches `n` bits
+
 |===
