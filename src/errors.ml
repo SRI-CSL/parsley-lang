@@ -43,4 +43,4 @@ let handle_exception bt loc msg =
       Printf.printf "%s\n" bt;
       Printf.fprintf stderr "%s%s: %s\n" content (Location.str_of_loc loc) msg;
    );
-   exit 1
+   exit Cmdliner.Cmd.Exit.some_error

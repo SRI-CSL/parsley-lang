@@ -18,8 +18,6 @@
 open Interpreter
 open Values
 
-let print_ir = true
-
 let tests = [
     ("trivial", "format { A := (# [\"A\"] #) }",  "A",
      "A", V_list [V_char 'A']);
@@ -412,7 +410,7 @@ let tests = [
                                  "off2", V_int 3L]);
   ]
 
-let do_tests gen_ir exe_ir =
+let do_tests print_ir gen_ir exe_ir =
   let fails = ref 0 in
   let succs = ref 0 in
   let print_ir ir =

@@ -15,61 +15,43 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* command line and other tunable options *)
+(* API for LSP *)
+let json_out    = ref false
+
+type common_opts =
+  {co_debug:   bool;
+   co_verbose: bool}
+
+type check_opts =
+  {co_show_parsed_ast:   bool;
+   co_show_after_macros: bool;
+   co_trace_solver:      bool;
+   co_show_types:        bool;
+   co_show_typed_ast:    bool;
+   co_show_anf:          bool;
+   co_show_cfg:          bool;
+   co_show_decorated:    string list;
+   co_output_json:       bool}
+
+let default_ckopts =
+  {co_show_parsed_ast   = false;
+   co_show_after_macros = false;
+   co_trace_solver      = false;
+   co_show_types        = false;
+   co_show_typed_ast    = false;
+   co_show_anf          = false;
+   co_show_cfg          = false;
+   co_show_decorated    = [];
+   co_output_json       = false}
+
+let process_copts copts =
+  Printexc.record_backtrace copts.co_debug
 
 module FD = Typing.Format_decorators
 module StringSet = FD.StringSet
 
-let do_tests    = ref false
-let print_ast   = ref false
-let input_file  = ref []
-let ent_nonterm = ref None
-let data_file   = ref None
-let json_out    = ref false
-let loop        = ref false
-
-(* internal to specTyper *)
-let print_post_macro = false
-let trace_solver     = false
-let print_types      = false
-let print_typed_ast  = false
-
-(* internal to specIR *)
-let print_anf = ref false
-let print_ir  = ref false
-
-let options =
-  Arg.align ([
-        ( "-pa",
-          Arg.Set print_ast,
-          " print the parsed AST" );
-        ( "-dd",
-          Arg.String (fun s ->
-              FD.display_decorated := StringSet.add s !FD.display_decorated
-            ),
-          " display the decorated non-terminal" );
-        ( "-ir",
-          Arg.Set print_ir,
-          " print the IR" );
-        ( "-ex",
-          Arg.String (fun s -> ent_nonterm := Some s),
-          " entry non-terminal to initiate parse" );
-        ( "-df",
-          Arg.String (fun s -> data_file := Some s),
-          " data file to parse" );
-        ( "-test",
-          Arg.Set do_tests,
-          " run internal tests");
-        ( "-lp",
-          Arg.Set loop,
-          " loop over input");
-        ( "-json",
-          Arg.Set json_out,
-          " output to stderr a json formatted string");
-    ])
-
-let usage = Printf.sprintf
-              "Usage: %s <options> <file.ply> " (Sys.argv.(0))
-
-let process_options () =
-  Arg.parse options (fun s -> input_file := s :: !input_file) usage;
+let process_ckopts ckopts =
+  List.iter (fun s ->
+      FD.display_decorated := StringSet.add s !FD.display_decorated
+    ) ckopts.co_show_decorated;
+  json_out := ckopts.co_output_json

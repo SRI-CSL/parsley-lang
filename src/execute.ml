@@ -31,9 +31,9 @@ let interpret spec nt f loop =
     match Interpret.once_on_file spec nt f with
       | Some v -> (Printf.printf "Parse terminated successfully with:\n";
                    Printf.printf "%s\n%!" (Values.string_of_value v);
-                   exit 0)
+                   exit Cmdliner.Cmd.Exit.ok)
       | None   -> (Printf.printf "Parse terminated in failure.\n";
-                   exit 1) in
+                   exit Cmdliner.Cmd.Exit.some_error) in
   try
     if   loop
     then do_loop ()
@@ -50,14 +50,6 @@ let interpret spec nt f loop =
           (Printf.sprintf "Error processing %s: %s: %s.\n"
              f op (Unix.error_message e))
 
-let interpret (spec: Cfg.spec_ir) (ent_nonterm: string option)
-      (data_file: string option) =
-  match ent_nonterm, data_file with
-    | None, None ->
-        ()
-    | Some nt, None ->
-        Printf.eprintf "No data file specified to parse for `%s'.\n" nt
-    | None, Some f ->
-        Printf.eprintf "No entry non-terminal specified for `%s'.\n" f
-    | Some nt, Some f ->
-        interpret spec nt f !Options.loop
+let execute _verbose (loop: bool) (start: string) (spec: Cfg.spec_ir)
+      (data: string) =
+  interpret spec start data loop

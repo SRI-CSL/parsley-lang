@@ -129,8 +129,8 @@ let parse_spec f =
   with
     | Sys_error s ->
         (Printf.eprintf "Error processing %s.\n" s;
-         exit 1)
+         exit Cmdliner.Cmd.Exit.some_error)
     | Unix.Unix_error (e, op, _) ->
         (Printf.eprintf "Error processing %s: %s: %s.\n"
            f op (Unix.error_message e);
-         exit 1)
+         exit Cmdliner.Cmd.Exit.some_error)

@@ -1,0 +1,65 @@
+= Using the Parsley compiler
+
+The Parsley compiler can currently be used in two modes: as a
+specification checker, and as an interpreter.
+
+In both modes, a Parsley specification needs to be provided to the
+compiler.  This is provided as the name of a single top-level file for
+the specification.  The top-level specification file can include other
+Parsley files with `use` declarations.  The included files are
+currently expected to be found in the same directory as the top-level
+specification file.
+
+As a checker, the compiler parses and type-checks the specification.
+If that succeeds, it generates the intermediate form that is used for
+execution by the interpreter.  Errors at any step are reported to the
+user, with a best effort attempt to pin-point the closest source
+location that triggered the error.
+
+The checker mode of the compiler is invoked on a specification in
+`spec.ply` as
+....
+  $ parsleyc.exe check spec.ply
+....
+
+To run as an interpreter, the compiler needs a format specification
+and an input file containing data that is expected to be in that
+format.  In addition, the name of a non-terminal in the grammar to be
+used as the starting point for the parse needs to be provided with the
+`--start` (abbreviated to `-s`) option.
+
+To parse the data in file `data.dat` according the format
+specification in `spec.ply` using `Start` as the starting
+non-terminal, the interpreter mode of the compiler can be invoked in
+any of following equivalent ways:
+....
+  $ parsleyc.exe execute --start=Start spec.ply data.dat
+  $ parsleyc.exe execute --start Start spec.ply data.dat
+  $ parsleyc.exe execute -s Start spec.ply data.dat
+....
+If the data file contains repeated instances of data in the format
+specified by the `Start` non-terminal, the `--loop` (abbreviated to
+`-l`) option can be added to the invocation:
+....
+  $ parsleyc.exe execute --loop --start=Start spec.ply data.dat
+  $ parsleyc.exe execute -l -s Start spec.ply data.dat
+....
+This will cause the interpreter to consume as many of these instances
+as possible.
+
+The intepreter prints the value of each successfully parsed instance
+on the standard output, and stops at the first parse error.
+
+Additional command line options can be specified to each of these
+modes of the compiler.  A list of these options can be examined using
+the `--help` option.
+....
+  $ parsleyc.exe check --help
+  $ parsleyc.exe execute --help
+....
+
+When debugging and testing a specification under development against
+sample data, it is useful to examine the values computed for various
+expressions in the specification.  The `$print`
+<<grammar.adoc#printing,statement>> was added to the language for this
+purpose.

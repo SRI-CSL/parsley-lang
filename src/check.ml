@@ -19,36 +19,42 @@ open Parsing
 open Typing
 open Flow
 open Analysis
+open Ir
+open Options
 
-let get_tracer () =
-  if   Options.trace_solver
-  then Some (ConstraintSolver.tracer ())
-  else None
+let parse_spec ckopts spec_file =
+  let spec = SpecParser.parse_spec spec_file in
+  if   ckopts.co_show_parsed_ast
+  then Parsing.AstPrinter.print_parsed_spec spec;
+  spec
 
-let check spec =
+let checker ckopts spec =
+  let tracer = if   ckopts.co_trace_solver
+               then Some (ConstraintSolver.tracer ())
+               else None in
   let spec = Macros.expand_spec spec in
-  if   Options.print_post_macro
+  if   ckopts.co_show_after_macros
   then AstPrinter.print_parsed_spec spec;
   let init_tenv, init_venv, c = TypeInfer.init_env () in
   let c, wc, tenv, spec' =
     TypeInfer.generate_constraint (init_tenv, init_venv, c) spec in
-  let env = ConstraintSolver.solve ?tracer:(get_tracer ()) c in
+  let env = ConstraintSolver.solve ?tracer c in
   ConstraintSolver.check_width_constraints wc;
-  if   Options.print_types
+  if   ckopts.co_show_types
   then (ConstraintSolver.print_env
           (TypeEnvPrinter.print_variable true)
           env;
         TypeConstraintPrinter.print_width_constraint wc)
   else ();
-  if   Options.print_typed_ast
+  if   ckopts.co_show_typed_ast
   then AstPrinter.print_typed_spec TypeConstraintPrinter.print_crterm spec';
-  (init_tenv, init_venv), tenv, spec'
+  let init_envs = init_tenv, init_venv in
+  Pattern_match.check_patterns tenv spec';
+  Analysis.Rulecfg.check_spec init_envs tenv spec';
+  init_envs, tenv, spec'
 
-let type_check spec =
-  try
-    let init_envs, tenv, spec' = check spec in
-    Pattern_match.check_patterns tenv spec';
-    init_envs, tenv, spec'
+let type_check ckopts spec =
+  try  checker ckopts spec
   with
     (* error messages from conversion of regexp literals *)
     | Literal_lexer.Error (l, e) ->
@@ -62,14 +68,33 @@ let type_check spec =
     | Unifier.Error (l, e) ->
         Errors.handle_exception
           (Printexc.get_backtrace ()) l (Unifier.error_msg e)
-
-let assignment_check init_envs tenv tspec =
-  try
-    Analysis.Rulecfg.check_spec init_envs tenv tspec
-  with
     | Graph.GraphError e ->
         Errors.handle_exception
           (Printexc.get_backtrace ()) Location.ghost_loc (Graph.error_msg e)
     | Rulecfg.Error (l, e) ->
         Errors.handle_exception
           (Printexc.get_backtrace ()) l (Rulecfg.error_msg e)
+
+let mk_ir ckopts init_envs tenv (spec: Cfg.program) : Cfg.spec_ir =
+  try  Cfg_spec.lower_spec init_envs tenv spec ckopts.co_show_anf
+  with
+    | Anf.Error (l, e) ->
+        Errors.handle_exception (Printexc.get_backtrace ()) l (Anf.error_msg e)
+    | Cfg_regexp.Error (l, e) ->
+        Errors.handle_exception (Printexc.get_backtrace ()) l (Cfg_regexp.error_msg e)
+    | Cfg.Error (l, e) ->
+        Errors.handle_exception (Printexc.get_backtrace ()) l (Cfg.error_msg e)
+
+let ir_of_ast _verbose ckopts ast : Cfg.spec_ir =
+  let init_envs, tenv, tspec = type_check ckopts ast in
+  let ir = mk_ir ckopts init_envs tenv tspec in
+  if   ckopts.co_show_cfg
+  then Ir_printer.print_spec ir;
+  ir
+
+let ir_of_spec verbose ckopts spec_file : Cfg.spec_ir =
+  let ast = parse_spec ckopts spec_file in
+  ir_of_ast verbose ckopts ast
+
+let check_spec verbose ckopts spec_file : unit =
+  ignore (ir_of_spec verbose ckopts spec_file)

@@ -206,6 +206,13 @@ bodies of `case` discriminators.
     }
 ....
 
+===== Printing
+
+To aid debugging using the interpreter, an additional statement form
+is the *print statement*, whose syntax is `$print(e)` where `e` is any
+expression.  When this statement is executed in the interpreter, the
+value that `e` evaluates to is printed to the standard error.
+
 ==== Combinators
 
 As mentioned above, these primitive rule elements can be combined into

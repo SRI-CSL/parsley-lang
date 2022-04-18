@@ -30,6 +30,8 @@ let handle_exception msg bt =
   Printf.printf "%s\n" bt;
   None
 
+(* Simplified version of parser from SpecParser to parse
+   self-contained specs in a string as opposed to a top-level file. *)
 let parse_spec test s cont =
   let lexbuf = from_string s in
   let lexbuf = {lexbuf with
@@ -77,9 +79,7 @@ let gen_ir (test_name: string) (spec: string) =
       ) in
   match spec with
     | None   -> None
-    | Some s -> let ies, te, ts = SpecTyper.type_check s in
-                SpecTyper.assignment_check ies te ts;
-                Some (SpecIR.to_ir ies te ts)
+    | Some s -> Some (Check.ir_of_ast false Options.default_ckopts s)
 
 let exe_ir (test: string) (ir: Ir.Cfg.spec_ir) (entry: string) (data: string) =
   try  Interpret.once_on_test_string test ir entry data
@@ -92,4 +92,4 @@ let exe_ir (test: string) (ir: Ir.Cfg.spec_ir) (entry: string) (data: string) =
           (Printexc.get_backtrace ())
 
 let do_tests () =
-  Tests.do_tests gen_ir exe_ir
+  Tests.do_tests false gen_ir exe_ir

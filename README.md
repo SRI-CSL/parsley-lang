@@ -11,7 +11,7 @@ https://opam.ocaml.org/
 Then, install the dependencies using opam:
 
 ```
-$ opam install menhir dune yojson ppx_deriving_yojson
+$ opam install menhir dune cmdliner yojson ppx_deriving_yojson
 ```
 
 Then,
