@@ -185,6 +185,10 @@ let string_of_value (v: value) : string =
     let pr_bf v h l = pr_bvec (field_of_bitvector v h l) in
     let srt vl    = List.sort compare vl in
     let srt_r fs  = List.sort (fun (l, _) (r, _) -> compare l r) fs in
+    let is_byte b = match b with V_char _ -> true | _ -> false in
+    let to_hex c  = if   c < 16
+                    then Printf.sprintf "0%x" c
+                    else Printf.sprintf "%x"  c in
     match v with
       | V_unit            -> "()"
       | V_bool b          -> if b then "true" else "false"
@@ -203,6 +207,14 @@ let string_of_value (v: value) : string =
                                 | None   -> "option::None()"
                                 | Some v -> Printf.sprintf "option::Some(%s)"
                                               (pr (d + 1) v))
+      | V_list vs
+           when List.for_all is_byte vs (* print data bytes in hex *)
+                          -> Printf.sprintf "%s"
+                               (String.concat ""
+                                  (List.map (function
+                                       | V_char c -> to_hex (Char.code c)
+                                       | _        -> assert false
+                                     ) vs))
       | V_list vs         -> Printf.sprintf "%s[%s]" (mk_fill d)
                                (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
       | V_tuple vs        -> Printf.sprintf "(%s)"
