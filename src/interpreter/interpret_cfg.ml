@@ -109,8 +109,8 @@ let do_linear_node (s: state) (n: Cfg.Node.linear_node)
    transition back occurs at `N_return`.
 
    The nodes of a block are executed in sequence.  If its exit node
-   transfers control to a static label, execution continues directly (and
-   tail-recursively) to the block with that label.  Execution
+   transfers control to a static label, execution continues directly
+   (and tail-recursively) to the block with that label.  Execution
    'returns to caller' when control flow reaches a virtual label via a
    `N_return` node.
 
@@ -123,19 +123,20 @@ let do_linear_node (s: state) (n: Cfg.Node.linear_node)
 
    The execution ends when there is no continuation at which to
    proceed (as set in the very first call-frame); equivalently, it
-   ends when the call control-stack is empty.  The return value of the
-   execution is the value (if any) of the match, along with the final
-   state (which contains the final view with its offset).
+   ends when the call control-stack is empty.  The return value of a
+   successful execution is the value of the match, along with the
+   final state (which contains the final view with its offset).  On
+   failure, the last stuck state is returned for diagnostics.
  *)
 
-type result = value option * state
+type parse_result = (value, state) result * state
 
-let rec do_jump lc (s: state) (l: Cfg.label) : result =
+let rec do_jump lc (s: state) (l: Cfg.label) : parse_result =
   assert (Cfg.is_static l);
   let b = get_block lc s l in
   do_closed_block s b
 
-and do_return _lc (s': state) (l: Cfg.label) : result =
+and do_return _lc (s': state) (l: Cfg.label) : parse_result =
   assert (Cfg.is_virtual l);
   match s'.st_ctrl_stk with
     | [] ->
@@ -164,7 +165,7 @@ and do_return _lc (s': state) (l: Cfg.label) : result =
                | None ->
                    (* Return to the top-level *)
                    assert (stk = []);
-                   Some vl, s
+                   Ok vl, s
         else if l = cf.cf_nt_failcont
         then let s = cf.cf_call_state in
              (* The view should not be modified by the call (except
@@ -178,12 +179,12 @@ and do_return _lc (s': state) (l: Cfg.label) : result =
                       without any change to the view. *)
                    do_jump loc s lf
                | None ->
-                   (* Return to the top-level *)
+                   (* Return to the top-level, passing the failing state. *)
                    assert (stk = []);
-                   None, s
+                   Error s', s
         else assert false (* Unrecognized label. *)
 
-and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
+and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
   match n with
     | N_bits (loc, w, lsc, lf) ->
         (match match_bits loc (Printf.sprintf "bits<%d>" w) s w with
@@ -334,7 +335,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : result =
         (* this should not be needed *)
         assert false
 
-and do_closed_block (s: state) (b: Cfg.closed) : result =
+and do_closed_block (s: state) (b: Cfg.closed) : parse_result =
   let e, b = Cfg.B.split_head b in
   let b, x = Cfg.B.split_tail b in
   let ns   = Cfg.B.to_list b in

@@ -19,21 +19,27 @@ open Ir
 open Interpreter
 
 let interpret spec nt f loop =
+  let fmt_pos (o, e) =
+    Printf.sprintf "offset %d (%d bytes remaining)" o (e - o) in
   let do_loop () =
-    let vs = Interpret.loop_on_file spec nt f in
-    let n  = List.length vs in
-    Printf.printf "%d values extracted%s\n\n"
-      n (if n = 0 then "." else ":");
+    let vs, lp = Interpret.loop_on_file spec nt f in
+    let n = List.length vs in
+    Printf.printf "%d values extracted with parse terminating at %s%s\n\n"
+      n (fmt_pos lp) (if n = 0 then "." else ":");
     List.iter (fun v ->
         Printf.printf "%s\n\n%!" (Values.string_of_value v)
       ) vs in
   let do_once () =
     match Interpret.once_on_file spec nt f with
-      | Some v -> (Printf.printf "Parse terminated successfully with:\n";
-                   Printf.printf "%s\n%!" (Values.string_of_value v);
-                   exit Cmdliner.Cmd.Exit.ok)
-      | None   -> (Printf.printf "Parse terminated in failure.\n";
-                   exit Cmdliner.Cmd.Exit.some_error) in
+      | Some v, lp -> (Printf.printf
+                         "Parse terminated successfully at %s with:\n"
+                         (fmt_pos lp);
+                       Printf.printf "%s\n%!" (Values.string_of_value v);
+                       exit Cmdliner.Cmd.Exit.ok)
+      | None, lp   -> (Printf.printf
+                         "Parse terminated in failure at %s.\n"
+                         (fmt_pos lp);
+                       exit Cmdliner.Cmd.Exit.some_error) in
   try
     if   loop
     then do_loop ()

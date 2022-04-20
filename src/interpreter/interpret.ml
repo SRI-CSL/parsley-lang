@@ -71,18 +71,27 @@ let init (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
   let b   = get_block loc s (Cfg.L_static ent.nt_entry) in
   s, b
 
+(* returns the `vu_ofs` and `vu_end` of the view in the state. *)
+type last_pos = int * int
+let view_info (s: state) : last_pos =
+  let v = s.st_cur_view in
+  v.vu_ofs, v.vu_end
+
 let run_once ((s: state), (b: Cfg.closed))
-    : value option =
-  fst (Interpret_cfg.do_closed_block s b)
+    : value option * last_pos =
+  let r, s = Interpret_cfg.do_closed_block s b in
+  match r with
+    | Ok v     -> Some v, view_info s
+    | Error s' -> None,   view_info s'
 
 let run_loop ((s: state), (b: Cfg.closed))
-    : value list =
+    : value list * last_pos =
   let rec loop acc s_init =
     match Interpret_cfg.do_closed_block s_init b with
-      | Some vl, s ->
+      | Ok vl, s ->
           loop (vl :: acc) {s_init with st_cur_view = s.st_cur_view}
-      | None, _ ->
-          List.rev acc in
+      | Error s, _ ->
+          List.rev acc, view_info s in
   loop [] s
 
 let once_on_file spec entry f =

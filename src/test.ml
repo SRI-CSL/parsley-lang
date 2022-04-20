@@ -70,7 +70,9 @@ let parse_spec test s cont =
         handle_exception
           (Printexc.get_backtrace ()) (Parseerror.error_msg e)
 
-let gen_ir (test_name: string) (spec: string) =
+type ir = Ir.Cfg.spec_ir
+
+let gen_ir (test_name: string) (spec: string) : ir option =
   let includes = SpecParser.StringSet.empty in
   let spec =
     parse_spec test_name spec (fun ast ->
@@ -81,8 +83,8 @@ let gen_ir (test_name: string) (spec: string) =
     | None   -> None
     | Some s -> Some (Check.ir_of_ast false Options.default_ckopts s)
 
-let exe_ir (test: string) (ir: Ir.Cfg.spec_ir) (entry: string) (data: string) =
-  try  Interpret.once_on_test_string test ir entry data
+let exe_ir (test: string) (ir: ir) (entry: string) (data: string) : Values.value option =
+  try  fst (Interpret.once_on_test_string test ir entry data)
   with
     | Runtime_exceptions.Runtime_exception (_, e) ->
         (* Catch the backtrace before error_msg has an exception
