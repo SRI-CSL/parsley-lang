@@ -21,12 +21,12 @@ open Parsing
 open Values
 open Runtime_exceptions
 
-type 'a result =
+type 'a match_result =
   | R_nomatch
   | R_ok  of 'a
   | R_err of Location.t * error
 
-type val_result = (value * view) result
+type val_result = (value * view) match_result
 
 let general_byte lc (vu: view) (nt: string) (pred: char -> bool) (to_list: bool)
     : val_result =
@@ -103,7 +103,7 @@ type signed =
   | S_unsigned
   | S_signed
 
-let int_of_byte lc (vu: view) (nt: string) : (int * view) result =
+let int_of_byte lc (vu: view) (nt: string) : (int * view) match_result =
   let buf  = vu.vu_buf in
   let ofs  = vu.vu_ofs in
   let vend = vu.vu_end in
@@ -133,7 +133,7 @@ let int8 lc (vu: view) : val_result =
   `i : Int64.t` with `0 <= i < 2^(8*n)`
   with an updated view *)
 let int_of_nbytes lc (vu: view) (nt: string) (n: int) (e: endian)
-    : (Int64.t * view) result =
+    : (Int64.t * view) match_result =
   let rec iter (acc, vu) idx =
     if   idx = n
     then R_ok (acc, vu)
