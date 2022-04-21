@@ -37,6 +37,18 @@ any of following equivalent ways:
   $ parsleyc.exe execute --start Start spec.ply data.dat
   $ parsleyc.exe execute -s Start spec.ply data.dat
 ....
+
+The interpreter prints the value of each successfully parsed instance
+on the standard output, and stops at the first parse error.  The
+printed value is the value computed by the variable bound to the
+specified start non-terminal.  For example, for a format containing
+....
+  format {
+    Start s {...} := ...
+....
+the `execute -s Start` mode prints the value bound to `s` after a
+successful parse of `Start` from the given data.
+
 If the data file contains repeated instances of data in the format
 specified by the `Start` non-terminal, the `--loop` (abbreviated to
 `-l`) option can be added to the invocation:
@@ -45,10 +57,8 @@ specified by the `Start` non-terminal, the `--loop` (abbreviated to
   $ parsleyc.exe execute -l -s Start spec.ply data.dat
 ....
 This will cause the interpreter to consume as many of these instances
-as possible.
-
-The intepreter prints the value of each successfully parsed instance
-on the standard output, and stops at the first parse error.
+as possible, and print each value bound to `s` for every successful
+parse of `Start`.
 
 Additional command line options can be specified to each of these
 modes of the compiler.  A list of these options can be examined using
@@ -58,8 +68,11 @@ the `--help` option.
   $ parsleyc.exe execute --help
 ....
 
+NOTE: In some cases (e.g. on some MacOSX installations), one might
+need to specify `--help=plain` to see the help message.
+
 When debugging and testing a specification under development against
 sample data, it is useful to examine the values computed for various
-expressions in the specification.  The `$print`
-<<grammar.adoc#printing,statement>> was added to the language for this
-purpose.
+expressions in the specification.  The
+<<grammar.adoc#printing,`$print` statement>> was added to the language
+for this purpose.

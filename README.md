@@ -4,13 +4,14 @@ Syntax and parser for the Parsley data definition language.
 Building
 --------
 
-The easiest way to get the dependencies is to install opam:
+The easiest way to get the dependencies is via opam:
 
 https://opam.ocaml.org/
 
-Then, install the dependencies using opam:
+Ensure your opam is up-to-date before installing the dependencies:
 
 ```
+$ opam update && opam upgrade
 $ opam install menhir dune cmdliner yojson ppx_deriving_yojson
 ```
 
