@@ -203,9 +203,6 @@ val lookup_non_term:
 val lookup_non_term_type :
   environment -> Ast.nname -> MultiEquation.crterm option
 
-(** Accessor to the kind of a type. *)
-val typcon_kind : environment -> Ast.tname -> KindInferencer.t
-
 (** Accessor to the unification variable of a type. *)
 val typcon_variable : environment -> Ast.tname -> MultiEquation.crterm
 
@@ -228,18 +225,6 @@ val fresh_datacon_scheme :
     scheme of the record field destructor [fname] in [env]. *)
 val fresh_field_destructor_scheme :
   environment -> Location.t -> Ast.lname -> (MultiEquation.variable list * MultiEquation.crterm)
-
-(** [fresh_flexible_vars pos env vs] returns a list of fresh flexible
-    variables whose visible names are [vs] and an environment fragment. *)
-val fresh_flexible_vars :
-  Location.t -> environment -> Ast.tname list ->
-  MultiEquation.variable list * (Ast.tname * type_info) list
-
-(** [fresh_flexible_vars pos env vs] returns a list of fresh rigid
-    variables whose visible names are [vs] and an environment fragment. *)
-val fresh_rigid_vars :
-  Location.t -> environment -> Ast.tname list ->
-  MultiEquation.variable list * (Ast.tname * type_info) list
 
 (** [fresh_flexible_vars pos env] returns a list of fresh rigid
     variables without visible names and an environment fragment. *)

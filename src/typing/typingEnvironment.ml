@@ -260,8 +260,6 @@ let fold_type_info f init env =
   CoreEnv.fold_left f init env.type_info
 
 (* Some accessors. *)
-let typcon_kind env t =
-  proj1_3 (lookup_typcon env t)
 
 let typcon_variable env t =
   CoreAlgebra.TVariable (proj2_3 (lookup_typcon env t))
@@ -270,20 +268,6 @@ let as_fun tenv name =
   match find_typcon tenv name with
     | None -> lookup_type_variable tenv name
     | Some (_, v, _) -> CoreAlgebra.TVariable v
-
-(** [is_typcon env t] check if there exists a type constructor whose
-    name is [t]. *)
-let is_typcon env t =
-  (find_typcon env t) <> None
-
-(** [tycon_name_conflict tyconv_env env] checks if a type constructor is not
-    overwritten by a type variable. *)
-let tycon_name_conflict pos env (fqs, denv) =
-  try
-    let (n, _) = List.find (fun (x, _) -> is_typcon env x) denv in
-    raise (Error (pos, InvalidTypeVariableIdentifier n))
-  with Not_found ->
-    (fqs, List.map (function (n, CoreAlgebra.TVariable v) -> (n, v) | _ -> assert false) denv)
 
 (** [lookup_adt env t] gives access to the typing information for the
     type with name [t]. *)
@@ -413,23 +397,6 @@ let is_regular_field_scheme tenv (TName adt_name) kvars kt =
             | Some (TName n) -> n == adt_name
             | None -> false in
         check_args && check_source
-
-(** [fresh_vars kind pos env vars] allocates fresh variables from a
-    list of names [vars], checking name clashes with type constructors. *)
-let fresh_vars kind pos env vars =
-  let vs = variable_list_from_names (fun v -> (kind, Some v)) vars in
-  let (fqs, denv) = tycon_name_conflict pos env vs in
-    (fqs,
-     (List.map (fun (n, v) -> (n, (KindInferencer.fresh_kind (), v, ref None))) denv))
-
-(** [fresh_flexible_vars] is a specialized allocator for flexible
-    variables. *)
-let fresh_flexible_vars =
-  fresh_vars Flexible
-
-(** [fresh_rigid_vars] is a specialized allocator for rigid variables. *)
-let fresh_rigid_vars =
-  fresh_vars Rigid
 
 let fresh_unnamed_rigid_vars _pos _env vars =
   let rqs, denv = variable_list Rigid vars in

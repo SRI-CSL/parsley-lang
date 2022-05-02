@@ -46,18 +46,5 @@ val bitvector_t:
 (** [arity (t1 -> ... -> tn)] returns [n]. *)
 val arity : Ast.type_expr -> int
 
-(** [tycon t xs] builds the internal representation of the type [t xs]. *)
-val tycon : TypingEnvironment.environment -> Ast.ident -> MultiEquation.crterm list -> MultiEquation.crterm
-
 (** [intern env ty] converts [ty] into its internal representation. *)
 val intern : TypingEnvironment.environment -> Ast.type_expr -> MultiEquation.crterm
-
-(** [internal_let_env env fqs rqs] internalizes the flexible variables
-    [fqs] and the rigid variables [rqs] into [env]. *)
-val intern_let_env : Location.t -> TypingEnvironment.environment -> Ast.ident list -> Ast.ident list ->
-  MultiEquation.variable list * MultiEquation.variable list * TypingEnvironment.environment
-
-(** [intern_scheme env x fqs ty] returns the internal representation
-    of the type scheme [forall fqs.ty] and the binding of [x] to it. *)
-val intern_scheme : Location.t -> TypingEnvironment.environment -> string -> Ast.ident list ->
-  Ast.type_expr -> (MultiEquation.crterm, MultiEquation.variable) TypeConstraint.scheme

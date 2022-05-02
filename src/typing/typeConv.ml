@@ -65,9 +65,6 @@ let type_of_args t =
 let arity t =
   List.length (type_of_args t)
 
-let tycon tenv t =
-  CoreAlgebra.app (lookup_type_variable tenv (TName (Location.value t)))
-
 let rec intern' tenv t : crterm =
   match t.type_expr with
     | TE_tvar name ->
@@ -82,20 +79,3 @@ let intern tenv ty =
   let kind_env = as_kind_env tenv in
   let _ = KindInferencer.check kind_env ty KindInferencer.star in
     intern' tenv ty
-
-let intern_let_env pos tenv rs fs =
-  let fs = List.map AstUtils.to_tname fs in
-  let rs = List.map AstUtils.to_tname rs in
-  let fqs, rtenv = fresh_flexible_vars pos tenv fs in
-  let rqs, rtenv' = fresh_rigid_vars pos tenv rs in
-    rqs, fqs, add_type_variables (rtenv @ rtenv') tenv
-
-(** [intern_scheme tenv name qs typ] produces a type scheme
-    that binds [name] to [forall qs.typ]. *)
-let intern_scheme pos tenv name qs typ =
-  let qs = List.map AstUtils.to_tname qs in
-  let fqs, rtenv = fresh_flexible_vars pos tenv qs in
-    TypeConstraint.Scheme (pos, [], fqs, CTrue pos,
-                           StringMap.singleton name
-                         ((intern (add_type_variables rtenv tenv) typ),
-                          pos))
