@@ -1,15 +1,3 @@
-recfun map_bufs<'a>(re: parser<'a>, views: [view], acc: ['a])
-         -> parse_result<['a]> = {
-    (case views of
-     | []        -> parse_result::Value([])
-     | v :: tail ->
-          (case parse (re, v) of
-           | parse_result::Value(a) -> map_bufs(re, tail, a :: acc)
-           | parse_result::Error(e) -> parse_result::Error(e)
-          )
-    )
-  }
-
 fun mk_views() -> [view] = {
   let v  = View.get_current() in
   let v0 = View.restrict(v, 0, 4) in

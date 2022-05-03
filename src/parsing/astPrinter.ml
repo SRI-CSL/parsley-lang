@@ -92,7 +92,8 @@ let rec print_kind = function
 
 let rec print_type_expr ?paren te =
   match te.type_expr with
-    | TE_tvar t ->
+    | TE_tvar t
+    | TE_tname t ->
         pp_string (Location.value t)
     | TE_tapp ({type_expr = TE_tvar t; _}, args)
          when Location.value t = "->" ->

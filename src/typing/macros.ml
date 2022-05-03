@@ -255,8 +255,8 @@ let stringify_fname fn =
 
 let rec stringify_type_expr te =
   match te.type_expr with
-    | TE_tvar tv ->
-        Location.value tv
+    | TE_tvar t | TE_tname t ->
+        Location.value t
     | TE_tapp (c, []) ->
         stringify_type_expr c
     | TE_tapp ({type_expr = TE_tvar tv; _}, args)

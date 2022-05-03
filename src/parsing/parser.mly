@@ -107,15 +107,9 @@ let make_type_expr t b e =
   {type_expr = t;
    type_expr_loc = Location.mk_loc b e}
 
-let make_type_app_ident ident args b e =
-  let c = make_tvar_ident ident in
-  {type_expr = TE_tapp (c, args);
-   type_expr_loc = Location.mk_loc b e}
-
 let make_unit_type b e =
   let loc = Location.mk_loc b e in
-  let unit = Location.mk_loc_val "unit" loc in
-  make_type_app_ident unit [] b e
+  make_type_app "unit" [] loc
 
 let make_pattern pat b e =
   {pattern = pat;
@@ -219,7 +213,7 @@ let make_format decls b e =
 
 let make_list_type a b e =
   let loc = Location.mk_loc b e in
-  make_type_app_name "[]" [a] loc
+  make_type_app "[]" [a] loc
 
 let rec make_tuple_type l =
   match l with
@@ -228,7 +222,7 @@ let rec make_tuple_type l =
     | h :: rest ->
           let t = make_tuple_type rest in
           let loc = Location.extent h.type_expr_loc t.type_expr_loc in
-          make_type_app_name "*" [h; t] loc
+          make_type_app "*" [h; t] loc
 
 let rec make_tuple_pattern l =
   match l with
@@ -278,9 +272,9 @@ int_exp:
 
 type_expr:
 | tv=TVAR
-  { make_tvar_ident tv }
+  { make_tvar tv }
 | i=ident
-  { make_type_app_ident i [] $startpos $endpos }
+  { make_type_app_id i [] (Location.mk_loc $startpos $endpos) }
 | LPAREN l=separated_list(COMMA, type_expr) RPAREN
   { if List.length l = 0
     then make_unit_type $startpos $endpos
@@ -300,12 +294,12 @@ type_expr:
          parse_error err li
     else let n = string_of_int i in
          let n = Location.mk_loc_val n li in
-         let n = make_tvar_ident n in
-         let t = make_tvar_ident d in
+         let n = make_tname_id n in
+         let t = make_tname_id d in
          register_bitwidth i;
          make_type_expr (TE_tapp (t, [n])) $startpos $endpos }
 | d=def LT l=separated_list(COMMA, type_expr) GT
-  { let c = make_tvar_ident d in
+  { let c = make_tname_id d in
     make_type_expr (TE_tapp (c, l)) $startpos $endpos }
 
 variant:

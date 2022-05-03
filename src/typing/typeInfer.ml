@@ -213,12 +213,11 @@ let check_tvars_usage tenv _t qs used_set =
     signature for a data constructor of [adt] named [dc] given its declared
     argument [typ], which is parameterized over type variables [tvars]. *)
 let make_dc_signature adt tvars _dc typ =
-  let tvars = List.map AstUtils.make_tvar_ident tvars in
+  let tvars = List.map AstUtils.make_tvar tvars in
   let res =
     if   List.length tvars = 0
-    then AstUtils.make_tvar_ident adt
-    else AstUtils.make_type_app_name (Location.value adt) tvars
-           (Location.loc adt) in
+    then AstUtils.make_tname_id adt
+    else AstUtils.make_type_app_id adt tvars (Location.loc adt) in
   match typ with
     | None -> res
     | Some sign -> AstUtils.add_arrow_result sign res
@@ -263,12 +262,11 @@ let intern_data_constructor internal adt_id qs env_info dcon_info =
     [f] given its declared argument [typ], which is parameterized over
     type variables [tvars]. *)
 let make_field_signature adt tvars f typ =
-  let tvars = List.map AstUtils.make_tvar_ident tvars in
+  let tvars = List.map AstUtils.make_tvar tvars in
   let source =
     if   List.length tvars = 0
-    then AstUtils.make_tvar_ident adt
-    else AstUtils.make_type_app_name (Location.value adt) tvars
-           (Location.loc adt) in
+    then AstUtils.make_tname_id adt
+    else AstUtils.make_type_app_id adt tvars (Location.loc adt) in
   (* TODO: we forbid function types as field types.  Currently, this
      is by enforced by construction at the syntax level, but we should
      also check it here, e.g. for builtins. *)
@@ -302,12 +300,11 @@ let intern_field_destructor adt_id qs env_info f_info =
 (* The constructor is the function with argument types from the fields
    in increasing order, and with the record as the result type. *)
 let make_record_signature adt tvars fields =
-  let tvars = List.map AstUtils.make_tvar_ident tvars in
+  let tvars = List.map AstUtils.make_tvar tvars in
   let res =
     if   List.length tvars = 0
-    then AstUtils.make_tvar_ident adt
-    else AstUtils.make_type_app_name (Location.value adt) tvars
-           (Location.loc adt) in
+    then AstUtils.make_tname_id adt
+    else AstUtils.make_type_app_id adt tvars (Location.loc adt) in
   let fields = AstUtils.sort_fields fields in
   let signature =
     List.fold_left (fun acc (f, t) ->
@@ -860,7 +857,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
         let bf_len = TypedAstUtils.lookup_bitfield_length tenv rtyp in
         let v = TypeConv.bitvector_n tenv bf_len in
         let rt =
-          TypeConv.intern tenv (AstUtils.make_tvar_ident rtyp) in
+          TypeConv.intern tenv (AstUtils.make_tname_id rtyp) in
         let ce, (wce, e') = infer_expr tenv venv e' rt in
         ce ^ (v =?= t) e.expr_loc,
         (wce, mk_auxexpr (E_recop (rtyp, op, e')))
@@ -873,7 +870,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit) expr) (t : crterm)
         let bf_len = TypedAstUtils.lookup_bitfield_length tenv rtyp in
         let v = TypeConv.bitvector_n tenv bf_len in
         let rt =
-          TypeConv.intern tenv (AstUtils.make_tvar_ident rtyp) in
+          TypeConv.intern tenv (AstUtils.make_tname_id rtyp) in
         let ce, (wce, e') = infer_expr tenv venv e' v in
         ce ^ (rt =?= t) e.expr_loc,
         (wce, mk_auxexpr (E_recop (rtyp, op, e')))
@@ -1731,7 +1728,7 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
         let cursor = cursor + width in
         (* The matched bits are converted into the bitfield record
            type. *)
-        let bft = AstUtils.make_tvar_ident bf in
+        let bft = AstUtils.make_tname_id bf in
         let bft = TypeConv.intern tenv bft in
         let c = (t =?= bft) re.rule_elem_loc in
         pack_constraint c,

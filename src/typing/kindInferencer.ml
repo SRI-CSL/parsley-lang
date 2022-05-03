@@ -158,7 +158,7 @@ let rec unify pos k1 k2 =
 
 let rec infer env t =
   match t.type_expr with
-    | TE_tvar id ->
+    | TE_tvar id | TE_tname id ->
         lookup (TName (Location.value id)) (Location.loc id) env
 
     | TE_tapp (tc, ts) ->

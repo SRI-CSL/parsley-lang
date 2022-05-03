@@ -35,11 +35,13 @@ open Ast
 let variables_of_typ =
   let rec vtyp acu t =
     match t.type_expr with
-    | TE_tvar (x) ->
+    | TE_tvar x ->
         let loc = Location.loc x in
         StringMap.add (Location.value x) loc acu
-    | TE_tapp (t, ts) ->
-        List.fold_left vtyp (vtyp acu t) ts
+    | TE_tname _ ->
+        acu
+    | TE_tapp (_, ts) ->
+        List.fold_left vtyp acu ts
   in
     vtyp StringMap.empty
 
@@ -55,7 +57,7 @@ let bitvector_t tenv =
 let type_of_args t =
   let rec chop acu typ =
     match typ.type_expr with
-    | TE_tapp ({type_expr = TE_tvar c; _}, [t1; t2])
+    | TE_tapp ({type_expr = TE_tname c; _}, [t1; t2])
          when Location.value c = "->" ->
         chop (t1 :: acu) t2
     | _ ->
@@ -67,7 +69,7 @@ let arity t =
 
 let rec intern' tenv t : crterm =
   match t.type_expr with
-    | TE_tvar name ->
+    | TE_tvar name | TE_tname name ->
         as_fun tenv (TName (Location.value name))
     | TE_tapp (t, args) ->
         let iargs = List.map (intern' tenv) args in

@@ -27,7 +27,9 @@ let expand_type_abbrevs env te =
   let rec expand te =
     let loc = te.type_expr_loc in
     match te.type_expr with
-      | TE_tvar t ->
+      | TE_tvar _ ->
+          te
+      | TE_tname t ->
           let tc = TName (Location.value t) in
           (match TEnv.lookup_type_abbrev env tc with
              | None -> te
@@ -61,7 +63,9 @@ let expand_type_abbrevs env te =
 
   and subst map te =
     match te.type_expr with
-      | TE_tvar t ->
+      | TE_tvar _ ->
+          te
+      | TE_tname t ->
           let s = Location.value t in
           (match List.assoc_opt (TName s) map with
              | None    -> te

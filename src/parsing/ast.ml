@@ -37,7 +37,8 @@ type kind =
   | KArrow of kind * kind
 
 type type_expr_desc =
-  | TE_tvar of tvar
+  | TE_tvar of tvar    (* can only appear in leaf position *)
+  | TE_tname of ident  (* can appear in leaf and constructor position *)
   | TE_tapp of type_expr * type_expr list
 
 and type_expr =

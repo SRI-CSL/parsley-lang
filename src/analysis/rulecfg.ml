@@ -996,10 +996,10 @@ let recinfo_of_type (tenv: TE.environment) (t: tvar)
 let recinfo_of_type_expr (tenv: TE.environment) (t: type_expr)
     : (string * type_expr) list option =
   match t.type_expr with
-    | TE_tvar t
-    | TE_tapp ({type_expr = TE_tvar t;_}, _) ->
+    | TE_tname t
+    | TE_tapp ({type_expr = TE_tname t;_}, _) ->
         recinfo_of_type tenv t
-    | TE_tapp _ ->
+    | TE_tvar _ | TE_tapp _ ->
         None
 (* The builder of the complete list. *)
 let build_attribute_refs (tenv: TE.environment) recinfo =
