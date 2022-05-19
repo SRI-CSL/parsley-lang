@@ -26,6 +26,7 @@ type regexp_error =
   | Unknown_regexp_nonterm of Ast.ident
   | Negative_seq_bound
   | Nonconstant_seq_bound
+  | Cross_module_regexp of Ast.mname * Ast.ident * Ast.mname
 
 exception Error of Location.t * regexp_error
 
@@ -36,6 +37,10 @@ let error_msg = function
       "Regexp bounds cannot be negative."
   | Nonconstant_seq_bound ->
       "Non-constant regexp bounds are not supported."
+  | Cross_module_regexp (m, id, m') ->
+      Printf.sprintf
+        "Compilation of external regexp `%s%s' in module `%s' is not supported."
+        (AstUtils.mk_modprefix m) (Location.value id) (AstUtils.str_of_mod m')
 
 (* position generator *)
 let get_pos_generator () =
@@ -121,22 +126,28 @@ let rec relocate new_pos re =
 (* a re repeated n times *)
 let bounded_rep re n new_pos =
   let rec loop acc n =
-    if n = 0 then acc
+    if   n = 0
+    then acc
     else loop (relocate new_pos re :: acc) (n - 1) in
   seq_of_list (loop [] n)
 
 (* desugar a literal set *)
-let re_of_litset (renv: re_env) new_pos (ls: Ast.literal_set) : unit re =
+let re_of_litset (renv: re_env) m' new_pos (ls: Ast.mod_qual Ast.literal_set) : unit re =
   let mk_re r = {re = r; re_aux = ()} in
   match ls.literal_set with
-    | LS_type id when TypeAlgebra.is_character_class id ->
+    | LS_type (m, id)
+         when m = AstUtils.stdlib && TypeAlgebra.is_character_class id ->
         let cc = Location.value id in
         let chars = List.assoc cc TypeAlgebra.character_classes in
         let chars = CharSet.of_list (Array.to_list chars) in
         mk_re (R_chars (chars, new_pos ()))
-    | LS_type id ->
+    | LS_type (m, id) ->
+        (* Cross-module regexp compilation is not supported. *)
+        (if   m <> AstUtils.stdlib && not (AstUtils.mod_equiv m m')
+         then let err = Cross_module_regexp (m, id, m') in
+              raise (Error (ls.literal_set_loc, err)));
         (match StringMap.find_opt (Location.value id) renv with
-           | Some (_, re) -> re
+           | Some (_, re) -> relocate new_pos re
            | None         -> let loc = Location.loc id in
                              raise (Error (loc, Unknown_regexp_nonterm id))
         )
@@ -148,8 +159,9 @@ let re_of_litset (renv: re_env) new_pos (ls: Ast.literal_set) : unit re =
            | h :: t -> List.fold_left (fun acc l ->
                            mk_re (R_choice (acc, lower_literal new_pos l))
                          ) (lower_literal new_pos h) t)
-    | LS_diff ({literal_set = LS_type cc; _},
-               {literal_set = LS_set ls'; _}) ->
+    | LS_diff ({literal_set = LS_type (m, cc); _},
+               {literal_set = LS_set ls'; _})
+         when m = AstUtils.stdlib ->
         let chars =
           List.assoc (Location.value cc) TypeAlgebra.character_classes in
         let chars = CharSet.of_list (Array.to_list chars) in
@@ -183,10 +195,16 @@ let rec simplify (renv: re_env) new_pos (r: regexp) : unit re =
     | RX_empty ->
         mk_re R_empty
     | RX_literals ls ->
-        re_of_litset renv new_pos ls
+        let m' = AstUtils.infer_mod r.regexp_mod in
+        re_of_litset renv m' new_pos ls
     | RX_wildcard ->
         mk_re (wildcard_re new_pos)
-    | RX_type id ->
+    | RX_type (m, id) ->
+        (* Cross-module regexp compilation is not supported. *)
+        let m' = AstUtils.infer_mod r.regexp_mod in
+        (if   m <> AstUtils.stdlib && not (AstUtils.mod_equiv m m')
+         then let err = Cross_module_regexp (m, id, m') in
+              raise (Error (r.regexp_loc, err)));
         (match StringMap.find_opt (Location.value id) renv with
            | Some (_, re) -> relocate new_pos re
            | None         -> let loc = Location.loc id in

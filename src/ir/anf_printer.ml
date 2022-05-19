@@ -16,6 +16,7 @@
 (**************************************************************************)
 
 open Parsing
+open Typing
 open Anf
 
 let pp_string    = AstPrinter.pp_string
@@ -25,14 +26,15 @@ let pp_close_box = AstPrinter.pp_close_box
 let pp_break     = AstPrinter.pp_break
 let pp_newline   = AstPrinter.pp_newline
 let pp_cut       = AstPrinter.pp_cut
+let pp_flush     = AstPrinter.pp_flush
 
 let string_of_var (v, id) =
-  if v <> "" && id = 1
+  if   v <> "" && id = 1
   then v
   else Printf.sprintf "%s#%d" v id
 
 let string_of_occurrence occ =
-  if occ = []
+  if   occ = []
   then ""
   else "@" ^ (String.concat "/" (List.map string_of_int occ))
 
@@ -44,7 +46,7 @@ let rec print_av av =
     | AV_var v ->
         pp_string (string_of_var v)
     | AV_constr (c, avs) ->
-        pp_string (AstPrinter.string_of_constructor c);
+        pp_string (string_of_constr c);
         if List.length avs > 0 then begin
             pp_string "(";
             AstPrinter.print_list ", " print_av avs;
@@ -76,8 +78,8 @@ let print_pat p =
         pp_string "_"
     | AP_literal l ->
         pp_string (AstPrinter.string_of_literal l)
-    | AP_variant (t, c) ->
-        pp_string (AstUtils.canonicalize_dcon t c)
+    | AP_variant c ->
+        pp_string (string_of_constr c)
 
 let rec print_clause (p, e) =
   pp_string "| ";
@@ -122,14 +124,15 @@ and print_aexp e =
         pp_string op;
         print_av r;
         pp_string ")"
-    | AE_bits_of_rec (r, v, _) ->
-        let r = Printf.sprintf "%s->bits" (Location.value r) in
+    | AE_bits_of_rec (m, r, v, _) ->
+        let r = Printf.sprintf "%s->bits" (mod_prefix m (Location.value r)) in
         pp_string r;
         pp_string "(";
         print_av v;
         pp_string ")"
-    | AE_rec_of_bits (r, v, _) ->
-        let r = Printf.sprintf "%s->record" (Location.value r) in
+    | AE_rec_of_bits (m, r, v, _) ->
+        let r = Printf.sprintf "%s->record"
+                  (mod_prefix m (Location.value r)) in
         pp_string r;
         pp_string "(";
         print_av v;
@@ -145,7 +148,7 @@ and print_aexp e =
         pp_string "(";
         print_av v;
         pp_string " ~~ ";
-        pp_string (AstPrinter.string_of_constructor c);
+        pp_string (string_of_constr c);
         pp_string ")"
     | AE_field (v, f) ->
         print_av v;
@@ -155,7 +158,7 @@ and print_aexp e =
         pp_string "(";
         print_av v;
         pp_string " : ";
-        AstPrinter.print_type_expr t;
+        AstPrinter.print_type_expr TypeInfer.typed_auxp t;
         pp_string ")"
     | AE_case (v, clauses) ->
         pp_open_vbox 1;

@@ -110,6 +110,7 @@ val const : 'a -> ('b -> 'a)
 
 val array_assoc : 'a -> ('a * 'b) array -> 'b
 val array_associ : 'a -> ('a * 'b) array -> int
+val array_associ_opt : 'a -> ('a * 'b) array -> int option
 
 val assoc_proj1 : ('a * 'b) list -> 'a list
 val assoc_proj2 : ('a * 'b) list -> 'b list
@@ -149,10 +150,6 @@ exception Failure of exn list
 type ('a, 'b) either = Left of 'a | Right of 'b
 
 val one_of : (unit -> 'a) -> (unit -> 'b) -> (('a * exn), ('b * exn)) either
-
-val reraise : (unit -> 'a) -> exn -> exn -> 'a
-
-val just_try : (unit -> 'a) -> 'a option
 
 val ( ^^ ) : string -> string -> string
 

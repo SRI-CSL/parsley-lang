@@ -22,19 +22,19 @@ open Typing
 type typ = MultiEquation.crterm
 
 (* source level expressions *)
-type exp = (typ, TypeInfer.varid) Ast.expr
+type exp = (typ, TypeInfer.varid, Ast.mod_qual) Ast.expr
 
 (* source-level patterns *)
-type pat = (typ, TypeInfer.varid) Ast.pattern
+type pat = (typ, TypeInfer.varid, Ast.mod_qual) Ast.pattern
 
 (* source-level constants *)
-type const = (typ, TypeInfer.varid) Ast.const_defn
+type const = (typ, TypeInfer.varid, Ast.mod_qual) Ast.const_defn
 
 (* source-level functions *)
-type func = (typ, TypeInfer.varid) Ast.fun_defn
+type func = (typ, TypeInfer.varid, Ast.mod_qual) Ast.fun_defn
 
 (* source-level statements *)
-type stmt = (typ, TypeInfer.varid) Ast.stmt
+type stmt = (typ, TypeInfer.varid, Ast.mod_qual) Ast.stmt
 
 (* The IR for the expression language is the A-normal form. *)
 
@@ -50,11 +50,18 @@ type var =
    v_typ: typ;
    v_loc: Location.t}
 
+type modul =
+  | M_name   of string
+  | M_stdlib
+
 (* values of ANF *)
+
+type constr = modul * string * string
+
 type av_desc =
   | AV_lit of Ast.primitive_literal
   | AV_var of varid
-  | AV_constr of (Ast.ident * Ast.ident) * av list
+  | AV_constr of constr * av list
   | AV_record of (Ast.ident * av) list
   | AV_mod_member of Ast.modident * Ast.ident
 
@@ -104,7 +111,7 @@ let fv_of_var (v: var) : fv =
 type apat_desc =
   | AP_wildcard
   | AP_literal of Ast.primitive_literal
-  | AP_variant of (string * string)
+  | AP_variant of constr
 
 and apat =
   {apat:     apat_desc;
@@ -129,10 +136,10 @@ type aexp_desc =
   | AE_apply of fv * av list
   | AE_unop of Ast.unop * av
   | AE_binop of Ast.binop * av * av
-  | AE_bits_of_rec of Ast.ident * av * TypingEnvironment.bitfield_info
-  | AE_rec_of_bits of Ast.ident * av * TypingEnvironment.bitfield_info
+  | AE_bits_of_rec of modul * Ast.ident * av * TypingEnvironment.bitfield_info
+  | AE_rec_of_bits of modul * Ast.ident * av * TypingEnvironment.bitfield_info
   | AE_bitrange of av * int * int
-  | AE_match of av * (Ast.ident * Ast.ident)
+  | AE_match of av * (modul * string * string)
   | AE_field of av * Ast.ident
   | AE_case of var * (apat * aexp) list
   | AE_let of var * aexp * aexp
@@ -144,6 +151,30 @@ and aexp =
   {aexp:     aexp_desc;
    aexp_typ: typ;
    aexp_loc: Location.t}
+
+(* simplified module qualifiers *)
+
+let modul_of_mname m =
+  match m with
+    | Ast.(Modul Mod_stdlib)       -> M_stdlib
+    | Ast.(Modul (Mod_explicit m)) -> M_name (Location.value m)
+    | Ast.(Modul (Mod_inferred m)) -> M_name m
+
+let str_of_modul m =
+  match m with
+    | M_stdlib -> ""
+    | M_name m -> m
+
+let mod_prefix m s =
+  match m with
+    | M_stdlib -> s
+    | M_name m -> Printf.sprintf "%s.%s" m s
+
+let convert_con (m, t, c) =
+  (modul_of_mname m), Location.value t, Location.value c
+
+let string_of_constr ((m, t, c): constr) : string =
+  mod_prefix m (AstUtils.canonicalize_dcon t c)
 
 (* constructors for expressions *)
 
@@ -160,6 +191,7 @@ let ae_of_av (av: av) : aexp =
 type aconst =
   {aconst_ident: varid;
    aconst_val:   aexp;
+   aconst_mod:   string;
    aconst_loc:   Location.t}
 
 type afun =
@@ -168,6 +200,8 @@ type afun =
    afun_body:      aexp;
    afun_vars:      VSet.t; (* new vars bound in the body (not including params) *)
    afun_recursive: bool;
+   afun_synth:     bool;
+   afun_mod:       string;
    afun_loc:       Location.t}
 
 type astmt_desc =

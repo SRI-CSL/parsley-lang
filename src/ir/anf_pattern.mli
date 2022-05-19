@@ -26,7 +26,7 @@ type pmat = prow list
 
 (* constructor of a type or wildcard *)
 type con =
-  | Con of (Ast.ident * Ast.ident) * (* arity *) int
+  | Con of (modul * string * string) * (* arity *) int
   | Lit of Ast.primitive_literal
   | Default
 

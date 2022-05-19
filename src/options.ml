@@ -23,7 +23,8 @@ type common_opts =
    co_verbose: bool}
 
 type check_opts =
-  {co_show_parsed_ast:   bool;
+  {co_show_raw_ast:      bool;
+   co_show_parsed_ast:   bool;
    co_show_after_macros: bool;
    co_trace_solver:      bool;
    co_show_types:        bool;
@@ -34,7 +35,8 @@ type check_opts =
    co_output_json:       bool}
 
 let default_ckopts =
-  {co_show_parsed_ast   = false;
+  {co_show_raw_ast      = false;
+   co_show_parsed_ast   = false;
    co_show_after_macros = false;
    co_trace_solver      = false;
    co_show_types        = false;

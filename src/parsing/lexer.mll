@@ -159,7 +159,8 @@ rule token = parse
       let c, v = List.hd ls, List.nth ls 2 in
       let c = Location.mk_loc_val c (Location.curr lexbuf) in
       let v = Location.mk_loc_val v (Location.curr lexbuf) in
-      CONSTR (c, v) }
+      (* TODO: add module *)
+      CONSTR (None, c, v) }
 
 | "$"? "_"* alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }

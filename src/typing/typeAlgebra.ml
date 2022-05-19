@@ -21,7 +21,6 @@
 (*  and Didier Rémy.                                                      *)
 
 open Parsing
-open MultiEquation
 open CoreAlgebra
 
 (** Concrete syntax of a type symbol. *)
@@ -40,6 +39,9 @@ type syntax =
 type builtin_dataconstructor =
   Ast.dname * Ast.tname list * Ast.type_expr
 
+type builtin_value =
+  Ast.vname * Ast.tname list * Ast.type_expr
+
 type builtin_type =
   Ast.tname * (Ast.kind * syntax * builtin_dataconstructor list)
 
@@ -47,12 +49,13 @@ type builtin_non_term =
   Ast.nname * (unit Ast.var * Ast.type_expr * unit) list * Ast.type_expr
 
 type builtin_module =
-  {mod_name:   Ast.mname;
-   mod_values: builtin_dataconstructor list}
+  {mod_name:   Ast.mod_qual;
+   mod_values: builtin_value list}
 
-let builtin_types, builtin_consts, builtin_vars,
+let builtin_types, builtin_ops, builtin_values,
     builtin_modules, builtin_non_terms =
   let ghost_loc = Location.ghost_loc in
+  let stdlib = AstUtils.stdlib in
   let make_var (s: string) =
     Location.mk_ghost (s, ()) in
   let make_builtin_type (t: Ast.type_expr_desc) =
@@ -60,38 +63,38 @@ let builtin_types, builtin_consts, builtin_vars,
      Ast.type_expr_loc = ghost_loc} in
   let arrow_type t1 t2 : Ast.type_expr =
     let tn  = Location.mk_loc_val "->" ghost_loc in
-    let con = make_builtin_type (Ast.TE_tname tn) in
+    let con = make_builtin_type (Ast.TE_tname (stdlib, tn)) in
     make_builtin_type (Ast.TE_tapp (con, [ t1; t2 ])) in
   let tuple_type t1 t2 : Ast.type_expr =
     let tn  = Location.mk_loc_val "*" ghost_loc in
-    let con = make_builtin_type (Ast.TE_tname tn) in
+    let con = make_builtin_type (Ast.TE_tname (stdlib, tn)) in
     make_builtin_type (Ast.TE_tapp (con, [ t1; t2 ])) in
   let list_type t : Ast.type_expr =
     let tn  = Location.mk_loc_val "[]" ghost_loc in
-    let con = make_builtin_type (Ast.TE_tname tn) in
+    let con = make_builtin_type (Ast.TE_tname (stdlib, tn)) in
     make_builtin_type (Ast.TE_tapp (con, [ t ])) in
   let bitvector_type t : Ast.type_expr =
     let tn  = Location.mk_loc_val "bitvector" ghost_loc in
-    let con = make_builtin_type (Ast.TE_tname tn) in
+    let con = make_builtin_type (Ast.TE_tname (stdlib, tn)) in
     make_builtin_type (Ast.TE_tapp (con, [ t ])) in
   let opt_type t : Ast.type_expr =
     let tn  = Location.mk_loc_val "option" ghost_loc in
-    let con = make_builtin_type (Ast.TE_tname tn) in
+    let con = make_builtin_type (Ast.TE_tname (stdlib, tn)) in
     make_builtin_type (Ast.TE_tapp (con, [ t ])) in
   let set_type t : Ast.type_expr =
     let tn  = Location.mk_loc_val "set" ghost_loc in
-    let con = make_builtin_type (Ast.TE_tname tn) in
+    let con = make_builtin_type (Ast.TE_tname (stdlib, tn)) in
     make_builtin_type (Ast.TE_tapp (con, [ t ])) in
   let map_type k v : Ast.type_expr =
     let tn  = Location.mk_loc_val "map" ghost_loc in
-    let con = make_builtin_type (Ast.TE_tname tn) in
+    let con = make_builtin_type (Ast.TE_tname (stdlib, tn)) in
     make_builtin_type (Ast.TE_tapp (con, [ k; v ])) in
   let gen_tvar (v: string) : Ast.type_expr =
     let tvar = Location.mk_loc_val v ghost_loc in
     make_builtin_type (Ast.TE_tvar tvar) in
   let gen_tname (t: string) : Ast.type_expr =
     let tn = Location.mk_loc_val t ghost_loc in
-    make_builtin_type (Ast.TE_tname tn) in
+    make_builtin_type (Ast.TE_tname (AstUtils.stdlib, tn)) in
   let unit_t   = gen_tname "unit" in
   let int_t    = gen_tname "int" in
   let double_t = gen_tname "double" in
@@ -168,200 +171,200 @@ let builtin_types, builtin_consts, builtin_vars,
     |] in
   (* When adding new builtins, please also add their implementations
      to builtins.ml *)
-  let builtin_consts : builtin_dataconstructor array = [|
-      (Ast.DName "1-", [], arrow_type int_t int_t);
-      (Ast.DName "!",  [], arrow_type bool_t bool_t);
+  let builtin_ops : builtin_value array = [|
+      (Ast.VName "1-", [], arrow_type int_t int_t);
+      (Ast.VName "!",  [], arrow_type bool_t bool_t);
 
-      (Ast.DName "+",  [], arrow_type int_t (arrow_type int_t int_t));
-      (Ast.DName "-",  [], arrow_type int_t (arrow_type int_t int_t));
-      (Ast.DName "*",  [], arrow_type int_t (arrow_type int_t int_t));
-      (Ast.DName "%",  [], arrow_type int_t (arrow_type int_t int_t));
-      (Ast.DName "/",  [], arrow_type int_t (arrow_type int_t int_t));
+      (Ast.VName "+",  [], arrow_type int_t (arrow_type int_t int_t));
+      (Ast.VName "-",  [], arrow_type int_t (arrow_type int_t int_t));
+      (Ast.VName "*",  [], arrow_type int_t (arrow_type int_t int_t));
+      (Ast.VName "%",  [], arrow_type int_t (arrow_type int_t int_t));
+      (Ast.VName "/",  [], arrow_type int_t (arrow_type int_t int_t));
 
-      (Ast.DName "<",  [], arrow_type int_t (arrow_type int_t bool_t));
-      (Ast.DName ">",  [], arrow_type int_t (arrow_type int_t bool_t));
-      (Ast.DName "<=", [], arrow_type int_t (arrow_type int_t bool_t));
-      (Ast.DName ">=", [], arrow_type int_t (arrow_type int_t bool_t));
+      (Ast.VName "<",  [], arrow_type int_t (arrow_type int_t bool_t));
+      (Ast.VName ">",  [], arrow_type int_t (arrow_type int_t bool_t));
+      (Ast.VName "<=", [], arrow_type int_t (arrow_type int_t bool_t));
+      (Ast.VName ">=", [], arrow_type int_t (arrow_type int_t bool_t));
 
-      (Ast.DName "&&", [], arrow_type bool_t (arrow_type bool_t bool_t));
-      (Ast.DName "||", [], arrow_type bool_t (arrow_type bool_t bool_t));
+      (Ast.VName "&&", [], arrow_type bool_t (arrow_type bool_t bool_t));
+      (Ast.VName "||", [], arrow_type bool_t (arrow_type bool_t bool_t));
 
-      (Ast.DName "~",  [ TName "a" ], arrow_type (bitvector_type (gen_tvar "a"))
+      (Ast.VName "~",  [ TName "a" ], arrow_type (bitvector_type (gen_tvar "a"))
                                            (bitvector_type (gen_tvar "a")));
-      (Ast.DName "|_b",  [ TName "a" ], arrow_type (bitvector_type (gen_tvar "a"))
+      (Ast.VName "|_b",  [ TName "a" ], arrow_type (bitvector_type (gen_tvar "a"))
                                           (arrow_type (bitvector_type (gen_tvar "a"))
                                              (bitvector_type (gen_tvar "a"))));
-      (Ast.DName "&_b",  [ TName "a" ], arrow_type (bitvector_type (gen_tvar "a"))
+      (Ast.VName "&_b",  [ TName "a" ], arrow_type (bitvector_type (gen_tvar "a"))
                                           (arrow_type (bitvector_type (gen_tvar "a"))
                                              (bitvector_type (gen_tvar "a"))));
 
-      (Ast.DName "=",  [ TName "a" ], arrow_type (gen_tvar "a")
+      (Ast.VName "=",  [ TName "a" ], arrow_type (gen_tvar "a")
                                         (arrow_type (gen_tvar "a") bool_t));
-      (Ast.DName "!=", [ TName "a" ], arrow_type (gen_tvar "a")
+      (Ast.VName "!=", [ TName "a" ], arrow_type (gen_tvar "a")
                                         (arrow_type (gen_tvar "a") bool_t));
 
-      (Ast.DName ".[]", [ TName "a" ], arrow_type (list_type (gen_tvar "a"))
+      (Ast.VName ".[]", [ TName "a" ], arrow_type (list_type (gen_tvar "a"))
                                         (arrow_type int_t
                                            (opt_type (gen_tvar "a"))));
     |] in
-  let builtin_vars : builtin_dataconstructor array = [|
+  let builtin_values : builtin_value array = [|
       (* utility convertors *)
-      (Ast.DName "byte_of_int_unsafe", [], arrow_type int_t byte_t);
+      (Ast.VName "byte_of_int_unsafe", [], arrow_type int_t byte_t);
     |] in
 
   (* When adding modules or functions below, please also add their
      implementations to parsleylib.ml *)
   let builtin_modules : builtin_module list = [
-      {mod_name   = Ast.MName "Int";
+      {mod_name   = Ast.Mod_inferred "Int";
        mod_values = [
-           (Ast.DName "of_byte", [],
+           (Ast.VName "of_byte", [],
             arrow_type byte_t int_t);
-           (Ast.DName "of_string", [],
+           (Ast.VName "of_string", [],
             arrow_type string_t (opt_type int_t));
-           (Ast.DName "of_bytes", [],
+           (Ast.VName "of_bytes", [],
             arrow_type (list_type byte_t) (opt_type int_t));
-           (Ast.DName "of_bytes_unsafe", [],
+           (Ast.VName "of_bytes_unsafe", [],
             arrow_type (list_type byte_t) int_t);
          ];
       };
-      {mod_name   = Ast.MName "Double";
+      {mod_name   = Ast.Mod_inferred "Double";
        mod_values = [
-           (Ast.DName "of_byte", [],
+           (Ast.VName "of_byte", [],
             arrow_type byte_t double_t);
-           (Ast.DName "of_string", [],
+           (Ast.VName "of_string", [],
             arrow_type string_t (opt_type double_t));
-           (Ast.DName "of_bytes", [],
+           (Ast.VName "of_bytes", [],
             arrow_type (list_type byte_t) (opt_type double_t));
-           (Ast.DName "of_bytes_unsafe", [],
+           (Ast.VName "of_bytes_unsafe", [],
             arrow_type (list_type byte_t) double_t);
          ];
       };
-      {mod_name   = Ast.MName "List";
+      {mod_name   = Ast.Mod_inferred "List";
        mod_values = [
-           (Ast.DName "head", [ TName "a" ],
+           (Ast.VName "head", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (gen_tvar "a"));
-           (Ast.DName "tail", [ TName "a" ],
+           (Ast.VName "tail", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (list_type (gen_tvar "a")));
-           (Ast.DName "index", [ TName "a" ],
+           (Ast.VName "index", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (arrow_type int_t (opt_type (gen_tvar "a"))));
-           (Ast.DName "index_unsafe", [ TName "a" ],
+           (Ast.VName "index_unsafe", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (arrow_type int_t (gen_tvar "a")));
-           (Ast.DName "length", [ TName "a" ],
+           (Ast.VName "length", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a")) int_t);
-           (Ast.DName "concat", [ TName "a" ],
+           (Ast.VName "concat", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (arrow_type (list_type (gen_tvar "a"))
                  (list_type (gen_tvar "a"))));
-           (Ast.DName "flatten", [ TName "a" ],
+           (Ast.VName "flatten", [ TName "a" ],
             arrow_type (list_type (list_type (gen_tvar "a")))
               (list_type (gen_tvar "a")));
-           (Ast.DName "map", [ TName "a"; TName "b" ],
+           (Ast.VName "map", [ TName "a"; TName "b" ],
             arrow_type (arrow_type (gen_tvar "a") (gen_tvar "b"))
               (arrow_type (list_type (gen_tvar "a"))
                  (list_type (gen_tvar "b"))));
-           (Ast.DName "fold", [ TName "a"; TName "b" ],
+           (Ast.VName "fold", [ TName "a"; TName "b" ],
             arrow_type (arrow_type (gen_tvar "b")
                           (arrow_type (gen_tvar "a") (gen_tvar "b")))
               (arrow_type (list_type (gen_tvar "a")) (gen_tvar "b")));
-           (Ast.DName "rev", [ TName "a" ],
+           (Ast.VName "rev", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (list_type (gen_tvar "a")));
-           (Ast.DName "map2", [ TName "a"; TName "b"; TName "c" ],
+           (Ast.VName "map2", [ TName "a"; TName "b"; TName "c" ],
             arrow_type (arrow_type (gen_tvar "a")
                           (arrow_type (gen_tvar "b") (gen_tvar "c")))
               (arrow_type (list_type (gen_tvar "a"))
                  (arrow_type (list_type (gen_tvar "b"))
                     (list_type (gen_tvar "c")))));
-           (Ast.DName "repl", [ TName "a" ],
+           (Ast.VName "repl", [ TName "a" ],
             arrow_type (gen_tvar "a")
               (arrow_type int_t (list_type (gen_tvar "a"))));
          ];
       };
-      {mod_name   = Ast.MName "String";
+      {mod_name   = Ast.Mod_inferred "String";
        mod_values = [
-           (Ast.DName "empty", [], string_t);
-           (Ast.DName "concat", [],
+           (Ast.VName "empty", [], string_t);
+           (Ast.VName "concat", [],
             arrow_type string_t (arrow_type string_t string_t));
-           (Ast.DName "to_int", [],
+           (Ast.VName "to_int", [],
             arrow_type string_t (opt_type int_t));
-           (Ast.DName "to_bytes", [],
+           (Ast.VName "to_bytes", [],
             arrow_type string_t (list_type byte_t));
-           (Ast.DName "of_bytes", [],
+           (Ast.VName "of_bytes", [],
             arrow_type (list_type byte_t) (opt_type string_t));
-           (Ast.DName "of_bytes_unsafe", [],
+           (Ast.VName "of_bytes_unsafe", [],
             arrow_type (list_type byte_t) string_t);
-           (Ast.DName "of_literal", [],
+           (Ast.VName "of_literal", [],
             arrow_type (list_type byte_t) string_t)
          ];
       };
-      {mod_name   = Ast.MName "Bits";
+      {mod_name   = Ast.Mod_inferred "Bits";
        mod_values = [
-           (Ast.DName "to_int", [ TName "a" ],
+           (Ast.VName "to_int", [ TName "a" ],
             arrow_type (bitvector_type (gen_tvar "a")) int_t);
-           (Ast.DName "to_uint", [ TName "a" ],
+           (Ast.VName "to_uint", [ TName "a" ],
             arrow_type (bitvector_type (gen_tvar "a")) int_t);
-           (Ast.DName "to_bool", [], arrow_type bit_t bool_t);
-           (Ast.DName "of_bool", [], arrow_type bool_t bit_t);
-           (Ast.DName "to_bit", [],
+           (Ast.VName "to_bool", [], arrow_type bit_t bool_t);
+           (Ast.VName "of_bool", [], arrow_type bool_t bit_t);
+           (Ast.VName "to_bit", [],
             arrow_type (bitvector_type (gen_tname "1")) bit_t);
-           (Ast.DName "of_bit", [],
+           (Ast.VName "of_bit", [],
             arrow_type bit_t (bitvector_type (gen_tname "1")));
-           (Ast.DName "ones", [ TName "a" ],
+           (Ast.VName "ones", [ TName "a" ],
             arrow_type int_t (bitvector_type (gen_tvar "a")));
-           (Ast.DName "zeros", [ TName "a" ],
+           (Ast.VName "zeros", [ TName "a" ],
             arrow_type int_t (bitvector_type (gen_tvar "a")));
          ];
       };
-      {mod_name   = Ast.MName "Set";
+      {mod_name   = Ast.Mod_inferred "Set";
        mod_values = [
-           (Ast.DName "empty", [ TName "a" ],
+           (Ast.VName "empty", [ TName "a" ],
             (set_type (gen_tvar "a")));
-           (Ast.DName "add", [ TName "a" ],
+           (Ast.VName "add", [ TName "a" ],
             arrow_type (set_type (gen_tvar "a"))
               (arrow_type (gen_tvar "a")
                  (set_type (gen_tvar "a"))));
-           (Ast.DName "mem", [ TName "a" ],
+           (Ast.VName "mem", [ TName "a" ],
             arrow_type (set_type (gen_tvar "a"))
               (arrow_type (gen_tvar "a") bool_t));
          ];
       };
-      {mod_name   = Ast.MName "Map";
+      {mod_name   = Ast.Mod_inferred "Map";
        mod_values = [
-           (Ast.DName "empty", [ TName "a"; TName "b" ],
+           (Ast.VName "empty", [ TName "a"; TName "b" ],
             (map_type (gen_tvar "a") (gen_tvar "b")));
-           (Ast.DName "add", [ TName "a"; TName "b" ],
+           (Ast.VName "add", [ TName "a"; TName "b" ],
             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
               (arrow_type (gen_tvar "a")
                  (arrow_type (gen_tvar "b")
                     (map_type (gen_tvar "a") (gen_tvar "b")))));
-           (Ast.DName "mem", [ TName "a" ; TName "b" ],
+           (Ast.VName "mem", [ TName "a" ; TName "b" ],
             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
               (arrow_type (gen_tvar "a") bool_t));
-           (Ast.DName "find", [ TName "a" ; TName "b" ],
+           (Ast.VName "find", [ TName "a" ; TName "b" ],
             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
               (arrow_type (gen_tvar "a") (opt_type (gen_tvar "b"))));
-           (Ast.DName "find_unsafe", [ TName "a" ; TName "b" ],
+           (Ast.VName "find_unsafe", [ TName "a" ; TName "b" ],
             arrow_type (map_type (gen_tvar "a") (gen_tvar "b"))
               (arrow_type (gen_tvar "a") (gen_tvar "b")));
          ];
       };
-      {mod_name   = Ast.MName "View";
+      {mod_name   = Ast.Mod_inferred "View";
        mod_values = [
-           (Ast.DName "get_current", [], (arrow_type unit_t view_t));
-           (Ast.DName "get_base", [],  (arrow_type unit_t view_t));
-           (Ast.DName "get_cursor", [], (arrow_type view_t int_t));
-           (Ast.DName "get_remaining", [], (arrow_type view_t int_t));
-           (Ast.DName "get_current_cursor", [], (arrow_type unit_t int_t));
-           (Ast.DName "get_current_remaining", [], (arrow_type unit_t int_t));
-           (Ast.DName "restrict", [],
+           (Ast.VName "get_current", [], (arrow_type unit_t view_t));
+           (Ast.VName "get_base", [],  (arrow_type unit_t view_t));
+           (Ast.VName "get_cursor", [], (arrow_type view_t int_t));
+           (Ast.VName "get_remaining", [], (arrow_type view_t int_t));
+           (Ast.VName "get_current_cursor", [], (arrow_type unit_t int_t));
+           (Ast.VName "get_current_remaining", [], (arrow_type unit_t int_t));
+           (Ast.VName "restrict", [],
             (arrow_type view_t (arrow_type int_t (arrow_type int_t view_t))));
-           (Ast.DName "restrict_from", [],
+           (Ast.VName "restrict_from", [],
             (arrow_type view_t (arrow_type int_t view_t)));
-           (Ast.DName "clone", [],
+           (Ast.VName "clone", [],
             (arrow_type view_t view_t));
          ];
       };
@@ -389,8 +392,25 @@ let builtin_types, builtin_consts, builtin_vars,
       NName "Int64",  [make_var "endian", endian_t, ()], int_t;
       NName "UInt64", [make_var "endian", endian_t, ()], int_t;
     |] in
-  builtin_types, builtin_consts, builtin_vars,
+  builtin_types, builtin_ops, builtin_values,
   builtin_modules, builtin_non_terms
+
+module StringSet = Set.Make(String)
+
+let std_types =
+  StringSet.of_list (List.map (fun (Ast.TName t, _) -> t)
+                       (Array.to_list builtin_types))
+let is_builtin_type s = StringSet.mem s std_types
+
+let std_values =
+  StringSet.of_list (List.map (fun (Ast.VName v, _, _) -> v)
+                       (Array.to_list builtin_values))
+let is_builtin_value s = StringSet.mem s std_values
+
+let std_nonterms =
+  StringSet.of_list (List.map (fun (Ast.NName n, _, _) -> n)
+                       (Array.to_list builtin_non_terms))
+let is_builtin_nonterm s = StringSet.mem s std_nonterms
 
 (* module members that are higher-order *)
 module ModuleMembers = Set.Make(struct type t = string * string
@@ -444,7 +464,11 @@ let mk_builtin_bitwidth i =
 (* helpers for printing *)
 
 let as_symbol name =
-  Misc.just_try (fun () -> Misc.array_associ name builtin_types)
+  match name with
+    | m, name when m = AstUtils.stdlib ->
+        Misc.array_associ_opt name builtin_types
+    | _ ->
+        None
 
 let infix, priority, associativity =
   let is_builtin op =
@@ -504,21 +528,26 @@ let binop_const_name = function
   | Ast.Plus_s -> "String.concat"
   | Ast.At     -> "List.concat"
 
-type 'a environment = tname -> 'a arterm
+type 'a environment = Ast.full_tname -> 'a arterm
 
-let symbol tenv (i : Ast.tname) =
+(* Wrap a type identifier into the stdlib module,
+   which is included by default and hence has a `None` specifier. *)
+let mk_stdlib_t t =
+  AstUtils.stdlib, (Ast.TName t)
+
+let symbol tenv (i : Ast.full_tname) =
   tenv i
 
 let option tenv t =
-  let v = symbol tenv (TName "option") in
+  let v = symbol tenv (mk_stdlib_t "option") in
   TTerm (App (v, t))
 
 let list tenv t =
-  let v = symbol tenv (TName "[]") in
+  let v = symbol tenv (mk_stdlib_t "[]") in
   TTerm (App (v, t))
 
 let arrow tenv t u =
-  let v = symbol tenv (TName "->") in
+  let v = symbol tenv (mk_stdlib_t "->") in
   TTerm (App (TTerm (App (v, t)), u))
 
 let n_arrows tenv ts u =
@@ -526,36 +555,36 @@ let n_arrows tenv ts u =
 
 let tuple tenv ps =
   let n = if ps = [] then "unit" else "*" in
-  let v = symbol tenv (TName n) in
+  let v = symbol tenv (mk_stdlib_t n) in
   List.fold_left (fun acu x -> TTerm (App (acu, x))) v ps
 
 let concrete_bitvector tenv n =
-  let t = symbol tenv (TName "bitvector") in
-  let n = symbol tenv (TName (string_of_int n)) in
+  let t = symbol tenv (mk_stdlib_t "bitvector") in
+  let n = symbol tenv (mk_stdlib_t (string_of_int n)) in
   TTerm (App (t, n))
 
 let abstract_bitvector tenv t =
-  let b = symbol tenv (TName "bitvector") in
+  let b = symbol tenv (mk_stdlib_t "bitvector") in
   TTerm (App (b, t))
 
 let is_regexp_type tenv t =
-  let c = symbol tenv (TName "[]") in
+  let c = symbol tenv (mk_stdlib_t "[]") in
   match t with
     | TTerm (App (v, t)) when v = c ->
-        let b = symbol tenv (TName "byte") in
+        let b = symbol tenv (mk_stdlib_t "byte") in
         t = b
     | _ -> false
 
 let type_of_primitive tenv = function
-  | Ast.PL_int _        -> symbol tenv (TName "int")
-  | Ast.PL_bytes _      -> list tenv (symbol tenv (TName "byte"))
-  | Ast.PL_unit         -> symbol tenv (TName "unit")
-  | Ast.PL_bool _       -> symbol tenv (TName "bool")
-  | Ast.PL_bit _        -> symbol tenv (TName "bit")
+  | Ast.PL_int _        -> symbol tenv (mk_stdlib_t "int")
+  | Ast.PL_bytes _      -> list tenv (symbol tenv (mk_stdlib_t "byte"))
+  | Ast.PL_unit         -> symbol tenv (mk_stdlib_t "unit")
+  | Ast.PL_bool _       -> symbol tenv (mk_stdlib_t "bool")
+  | Ast.PL_bit _        -> symbol tenv (mk_stdlib_t "bit")
   | Ast.PL_bitvector bv -> concrete_bitvector tenv (List.length bv)
 
 let result_type tenv t =
-  let a = symbol tenv (TName "->") in
+  let a = symbol tenv (mk_stdlib_t "->") in
   let rec chop t =
     match t with
       | TTerm (App (TTerm (App (v, _)), u)) when v = a -> chop u
@@ -564,7 +593,7 @@ let result_type tenv t =
     chop t
 
 let arg_types tenv t =
-  let a = symbol tenv (TName "->") in
+  let a = symbol tenv (mk_stdlib_t "->") in
   let rec chop acu = function
     | TTerm (App (TTerm (App (v, t)), u)) when v = a -> chop (t :: acu) u
     | _ -> acu

@@ -35,17 +35,19 @@ let mk_mod_func (m: string) (v: string) t l =
   let v = Location.mk_loc_val v l in
   make_fv (FV_mod_member (m, v)) t l
 
-let get_typ ctx name =
-  let typ = Ast.TName name in
-  TypingEnvironment.typcon_variable ctx.ctx_tenv typ
-
 let mk_func_type ctx arg res =
   TypeAlgebra.arrow (TypingEnvironment.as_fun ctx.ctx_tenv)
     arg res
 
-let get_nt_typ ctx name =
+let get_std_typ ctx name =
+  let typ = Ast.TName name in
+  let m   = AstUtils.stdlib in
+  TypingEnvironment.typcon_variable ctx.ctx_tenv (m, typ)
+
+let get_nt_typ ctx m name =
   let nt = Ast.NName name in
-  match TypingEnvironment.lookup_non_term_type ctx.ctx_tenv nt with
+  match TypingEnvironment.lookup_non_term_type
+          ctx.ctx_tenv (m, nt) with
     | Some t -> t
     | None -> assert false
 
@@ -62,13 +64,13 @@ let bind_var venv v t =
 (* ANF value utilities *)
 
 let av_of_int ctx i loc =
-  let int = get_typ ctx "int" in
+  let int = get_std_typ ctx "int" in
   make_av (AV_lit (PL_int i)) int loc
 
 let constr_av t c args typ loc =
-  let t = mk_ident t loc in
-  let c = mk_ident c loc in
-  make_av (AV_constr ((t, c), args)) typ loc
+  (* This module only constructs values in the stdlib. *)
+  let m = M_stdlib in
+  make_av (AV_constr ((m, t, c), args)) typ loc
 
 (* block manipulation utilities *)
 
@@ -120,7 +122,7 @@ let enter_bitmode (ctx: context) (b: opened) (loc: Location.t)
   if   ctx.ctx_bitmode
   then ctx, b
   else {ctx with ctx_bitmode = true},
-       let typ = get_typ ctx "unit" in
+       let typ = get_std_typ ctx "unit" in
        add_gnode b N_enter_bitmode typ loc
 
 let exit_bitmode (ctx: context) (b: opened) (loc: Location.t)
@@ -128,14 +130,14 @@ let exit_bitmode (ctx: context) (b: opened) (loc: Location.t)
   if   not ctx.ctx_bitmode
   then ctx, b
   else {ctx with ctx_bitmode = false},
-       let typ = get_typ ctx "unit" in
+       let typ = get_std_typ ctx "unit" in
        add_gnode b N_exit_bitmode typ loc
 
 let fail_bitmode_trampoline (ctx: context) (b: opened)
       (loc: Location.t) (lfc: label)
     : context =
   assert ctx.ctx_bitmode;
-  let typ = get_typ ctx "unit" in
+  let typ = get_std_typ ctx "unit" in
   let b = add_gnode b N_fail_bitmode typ loc in
   close_with_jump ctx b loc lfc
 
@@ -147,7 +149,7 @@ let prepare_cursor
     | None -> b
     | Some _ ->
         (* no other sensible type for mark_bit_cursor *)
-        let typ = get_typ ctx "unit" in
+        let typ = get_std_typ ctx "unit" in
         add_gnode b N_mark_bit_cursor typ loc
 
 (* collect matched bits into a variable if needed *)
@@ -193,7 +195,7 @@ let mk_choice_cfg loc (ctx: context) (b: opened)
      trampolines. *)
   let lsucc = fresh_static () in
   let lfail = fresh_static () in
-  let unit  = get_typ ctx "unit" in
+  let unit  = get_std_typ ctx "unit" in
   assert (List.length choices > 0);
   let failcont = ctx.ctx_failcont in
   (* Create the intermediate failure conts needed to fail one rule to
@@ -253,8 +255,8 @@ let mk_choice_cfg loc (ctx: context) (b: opened)
    would make the current Anf_exp overly complicated.  It would be
    good to fix this via some restructuring. *)
 
-let rec lower_rule_elem
-          (ctx: context) (b: opened) (ret: return) (re: rule_elem)
+let rec lower_rule_elem (ctx: context) (m: Ast.mname)
+          (b: opened) (ret: return) (re: rule_elem)
         : (context * opened) =
   let typ = re.rule_elem_aux in
   let loc = re.rule_elem_loc in
@@ -300,7 +302,7 @@ let rec lower_rule_elem
            number of bits.  The interpretation of the matched value as
            a bitfield record is done by the record accessors. *)
         let bfi =
-          TypedAstUtils.lookup_bitfield_info ctx.ctx_tenv bf in
+          TypedAstUtils.lookup_bitfield_info ctx.ctx_tenv m bf in
         let ctx, b = enter_bitmode ctx b loc in
         let b = prepare_cursor ctx b ret loc in
         (* labels for the success continuation and failure
@@ -367,7 +369,7 @@ let rec lower_rule_elem
 
     | RE_seq_flat _ ->
         let ctx, b = exit_bitmode ctx b loc in
-        assert (TypedAstUtils.is_regexp_elem ctx.ctx_tenv re);
+        assert (TypedAstUtils.is_regexp_elem ctx.ctx_tenv m re);
         let rx = TypedAstUtils.rule_elem_to_regexp re in
         (* Now do as above *)
         (* Compile the regexp into a DFA. *)
@@ -398,7 +400,7 @@ let rec lower_rule_elem
         let ctx = close_block {ctx with ctx_venv = venv} b nd in
         ctx, new_labeled_block loc lsc
 
-    | RE_non_term (nt, None) ->
+    | RE_non_term (m, nt, None) ->
         let ctx, b = exit_bitmode ctx b loc in
         (* The jump to the CFG for the non-term causes the current
            block to end and continue on success in a new block, with
@@ -413,11 +415,11 @@ let rec lower_rule_elem
         (* create a new label and block for the success continuation *)
         let lsc = fresh_static () in
         let nd =
-          Node.N_call_nonterm (nt, [], ret, lsc, ctx.ctx_failcont) in
+          Node.N_call_nonterm (m, nt, [], ret, lsc, ctx.ctx_failcont) in
         let ctx = close_block ctx b nd in
         ctx, new_labeled_block loc lsc
 
-    | RE_non_term (nt, Some args) ->
+    | RE_non_term (m, nt, Some args) ->
         let ctx, b = exit_bitmode ctx b loc in
         let venv, args =
           List.fold_left (fun (venv, args) (i, a, e) ->
@@ -438,7 +440,7 @@ let rec lower_rule_elem
             ) (b, []) args in
         let lsc = fresh_static () in
         let nd =
-          Node.N_call_nonterm (nt, args, ret, lsc, ctx.ctx_failcont) in
+          Node.N_call_nonterm (m, nt, args, ret, lsc, ctx.ctx_failcont) in
         let ctx = close_block ctx b nd in
         {ctx with ctx_venv = venv},
         new_labeled_block loc lsc
@@ -450,7 +452,7 @@ let rec lower_rule_elem
         let v, venv = bind_var ctx.ctx_venv v typ in
         let ret' = Some v in
         let ctx, b =
-          lower_rule_elem {ctx with ctx_venv = venv} b ret' re' in
+          lower_rule_elem {ctx with ctx_venv = venv} m b ret' re' in
         (* we might have our own return to bind *)
         let b = match ret with
             | None -> b
@@ -534,7 +536,7 @@ let rec lower_rule_elem
     | RE_seq res when ret = None ->
         let ctx, b = exit_bitmode ctx b loc in
         List.fold_left (fun (ctx, b) re ->
-            lower_rule_elem ctx b ret re
+            lower_rule_elem ctx m b ret re
           ) (ctx, b) res
 
     (* with a return value, the outline is the same as above, but we
@@ -548,7 +550,7 @@ let rec lower_rule_elem
                 fresh_var ctx.ctx_venv re.rule_elem_aux re.rule_elem_loc in
               let ret = Some v in
               let ctx = {ctx with ctx_venv = venv} in
-              let ctx, b = lower_rule_elem ctx b ret re in
+              let ctx, b = lower_rule_elem ctx m b ret re in
               ctx, b, v :: vs
             ) (ctx, b, []) res in
         (* construct the list value holding the elements, starting
@@ -577,7 +579,7 @@ let rec lower_rule_elem
           Ast.(re.rule_elem_loc) in
         let lower_fn (ctx: context) (b: opened) (re: rule_elem) =
           (* Capture `ret` from the environment. *)
-          lower_rule_elem ctx b ret re in
+          lower_rule_elem ctx m b ret re in
         mk_choice_cfg loc ctx b res loc_fn lower_fn
 
     | RE_star (re', None) ->
@@ -611,7 +613,7 @@ let rec lower_rule_elem
         let ctx = {ctx with ctx_failcont = lsc} in
         let ctx, b = match vr with
             | None ->
-                lower_rule_elem ctx b None re'
+                lower_rule_elem ctx m b None re'
             | Some vr ->
                 (* create a variable for the matched value for re' *)
                 let typ' = re'.rule_elem_aux in
@@ -619,7 +621,7 @@ let rec lower_rule_elem
                 let v, venv = fresh_var ctx.ctx_venv typ' loc' in
                 let ret' = Some v in
                 let ctx = {ctx with ctx_venv = venv} in
-                let ctx, b = lower_rule_elem ctx b ret' re' in
+                let ctx, b = lower_rule_elem ctx m b ret' re' in
                 (* update the return value:
                      vr := v :: vr , and reverse it when done *)
                 let l =
@@ -682,7 +684,7 @@ let rec lower_rule_elem
         (* the loop comparison block evaluates the bound constraint *)
         let b = new_labeled_block loc lc in
         (* build the boolean comparison variable: c := bv > 0 *)
-        let bool = get_typ ctx "bool" in
+        let bool = get_std_typ ctx "bool" in
         let z = av_of_int ctx 0 e.expr_loc in
         let ae = AE_binop (Ast.Gt, av_of_var bv, z) in
         let ae = make_ae ae bool e.expr_loc in
@@ -698,7 +700,7 @@ let rec lower_rule_elem
            value *)
         let ctx, b = match vr with
             | None ->
-                lower_rule_elem ctx b None re'
+                lower_rule_elem ctx m b None re'
             | Some vr ->
                 (* create a variable for the matched value for re' *)
                 let typ' = re'.rule_elem_aux in
@@ -706,7 +708,7 @@ let rec lower_rule_elem
                 let v, venv = fresh_var ctx.ctx_venv typ' loc'  in
                 let ret' = Some v in
                 let ctx = {ctx with ctx_venv = venv} in
-                let ctx, b = lower_rule_elem ctx b ret' re' in
+                let ctx, b = lower_rule_elem ctx m b ret' re' in
                 (* update the return value:
                    vr := v :: vr , and reverse it when done *)
                 let l =
@@ -716,7 +718,7 @@ let rec lower_rule_elem
                 let b = add_gnode b nd typ loc in
                 ctx, b in
         (* bv := bv - 1 *)
-        let int = get_typ ctx "int" in
+        let int = get_std_typ ctx "int" in
         let o = av_of_int ctx 1 e.expr_loc in
         let ae = AE_binop (Ast.Minus, av_of_var bv, o) in
         let ae = make_ae ae int e.expr_loc in
@@ -754,7 +756,7 @@ let rec lower_rule_elem
         let orig_failcont = ctx.ctx_failcont in
         (* lower re' with the new failure continuation *)
         let ctx = {ctx with ctx_failcont = lsc} in
-        let ctx, b = lower_rule_elem ctx b ret re' in
+        let ctx, b = lower_rule_elem ctx m b ret re' in
         (* terminate the current block with a jump to the
            continuation block, since that is where the failure path
            will join us *)
@@ -785,7 +787,7 @@ let rec lower_rule_elem
         let orig_failcont = ctx.ctx_failcont in
         let ctx = {ctx with ctx_failcont = lfl; ctx_venv = venv} in
         (* lower the re *)
-        let ctx, b = lower_rule_elem ctx b ret' re' in
+        let ctx, b = lower_rule_elem ctx m b ret' re' in
         (* extract the current return value *)
         let vr = match ret with
             | None -> assert false (* handled above *)
@@ -822,7 +824,7 @@ let rec lower_rule_elem
         let v, venv = fresh_var venv e.expr_aux e.expr_loc in
         let nd = N_assign (v, ae) in
         let b = add_gnode b nd e.expr_aux loc in
-        let unit = get_typ ctx "unit" in
+        let unit = get_std_typ ctx "unit" in
         let b = add_gnode b (N_set_view v) unit loc in
         {ctx with ctx_venv = venv}, b
 
@@ -837,7 +839,7 @@ let rec lower_rule_elem
         let nd = N_assign (v, ae) in
         let b = add_gnode b nd e.expr_aux e.expr_loc in
         (* Save the current view before the excursion *)
-        let unit = get_typ ctx "unit" in
+        let unit = get_std_typ ctx "unit" in
         let b = add_gnode b N_push_view unit loc in
         (* Update the view *)
         let b = add_gnode b (N_set_pos v) unit loc in
@@ -848,7 +850,7 @@ let rec lower_rule_elem
         let orig_failcont = ctx.ctx_failcont in
         (* lower the rule element with this failcont *)
         let ctx = {ctx with ctx_venv = venv; ctx_failcont = lf} in
-        let ctx, b = lower_rule_elem ctx b ret re' in
+        let ctx, b = lower_rule_elem ctx m b ret re' in
         (* on the success path, restore the view *)
         let b = add_gnode b N_pop_view unit loc in
         let ctx = {ctx with ctx_failcont = orig_failcont} in
@@ -868,7 +870,7 @@ let rec lower_rule_elem
         let nd = N_assign (v, ae) in
         let b = add_gnode b nd e.expr_aux loc in
         (* Save the current view before the excursion *)
-        let unit = get_typ ctx "unit" in
+        let unit = get_std_typ ctx "unit" in
         let b = add_gnode b N_push_view unit loc in
         (* Update the view *)
         let b = add_gnode b (N_set_view v) unit loc in
@@ -880,7 +882,7 @@ let rec lower_rule_elem
         (* lower the rule element with this failcont *)
         let ctx = {ctx with ctx_venv     = venv;
                             ctx_failcont = lf} in
-        let ctx, b = lower_rule_elem ctx b ret re' in
+        let ctx, b = lower_rule_elem ctx m b ret re' in
         (* on the success path, restore the view *)
         let b = add_gnode b N_pop_view unit loc in
         let ctx = {ctx with ctx_failcont = orig_failcont} in
@@ -893,7 +895,7 @@ let rec lower_rule_elem
 
     (* handle the multi-assignment map-view case before the more
        general map-view case below *)
-    | RE_map_views (e, ({rule_elem = RE_non_term (nt, Some args); _}
+    | RE_map_views (e, ({rule_elem = RE_non_term (m, nt, Some args); _}
                         as re'))
          when List.exists (fun (_, a, _) -> a = Ast.A_in) args ->
         let ctx, b = exit_bitmode ctx b loc in
@@ -931,7 +933,7 @@ let rec lower_rule_elem
                 Some vr, b in
         (* save the current view: we will need to restore this in the
            success and failure paths. *)
-        let unit = get_typ ctx "unit" in
+        let unit = get_std_typ ctx "unit" in
         let b = add_gnode b N_push_view unit e.expr_loc in
         (* Create a sequence of condition blocks starting with `lc`
            that check if any of the looped-over lists are null.  If
@@ -944,7 +946,7 @@ let rec lower_rule_elem
         let ctx = close_with_jump {ctx with ctx_venv = venv} b loc lc in
         (* collect the list variables *)
         let vs = vl :: List.map snd iters in
-        let bool = get_typ ctx "bool" in
+        let bool = get_std_typ ctx "bool" in
         let ctx, lp =
           List.fold_left (fun (ctx, l) v ->
               (* create the condition block for `v` with label `l` *)
@@ -1016,7 +1018,7 @@ let rec lower_rule_elem
                    the condition block, since all the condition
                    variables were updated at the beginning of this
                    body block. *)
-                let nd = Node.N_call_nonterm (nt, args', None, lc, lf) in
+                let nd = Node.N_call_nonterm (m, nt, args', None, lc, lf) in
                 close_block ctx b nd
             | Some vr ->
                 (* construct the variable to hold the return value *)
@@ -1028,7 +1030,7 @@ let rec lower_rule_elem
                    accumulate the return value; this epilog will form
                    the success continuation for the call *)
                 let le = fresh_static () in
-                let nd = Node.N_call_nonterm (nt, args', ret', le, lf) in
+                let nd = Node.N_call_nonterm (m, nt, args', ret', le, lf) in
                 let ctx = close_block {ctx with ctx_venv = venv} b nd in
                 (* now accumulate the return value *)
                 let b = new_labeled_block loc le in
@@ -1078,7 +1080,7 @@ let rec lower_rule_elem
                 Some vr, b in
         (* save the current view: we will need to restore this in the
            success and failure paths *)
-        let unit = get_typ ctx "unit" in
+        let unit = get_std_typ ctx "unit" in
         let b = add_gnode b N_push_view unit e.expr_loc in
         (* create a block for the loop condition and jump to it *)
         let lc = fresh_static () in
@@ -1086,7 +1088,7 @@ let rec lower_rule_elem
           close_with_jump {ctx with ctx_venv = venv} b loc lc in
         let b = new_labeled_block loc lc in
         (* vc := v == [] *)
-        let bool = get_typ ctx "bool" in
+        let bool = get_std_typ ctx "bool" in
         let ae = AE_binop (Ast.Eq, (av_of_var vl), null) in
         let ae = make_ae ae bool e.expr_loc in
         let vc, venv = fresh_var ctx.ctx_venv bool e.expr_loc in
@@ -1130,7 +1132,7 @@ let rec lower_rule_elem
         let ctx, b = match vr with
             | None ->
                 lower_rule_elem {ctx with ctx_venv     = venv;
-                                          ctx_failcont = lf} b None re'
+                                          ctx_failcont = lf} m b None re'
             | Some vr ->
                 (* create a new variable to hold a matched value for re' *)
                 let typ' = re'.rule_elem_aux in
@@ -1138,7 +1140,7 @@ let rec lower_rule_elem
                 let ret' = Some v in
                 let ctx = {ctx with ctx_venv     = venv;
                                     ctx_failcont = lf} in
-                let ctx, b = lower_rule_elem ctx b ret' re' in
+                let ctx, b = lower_rule_elem ctx m b ret' re' in
                 (* update the return value:
                    vr := v :: vr , and reverse it when done *)
                 let l =
@@ -1173,7 +1175,7 @@ let rec lower_rule_elem
 (* Unlike a rule element, a rule has no explicit return value, since
    the 'return values' of a rule are assigned by the actions within a
    well-typed rule. *)
-let lower_rule (ctx: context) (b: opened) (r: rule)
+let lower_rule (ctx: context) (m: Ast.mname) (b: opened) (r: rule)
     : (context * opened) =
   (* Initialize the rule temporaries. *)
   let b, venv =
@@ -1188,7 +1190,7 @@ let lower_rule (ctx: context) (b: opened) (r: rule)
   (* Now lower the rule elements. *)
   let ctx, b =
     List.fold_left (fun (ctx, b) re ->
-        lower_rule_elem ctx b None re
+        lower_rule_elem ctx m b None re
       ) ({ctx with ctx_venv = venv}, b) r.rule_rhs in
   (* Ensure bitmode has been exited at the end of the rule. *)
   exit_bitmode ctx b r.rule_loc
@@ -1199,7 +1201,8 @@ let lower_rule (ctx: context) (b: opened) (r: rule)
 let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   let nt_name = Location.value ntd.non_term_name in
   let orig_venv = ctx.ctx_venv in
-  let typ = get_nt_typ ctx nt_name in
+  let mname = Ast.(Modul (Mod_inferred ntd.non_term_mod)) in
+  let typ = get_nt_typ ctx mname nt_name in
   let loc = ntd.non_term_loc in
   (* Ensure the NT var is bound in the rules.  If the var was not
      originally present, we should have generated it. *)
@@ -1231,7 +1234,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   (* Create the wrapper functions for `mk_choice_cfg`. *)
   let loc_fn (r: rule) = Ast.(r.rule_loc) in
   let lower_fn (ctx: context) (b: opened) (r: rule) =
-    lower_rule ctx b r in
+    lower_rule ctx mname b r in
   (* Lowering returns the updated context and the block containing the
      success continuation. *)
   let ctx, b =
@@ -1262,15 +1265,17 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
    attributes, no temporaries and regexp-convertible rules. *)
 let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
     : context * TypeInfer.VEnv.t =
+  let mname = Ast.(Modul (Mod_inferred ntd.non_term_mod)) in
   (* detect special case *)
   let no_synth_attrs =
     match ntd.non_term_syn_attrs with
       | ALT_decls [] -> true
       | _                -> false in
   let no_inh_attrs = List.length ntd.non_term_inh_attrs = 0 in
-  let only_regexp_rules = List.for_all
-                            (TypedAstUtils.is_regexp_rule ctx.ctx_tenv)
-                            ntd.non_term_rules in
+  let only_regexp_rules =
+    List.for_all
+      (TypedAstUtils.is_regexp_rule ctx.ctx_tenv mname)
+      ntd.non_term_rules in
 
   (* Generate local variable names for use in binding and assignment.
      The idea is to transform definitions of the type
@@ -1292,7 +1297,7 @@ let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
     (* generate a variable for this name *)
     TypeInfer.VEnv.add tvenv nv in
   (* construct the rule element for `{ a' := a }` *)
-  let mk_assign_rule_elem nv' nv r_loc r_aux =
+  let mk_assign_rule_elem nv' nv r_mod r_loc r_aux =
     let act = Ast.({action_stmts =
                       [ {stmt = S_assign ({expr     = E_var nv';
                                            expr_loc = r_loc;
@@ -1303,7 +1308,8 @@ let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
                          stmt_loc = r_loc} ], None;
                     action_loc = r_loc}) in
     Ast.({rule_elem     = RE_action act;
-          rule_elem_aux = get_typ ctx "unit";
+          rule_elem_aux = get_std_typ ctx "unit";
+          rule_elem_mod = r_mod;
           rule_elem_loc = r_loc}) in
 
   let ctx, tvenv, ntd =
@@ -1311,7 +1317,8 @@ let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
     if no_synth_attrs && no_inh_attrs && only_regexp_rules
     then
       (* construct a regexp from the rules *)
-      let rx = TypedAstUtils.rules_to_regexp ntd.non_term_rules in
+      let rx = TypedAstUtils.rules_to_regexp
+                 ntd.non_term_mod ntd.non_term_rules in
       let re = Cfg_regexp.build_re ctx.ctx_re_env rx in
       (* add this to the re environment *)
       let renv = Dfa.StringMap.add
@@ -1320,9 +1327,11 @@ let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
                    ctx.ctx_re_env in
       let r_loc = rx.regexp_loc in
       let r_aux = rx.regexp_aux in
+      let r_mod = rx.regexp_mod in
       (* create a simplified rule for the definition *)
       let rle = Ast.({rule_elem      = RE_regexp rx;
                       rule_elem_aux  = r_aux;
+                      rule_elem_mod  = r_mod;
                       rule_elem_loc  = r_loc}) in
       (* The non-terminal could not have been named, otherwise the
          initialization analysis should have ensured an action was
@@ -1333,10 +1342,11 @@ let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
       (* make sure this variable is bound in the rule *)
       let rle = Ast.({rule_elem     = RE_named (nv, rle);
                       rule_elem_aux = r_aux;
+                      rule_elem_mod = r_mod;
                       rule_elem_loc = r_loc}) in
       (* use an action to make the bound value visible *)
       let nv', tvenv = mk_ntd_var 1 tvenv in
-      let rla = mk_assign_rule_elem nv' nv r_loc r_aux in
+      let rla = mk_assign_rule_elem nv' nv r_mod r_loc r_aux in
       let rl  = Ast.({rule_rhs   = [rle; rla];
                       rule_temps = [];
                       rule_loc   = rx.regexp_loc}) in
@@ -1356,7 +1366,8 @@ let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
          let rle = Ast.({rle with rule_elem = RE_named (nv, rle)}) in
          let nv', tvenv = mk_ntd_var 1 tvenv in
          let r_loc, r_aux = rle.rule_elem_loc, rle.rule_elem_aux in
-         let rla = mk_assign_rule_elem nv' nv r_loc r_aux in
+         let r_mod = rle.rule_elem_mod in
+         let rla = mk_assign_rule_elem nv' nv r_mod r_loc r_aux in
          let rl  = Ast.({rl with rule_rhs = [rle; rla]}) in
          let ntd = {ntd with non_term_varname = Some nv';
                              non_term_rules   = [rl]} in

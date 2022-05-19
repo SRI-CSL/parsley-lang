@@ -64,7 +64,7 @@ and structure = variable CoreAlgebra.term
     or rigid variables. *)
 and variable_kind = Rigid | Flexible | Constant
 
-and tname = Ast.tname
+and tname = Ast.full_tname
 
 type crterm = variable CoreAlgebra.arterm
 

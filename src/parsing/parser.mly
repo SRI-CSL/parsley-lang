@@ -18,7 +18,6 @@
 %{
 open Ast
 open Parseerror
-open AstUtils
 %}
 
 %token EOF
@@ -42,9 +41,9 @@ open AstUtils
 
 %token<string Location.loc> INT_LITERAL BV_LITERAL
 
-%token<string Location.loc * string Location.loc> CONSTR
+%token<string Location.loc option * string Location.loc * string Location.loc> CONSTR
 
-%start<(unit, unit) Ast.pre_top_level> toplevel
+%start<(unit, unit) Ast.pre_spec_module> toplevel
 
 (* operators are increasing precedence order. *)
 %nonassoc IN
@@ -75,7 +74,7 @@ let make_var v =
 
 let make_opt_var o =
   match o with
-    | None -> None
+    | None   -> None
     | Some v -> Some (make_var v)
 
 let make_int_literal s =
@@ -104,142 +103,151 @@ let make_bitint n b e =
   Location.mk_loc_val n l
 
 let make_type_expr t b e =
-  {type_expr = t;
+  {type_expr     = t;
    type_expr_loc = Location.mk_loc b e}
 
 let make_unit_type b e =
   let loc = Location.mk_loc b e in
-  make_type_app "unit" [] loc
+  AstUtils.make_raw_type_app "unit" [] loc
+
+let conv_constr (m, t, c) =
+  (Modul m, t, c)
 
 let make_pattern pat b e =
-  {pattern = pat;
+  {pattern     = pat;
    pattern_loc = Location.mk_loc b e;
    pattern_aux = ()}
 
 let make_type_rep tr b e =
-  {type_rep = tr;
+  {type_rep     = tr;
    type_rep_loc = Location.mk_loc b e}
 
 let make_expr exp b e =
-  {expr = exp;
+  {expr     = exp;
    expr_loc = Location.mk_loc b e;
    expr_aux = ()}
 
 let make_stmt s b e =
-  {stmt = s;
+  {stmt     = s;
    stmt_loc = Location.mk_loc b e}
 
 let make_action sl b e =
   {action_stmts = sl;
-   action_loc = Location.mk_loc b e}
+   action_loc   = Location.mk_loc b e}
 
 let make_literal_set ls b e =
-  {literal_set = ls;
+  {literal_set     = ls;
    literal_set_loc = Location.mk_loc b e}
 
 let make_regexp re b e =
-  {regexp = re;
+  {regexp     = re;
+   regexp_mod = get_cur_module ();
    regexp_loc = Location.mk_loc b e;
    regexp_aux = ()}
 
 let make_rule_elem re b e =
-  {rule_elem = re;
+  {rule_elem     = re;
+   rule_elem_mod = get_cur_module ();
    rule_elem_loc = Location.mk_loc b e;
    rule_elem_aux = ()}
 
 let make_rule t res b e =
   {rule_temps = t;
-   rule_rhs = res;
-   rule_loc = Location.mk_loc b e}
+   rule_rhs   = res;
+   rule_loc   = Location.mk_loc b e}
 
 let make_nt_defn n v inh syn r b e =
-  {non_term_name = n;
-   non_term_varname = v;
+  {non_term_name      = n;
+   non_term_varname   = v;
    non_term_inh_attrs = inh;
    non_term_syn_attrs = syn;
-   non_term_rules = r;
-   non_term_loc = Location.mk_loc b e}
+   non_term_rules     = r;
+   non_term_mod       = get_cur_module ();
+   non_term_loc       = Location.mk_loc b e}
 
 let make_type_decl n k tvs bd b e =
   {type_decl_ident = n;
-   type_decl_kind = k;
+   type_decl_kind  = k;
    type_decl_tvars = tvs;
-   type_decl_body = bd;
-   type_decl_loc = Location.mk_loc b e}
+   type_decl_body  = bd;
+   type_decl_mod   = get_cur_module ();
+   type_decl_loc   = Location.mk_loc b e}
 
 let make_fun_defn n r tvs p t bd b e =
-  {fun_defn_ident = n;
-   fun_defn_tvars = tvs;
-   fun_defn_params = p;
-   fun_defn_res_type = t;
-   fun_defn_body = bd;
+  {fun_defn_ident     = n;
+   fun_defn_tvars     = tvs;
+   fun_defn_params    = p;
+   fun_defn_res_type  = t;
+   fun_defn_body      = bd;
    fun_defn_recursive = r;
-   fun_defn_synth = false;
-   fun_defn_loc = Location.mk_loc b e;
-   fun_defn_aux = ()}
+   fun_defn_synth     = false;
+   fun_defn_mod       = get_cur_module ();
+   fun_defn_loc       = Location.mk_loc b e;
+   fun_defn_aux       = ()}
 
 let make_recfuns fs b e =
-  {recfuns = fs;
+  {recfuns     = fs;
    recfuns_loc = Location.mk_loc b e}
 
 let make_const_defn n t v b e =
   {const_defn_ident = n;
-   const_defn_type = t;
-   const_defn_val = v;
-   const_defn_loc = Location.mk_loc b e;
-   const_defn_aux = ()}
+   const_defn_type  = t;
+   const_defn_val   = v;
+   const_defn_loc   = Location.mk_loc b e;
+   const_defn_mod   = get_cur_module ();
+   const_defn_aux   = ()}
 
 let make_use m b e =
   {use_modules = m;
-   use_loc = Location.mk_loc b e}
+   use_loc     = Location.mk_loc b e}
 
 let make_format_decl d a b e =
-  {format_decl = d;
-   format_deco = a;
+  {format_decl     = d;
+   format_deco     = a;
    format_decl_loc = Location.mk_loc b e}
 
 let make_deco t v a b e =
-  {deco_type = t;
+  {deco_type  = t;
    deco_value = v;
-   deco_args = a;
-   deco_loc = Location.mk_loc b e}
+   deco_args  = a;
+   deco_loc   = Location.mk_loc b e}
 
 let make_format decls b e =
   {format_decls = decls;
-   format_loc = Location.mk_loc b e}
+   format_loc   = Location.mk_loc b e}
 
 (* Type expressions with syntactic support, such as tuples and lists,
    need support in the parser. *)
 
 let make_list_type a b e =
   let loc = Location.mk_loc b e in
-  make_type_app "[]" [a] loc
+  AstUtils.make_raw_type_app "[]" [a] loc
 
 let rec make_tuple_type l =
   match l with
     | [] -> assert false
     | [a] -> a
     | h :: rest ->
-          let t = make_tuple_type rest in
+          let t   = make_tuple_type rest in
           let loc = Location.extent h.type_expr_loc t.type_expr_loc in
-          make_type_app "*" [h; t] loc
+          AstUtils.make_raw_type_app "*" [h; t] loc
 
 let rec make_tuple_pattern l =
   match l with
     | [] -> assert false
     | [a] -> a
     | h :: rest ->
-        let p = make_tuple_pattern rest in
+        let p   = make_tuple_pattern rest in
         let loc = Location.extent h.pattern_loc p.pattern_loc in
-        let t = Location.mk_loc_val "*" loc in
-        let c = Location.mk_loc_val "_Tuple" loc in
-        make_pattern_loc (P_variant ((t, c), [h; p])) loc
+        let t   = Location.mk_loc_val "*" loc in
+        let c   = Location.mk_loc_val "_Tuple" loc in
+        AstUtils.make_pattern_loc (P_variant ((Modul None, t, c), [h; p])) loc
 
 let make_variant (c, l) s e =
   let loc = Location.mk_loc s e in
   match l with
     | [] -> c, None
-    | _  -> c, Some (make_arrow_type l loc)
+    | _  -> c, Some (AstUtils.make_raw_arrow_type l loc)
 
 let generate_kind tvs =
   List.fold_left (fun acc _ ->
@@ -272,9 +280,9 @@ int_exp:
 
 type_expr:
 | tv=TVAR
-  { make_tvar tv }
+  { AstUtils.make_tvar tv }
 | i=ident
-  { make_type_app_id i [] (Location.mk_loc $startpos $endpos) }
+  { AstUtils.make_raw_type_app_id i [] (Location.mk_loc $startpos $endpos) }
 | LPAREN l=separated_list(COMMA, type_expr) RPAREN
   { if List.length l = 0
     then make_unit_type $startpos $endpos
@@ -294,12 +302,12 @@ type_expr:
          parse_error err li
     else let n = string_of_int i in
          let n = Location.mk_loc_val n li in
-         let n = make_tname_id n in
-         let t = make_tname_id d in
+         let n = AstUtils.make_raw_tname_id n in
+         let t = AstUtils.make_raw_tname_id d in
          register_bitwidth i;
          make_type_expr (TE_tapp (t, [n])) $startpos $endpos }
 | d=def LT l=separated_list(COMMA, type_expr) GT
-  { let c = make_tname_id d in
+  { let c = AstUtils.make_raw_tname_id d in
     make_type_expr (TE_tapp (c, l)) $startpos $endpos }
 
 variant:
@@ -365,25 +373,28 @@ listelems:
   { let loc = Location.mk_loc $startpos(_s) $endpos(_s) in
     let t = Location.mk_loc_val "[]" loc in
     let c = Location.mk_loc_val "::" loc in
-    make_expr (E_constr ((t, c), [hd; tl])) $startpos $endpos }
+    make_expr (E_constr ((Modul None, t, c), [hd; tl])) $startpos $endpos }
 | e=expr _s=RBRACK
   { let loc = Location.mk_loc $startpos $endpos in
     let t  = Location.mk_loc_val "[]" loc in
     let nl = Location.mk_loc_val "[]" loc in
     let co = Location.mk_loc_val "::" loc in
-    let tl = make_expr (E_constr ((t, nl), [])) $startpos(_s) $endpos(_s) in
-    make_expr (E_constr ((t, co), [e; tl])) $startpos $endpos }
+    let c  = Modul None, t, nl in
+    let tl = make_expr (E_constr (c, [])) $startpos(_s) $endpos(_s) in
+    let c  = Modul None, t, co in
+    make_expr (E_constr (c, [e; tl])) $startpos $endpos }
 | RBRACK
   { let loc = Location.mk_loc $startpos $endpos in
     let t = Location.mk_loc_val "[]" loc in
     let c = Location.mk_loc_val "[]" loc in
-    make_expr (E_constr ((t, c), [])) $startpos $endpos }
+    make_expr (E_constr ((Modul None, t, c), [])) $startpos $endpos }
 
 expr:
 | v=ident
   { make_expr (E_var (make_var v)) $startpos $endpos }
+/* TODO: module syntax */
 | r=ident ARROW rop=ident LPAREN e=expr RPAREN
-  { make_expr (E_recop (r, rop, e)) $startpos $endpos }
+  { make_expr (E_recop ((Modul None, r, rop), e)) $startpos $endpos }
 | u=UID DOT m=ident
   { make_expr (E_mod_member (u, m)) $startpos $endpos }
 | e=expr DOT f=ident
@@ -400,7 +411,7 @@ expr:
   { let loc = Location.mk_loc $startpos $endpos in
     let t = Location.mk_loc_val "[]" loc in
     let c = Location.mk_loc_val "[]" loc in
-    make_expr (E_constr ((t, c), [])) $startpos $endpos }
+    make_expr (E_constr ((Modul None, t, c), [])) $startpos $endpos }
 | LPAREN l=separated_list(COMMA, expr) RPAREN
   { let loc = Location.mk_loc $startpos $endpos in
     let t = Location.mk_loc_val "*" loc in
@@ -409,7 +420,7 @@ expr:
     then make_expr (E_literal PL_unit) $startpos $endpos
     else if List.length l = 1
     then List.nth l 0
-    else make_expr (E_constr ((t, c), l)) $startpos $endpos }
+    else make_expr (E_constr ((Modul None, t, c), l)) $startpos $endpos }
 | e=expr LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_apply(e, l)) $startpos $endpos }
 | e=expr LBRACK i=expr RBRACK
@@ -419,7 +430,7 @@ expr:
 | e=expr LLBRACK n=int_exp RRBRACK
   { make_expr (E_bitrange(e, n, n)) $startpos $endpos }
 | c=CONSTR LPAREN l=separated_list(COMMA, expr) RPAREN
-  { make_expr (E_constr(c, l)) $startpos $endpos }
+  { make_expr (E_constr(conv_constr c, l)) $startpos $endpos }
 | MINUS e=expr %prec UMINUS
   { make_expr (E_unop (Uminus, e)) $startpos $endpos }
 | TILDE e=expr %prec UMINUS
@@ -433,7 +444,7 @@ expr:
 | l=expr LOR r=expr
   { make_expr (E_binop (Lor, l, r)) $startpos $endpos }
 | e=expr CONSTR_MATCH c=CONSTR
-  { make_expr (E_match (e, c)) $startpos $endpos }
+  { make_expr (E_match (e, conv_constr c)) $startpos $endpos }
 | l=expr PLUS_S r=expr
   { make_expr (E_binop (Plus_s, l, r)) $startpos $endpos }
 | l=expr BAR_B r=expr
@@ -484,18 +495,18 @@ pattern:
   { let loc = Location.mk_loc $startpos $endpos in
     let t = Location.mk_loc_val "[]" loc in
     let c = Location.mk_loc_val "[]" loc in
-    let p = P_variant ((t,c), []) in
+    let p = P_variant ((Modul None, t, c), []) in
     make_pattern p $startpos $endpos }
 | hd=pattern COLONCOLON tl=pattern
   { let loc = Location.mk_loc $startpos $endpos in
     let t = Location.mk_loc_val "[]" loc in
     let c = Location.mk_loc_val "::" loc in
-    let p = P_variant ((t,c), [hd; tl]) in
+    let p = P_variant ((Modul None, t, c), [hd; tl]) in
     make_pattern p $startpos $endpos }
-| v=CONSTR a=option(pattern_args)
+| c=CONSTR a=option(pattern_args)
   { let pat = match a with
-        | None   -> P_variant (v, [])
-        | Some l -> P_variant (v, l) in
+        | None   -> P_variant (conv_constr c, [])
+        | Some l -> P_variant (conv_constr c, l) in
     make_pattern pat $startpos $endpos }
 | l=LITERAL
   { make_pattern (P_literal (PL_bytes (Location.value l))) $startpos $endpos }
@@ -551,7 +562,7 @@ action:
 
 literal_set:
 | t=UID
-  { make_literal_set (LS_type t) $startpos $endpos }
+  { make_literal_set (LS_type (Modul None, t)) $startpos $endpos }
 | l=separated_nonempty_list(BAR, LITERAL)
   { make_literal_set (LS_set l) $startpos $endpos }
 | l=literal_set BACKSLASH r=literal_set
@@ -567,7 +578,7 @@ regexp:
 | DOT | HASH
   { make_regexp RX_wildcard $startpos $endpos }
 | i=UID
-  { make_regexp  (RX_type i) $startpos $endpos }
+  { make_regexp  (RX_type (Modul None, i)) $startpos $endpos }
 | r=regexp STAR
   { make_regexp  (RX_star (r, None)) $startpos $endpos }
 | r=regexp CARET e=expr
@@ -612,7 +623,7 @@ rule_elem:
                    then Missing_bitvector_width
                    else Invalid_bitvector_syntax in
          parse_error err (Location.loc nt)
-    else make_rule_elem (RE_non_term (nt, inh)) $startpos $endpos }
+    else make_rule_elem (RE_non_term (Modul None, nt, inh)) $startpos $endpos }
 | nt=UID LT i=int_exp GT
   { let id = Location.value nt in
     if id <> "BitVector"

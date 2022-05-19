@@ -54,11 +54,12 @@ let copts_t : common_opts Term.t =
     Arg.(value & flag & info ["v"; "verbose"] ~docs ~doc) in
   Term.(const mk_copts $ debug $ verb)
 
-let mk_ckopts co_trace_solver co_show_parsed_ast co_show_after_macros
-      co_show_types co_show_typed_ast co_show_anf co_show_cfg
-      co_show_decorated co_output_json
+let mk_ckopts co_trace_solver co_show_raw_ast co_show_parsed_ast
+      co_show_after_macros co_show_types co_show_typed_ast co_show_anf
+      co_show_cfg co_show_decorated co_output_json
     : check_opts =
-  {co_show_parsed_ast;
+  {co_show_raw_ast;
+   co_show_parsed_ast;
    co_show_after_macros;
    co_trace_solver;
    co_show_types;
@@ -72,6 +73,9 @@ let ckopts_t : check_opts Term.t =
   let trace_solver =
     let doc = "Trace the type constraint solver." in
     Arg.(value & flag & info ["trace-solver"] ~doc) in
+  let show_raw_ast =
+    let doc = "Show the raw AST of the specification." in
+    Arg.(value & flag & info ["show-raw-ast"] ~doc) in
   let show_parsed_ast =
     let doc = "Show the parsed AST of the specification." in
     Arg.(value & flag & info ["show-parsed-ast"] ~doc) in
@@ -97,7 +101,7 @@ let ckopts_t : check_opts Term.t =
     let docv = "NonTerm" in
     let doc  = "Show the decorated version of the specified non-terminal." in
     Arg.(value & opt_all string [] & info ["show-decorated"] ~doc ~docv) in
-  Term.(const mk_ckopts $ trace_solver $ show_parsed_ast
+  Term.(const mk_ckopts $ trace_solver $ show_raw_ast $ show_parsed_ast
         $ show_after_macros $ show_types $ show_typed_ast
         $ show_anf $ show_cfg $ show_decorated $ output_json)
 

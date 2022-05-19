@@ -38,7 +38,7 @@ type pmat = prow list
 
 (* constructor of a type, or wildcard *)
 type con =
-  | Con of (Ast.ident * Ast.ident) * (* arity *) int
+  | Con of constr * (* arity *) int
   | Lit of Ast.primitive_literal
   | Default
 
@@ -53,10 +53,8 @@ let default (m: pmat) = Pattern_utils.default_mat m
 (* printers *)
 
 let sprint_con = function
-  | Con ((t, c), a) ->
-      Printf.sprintf "%s(#%d)"
-        (AstUtils.canonicalize_dcon (Location.value t) (Location.value c))
-        a
+  | Con (c, a) ->
+      Printf.sprintf "%s(#%d)" (string_of_constr c) a
   | Lit l ->
       Printf.sprintf "Lit (%s)" (AstPrinter.string_of_literal l)
   | Default ->
@@ -94,7 +92,7 @@ let print_dectree d =
      pp_flush ()
 
 let print_pmat m =
-  let auxp = (fun _ -> "") in
+  let auxp = AstPrinter.mk_auxp_typed (fun _ -> "") in
   let prow (r, d) =
     pp_string (Printf.sprintf " [%d: " d);
     List.iter (fun p ->
@@ -177,6 +175,7 @@ let rec to_dectree (tenv: TypingEnvironment.environment)
                          | P_literal l ->
                              Lit l, h.pattern_aux, h.pattern_loc, dt
                          | P_variant (c, _) ->
+                             let c = convert_con c in
                              Con (c, ar), h.pattern_aux, h.pattern_loc, dt
                      ) heads in
                  if   Pattern_utils.is_complete_sig tenv (fst (List.split heads))

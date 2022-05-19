@@ -23,9 +23,9 @@ open Ir
 open Options
 
 let parse_spec ckopts spec_file =
-  let spec = SpecParser.parse_spec spec_file in
+  let spec = SpecParser.parse_spec spec_file ckopts.co_show_raw_ast in
   if   ckopts.co_show_parsed_ast
-  then Parsing.AstPrinter.print_parsed_spec spec;
+  then AstPrinter.print_parsed_spec spec;
   spec
 
 let checker ckopts spec =
@@ -75,7 +75,7 @@ let type_check ckopts spec =
         Errors.handle_exception
           (Printexc.get_backtrace ()) l (Rulecfg.error_msg e)
 
-let mk_ir ckopts init_envs tenv (spec: Cfg.program) : Cfg.spec_ir =
+let mk_ir ckopts init_envs tenv (spec: Cfg.spec_module) : Cfg.spec_ir =
   try  Cfg_spec.lower_spec init_envs tenv spec ckopts.co_show_anf
   with
     | Anf.Error (l, e) ->

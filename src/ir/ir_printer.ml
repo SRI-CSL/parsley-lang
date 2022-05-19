@@ -57,6 +57,20 @@ let print_gnode g =
                      (String.concat "," args)
           );
         Anf_printer.print_aexp bd
+    | N_assign_mod_var (m, v, ae) ->
+        pp_string (Printf.sprintf "%s.%s := "
+                     (Location.value m) (Location.value v));
+        Anf_printer.print_aexp ae
+    | N_assign_mod_fun (m, v, vs, bd, _) ->
+        let args = List.map (fun v ->
+                       Anf_printer.string_of_var Anf.(v.v)
+                     ) vs in
+        pp_string (Printf.sprintf "%s.%s(%s) = "
+                     (Location.value m)
+                     (Location.value v)
+                     (String.concat "," args)
+          );
+        Anf_printer.print_aexp bd
     | N_action ss ->
         pp_open_vbox 0;
         pp_string "{ ";
@@ -160,15 +174,15 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (Anf_printer.string_of_var v.v)
                      (string_of_label s)
                      (string_of_label f))
-    | N_call_nonterm (nt, args, ret, s, f) ->
+    | N_call_nonterm (m, nt, args, ret, s, f) ->
         let sargs = String.concat ","
                      (List.map (fun (a, (v: Anf.var)) ->
                           Printf.sprintf "%s<-%s"
                             (Location.value a)
                             (Anf_printer.string_of_var v.v)
                         ) args) in
-        pp_string (Printf.sprintf "call %s[%s], %s, %s, %s"
-                     (Location.value nt)
+        pp_string (Printf.sprintf "call %s%s[%s], %s, %s, %s"
+                     (AstUtils.mk_modprefix m) (Location.value nt)
                      sargs
                      (string_of_return ret)
                      (string_of_label s)

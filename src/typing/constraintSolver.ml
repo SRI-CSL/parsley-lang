@@ -452,7 +452,7 @@ let check_width_constraints wc =
        raise (Error (loc, err)));
     match v'.name with
       | None -> assert false
-      | Some (TName s) ->
+      | Some (_, (TName s)) ->
           (match int_of_string_opt s with
              | None ->
                  let err = Not_a_bitwidth (Some s) in

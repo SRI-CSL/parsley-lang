@@ -24,8 +24,10 @@ open Values
    interpreter state that is initialized by executing the static block. *)
 let init (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
   : state * Cfg.closed =
-  let venv = VEnv.empty in
-  let fenv = FEnv.empty in
+  let venv  = VEnv.empty in
+  let fenv  = FEnv.empty in
+  let mvenv = MVEnv.empty in
+  let mfenv = MFEnv.empty in
   let s = {st_spec_toc     = Cfg.(spec.ir_gtoc);
            st_spec_ir      = Cfg.(spec.ir_blocks);
            st_ir_tenv      = Cfg.(spec.ir_tenv);
@@ -33,6 +35,8 @@ let init (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
            st_mode         = Mode_normal;
            st_venv         = venv;
            st_fenv         = fenv;
+           st_mvenv        = mvenv;
+           st_mfenv        = mfenv;
            st_view_stk     = [];
            st_cur_view     = view;
            st_ctrl_stk     = []} in

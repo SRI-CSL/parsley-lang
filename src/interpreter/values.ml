@@ -53,6 +53,7 @@ type view =
    OCaml's stdlib give predicative types, and those in `value` are
    impredicative. *)
 type bitfield_info = Typing.TypingEnvironment.bitfield_info
+type constr = Ir.Anf.constr
 type value =
   | V_unit
   | V_bool of bool
@@ -66,7 +67,7 @@ type value =
   | V_option of value option
   | V_list of value list
   | V_tuple of value list
-  | V_constr of (string * string) * value list
+  | V_constr of constr * value list
   | V_record of (string * value) list
   (* module types *)
   | V_view of view
@@ -91,11 +92,14 @@ type vtype =
   | T_list of vtype
   | T_tuple of vtype list
   | T_adt of string
-  | T_adt_constr of (string * string) * vtype list
+  | T_adt_constr of constr * vtype list
   | T_record of (string * vtype) list
   | T_view
   | T_set of vtype
   | T_map of vtype * vtype
+
+let mod_prefix    = Ir.Anf.mod_prefix
+let str_of_constr = Ir.Anf.string_of_constr
 
 let rec string_of_vtype (t: vtype) : string =
   let string_of_field (f, ft) =
@@ -122,8 +126,8 @@ let rec string_of_vtype (t: vtype) : string =
                        ^ (String.concat ", " (List.map string_of_vtype ts))
                        ^ ")"
     | T_adt s       -> s
-    | T_adt_constr ((t', c), ts) -> Printf.sprintf "%s::%s(%s)" t' c
-                                      (String.concat ", " (List.map string_of_vtype ts))
+    | T_adt_constr (c, ts) -> Printf.sprintf "%s(%s)" (str_of_constr c)
+                                (String.concat ", " (List.map string_of_vtype ts))
     | T_record fs   -> Printf.sprintf "{%s}"
                          (String.concat ", " (List.map string_of_field fs))
     | T_view        -> "view"
@@ -219,9 +223,9 @@ let string_of_value (v: value) : string =
                                (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
       | V_tuple vs        -> Printf.sprintf "(%s)"
                                (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
-      | V_constr ((t, c), vs) -> Printf.sprintf "%s(%s)"
-                                   (Parsing.AstUtils.canonicalize_dcon t c)
-                                   (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
+      | V_constr (c, vs) -> Printf.sprintf "%s(%s)"
+                              (str_of_constr c)
+                              (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
       | V_record fs       -> Printf.sprintf "{%s}"
                                (String.concat (mk_sep ";")
                                   (List.map (fun (f, v) ->

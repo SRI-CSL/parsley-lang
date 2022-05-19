@@ -31,7 +31,7 @@ type rule_pos =
 type typing_error =
   (* [UnboundTypeIdentifier] is raised when an unbound type identifier
      is found. *)
-  | UnboundTypeIdentifier of Ast.tname
+  | UnboundTypeIdentifier of Ast.full_tname
 
   (* [DuplicateTypeVariable] is raised when a type variable declaration
      is repeated in a type definition. *)
@@ -43,36 +43,36 @@ type typing_error =
 
   (* [InvalidTypeVariableIdentifier] is raised when a type variable is
      overwriting a type constructor. *)
-  | InvalidTypeVariableIdentifier of Ast.tname
+  | InvalidTypeVariableIdentifier of Ast.full_tname
 
   (* [DuplicateTypeDefinition t] is raised when a type [t] is defined
      multiple times. *)
-  | DuplicateTypeDefinition of Ast.tname
+  | DuplicateTypeDefinition of Ast.full_tname
 
   (* [UnboundDataConstructor] is raised when a constructor identifier is
      used although it has not been defined. *)
-  | UnboundDataConstructor of Ast.dname
+  | UnboundDataConstructor of Ast.full_dname
 
   (* [DuplicateDataConstructor dc t] is raised when a constructor
      identifier [dc] of type [t] is defined multiple times, perhaps in
      different types. *)
   | DuplicateDataConstructor
     (* current definition *) (* previous definition *)
-    of Ast.dname * Ast.tname * Location.t
+    of Ast.full_dname * Ast.full_tname * Location.t
 
   (* [UnboundRecordField] is raised when a field label is
      used although it has not been defined. *)
-  | UnboundRecordField of Ast.lname
+  | UnboundRecordField of Ast.full_lname
 
   (* [UnboundRecord] is raised when a record is used although it has
      not been defined. *)
-  | UnboundRecord of Ast.tname
+  | UnboundRecord of Ast.full_tname
 
   (* [DuplicateRecordField] is raised when a field label is
      defined multiple times, perhaps in different types. *)
   | DuplicateRecordField
     (* current definition *) (* previous definition *)
-    of Ast.lname * Ast.tname * Location.t
+    of Ast.full_lname * Ast.full_tname * Location.t
 
   (* [RepeatedRecordField] is raised when a field label is
      repeated in a record. *)
@@ -96,12 +96,12 @@ type typing_error =
 
   (* [UnboundTypeVariable] is raised when a variable identifier is
      used although it has not been defined. *)
-  | UnboundTypeVariable of Ast.tname
+  | UnboundTypeVariable of Ast.full_tname
 
   (* [PartialTypeConstructorApplication t d u] is raised when the
      arity [d] of a type constructor [t] does not match the provided
      number [u] of arguments. *)
-  | PartialTypeConstructorApplication of Ast.tname * int * int
+  | PartialTypeConstructorApplication of Ast.full_tname * int * int
 
   (* [NonLinearPattern] is raised when at least two occurrences of a variable
      appear in a pattern. *)
@@ -112,7 +112,7 @@ type typing_error =
   | InvalidPatternArgs of Ast.ident * int * int
 
   (* [UnboundConstructor] is raised when a type constructor is unbound. *)
-  | UnboundTypeConstructor of Ast.tname
+  | UnboundTypeConstructor of Ast.full_tname
 
   (* [KindError] is raised when the kind of types are not correct. *)
   | KindError
@@ -130,17 +130,17 @@ type typing_error =
      with the same name [id] is repeated in a function definition. *)
   | RepeatedFunctionParameter of Ast.ident * Ast.ident
 
-  (* [DuplicateModItem mid vid] is raised when a module [mid]
+  (* [DuplicateModItem vid] is raised when a module [mid]
      contains multiple definitions of a value named [vid]. **)
-  | DuplicateModItem of Ast.mname * Ast.dname * Location.t
+  | DuplicateModItem of Ast.full_vname * Location.t
 
   (* [UnknownModule mid] is raised when a module name [mid] is
      referenced but not defined *)
   | UnknownModule of Ast.mname
 
-  (* [UnknownModItem mid vid] is raised when a value [vid] of module [mid] is
+  (* [UnknownModItem vid] is raised when a module-qualified value [vid] is
      referenced but not defined *)
-  | UnknownModItem of Ast.mname * Ast.dname
+  | UnknownModItem of Ast.full_vname
 
   (* [UnknownNonTerminal id] is raised when a non-terminal with name
      [id] has not been defined *)
@@ -148,7 +148,7 @@ type typing_error =
 
   (* [DuplicateNonTerminal id] is raised when a non-terminal with name
      [id] has already been defined *)
-  | DuplicateNonTerminal of Ast.nname * Location.t
+  | DuplicateNonTerminal of Ast.full_nname * Location.t
 
   (* [NTAttrsNotRecordType ntid t] is raised when the type [t] given
      for the attributes of the non-terminal [ntid] is not a record
@@ -346,8 +346,9 @@ let str_of_rule_pos = function
   | At_end   -> "end"
 
 let error_msg = function
-  | UnboundTypeIdentifier (TName t) ->
-      Printf.sprintf "Unbound type identifier `%s'." t
+  | UnboundTypeIdentifier (m, (TName t)) ->
+      Printf.sprintf "Unbound type identifier `%s%s'."
+        (AstUtils.mk_modprefix m) t
 
   | DuplicateTypeVariable t ->
       Printf.sprintf "Duplicate type variable `%s'." (Location.value t)
@@ -355,39 +356,48 @@ let error_msg = function
   | UnusedTypeVariable t ->
       Printf.sprintf "Unused type variable `%s'." (Location.value t)
 
-  | InvalidTypeVariableIdentifier (TName v) ->
-      Printf.sprintf "`%s' type constructor is used as a type variable." v
-  | DuplicateTypeDefinition (TName t) ->
-      Printf.sprintf "Type '%s' has already been defined." t
-
-  | PartialTypeConstructorApplication ((TName t), d, u) ->
+  | InvalidTypeVariableIdentifier (m, (TName v)) ->
       Printf.sprintf
-        "Type constructor `%s' needs %d argument%s but %d are provided."
-        t d
+        "`%s%s' type constructor is used as a type variable."
+        (AstUtils.mk_modprefix m) v
+  | DuplicateTypeDefinition (m, TName t) ->
+      Printf.sprintf "Type '%s%s' has already been defined."
+        (AstUtils.mk_modprefix m) t
+
+  | PartialTypeConstructorApplication ((m, TName t), d, u) ->
+      Printf.sprintf
+        "Type constructor `%s%s' needs %d argument%s but %d are provided."
+        (AstUtils.mk_modprefix m) t d
         (if d > 1 then "s" else "")
         u
 
-  | UnboundDataConstructor (DName t) ->
-      Printf.sprintf "Unbound data constructor `%s'." t
+  | UnboundDataConstructor (m, (DName t)) ->
+      Printf.sprintf "Unbound data constructor `%s%s'."
+        (AstUtils.mk_modprefix m) t
 
-  | DuplicateDataConstructor (DName dc, TName adt, ladt) ->
+  | DuplicateDataConstructor ((m, DName dc), (m', TName adt), ladt) ->
       Printf.sprintf
-        "Data constructor `%s' has already been defined by ADT `%s' at %s."
-        dc adt (Location.str_of_file_loc ladt)
+        "Data constructor `%s%s' has already been defined by ADT `%s%s' at %s."
+        (AstUtils.mk_modprefix m) dc (AstUtils.mk_modprefix m') adt
+        (Location.str_of_file_loc ladt)
 
-  | UnboundRecordField (LName t) ->
-      Printf.sprintf "Unbound record field `%s'." t
+  | UnboundRecordField (m, (LName t)) ->
+      Printf.sprintf "Unbound record field `%s%s'."
+        (AstUtils.mk_modprefix m) t
 
-  | UnboundRecord (TName t) ->
-      Printf.sprintf "Unbound record `%s'." t
+  | UnboundRecord (m, (TName t)) ->
+      Printf.sprintf "Unbound record `%s%s'."
+        (AstUtils.mk_modprefix m) t
 
-  | DuplicateRecordField (LName f, TName adt, ladt) ->
+  | DuplicateRecordField ((m, LName f), (m', TName adt), ladt) ->
       Printf.sprintf
-        "Record field `%s' has already been defined by ADT `%s' at %s."
-        f adt (Location.str_of_file_loc ladt)
+        "Record field `%s%s' has already been defined by ADT `%s%s' at %s."
+        (AstUtils.mk_modprefix m) f (AstUtils.mk_modprefix m') adt
+        (Location.str_of_file_loc ladt)
 
   | RepeatedRecordField l ->
-      Printf.sprintf "Record field `%s' is repeated." (Location.value l)
+      Printf.sprintf "Record field `%s' is repeated."
+        (Location.value l)
 
   | IncompleteRecord (t, l) ->
       Printf.sprintf "Field `%s' of `%s' is not initialized."
@@ -405,8 +415,9 @@ let error_msg = function
       Printf.sprintf "The type of the field destructor `%s' is incorrect."
         (Location.value f)
 
-  | UnboundTypeVariable (TName t) ->
-      Printf.sprintf "Unbound type variable `%s'." t
+  | UnboundTypeVariable (m, (TName t)) ->
+      Printf.sprintf "Unbound type variable `%s%s'."
+        (AstUtils.mk_modprefix m) t
 
   | NonLinearPattern x ->
       Printf.sprintf "The pattern variable '%s' cannot appear more than once." x
@@ -415,8 +426,9 @@ let error_msg = function
       Printf.sprintf "%d pattern arguments used for constructor `%s', expecting %d."
         f (Location.value c) e
 
-  | UnboundTypeConstructor (TName t) ->
-      Printf.sprintf "Unbound type constructor `%s'." t
+  | UnboundTypeConstructor (m, (TName t)) ->
+      Printf.sprintf "Unbound type constructor `%s%s'."
+        (AstUtils.mk_modprefix m) t
 
   | KindError ->
       "Kind error."
@@ -436,22 +448,24 @@ let error_msg = function
       Printf.sprintf "Parameter `%s' is repeated at %s."
         (Location.value p) (Location.str_of_file_loc (Location.loc p'))
 
-  | DuplicateModItem (MName m, DName v, loc) ->
+  | DuplicateModItem ((m, VName v), loc) ->
       Printf.sprintf "Redefinition of value `%s' of module `%s' defined at %s."
-        v m (Location.str_of_file_loc loc)
+        v (AstUtils.str_of_mod m) (Location.str_of_file_loc loc)
 
-  | UnknownModule (MName mid) ->
-      Printf.sprintf "Unknown module `%s'." mid
+  | UnknownModule mid ->
+      Printf.sprintf "Unknown module `%s'." (AstUtils.str_of_mod mid)
 
-  | UnknownModItem (MName mid, DName vid) ->
-      Printf.sprintf "Undefined value `%s' of module `%s'." vid mid
+  | UnknownModItem (m, VName vid) ->
+      Printf.sprintf "Undefined value `%s' of module `%s'."
+        vid (AstUtils.str_of_mod m)
 
   | UnknownNonTerminal nid ->
-      Printf.sprintf "Non-terminal `%s' is not declared." (Location.value nid)
+      Printf.sprintf "Non-terminal `%s' is not declared."
+        (Location.value nid)
 
-  | DuplicateNonTerminal (NName s, p') ->
-      Printf.sprintf "Non-terminal `%s' was already defined at `%s'."
-        s (Location.str_of_file_loc p')
+  | DuplicateNonTerminal ((m, NName s), p') ->
+      Printf.sprintf "Non-terminal `%s%s' was already defined at `%s'."
+        (AstUtils.mk_modprefix m) s (Location.str_of_file_loc p')
 
   | NTAttributesNotRecordType (ntid, t) ->
       Printf.sprintf "Type `%s' for the attributes of `%s' is not a record type."

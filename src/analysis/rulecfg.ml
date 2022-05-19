@@ -19,8 +19,8 @@
    non-terminal are assigned in each of its production rules, and no
    uninitialized variables are used in any expression.  *)
 
-module Location = Parsing.Location
-open Parsing.Ast
+open Parsing
+open Ast
 module TE = Typing.TypingEnvironment
 open Typing.TypeInfer
 open Typing.TypedAstUtils
@@ -223,7 +223,7 @@ module References = struct
     String.concat ", " es
 end
 
-let vars_of_pattern (p: (typ, varid) pattern) : References.t =
+let vars_of_pattern (p: (typ, varid, mod_qual) pattern) : References.t =
   let rec add set p =
     match p.pattern with
       | P_wildcard | P_literal _ ->
@@ -239,7 +239,7 @@ let vars_of_pattern (p: (typ, varid) pattern) : References.t =
 (* If a `bound` variable set is provided, this computes the free
    variables (i.e. that are not in `bound`) of the expression.
  *)
-let free_vars_of_expr (e: (typ, varid) expr) (bound: References.t)
+let free_vars_of_expr (e: (typ, varid, mod_qual) expr) (bound: References.t)
     : References.t =
   let rec add ((set, bound) as acc) e =
     match e.expr with
@@ -277,7 +277,7 @@ let free_vars_of_expr (e: (typ, varid) expr) (bound: References.t)
           add (set', bound') e
       | E_binop (_, l, r) ->
           add (add acc l) r
-      | E_recop (_, _, e) ->
+      | E_recop (_, e) ->
           add acc e
       | E_bitrange (e, _, _) ->
           add acc e
@@ -291,7 +291,7 @@ let free_vars_of_expr (e: (typ, varid) expr) (bound: References.t)
 type gn =
   | GN_regexp
   | GN_type of ident
-  | GN_constraint of (typ, varid) expr
+  | GN_constraint of (typ, varid, mod_qual) expr
   | GN_non_term of ident (* stripped of inherited attributes *)
 
 let print_gn = function
@@ -316,12 +316,12 @@ let print_gnode gn =
    constraints) and the assignment statement.
  *)
 type en =
-  | EN_expr of (typ, varid) expr
-  | EN_defn of (typ, varid) pattern
+  | EN_expr of (typ, varid, mod_qual) expr
+  | EN_defn of (typ, varid, mod_qual) pattern
   (* variable/record-field assignment *)
-  | EN_binding_assign of References.elt * (typ, varid) expr
+  | EN_binding_assign of References.elt * (typ, varid, mod_qual) expr
   (* other assignments *)
-  | EN_assign of (typ, varid) expr * (typ, varid) expr
+  | EN_assign of (typ, varid, mod_qual) expr * (typ, varid, mod_qual) expr
 
 let print_en = function
   | EN_expr _           -> "(en: <expr>)"
@@ -427,8 +427,7 @@ module ReachingDefns = struct
 
   (* A reference is possibly undefined if it is undefined and none of
      its parents are. *)
-  let possibly_undefined ((vid, fs, _): reference) (rd: t)
-      : bool =
+  let possibly_undefined ((vid, fs, _): reference) (rd: t) : bool =
     match VMap.find_opt vid rd with
       | None              -> true
       | Some (_, root, _) -> not (BNode.is_defined root fs)
@@ -504,7 +503,7 @@ type closed = (Block.c, Block.c, v) B.block
 
 (* node construction and block extension *)
 
-let add_expr (env: References.t) (b: opened) (e: (typ, varid) expr) =
+let add_expr (env: References.t) (b: opened) (e: (typ, varid, mod_qual) expr) =
   let l = B.entry_label b in
   let u = free_vars_of_expr e env in
   let v = {node_use = u; node_def = References.empty, l} in
@@ -513,7 +512,7 @@ let add_expr (env: References.t) (b: opened) (e: (typ, varid) expr) =
     (Label.to_string l) (Node.print (N_enode n)) print_v v); *)
   B.snoc b (N_enode n)
 
-let add_pattern (_: References.t) (b: opened) (p: (typ, varid) pattern) =
+let add_pattern (_: References.t) (b: opened) (p: (typ, varid, mod_qual) pattern) =
   (* Pattern matching binds and initializes its variables. *)
   let l = B.entry_label b in
   let d = vars_of_pattern p in
@@ -574,7 +573,7 @@ let end_block (b: opened) (l: Label.label list) : closed =
  *)
 type ctx = References.t * closed list * opened
 
-let rec add_stmt (ctx: ctx) (s: (typ, varid) stmt) : ctx =
+let rec add_stmt (ctx: ctx) (s: (typ, varid, mod_qual) stmt) : ctx =
   let bound, closed, b = ctx in
   match s.stmt with
     | S_assign ({expr = E_var v; _}, e) ->
@@ -638,13 +637,14 @@ let add_gnode (b: opened) gn loc =
 let rec lift_regexp rx =
   let wrap r =
     {rule_elem     = r;
+     rule_elem_mod = rx.regexp_mod;
      rule_elem_loc = rx.regexp_loc;
      rule_elem_aux = rx.regexp_aux} in
   match rx.regexp with
     | RX_empty | RX_literals _ | RX_wildcard ->
         wrap (RE_regexp rx)
-    | RX_type id ->
-        wrap (RE_non_term (id, None))
+    | RX_type (m, id) ->
+        wrap (RE_non_term (m, id, None))
     | RX_star (re', oe) ->
         let r' = lift_regexp re' in
         wrap (RE_star (r', oe))
@@ -666,7 +666,7 @@ let rec lift_regexp rx =
    being initialized.
  *)
 
-let pattern_of_var v loc aux : (typ, varid) pattern =
+let pattern_of_var v loc aux : (typ, varid, mod_qual) pattern =
   {pattern     = P_var v;
    pattern_loc = loc;
    pattern_aux = aux}
@@ -674,7 +674,7 @@ let pattern_of_var v loc aux : (typ, varid) pattern =
 let rec add_rule_elem
           (tenv: TE.environment)
           (ctx: ctx)
-          (r: (typ, varid) rule_elem)
+          (r: (typ, varid, mod_qual) rule_elem)
         : ctx =
   let env, closed, b = ctx in
   let pack b =
@@ -688,9 +688,9 @@ let rec add_rule_elem
     | RE_regexp rx ->
         let r' = lift_regexp rx in
         add_rule_elem tenv ctx r'
-    | RE_non_term (id, oias) ->
+    | RE_non_term (_, id, oias) ->
         let b = match oias with
-            | None -> b
+            | None     -> b
             | Some ias ->
                 List.fold_left (fun b (_, _, e) ->
                     add_expr env b e
@@ -708,7 +708,7 @@ let rec add_rule_elem
     | RE_action {action_stmts = ss, oe; _}->
         let env, closed, b = List.fold_left add_stmt ctx ss in
         let b = match oe with
-            | None -> b
+            | None   -> b
             | Some e -> add_expr env b e in
         env, closed, b
     | RE_named (n, r') ->
@@ -796,12 +796,13 @@ let rec add_rule_elem
 let rule_to_cfg
       (tenv: TE.environment)
       (env: References.t)
-      (ntd: (typ, varid) non_term_defn)
-      (r: (typ, varid) rule)
+      (m: mname)
+      (ntd: (typ, varid, mod_qual) non_term_defn)
+      (r: (typ, varid, mod_qual) rule)
     : Label.label * (Block.c, Block.c, v) G.graph * Label.label =
   (* Lookup type info for the non-terminal. *)
   let ntnm = Location.value ntd.non_term_name in
-  let nti, _, _ = match TE.lookup_non_term tenv (NName ntnm) with
+  let nti, _, _ = match TE.lookup_non_term tenv (m, (NName ntnm)) with
       | Some t -> t
       | None   -> assert false in
   (* The CFG needs an entry label and block to contain the setup for
@@ -948,7 +949,7 @@ let fwd_transfer : v VA.fwd_transfer =
    . constants and functions from the prelude
    . constants and functions defined in the spec
  *)
-let build_init_bindings (init_venv: VEnv.t) (tspec: (typ, varid) program) =
+let build_init_bindings (init_venv: VEnv.t) (tspec: (typ, varid) spec_module) =
   let mk_elem v =
     let loc = Location.loc v in
     let n, vid = Location.value v in
@@ -976,9 +977,9 @@ let build_init_bindings (init_venv: VEnv.t) (tspec: (typ, varid) program) =
 
 (* A helper to extract the record info for the synthesized attributes
    of a non-terminal. *)
-let get_nt_recinfo (tenv: TE.environment) (nt: string)
+let get_nt_recinfo (tenv: TE.environment) mname (nt: string)
     : TE.record_info option =
-  match TE.lookup_non_term tenv (NName nt) with
+  match TE.lookup_non_term tenv (mname, (NName nt)) with
     | Some (_, _, nts) ->
         (match nts with
            | NTT_type (_, r)   -> r
@@ -987,18 +988,18 @@ let get_nt_recinfo (tenv: TE.environment) (nt: string)
 
 (* Helpers to check if a type is a record, and if so, to
    extract the fields and their types. *)
-let recinfo_of_type (tenv: TE.environment) (t: tvar)
+let recinfo_of_type (tenv: TE.environment) (m: mname) (t: tvar)
     : (string * type_expr) list option =
-  match TE.get_record_info tenv (TName (Location.value t)) with
+  match TE.get_record_info tenv (m, (TName (Location.value t))) with
     | None    -> None
     | Some ri -> Some (List.map (fun (f, t) ->
                            Location.value f, t) ri.fields)
 let recinfo_of_type_expr (tenv: TE.environment) (t: type_expr)
     : (string * type_expr) list option =
   match t.type_expr with
-    | TE_tname t
-    | TE_tapp ({type_expr = TE_tname t;_}, _) ->
-        recinfo_of_type tenv t
+    | TE_tname (m, t)
+    | TE_tapp ({type_expr = TE_tname (m, t);_}, _) ->
+        recinfo_of_type tenv m t
     | TE_tvar _ | TE_tapp _ ->
         None
 (* The builder of the complete list. *)
@@ -1029,13 +1030,16 @@ let test_attr_builder tenv recinfo =
 let check_non_term (tenv: TE.environment) (init_env: References.t) ntd =
   (*  Printf.eprintf "checking %s:\n" (Location.value ntd.non_term_name);*)
 
+  (* lookups default to the current module *)
+  let mname = AstUtils.infer_mod ntd.non_term_mod in
+
   (* Set up the initial factbase: at the entry label, we only have
      uninitialized synthesized attributes, and no initialized
      variables (since we've pruned all entries from the prelude when
      constructing the CFG). *)
   let syn_attrs =
     let ntnm = Location.value ntd.non_term_name in
-    let recinfo = get_nt_recinfo tenv ntnm in
+    let recinfo = get_nt_recinfo tenv mname ntnm in
     match recinfo, ntd.non_term_varname with
       | None, None ->
           None
@@ -1078,7 +1082,7 @@ let check_non_term (tenv: TE.environment) (init_env: References.t) ntd =
   List.iter (fun r ->
       (*Printf.eprintf "  building cfg for rule %d:\n" !rn;*)
       (* Compute the CFG for the rule. *)
-      let entry, cfg, exit = rule_to_cfg tenv init_env ntd r in
+      let entry, cfg, exit = rule_to_cfg tenv init_env mname ntd r in
       (*Printf.eprintf
         "  built cfg for rule %d with entry %s and exit %s\n"
         !rn (Label.to_string entry) (Label.to_string exit);*)
@@ -1140,7 +1144,7 @@ let check_non_term (tenv: TE.environment) (init_env: References.t) ntd =
     ) ntd.non_term_rules
 
 (* entry into this module *)
-let check_spec init_envs (tenv: TE.environment) (tspec: (typ, varid) program) =
+let check_spec init_envs (tenv: TE.environment) (tspec: (typ, varid) spec_module) =
   let _, init_venv = init_envs in
   let init = build_init_bindings init_venv tspec in
   List.iter (fun d ->

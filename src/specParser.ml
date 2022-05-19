@@ -19,6 +19,7 @@ open Parsing
 open Parsing.Ast
 open Lexing
 module I = Parser.MenhirInterpreter
+open Typing
 
 let parse_file fname cont =
   let lexbuf = from_channel (open_in fname) in
@@ -70,7 +71,7 @@ let update_inc_dir fname =
 let mk_filename modnm =
   let f = Printf.sprintf "%s.ply" modnm in
   match !inc_dir with
-    | None -> f
+    | None   -> f
     | Some d -> Filename.concat d f
 
 (* recursively include all the modules referenced by use declarations
@@ -80,19 +81,20 @@ module StringSet = Set.Make(struct type t = string
                             end)
 let rec flatten accum includes pending =
   match pending with
-    | [] -> accum
+    | [] ->
+        accum
     | d :: rest ->
         (match d with
            | PDecl_types (tl, l) ->
-               flatten (Decl_types (tl, l) :: accum) includes rest
+               flatten (PDecl_types (tl, l) :: accum) includes rest
            | PDecl_const c ->
-               flatten (Decl_const c :: accum) includes rest
+               flatten (PDecl_const c :: accum) includes rest
            | PDecl_fun f ->
-               flatten (Decl_fun f :: accum) includes rest
+               flatten (PDecl_fun f :: accum) includes rest
            | PDecl_recfuns r ->
-               flatten (Decl_recfuns r :: accum) includes rest
+               flatten (PDecl_recfuns r :: accum) includes rest
            | PDecl_format f ->
-               flatten (Decl_format f :: accum) includes rest
+               flatten (PDecl_format f :: accum) includes rest
            | PDecl_use u ->
                (match u.use_modules with
                   | [] -> flatten accum includes rest
@@ -115,17 +117,32 @@ let rec flatten accum includes pending =
                )
         )
 
-let do_parse_spec f =
+let do_parse_spec f show_raw_ast : (unit, unit) spec_module =
   (*Printf.fprintf stdout " parsing %s ...\n" f;*)
   update_inc_dir f;
-  parse_file f (fun ast ->
-      let ast = flatten [] (StringSet.add f StringSet.empty) ast.pre_decls in
-      {decls = List.rev ast}
-    )
 
-let parse_spec f =
-  try
-    do_parse_spec f
+  (* set current module *)
+  let m = Filename.basename f in
+  let m = Filename.remove_extension m in
+  let m = String.capitalize_ascii m in
+  cur_module := Some m;
+
+  let pre_ast: (unit, unit) pre_spec_module =
+    parse_file f (fun ast ->
+        let ast = flatten [] (StringSet.add f StringSet.empty) ast.pre_decls in
+        {pre_decls = List.rev ast}
+      ) in
+  if   show_raw_ast
+  then AstPrinter.print_raw_spec pre_ast;
+
+  let bltins =
+    Qualify_ast.({bltin_type    = TypeAlgebra.is_builtin_type;
+                  bltin_value   = TypeAlgebra.is_builtin_value;
+                  bltin_nonterm = TypeAlgebra.is_builtin_nonterm}) in
+  Qualify_ast.convert_spec bltins pre_ast
+
+let parse_spec f show_raw_ast =
+  try  do_parse_spec f show_raw_ast
   with
     | Sys_error s ->
         (Printf.eprintf "Error processing %s.\n" s;

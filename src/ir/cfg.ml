@@ -22,15 +22,15 @@ open Anf
 open Dfa
 
 (* source-level regexps, rule-elements, rules and non-terminals *)
-type regexp         = (typ, TypeInfer.varid) Ast.regexp
-type rule_elem      = (typ, TypeInfer.varid) Ast.rule_elem
-type rule           = (typ, TypeInfer.varid) Ast.rule
-type non_term_defn  = (typ, TypeInfer.varid) Ast.non_term_defn
-type format_decl    = (typ, TypeInfer.varid) Ast.format_decl
+type regexp         = (typ, TypeInfer.varid, Ast.mod_qual) Ast.regexp
+type rule_elem      = (typ, TypeInfer.varid, Ast.mod_qual) Ast.rule_elem
+type rule           = (typ, TypeInfer.varid, Ast.mod_qual) Ast.rule
+type non_term_defn  = (typ, TypeInfer.varid, Ast.mod_qual) Ast.non_term_defn
+type format_decl    = (typ, TypeInfer.varid, Ast.mod_qual) Ast.format_decl
 
 (* source-level spec *)
-type format         = (typ, TypeInfer.varid) Ast.format
-type program        = (typ, TypeInfer.varid) Ast.program
+type format         = (typ, TypeInfer.varid, Ast.mod_qual) Ast.format
+type spec_module    = (typ, TypeInfer.varid) Ast.spec_module
 
 (* The IR for the grammar language is a control-flow graph (CFG) with
    explicit control-flow for the grammar matching.  The most important
@@ -69,11 +69,15 @@ type gnode_desc =
   (* Evaluate the expression and assign it to a variable. *)
   | N_assign of var * aexp
 
-  (* Create an entry for a function and assign it to a variable.
-     Since there are no first-class functions, this is usually done
-     during initialization.  The VSet contains all the temporary
-     variables created in lowering the body. *)
+  (* Create an entry for an internal function and assign it to a
+     variable.  Since there are no first-class functions, this is
+     usually done during initialization.  The VSet contains all the
+     temporary variables created in lowering the body. *)
   | N_assign_fun of var * var list * aexp * VSet.t
+
+  (* Module exports of values and functions *)
+  | N_assign_mod_var of Ast.modident * Ast.ident * aexp
+  | N_assign_mod_fun of Ast.modident * Ast.ident * var list * aexp * VSet.t
 
   (* side-effects *)
 
@@ -322,7 +326,7 @@ module Node = struct
        labels of the `nt_succcont` and `nt_failcont` for the
        non-terminal's CFG, as specified in its `nt_entry`. *)
     | N_call_nonterm:
-        Ast.ident * (Ast.ident * var) list * return * label * label
+        Ast.mname * Ast.ident * (Ast.ident * var) list * return * label * label
         -> (Block.o, Block.c, unit) node
 
   type entry_node  = (Block.c, Block.o, unit) node
@@ -346,7 +350,7 @@ module Node = struct
       | N_cond_branch (_, _, sc, fl)
       | N_exec_dfa (_, _, sc, fl)
       | N_scan (_, _, _, sc, fl)
-      | N_call_nonterm (_, _, _, sc, fl)
+      | N_call_nonterm (_, _, _, _, sc, fl)
         -> [raw_label_of sc; raw_label_of fl]
       | N_jump (_, l)
       | N_return (_, l)

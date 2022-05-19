@@ -95,11 +95,11 @@ let lookup_decorator_value (name: string) (odecos: decorator list option)
 
 (* Perform the conversion described above, and return an untyped
    non-term node. *)
-let non_term_of_decorator_value (deco: deco_value)
-    : (unit, unit) non_term_instance =
+let non_term_of_decorator_value lm (deco: deco_value)
+    : (unit, unit, mod_qual) non_term_instance =
   let mk_bool s loc =
     let bool = Location.mk_loc_val "bool" loc in
-    let v = E_constr ((bool, Location.mk_loc_val s loc), []) in
+    let v = E_constr ((AstUtils.stdlib, bool, Location.mk_loc_val s loc), []) in
     AstUtils.make_expr_loc v loc in
   let n, args = deco in
   if not (AstUtils.is_valid_nonterm_name (Location.value n))
@@ -130,22 +130,22 @@ let non_term_of_decorator_value (deco: deco_value)
                       av :: acc
               ) [] args in
           Some (List.rev ia) in
-  n, iattrs
+  lm, n, iattrs
 
 (* helpers to check format decorators *)
-let get_whitespace_nonterm deco =
+let get_whitespace_nonterm lm deco =
   match lookup_decorator_value "whitespace" deco with
     | None ->
         None
     | Some a ->
-        Some (non_term_of_decorator_value a)
+        Some (non_term_of_decorator_value lm a)
 
 (* top-level check on decorators *)
-let check_decorator deco =
+let check_decorator lm deco =
   pre_check_format_decorator deco;
   (* Currently, the only supported decorator is 'whitespace'.  If
      specified, it should name a valid non-terminal. *)
-  ignore (get_whitespace_nonterm deco)
+  ignore (get_whitespace_nonterm lm deco)
 
 (* This decorator results in all the rules of the non-terminal being
    pre-processed to insert the specified whitespace token at
@@ -163,9 +163,9 @@ let check_decorator deco =
    constructions or cursor-dependent computations are used, the result
    should be equivalent to a conventional text-based parser.
  *)
-let fixup_for_whitespace (ntd: (unit, unit) non_term_defn)
-      (ws: (unit, unit) non_term_instance)
-    : (unit, unit) non_term_defn =
+let fixup_for_whitespace (ntd: (unit, unit, mod_qual) non_term_defn)
+      (ws: (unit, unit, mod_qual) non_term_instance)
+    : (unit, unit, mod_qual) non_term_defn =
     (* Inspect the gap between two consecutive rule elements and
        insert the whitespace token in the gap provided:
 
@@ -270,6 +270,7 @@ let fixup_for_whitespace (ntd: (unit, unit) non_term_defn)
     let mk_ws_elem loc =
       {rule_elem = RE_non_term ws;
        rule_elem_loc = loc;
+       rule_elem_mod = ntd.non_term_mod;
        rule_elem_aux = ()} in
     let next_acc iloc =
       if ws_allowed
@@ -353,7 +354,7 @@ let fixup_for_whitespace (ntd: (unit, unit) non_term_defn)
                 List.map process_rule ntd.non_term_rules} in
   let n = Location.value ntd.non_term_name in
   if StringSet.mem n !display_decorated
-  then (AstPrinter.print_nterm_defn (fun _ -> "") ntd;
+  then (AstPrinter.print_nterm_defn AstPrinter.auxp_cooked ntd;
         AstPrinter.pp_flush ();
         Printf.printf "\n");
   ntd

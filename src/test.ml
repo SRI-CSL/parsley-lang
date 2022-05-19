@@ -21,6 +21,7 @@ open Parsing
 open Ast
 open Lexing
 module I = Parser.MenhirInterpreter
+open Typing
 open Interpreter
 
 (* Don't use the one from errors.ml since we don't want to exit on
@@ -33,6 +34,9 @@ let handle_exception msg bt =
 (* Simplified version of parser from SpecParser to parse
    self-contained specs in a string as opposed to a top-level file. *)
 let parse_spec test s cont =
+  (* set the current module *)
+  cur_module := Some "Test";
+
   let lexbuf = from_string s in
   let lexbuf = {lexbuf with
                  lex_curr_p = {pos_fname = test;
@@ -76,8 +80,13 @@ let gen_ir (test_name: string) (spec: string) : ir option =
   let includes = SpecParser.StringSet.empty in
   let spec =
     parse_spec test_name spec (fun ast ->
-        let ast = SpecParser.flatten [] includes ast.pre_decls in
-        Some {decls = List.rev ast}
+        let pre_ast = SpecParser.flatten [] includes ast.pre_decls in
+        let pre_spec = {pre_decls = List.rev pre_ast} in
+        let bltins =
+          Qualify_ast.({bltin_type    = TypeAlgebra.is_builtin_type;
+                        bltin_value   = TypeAlgebra.is_builtin_value;
+                        bltin_nonterm = TypeAlgebra.is_builtin_nonterm}) in
+        Some (Qualify_ast.convert_spec bltins pre_spec)
       ) in
   match spec with
     | None   -> None

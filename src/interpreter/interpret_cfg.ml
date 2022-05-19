@@ -37,6 +37,15 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
     | N_assign_fun (fv, pvs, bd, _) ->
         let st_fenv = FEnv.assign s.st_fenv fv pvs bd in
         {s with st_fenv}
+    | N_assign_mod_var (m, v, ae) ->
+        let vl = val_of_aexp s ae in
+        let m, v = Location.value m, Location.value v in
+        let st_mvenv = MVEnv.assign s.st_mvenv (m, v) vl loc in
+        {s with st_mvenv}
+    | N_assign_mod_fun (m, f, pvs, bd, _) ->
+        let m, f = Location.value m, Location.value f in
+        let st_mfenv = MFEnv.assign s.st_mfenv (m, f) pvs bd loc in
+        {s with st_mfenv}
     | N_action sts ->
         List.fold_left eval_stmt s sts
     | N_enter_bitmode ->
@@ -263,8 +272,9 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
                                st_cur_view = vu} in
                do_jump loc s lsc)
 
-    | Cfg.Node.N_call_nonterm (nt, params, ret, lsc, lf)
-         when is_std_nonterm (Location.value nt) ->
+    | Cfg.Node.N_call_nonterm (m, nt, params, ret, lsc, lf)
+         when m = AstUtils.stdlib
+              && is_std_nonterm (Location.value nt) ->
         assert (s.st_mode = Mode_normal);
         (* We don't have an nt_entry for stdlib non-terminals, so
            just evaluate the attribute values and dispatch. *)
@@ -295,7 +305,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
                (* Transfer control to the failure continuation. *)
                do_jump loc s lf
         )
-    | Cfg.Node.N_call_nonterm (nt, params, ret, lsc, lf) ->
+    | Cfg.Node.N_call_nonterm (_, nt, params, ret, lsc, lf) ->
+        (* TODO: handle cross module calls *)
         assert (s.st_mode = Mode_normal);
         let ent = get_ntentry s nt in
         let ntn = Location.value nt in

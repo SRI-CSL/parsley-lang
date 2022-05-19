@@ -68,7 +68,8 @@ module FEnv = struct
 
   let empty = Bindings.empty
 
-  let assign (t: t) (fv: Anf.var) (params: Anf.var list) (b: Anf.aexp) : t =
+  let assign (t: t) (fv: Anf.var) (params: Anf.var list) (b: Anf.aexp)
+      : t =
     if   Bindings.mem (Anf.(fv.v)) t
     then let fs = Anf_printer.string_of_var fv.v in
          let err = Duplicate_function_binding fs in
@@ -78,8 +79,57 @@ module FEnv = struct
   let lookup (t: t) (v: Anf.varid) (l: Location.t)
       : (Anf.var list * Anf.aexp) =
     match Bindings.find_opt v t with
-      | None         -> internal_error l (No_binding_for_read v)
+      | None             -> internal_error l (No_binding_for_read v)
       | Some (_, ps, bd) -> ps, bd
+end
+
+(* Module value environment *)
+module ModBindings = Map.Make(struct type t = string * string
+                                     let compare = compare
+                              end)
+module MVEnv = struct
+  type t = (Values.value * Location.t) ModBindings.t
+
+  let empty = ModBindings.empty
+
+  let assign (t: t) (mv: ModBindings.key) (vl: Values.value) (l: Location.t)
+      : t =
+    if   ModBindings.mem mv t
+    then let m, v = mv in
+         let err  = Duplicate_mod_value_binding (m, v) in
+         internal_error l err
+    else ModBindings.add mv (vl, l) t
+
+  let lookup (t: t) (mv: ModBindings.key) (l: Location.t)
+      : Values.value =
+    match ModBindings.find_opt mv t with
+      | Some (vl, _) -> vl
+      | None         -> let m, v = mv in
+                        let err = No_mod_binding_for_read (m, v) in
+                        internal_error l err
+end
+
+(* Module function environment *)
+module MFEnv = struct
+  type t = (Anf.var list * Anf.aexp) ModBindings.t
+
+  let empty = ModBindings.empty
+
+  let assign (t: t) (fv: ModBindings.key) (params: Anf.var list) (b: Anf.aexp)
+        (l: Location.t) : t =
+    if   ModBindings.mem fv t
+    then let m, v = fv in
+         let err = Duplicate_mod_value_binding (m, v) in
+         internal_error l err
+    else ModBindings.add fv (params, b) t
+
+  let lookup (t: t) (fv: ModBindings.key) (l: Location.t)
+      : (Anf.var list * Anf.aexp) =
+    match ModBindings.find_opt fv t with
+      | Some (ps, bd) -> ps, bd
+      | None          -> let m, v = fv in
+                         let err = No_mod_binding_for_read (m, v) in
+                         internal_error l err
 end
 
 (* Label bindings *)
@@ -109,6 +159,8 @@ and state =
    st_mode:         mode;
    st_venv:         VEnv.t;
    st_fenv:         FEnv.t;
+   st_mvenv:        MVEnv.t;
+   st_mfenv:        MFEnv.t;
    st_view_stk:     Values.view list;  (* stack of views (minus top-of-stack) *)
    st_cur_view:     Values.view;       (* current view (top-of-view-stack) *)
    st_ctrl_stk:     call_frame list}

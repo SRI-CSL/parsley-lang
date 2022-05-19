@@ -219,6 +219,17 @@ let list_removeq x = function
 
 let const f = fun _v -> f
 
+let array_associ_opt x a =
+  let len = Array.length a in
+  let rec chop i =
+    if i < len then
+      if fst a.(i) = x then Some i
+      else chop (i + 1)
+    else
+      None
+  in
+    chop 0
+
 let array_associ x a =
   let len = Array.length a in
   let rec chop i =
@@ -294,12 +305,6 @@ let one_of e1 e2 =
       | (Some v1, None), (None, Some ex)   -> Left  (v1, ex)
       | (None, Some ex), (Some v2, None)   -> Right (v2, ex)
       | _                                  -> assert false
-
-let reraise e exn1 exn2 =
-  try e () with ex when ex = exn1 -> raise exn2 | ex -> raise ex
-
-let just_try e =
-  try Some (e ()) with Not_found -> None
 
 let ( ^^ ) = ( ^ )
 

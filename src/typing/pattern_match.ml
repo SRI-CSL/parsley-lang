@@ -33,10 +33,10 @@ let mk_head_instance p =
         assert false
     | P_literal _ ->
         p
-    | P_variant ((typ, constr), ps) ->
+    | P_variant ((m, typ, constr), ps) ->
         let ps' =
           List.map (fun p -> {p with pattern = P_wildcard}) ps in
-        {p with pattern = P_variant ((typ, constr), ps')}
+        {p with pattern = P_variant ((m, typ, constr), ps')}
 
 let pick_missed_int il =
   let module IntSet = Set.Make(Nativeint) in
@@ -111,24 +111,25 @@ let pick_missed_constructor tenv signature =
             ) signature in
         let v = pick_missed_bitvector l (List.length bv) in
         {p with pattern = P_literal (PL_bitvector v)}
-    | P_variant ((typ, _), ps) ->
+    | P_variant ((m, typ, _), ps) ->
         let cs =
           List.map (fun p ->
               match p.pattern with
-                | P_variant ((typ', c), _) ->
+                | P_variant ((m', typ', c), _) ->
+                    assert (AstUtils.mod_equiv m m');
                     assert (Location.value typ' = Location.value typ);
                     c
                 | _ ->
                     assert false
             ) signature in
-        let unused = unused_constructors tenv typ cs in
+        let unused = unused_constructors tenv m typ cs in
         assert (not (StringSet.is_empty unused));
         let c = Location.mk_ghost (StringSet.choose unused) in
-        let p = {p with pattern = P_variant ((typ, c), ps)} in
+        let p = {p with pattern = P_variant ((m, typ, c), ps)} in
         mk_head_instance p
 
 type pmat =
-  ((MultiEquation.crterm, TypeInfer.varid) pattern list * unit) list
+  ((MultiEquation.crterm, TypeInfer.varid, mod_qual) pattern list * unit) list
 
 let rec check_matrix tenv (mat: pmat) cols wildcard =
   match mat with
@@ -200,7 +201,13 @@ let check_exhaustiveness tenv col =
                ()
            | Some exs ->
                assert (List.length exs > 0);
-               let ex = AstPrinter.sprint_pattern (List.hd exs) in
+               let auxp =
+                 AstPrinter.({auxp_var = (fun _ -> "");
+                              auxp_mod = auxp_cooked_mod;
+                              auxp_con = mk_auxp_con auxp_cooked_mod;
+                              auxp_aux = (fun _ -> "")}) in
+               let printer = AstPrinter.(sprint_pattern auxp) in
+               let ex = printer (List.hd exs) in
                raise (Error (p.pattern_loc, UnmatchedPattern ex))
         )
 
@@ -236,13 +243,13 @@ let check_pattern tenv col : unit =
 
 (* map from (unwrapped) expressions to their (unwrapped) binding constructors *)
 module ExpConstraint =
-  Map.Make(struct type t = (unit, unit) expr
+  Map.Make(struct type t = (unit, unit, mod_qual) expr
                   let compare = compare
            end)
 
 let add_constraint ctx e c =
-  let e = AstUtils.unwrap_exp e in
-  let c = AstUtils.unwrap_constructor c in
+  let e = TypedAstUtils.unwrap_exp e in
+  let c = TypedAstUtils.unwrap_constructor c in
   let cs = ExpConstraint.find_opt e ctx in
   let cs = match cs with
       | None    -> [c]
@@ -250,8 +257,8 @@ let add_constraint ctx e c =
   ExpConstraint.add e cs ctx
 
 let has_constraint ctx e c =
-  let e = AstUtils.unwrap_exp e in
-  let c = AstUtils.unwrap_constructor c in
+  let e = TypedAstUtils.unwrap_exp e in
+  let c = TypedAstUtils.unwrap_constructor c in
   match ExpConstraint.find_opt e ctx with
     | None    -> false
     | Some cs -> List.mem c cs
@@ -284,7 +291,7 @@ and descend_expr (ctx, acc) e =
           List.fold_left descend_expr (ctx, acc) (f :: args)
       | E_binop (_, l, r) ->
           descend_expr (descend_expr (ctx, acc) l) r
-      | E_recop (_, _, e) ->
+      | E_recop (_, e) ->
           descend_expr (ctx, acc) e
       | E_bitrange (e, _, _) ->
           descend_expr (ctx, acc) e
@@ -336,7 +343,7 @@ and descend_rule acc r =
 (* propagate the pattern constraint only across constraint rule elements *)
 and descend_rule_elem (ctx, acc) re =
   match re.rule_elem with
-    | RE_non_term (_, None)
+    | RE_non_term (_, _, None)
     | RE_bitvector _
     | RE_align _
     | RE_pad _
@@ -357,7 +364,7 @@ and descend_rule_elem (ctx, acc) re =
     | RE_constraint e
     | RE_set_view e ->
         descend_expr (ctx, acc) e
-    | RE_non_term (_, Some ias) ->
+    | RE_non_term (_, _, Some ias) ->
         ctx,
         List.fold_left (fun acc (_, _, e) ->
             snd (descend_expr (ctx, acc) e)
@@ -411,7 +418,7 @@ and descend_stmt (ctx, acc) s =
     | S_print e ->
         descend_expr (ctx, acc) e
 
-let check_patterns tenv (spec: (MultiEquation.crterm, TypeInfer.varid) Ast.program)  =
+let check_patterns tenv (spec: (MultiEquation.crterm, TypeInfer.varid) Ast.spec_module)  =
   let ctx = ExpConstraint.empty in
   let check_fun f =
     List.iter

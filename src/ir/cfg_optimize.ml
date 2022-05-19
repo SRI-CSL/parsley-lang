@@ -176,10 +176,10 @@ let retarget_exit (map: Label.label LabelMap.t) (nd: Node.exit_node)
         let ls = retarget_label map ls in
         let lf = retarget_label map lf in
         N_scan (l, s, v, ls, lf)
-    | N_call_nonterm (nt, ps, r, ls, lf) ->
+    | N_call_nonterm (m, nt, ps, r, ls, lf) ->
         let ls = retarget_label map ls in
         let lf = retarget_label map lf in
-        N_call_nonterm (nt, ps, r, ls, lf)
+        N_call_nonterm (m, nt, ps, r, ls, lf)
     (* this should not be needed *)
     | _ ->
         assert false

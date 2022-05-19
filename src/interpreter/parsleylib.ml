@@ -467,11 +467,19 @@ type arg1 = Location.t -> value -> value
 type arg2 = Location.t -> value -> value -> value
 type arg3 = Location.t -> value -> value -> value -> value
 
+module StringSet = Set.Make(String)
+
 type dtable =
-  {dt_0arg: arg0 DTable.t;
+  {dt_mods: StringSet.t;
+   dt_0arg: arg0 DTable.t;
    dt_1arg: arg1 DTable.t;
    dt_2arg: arg2 DTable.t;
    dt_3arg: arg3 DTable.t}
+
+let collect_mods acc l =
+  List.fold_left (fun acc ((m, _), _) ->
+      StringSet.add m acc
+    ) acc l
 
 let mk_dtable () : dtable =
   let arg0s = [
@@ -519,12 +527,20 @@ let mk_dtable () : dtable =
   let arg3s = [
       ("Map", "add"),                 PMap.add;
     ] in
-  {dt_0arg = DTable.of_seq (List.to_seq arg0s);
+  let mods = collect_mods StringSet.empty arg0s in
+  let mods = collect_mods mods arg1s in
+  let mods = collect_mods mods arg2s in
+  let mods = collect_mods mods arg3s in
+  {dt_mods = mods;
+   dt_0arg = DTable.of_seq (List.to_seq arg0s);
    dt_1arg = DTable.of_seq (List.to_seq arg1s);
    dt_2arg = DTable.of_seq (List.to_seq arg2s);
    dt_3arg = DTable.of_seq (List.to_seq arg3s)}
 
 let dtable: dtable = mk_dtable ()
+
+let is_stdlib_mod (m: string) : bool =
+  StringSet.mem m dtable.dt_mods
 
 let dispatch_stdlib lc (m: string) (f: string) (vs: value list)
     : value =

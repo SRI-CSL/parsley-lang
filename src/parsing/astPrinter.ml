@@ -16,22 +16,30 @@
 (**************************************************************************)
 
 open Ast
-open Format
 
 let print_module_member_types = false
 
-let ppf = ref std_formatter
+let ppf = ref Format.std_formatter
 
-let pp_string    = pp_print_string !ppf
-let pp_open_box  = pp_open_box !ppf
-let pp_open_vbox = pp_open_vbox !ppf
-let pp_open_hbox = pp_open_hbox !ppf
-let pp_close_box = pp_close_box !ppf
-let pp_break     = pp_print_break !ppf
-let pp_flush     = pp_print_flush !ppf
-let pp_newline   = pp_print_newline !ppf
-let pp_cut       = pp_print_cut !ppf
-let pp_space     = pp_print_space !ppf
+let pp_string    = Format.pp_print_string !ppf
+let pp_open_box  = Format.pp_open_box !ppf
+let pp_open_vbox = Format.pp_open_vbox !ppf
+let pp_open_hbox = Format.pp_open_hbox !ppf
+let pp_close_box = Format.pp_close_box !ppf
+let pp_break     = Format.pp_print_break !ppf
+let pp_flush     = Format.pp_print_flush !ppf
+let pp_newline   = Format.pp_print_newline !ppf
+let pp_cut       = Format.pp_print_cut !ppf
+let pp_space     = Format.pp_print_space !ppf
+
+(* printer paramaterization *)
+type ('a, 'b, 'm) auxp =
+  {auxp_var: 'b var   -> string;
+   auxp_mod: 'm modul -> string;
+   auxp_con: ('m modul * ident * ident) -> string;
+   auxp_aux: 'a       -> string}
+
+(* printers for generic ast *)
 
 let rec print_list sep printer = function
   | [] -> ()
@@ -39,11 +47,8 @@ let rec print_list sep printer = function
       printer e
   | h :: t ->
       printer h;
-      pp_string  sep;
+      pp_string sep;
       print_list sep printer t
-
-let string_of_constructor (t, c) =
-  AstUtils.canonicalize_dcon (Location.value t) (Location.value c)
 
 let str_of_unop = function
   | Uminus -> "-"
@@ -90,26 +95,31 @@ let rec print_kind = function
       pp_string ") -> ";
       print_kind k2
 
-let rec print_type_expr ?paren te =
-  match te.type_expr with
-    | TE_tvar t
-    | TE_tname t ->
-        pp_string (Location.value t)
-    | TE_tapp ({type_expr = TE_tvar t; _}, args)
-         when Location.value t = "->" ->
-        if paren <> None then pp_string "(";
-        print_list " -> " print_type_expr args;
-        if paren <> None then pp_string ")";
-    | TE_tapp (con, args) ->
-        if paren <> None then pp_string "(";
-        print_type_expr con;
-        if   List.length args > 0
-        then (pp_string "(";
-              print_list ", " print_type_expr args;
-              pp_string ")");
-        if paren <> None then pp_string ")"
+let print_type_expr (type a b m) (auxp: (a, b, m) auxp) ?paren
+      (te: m gen_type_expr) =
+  let rec printer te =
+    match te.type_expr with
+      | TE_tvar t ->
+          pp_string (Location.value t)
+      | TE_tname (m, t) ->
+          pp_string (Printf.sprintf "%s%s"
+                       (auxp.auxp_mod m) (Location.value t))
+      | TE_tapp ({type_expr = TE_tname (_, t); _}, args)
+           when Location.value t = "->" ->
+          if paren <> None then pp_string "(";
+          print_list " -> " printer args;
+          if paren <> None then pp_string ")";
+      | TE_tapp (con, args) ->
+          if paren <> None then pp_string "(";
+          printer con;
+          if   List.length args > 0
+          then (pp_string "(";
+                print_list ", " printer args;
+                pp_string ")");
+          if paren <> None then pp_string ")" in
+  printer te
 
-let print_type_rep tr =
+let print_type_rep (type a b m) (auxp: (a, b, m) auxp) (tr: m gen_type_rep) =
   match tr.type_rep with
     | TR_variant cons ->
         let print_data_cons dc =
@@ -119,7 +129,7 @@ let print_type_rep tr =
             | id, Some te ->
                 pp_string (Location.value id);
                 pp_string " of ";
-                print_type_expr te
+                print_type_expr auxp te
             | id, None ->
                 pp_string (Location.value id) in
         pp_open_vbox 0;
@@ -132,7 +142,7 @@ let print_type_rep tr =
         print_list ", " (fun (l, t) ->
             pp_string (Location.value l);
             pp_string ": ";
-            print_type_expr t
+            print_type_expr auxp t
           )
           fields;
         pp_string "}"
@@ -149,9 +159,10 @@ let print_type_rep tr =
           fields;
         pp_string "}"
     | TR_defn t ->
-        print_type_expr t
+        print_type_expr auxp t
 
-let print_type_decl td =
+let print_type_decl (type a b m) (auxp: (a, b, m) auxp)
+      (td: m type_decl) =
   pp_open_box  0;
   pp_string "type ";
   pp_string (Location.value td.type_decl_ident);
@@ -164,44 +175,49 @@ let print_type_decl td =
   pp_string " : ";
   print_kind td.type_decl_kind;
   pp_string " = ";
-  print_type_rep td.type_decl_body;
+  print_type_rep auxp td.type_decl_body;
   pp_close_box ();
   pp_cut ();
   pp_newline ()
 
-let rec print_pattern auxp p =
-  match p.pattern with
-    | P_wildcard ->
-        pp_string "_"
-    | P_var id ->
-        pp_string (var_name id);
-        pp_string (auxp p.pattern_aux)
-    | P_literal l ->
-        pp_string (string_of_literal l)
-    | P_variant (c, ps) ->
-        pp_string (string_of_constructor c);
-        if   List.length ps > 0
-        then (pp_string "(";
-              print_list ", " (print_pattern auxp) ps;
-              pp_string ")")
+let print_pattern (type a b m) (auxp: (a, b, m) auxp)
+      (p: (a, b, m) pattern) =
+  let rec printer p =
+    match p.pattern with
+      | P_wildcard ->
+          pp_string "_"
+      | P_var id ->
+          pp_string (auxp.auxp_var id);
+          pp_string (auxp.auxp_aux p.pattern_aux)
+      | P_literal l ->
+          pp_string (string_of_literal l)
+      | P_variant (c, ps) ->
+          pp_string (auxp.auxp_con c);
+          if   List.length ps > 0
+          then (pp_string "(";
+                print_list ", " printer ps;
+                pp_string ")") in
+  printer p
 
-let rec sprint_pattern p =
-  match p.pattern with
-    | P_wildcard | P_var _   -> "_"
-    | P_literal PL_unit      -> "()"
-    | P_literal (PL_bytes s) -> "\"" ^ s ^ "\""
-    | P_literal (PL_int i)   -> Printf.sprintf "%d" i
-    | P_literal (PL_bool b)  -> if b then "bool::True()" else "bool::False()"
-    | P_literal (PL_bit b)   -> if b then "bit::One()" else "bit::Zero()"
-    | P_literal (PL_bitvector bv) ->
-        "0b" ^
-          (String.concat "" (List.map (fun b -> if b then "1" else "0") bv))
-    | P_variant (c, ps) ->
-        let con = string_of_constructor c in
-        if   List.length ps = 0
-        then con
-        else let args = List.map sprint_pattern ps in
-             Printf.sprintf "%s(%s)" con (String.concat ", " args)
+let sprint_pattern (type a b m) (auxp: (a, b, m) auxp) p : string =
+  let rec printer p =
+    match p.pattern with
+      | P_wildcard | P_var _   -> "_"
+      | P_literal PL_unit      -> "()"
+      | P_literal (PL_bytes s) -> "\"" ^ s ^ "\""
+      | P_literal (PL_int i)   -> Printf.sprintf "%d" i
+      | P_literal (PL_bool b)  -> if b then "bool::True()" else "bool::False()"
+      | P_literal (PL_bit b)   -> if b then "bit::One()" else "bit::Zero()"
+      | P_literal (PL_bitvector bv) ->
+          "0b" ^
+            (String.concat "" (List.map (fun b -> if b then "1" else "0") bv))
+      | P_variant (c, ps) ->
+          let con = auxp.auxp_con c in
+          if   List.length ps = 0
+          then con
+          else let args = List.map printer ps in
+               Printf.sprintf "%s(%s)" con (String.concat ", " args) in
+  printer p
 
 let rec print_clause auxp (p, e) =
   pp_string "| ";
@@ -222,10 +238,10 @@ and print_clauses auxp = function
 and print_expr auxp e =
   match e.expr with
     | E_var i ->
-        pp_string (var_name i);
-        pp_string (auxp e.expr_aux)
+        pp_string (auxp.auxp_var i);
+        pp_string (auxp.auxp_aux e.expr_aux)
     | E_constr (c, args) ->
-        pp_string (string_of_constructor c);
+        pp_string (auxp.auxp_con c);
         pp_string "(";
         print_list ", " (print_expr auxp) args;
         pp_string ")"
@@ -265,8 +281,8 @@ and print_expr auxp e =
         pp_string (Printf.sprintf " %s " (str_of_binop b));
         print_expr auxp r;
         pp_string ")"
-    | E_recop (r, rop, e) ->
-        let r = Printf.sprintf "%s->%s"
+    | E_recop ((m, r, rop), e) ->
+        let r = Printf.sprintf "%s%s->%s" (auxp.auxp_mod m)
                   (Location.value r) (Location.value rop) in
         pp_string  r;
         pp_string "(";
@@ -294,7 +310,7 @@ and print_expr auxp e =
               pp_string (Printf.sprintf "%s.%s"
                            (Location.value m) (Location.value i));
               pp_string ": ";
-              pp_string (auxp e.expr_aux);
+              pp_string (auxp.auxp_aux e.expr_aux);
               pp_string ") ")
         else pp_string (Printf.sprintf "%s.%s"
                           (Location.value m) (Location.value i))
@@ -302,7 +318,7 @@ and print_expr auxp e =
         pp_string "(";
         print_expr auxp e;
         pp_string " ~~ ";
-        pp_string (string_of_constructor c);
+        pp_string (auxp.auxp_con c);
         pp_string ")"
     | E_case (d, clauses) ->
         pp_open_vbox  2;
@@ -325,18 +341,18 @@ and print_expr auxp e =
         pp_string "(";
         print_expr auxp e;
         pp_string " : ";
-        print_type_expr t;
+        print_type_expr auxp t;
         pp_string ")"
 
-let print_param_decl (pm, ty, _) =
-  pp_string (var_name pm);
+let print_param_decl auxp (pm, ty, _) =
+  pp_string (auxp.auxp_var pm);
   pp_string ": ";
-  print_type_expr ty
+  print_type_expr auxp ty
 
 let print_attr_decl auxp (pm, ty, _, ex) =
   pp_string (Location.value pm);
   pp_string ": ";
-  print_type_expr ty;
+  print_type_expr auxp ty;
   (match ex with
      | None -> ()
      | Some e ->
@@ -346,7 +362,7 @@ let print_attr_decl auxp (pm, ty, _, ex) =
 let print_temp_decl auxp (pm, ty, e) =
   pp_string (var_name pm);
   pp_string ": ";
-  print_type_expr ty;
+  print_type_expr auxp ty;
   pp_string " := ";
   print_expr auxp e
 
@@ -362,10 +378,10 @@ let print_fun_defn prefix auxp fd =
           ) fd.fun_defn_tvars;
         pp_string ">");
   pp_string "(";
-  print_list ", " print_param_decl fd.fun_defn_params;
+  print_list ", " (print_param_decl auxp) fd.fun_defn_params;
   pp_string ")";
   pp_string " -> ";
-  print_type_expr fd.fun_defn_res_type;
+  print_type_expr auxp fd.fun_defn_res_type;
   pp_string " = {";
   pp_close_box ();
   pp_cut ();
@@ -398,19 +414,20 @@ let print_attributes auxp at op cl =
               print_list ", " (print_attr_decl auxp) pd;
               pp_string  cl)
 
-let rec print_literal_set ls =
+let rec print_literal_set auxp ls =
   match ls.literal_set with
-    | LS_type id ->
-        pp_string (Location.value id)
+    | LS_type (m, id) ->
+        pp_string (Printf.sprintf "%s%s"
+                     (auxp.auxp_mod m) (Location.value id))
     | LS_set l ->
         print_list " | " (fun e ->
             pp_string (Printf.sprintf "\"%s\"" (Location.value e))
           ) l
     | LS_diff (l, r) ->
         pp_string "(";
-        print_literal_set l;
+        print_literal_set auxp l;
         pp_string " \ ";
-        print_literal_set r;
+        print_literal_set auxp r;
         pp_string ")"
     | LS_range (b, e) ->
         pp_string "(";
@@ -425,12 +442,13 @@ let rec print_regexp auxp re =
         pp_string "$epsilon"
     | RX_literals ls ->
         pp_string "[";
-        print_literal_set ls;
+        print_literal_set auxp ls;
         pp_string "]"
     | RX_wildcard ->
         pp_string "#"
-    | RX_type t ->
-        pp_string (Location.value t)
+    | RX_type (m, t) ->
+        pp_string (Printf.sprintf "%s%s"
+                     (auxp.auxp_mod m) (Location.value t))
     | RX_star (re, bound) ->
         (match bound with
            | Some e ->
@@ -540,17 +558,18 @@ let rec print_rule_elem auxp rl =
         pp_string "#) "
     | RE_epsilon ->
         pp_string "$epsilon"
-    | RE_non_term (nt, attr_opt) ->
-        pp_string (Location.value nt);
+    | RE_non_term (m, nt, attr_opt) ->
+        pp_string (Printf.sprintf "%s%s"
+                     (auxp.auxp_mod m) (Location.value nt));
         (match attr_opt with
            | Some attrs ->
-               pp_print_string !ppf "<";
+               pp_string "<";
                print_list ", " (fun (k, a, v) ->
-                   pp_print_string !ppf (Location.value k);
+                   pp_string (Location.value k);
                    let s = match a with
                        | A_eq -> " = "
                        | A_in -> " <- " in
-                   pp_print_string !ppf s;
+                   pp_string s;
                    print_expr auxp v
                  ) attrs;
                pp_string ">";
@@ -583,8 +602,8 @@ let rec print_rule_elem auxp rl =
     | RE_action a ->
         print_action auxp a
     | RE_named (id, rl) ->
-        pp_string (var_name id);
-        pp_string (auxp rl.rule_elem_aux);
+        pp_string (auxp.auxp_var id);
+        pp_string (auxp.auxp_aux rl.rule_elem_aux);
         pp_string "= ";
         print_rule_elem auxp rl
     | RE_seq rls | RE_seq_flat rls ->
@@ -657,10 +676,13 @@ let print_nterm_defn auxp nd =
   pp_string (Location.value nd.non_term_name);
   (match nd.non_term_varname with
      | Some v -> pp_string " ";
-                 pp_string (var_name v)
+                 pp_string (auxp.auxp_var v);
+                 pp_string " ";
      | None   -> ());
   if   List.length nd.non_term_inh_attrs > 0
-  then print_list ", " print_param_decl nd.non_term_inh_attrs;
+  then (pp_string "(";
+        print_list ", " (print_param_decl auxp) nd.non_term_inh_attrs;
+        pp_string ")");
   pp_break  1 2;
   print_attributes auxp nd.non_term_syn_attrs "{" "}";
   pp_string " :=";
@@ -695,21 +717,81 @@ let print_format auxp f =
 let print_const auxp c =
   pp_open_box  0;
   pp_string "const ";
-  pp_string (var_name c.const_defn_ident);
+  pp_string (auxp.auxp_var c.const_defn_ident);
   pp_string " : ";
-  print_type_expr c.const_defn_type;
+  print_type_expr auxp c.const_defn_type;
   pp_string " = ";
   print_expr auxp c.const_defn_val;
   pp_close_box ();
   pp_cut ();
   pp_newline ()
 
+(* custom ast printers *)
+
+let auxp_unit_aux = fun () -> ""
+
+let auxp_raw_mod = function
+  | Modul None     -> ""
+  | Modul (Some m) -> (Location.value m) ^ "."
+
+let auxp_cooked_mod = AstUtils.mk_modprefix
+
+let mk_auxp_con auxp_mod (m, t, c) =
+  let dcon =
+    AstUtils.canonicalize_dcon (Location.value t) (Location.value c) in
+  Printf.sprintf "%s%s" (auxp_mod m) dcon
+
+let auxp_raw : (unit, unit, raw_mod) auxp =
+  {auxp_var = var_name;
+   auxp_aux = auxp_unit_aux;
+   auxp_mod = auxp_raw_mod;
+   auxp_con = mk_auxp_con auxp_raw_mod}
+
+let auxp_cooked : (unit, unit, mod_qual) auxp =
+  {auxp_var = var_name;
+   auxp_aux = auxp_unit_aux;
+   auxp_mod = auxp_cooked_mod;
+   auxp_con = mk_auxp_con auxp_cooked_mod}
+
+let mk_auxp_typed aux_printer =
+  {auxp_var = var_name;
+   auxp_aux = (fun aux ->
+     let s = aux_printer aux in
+     Printf.sprintf " (: %s) " s);
+   auxp_mod = auxp_cooked_mod;
+   auxp_con = mk_auxp_con auxp_cooked_mod}
+
+let string_of_constructor c =
+  mk_auxp_con auxp_cooked_mod c
+
+(* spec printers *)
+
+let print_use u =
+  pp_string "use ";
+  print_list ", " (fun e -> pp_string (Location.value e)) u.use_modules;
+  pp_newline ()
+
+let print_pre_decl auxp d =
+  match d with
+    | PDecl_use u ->
+        print_use u
+    | PDecl_types (typs, _) ->
+        List.iter (print_type_decl auxp) typs
+    | PDecl_const c ->
+        print_const auxp c
+    | PDecl_fun fd ->
+        print_fun_defn "fun " auxp fd
+    | PDecl_recfuns rd ->
+        print_recfun_defns auxp rd.recfuns
+    | PDecl_format f ->
+        print_format auxp f
+
 let print_decl auxp d =
   match d with
     | Decl_const c ->
         print_const auxp c
     | Decl_types (typs, _) ->
-        List.iter print_type_decl typs
+        List.iter (print_type_decl auxp) typs
     | Decl_fun fd ->
         print_fun_defn "fun " auxp fd
     | Decl_recfuns rd ->
@@ -717,25 +799,29 @@ let print_decl auxp d =
     | Decl_format f ->
         print_format auxp f
 
-let rec print_decls auxp = function
+let rec print_decls printer = function
   | []     -> ()
   | h :: t -> (pp_open_box  0;
-               print_decl auxp h;
+               printer h;
                pp_newline ();
                pp_newline ();
                pp_close_box ();
-               print_decls auxp t)
+               print_decls printer t)
 
-let print_spec auxp spec =
-  print_decls auxp spec.decls;
+let print_pre_spec auxp spec =
+  print_decls (print_pre_decl auxp) spec.pre_decls;
   pp_flush ()
 
+let print_spec auxp spec =
+  print_decls (print_decl auxp) spec.decls;
+  pp_flush ()
+
+let print_raw_spec spec =
+  print_pre_spec auxp_raw spec
+
 let print_parsed_spec spec =
-  let auxp () = "" in
-  print_spec auxp spec
+  print_spec auxp_cooked spec
 
 let print_typed_spec type_printer spec =
-  let auxp t =
-    let s = type_printer t in
-    Printf.sprintf " (: %s) " s in
+  let auxp = mk_auxp_typed type_printer in
   print_spec auxp spec

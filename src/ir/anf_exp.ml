@@ -93,7 +93,7 @@ and normalize_exp tenv venv (e: exp) : aexp * VEnv.t =
                  | S_let (v, ae, av) -> (v, ae) :: binds, av :: vs
               ), venv
             ) (([], []), venv) es in
-        let v  = AV_constr (c, List.rev vs) in
+        let v  = AV_constr (convert_con c, List.rev vs) in
         let av = make_av v e.expr_aux e.expr_loc in
         let ae = make_lets binds (wrap (AE_val av)) in
         ae, venv
@@ -159,15 +159,16 @@ and normalize_exp tenv venv (e: exp) : aexp * VEnv.t =
         let ae = wrap (AE_binop (op, lv, rv)) in
         let ae = make_lets binds ae in
         ae, venv
-    | E_recop (r, op, e) ->
-        let bfi = TypedAstUtils.lookup_bitfield_info tenv r in
+    | E_recop ((m, r, op), e) ->
+        let bfi = TypedAstUtils.lookup_bitfield_info tenv m r in
         let se, venv  = subnorm tenv venv e in
         let binds, av = match se with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
+        let m = modul_of_mname m in
         let ae = match Location.value op with
-            | "bits"   -> wrap (AE_bits_of_rec (r, av, bfi))
-            | "record" -> wrap (AE_rec_of_bits (r, av, bfi))
+            | "bits"   -> wrap (AE_bits_of_rec (m, r, av, bfi))
+            | "record" -> wrap (AE_rec_of_bits (m, r, av, bfi))
             | _        -> assert false in
         let ae = make_lets binds ae in
         ae, venv
@@ -184,7 +185,7 @@ and normalize_exp tenv venv (e: exp) : aexp * VEnv.t =
         let binds, av = match se with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
-        let ae = wrap (AE_match (av, c)) in
+        let ae = wrap (AE_match (av, convert_con c)) in
         let ae = make_lets binds ae in
         ae, venv
     | E_field (e, f) ->
@@ -279,10 +280,9 @@ and normalize_exp_case (tenv: TypingEnvironment.environment)
           let cases, venv, opt_typ =
             List.fold_left (fun (cases, venv, _) (con, occ_typ, loc, dt) ->
                 let aexp, venv = unfold venv dt in
-                let to_anf (t, c) = Location.value t, Location.value c in
                 let apat =
                   {apat = (match con with
-                             | Con (c, _) -> AP_variant (to_anf c)
+                             | Con (c, _) -> AP_variant c
                              | Lit l      -> AP_literal l
                              | Default    -> AP_wildcard);
                    apat_typ = occ_typ;
@@ -320,8 +320,9 @@ let normalize_const tenv venv (c: const) : aconst * VEnv.t =
   let cident, venv = VEnv.bind venv c.const_defn_ident in
   let cval, venv = normalize_exp tenv venv c.const_defn_val in
   {aconst_ident = cident;
-   aconst_val = cval;
-   aconst_loc = c.const_defn_loc},
+   aconst_val   = cval;
+   aconst_mod   = c.const_defn_mod;
+   aconst_loc   = c.const_defn_loc},
   venv
 
 let normalize_fun tenv venv (f: func) : afun * VEnv.t =
@@ -339,6 +340,8 @@ let normalize_fun tenv venv (f: func) : afun * VEnv.t =
    afun_body      = body;
    afun_vars      = VEnv.new_since venv entry_venv;
    afun_recursive = f.fun_defn_recursive;
+   afun_synth     = f.fun_defn_synth;
+   afun_mod       = f.fun_defn_mod;
    afun_loc       = f.fun_defn_loc},
   venv
 
@@ -366,6 +369,8 @@ let normalize_recfuns tenv venv (fs: func list)
                   afun_body      = body;
                   afun_vars      = VEnv.new_since venv entry_venv;
                   afun_recursive = f.fun_defn_recursive;
+                  afun_synth     = f.fun_defn_synth;
+                  afun_mod       = f.fun_defn_mod;
                   afun_loc       = f.fun_defn_loc} in
         f' :: fs, venv
       ) ([], venv) (List.combine fids fs) in
@@ -508,10 +513,9 @@ and normalize_stmt_case (tenv: TypingEnvironment.environment)
           let cases, venv, opt_typ =
             List.fold_left (fun (cases, venv, _) (con, occ_typ, loc, dt) ->
                 let astmt, venv = unfold venv dt in
-                let to_anf (t, c) = Location.value t, Location.value c in
                 let apat =
                   {apat = (match con with
-                             | Con (c, _) -> AP_variant (to_anf c)
+                             | Con (c, _) -> AP_variant c
                              | Lit l      -> AP_literal l
                              | Default    -> AP_wildcard);
                    apat_typ = occ_typ;

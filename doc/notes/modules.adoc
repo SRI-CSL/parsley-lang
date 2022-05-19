@@ -1,0 +1,614 @@
+Grammar modules
+===============
+
+. Split into interfaces and implementations ala ML
+
+. + Self-contained specification of interface files
+    . Type-checking of interface files (in isolation)
+
+      Semantics of interfaces are clearer as opposed to previous
+      proposal (below)
+
+    . Similar to FFI interfaces
+
+    . Scales better when spec is split across multiple files;
+      instead of repeating
+
+      `from gram import {
+           type T [as T'] [[= <type-expr>]];
+           non-term NT [as NT'] [[(inherits) : Synth_Type]];
+           fun f [as f'] [[: (pt) -> ret]];
+       }`
+
+      in every file, just specify
+
+      `use Gram`
+
+      which uses the definitions in `gram.pli`
+
+      [The previous version of `use` was meant for
+       within-specification file use, which is better described as
+       `include`.]
+
+  + Requires explicit specification of separate compilation + linking
+
+. Simplifications from ML:
+
+  - No functors
+    . Use inherited attributes for parameterization
+    . Could extend this if we add first-class parsers
+
+  - No nested modules
+
+    => All module paths have at most one module element
+
+    => Module components are
+      `Gram.t` (types),
+      `Gram.NT` (non-terminals),
+      `Gram.t::Constructor()` (data constructors),
+      `Gram.(r.field)` (record fields, attributes)
+      `Gram.function` (functions)
+
+  - handling record fields
+
+    type r = {r: A.record, s: B.record}
+
+    let r:r = {r.(A.r) := , r.(A.s) := , s.(B.r) := , s.(B.s) := }
+
+    The above show up in the expressions for types, function bodies
+    and non-terminal rules.
+
+    In a ".pli" file, type definitions may be transparent; however,
+    function bodies are omitted, as are non-terminal productions.  In
+    type definitions in "g.pli" files, the LHS (i.e. the type
+    constructor being defined) cannot be a qualified identifier;
+    however, it belongs in the module "G".  The same applies to
+    function and non-terminal definitions.  There thus needs to be an
+    ambient module specifier "G" with which these definitions are
+    annotated by the parser.  This ambient module will be set by the
+    parsing driver based on the current top-level ".pli" being parsed.
+    It will be un-set when parsing ".ply" files.
+
+    During execution, a similar problem will be encountered: the
+    production rules and function bodies from the imported modules
+    (e.g. "G") will have unannotated references to within-module
+    entities.  For example, a data constructor "t::D" needs to be
+    looked up in the symbol table for module "G".  Hence, when
+    processing function bodies and production rules, we will need to
+    maintain a 'current module' register for the entity we are
+    processig (ANF expression or CFG graph) to use for such symbol
+    (i.e. function name, non-terminal name) lookups.
+
+    However, when we process the type definitions in ".pli" files
+
+    Requires syntax changes to:
+    . type names/variables [done]
+    . constructors [done]
+    . pattern variants / constructors [done]
+    . function and constant names [done]
+    . non-terminal calls
+    . field accessors [todo: non-trivial]
+
+  - When typing identifiers with optional module specifiers, we need
+    to figure out the module in which their type belongs.  To avoid
+    redundancy, we do not require module specifiers for entities in
+    the Parsley stdlib (e.g. for the basic atomic types like `int` or
+    `bool`).
+
+    The AST is parameterized over the module specifier.
+
+    type 'a module = Mod 'a
+
+    which gets transformed during pre-parsing, see below.
+
+    We maintain a `current` module whose file is being parsed.  One
+    important issue is how to handle lookup and entry-creation for
+    non-module-qualified identifiers.
+
+    Handling `current`
+    ------------------
+
+    `current` is set by the parser driver when it opens an `import`
+    file, keeps it in place for any `include` files, and then updates
+    for the next `import`.
+
+    A stack of in-progress `import` is maintained.  This allows the
+    detection of a recursive `import`, which is forbidden.
+
+    [Question: detection of conflicts between `include` files and
+    `import` files; this should be forbidden, and is likely a sign of
+     misconfiguration.]
+
+    Pre-parsing to introduce explicit module qualification
+    ------------------------------------------------------
+
+    The raw parsed AST represents a specification as a tuple,
+    `string * (modident option) AST` i.e. the modules are represented
+    by `(modident option) module` within the AST.  The raw AST only
+    differentiates between identifiers with explicitly specified
+    module qualifiers and non-qualified identifiers.
+
+    This raw AST gets transformed ('cooked') by the pre-parsing stage
+    to use a more informative module specifier
+
+....
+    type mod_qual =
+    | Mod_explicit m
+    | Mod_inferred m
+    | Mod_stdlib
+....
+
+    The transformation of the module representation `m` in a spec "s"
+    is essentially:
+
+....
+    let cook spec_module (mq, ident) =
+        let mq = match mq with
+          | Some m -> if      Set.member(imports, m)
+	              then    Mod_explicit m
+		      else if Set.member(imports_in_progress, m)
+		      then    raise (Recursive_import_error m)
+		      else    Mod_explicit m
+          | None   -> if      TypingEnv.defined_in_stdlib ident
+                      then    Mod_stdlib
+                      else    Mod_inferred spec_module
+....
+
+    For any `Mod_explicit m` specifiers, we need to check whether `m`
+    has been specified as an `import` (i.e. this is a file-local
+    check, there is no check of the processing typing environment).
+
+    For any identifier that does not have a qualifier, it checks
+    whether it is in the Stdlib; if so, `Mod_stdlib` is used as the
+    module qualifier.  Otherwise, it is considered to belong to the
+    `current` module, say `n`, and so is qualified using `Mod_inferred
+    n`.
+
+    `Mod_explicit` and `Mod_inferred` allows us to differentiate
+    between qualifiers introduced by pre-parsing and those specified
+    by the user.  This would at least help error-reporting in a manner
+    matching the original source.
+
+    The top-level spec is treated just like any other module, making
+    the processing uniform and hence simple (i.e. requiring no special
+    cases).
+
+    Entry creation
+    --------------
+
+    Entry creation always occurs in the `current` module.
+
+    All identifiers will be fully qualified; this is now handled by
+    the pre-parsing step above.  The implication is that the
+    `typingEnvironment` will only receive fully-qualified identifiers
+    in type expressions, since the pre-parsing is done before the type
+    checking.  This means that entries will always be created for
+    fully specified identifiers that map to fully specified entries.
+
+    Entry lookup
+    ------------
+
+    Due to pre-parsing now producing always explicitly qualified
+    identifiers, lookups will always be performed on fully qualified
+    identifiers, which in turn will return fully-specified entries.
+
+
+    IR generation and management
+    ----------------------------
+
+    We could have a two stage implementation strategy:
+
+    . without `.pli` support: i.e. implement whole-spec-at-a-time
+      compilation.
+
+      The main constraint on this is that the type-checking engine is
+      not easy to use in an incremental way (i.e. re-use the types
+      computed from one import in another).  Instead, we will
+
+      - initialize the IR set to empty
+      - for each module import in dependency order:
+        - create a new type constraint solver state
+        - type check an import and generate its IR
+        - store this IR in the IR set indexed by the module name
+
+      - the final IR is just a module-indexed collection of these IRs.
+
+   .  with `.pli` support: we can implement separate compilation.
+
+      This requires storing and loading the IR for a module in ".po"
+      files.  This does not require byte-code level IR; we could just
+      leverage OCaml pickles.
+
+      - the linker just bundles the separately compiled files into a
+        single ".pex" file.  [Q: are there any additional sections
+        required in the file?]
+
+
+Implementation strategy
+-----------------------
+
+. Adjust syntax ast and lexer/parser for module paths.
+
+  Define top-level interface and implementation types.
+
+. Define abbreviated syntax for .pli files.
+
+. Extend 'module' to include a full interface (currently, it only has
+  data constructors, but needs to also have types, functions,
+  non-terminals, and record fields.)
+
+. Refactor type-checker for interface + implementation typechecks
+
+. Add `-I` include path options for `check` and `execute` subcommands
+  to specify directories where grammars can be looked up; parse, check
+  and include any specified `.pli` files from these locations.
+
+  Compute dependency order of includes; include them in that order.
+
+  [Later: remove requirement for `.pli` file; can generate default
+  `.pli` file that specifies everything.]
+
+. Backend:
+
+  . Define output IR to include references to imports
+  . Specify a linker to link generated module IRs
+  . Separate compilation (use checksums over interfaces for
+    consistency checks)
+
+
+Implementation detail
+=====================
+
+Parsing
+-------
+
+AST construction is done in the following phases.
+
+1. Construction of the top-level AST
+
+The first phase parses a top-level specification, say from `spec.ply`,
+including all of its includes (and their includes, etc).  This creates
+the pre-AST of module `Spec`.  As it does so, it creates a list of
+spec imports via the `use` declarations in these files.
+
+2. Construction of the pre-ASTs of the dependencies (i.e. imports).
+
+The collection of imports is then processed.  Each import `imp.ply`
+(arising from a `use imp` declaration) is treated as its own complete
+specification, and its top-level file and its recursive includes are
+parsed.  The `use` declarations in each import augment the dependency
+tree.  The top-level file is searched for in the directories provided
+by the `-I` command-line option; the first file with the matching name
+is used.  If a dependency cycle is detected when augmenting the
+dependency graph, an error is reported.
+
+The end of this phase results in a dependency tree of specifications,
+and a map from the name of the specification module (generated by
+capitalizing the first-letter of the top-level filename for the
+specification) to the pre-AST for that module.
+
+3. Conversion of each pre-AST into a corresponding AST.
+
+This essentially involves converting any implicit module reference for
+an identifier into an explicit reference.  E.g. if a type `t` is
+defined in a module `M` and referenced (as `t`) elsewhere in the
+module (e.g. in a function signature or an attribute type), it is
+converted into an (inferred) explicit reference `M.t`.  Any explicit
+module references (e.g. `N.tt`) are left intact.
+
+NOTE: the handling of defined constant and function names needs to
+handle binding scopes of variables: we should not qualify identifiers
+that are under a local binding.
+
+The end of this phase results in the same dependency tree as above,
+but now with a map from module names to their ASTs.
+
+Entities requiring conversion:
+
+- type identifiers [TE_tname]
+- expression identifiers (constants, functions) [E_var -> E_mod_member]
+- data constructors (E_constr, E_match)
+- pattern variants  (P_variant)
+- record operations (E_recop)
+
+next:
+
+- record labels
+- non-term identifiers (RE_non_term, RX_ident)
+- bitfields
+
+
+Typing background
+-----------------
+
+The type constraints in the inference engine are used to type the
+expression language.  The constraint representation embeds the
+environment for value identifiers (e.g. data constructors, record
+fields, function names, local variables, etc.)  It does not maintain
+an environment for type identifiers, necessitating the
+`typingEnvironment`.
+
+The typing environment mainly exists for the processing of type
+expressions: type constructors, data constructors and field
+destructors, and the structure of bitfield records.
+
+The type constructor info:
+
+  This is used to ensure that its arity is respected in type
+  expressions, and to track the constraint variable corresponding to
+  the identifer for the type.  Everytime a type expression in
+  converted into a term in the constraint language, the type
+  identifiers in the type expression are mapped to their corresponding
+  representative constraint variables using the typing environment.
+
+The data constructor info:
+
+  The arity and type signature specified for a data constructor is
+  looked up at every application (considered as a function
+  application), and unified against the function signature required
+  for the actual arguments of the application.  It is also used for
+  pattern matching completeness checks.
+
+The field destructor info is used for:
+
+  Similar to data constructors above.
+
+The fields are also maintained as a set to enable record construction,
+to ensure that all fields are specified.  This gives more useful error
+messages than if record construction was modeled as a function
+application to arguments corresponding to ordered field labels.
+
+Since the Stdlib contains expression variables and non-terminals that
+do not have any definitions in the AST, their types cannot be
+reconstructed by the constraint solver; instead, they have to be
+explicitly specified and given beforehand (similar to axioms).  This
+is maintained in the `values` component of the typing environment.
+This component is initialized at the start of type checking/inference,
+and forms the variable environment in the `CScheme` of the outermost
+`CLet` constraint.
+
+Note: `E_var` and `E_mod_member` use essentially the same typing rule;
+one difference is that for error reporting, `E_var` ensures the
+identifier is registered in the variable environment while
+`E_mod_member` ensures registration of the module item in the typing
+environment.
+
+This needs to be retained when generalizing `E_mod_member` to modules
+other than the Stdlib.  This should be the case, since module
+components such as function names and constants should be compatible
+with the `E_mod_member` rule, while expression and pattern
+constructors (and when ready, record fields) embed their qualification
+into their AST node.
+
+Module slicing
+--------------
+
+To fully type and generate IR for a module, its dependencies need to
+be typed.  In the current implementation, the typing environment is
+populated simultaneously with the construction of the constraint
+context for the constraints generated by the expression
+and grammar sublanguage.
+
+It would be good when typing a module `M` to re-use the typing
+environment constructed by processing dependency modules `[Mi]`.  This
+would require separating out the constraint context generation so that
+it can use definitions already present in a typing environment.
+
+One way to avoid this separation would be to split the two-phased type
+checker across the modules:
+
+                 M1     M2    M3 .... [in dependency order]   M
+
+First phase: process expression language and non-terminal declarations
+             (types, functions, non-terminal types)
+
+Second phase: process grammar rules for each non-terminal
+
+This slices each module into two in order to thread the construction
+of the constraint context across all the modules in two passes.
+
+A similar process is required for actual separate compilation via
+interface files anyway, where the first phase only processes type
+definitions, function and constant type signatures, and non-terminal
+type declarations from the interface files, and the second phase only
+processes the grammar rules from the top-level module `M`.
+
+Docs
+----
+
+. specifications with top-level files that collide with Stdlib modules
+
+. redefinitions of stdlib types and non-terminals (or, module
+  resolution strategy)
+
+. no cross-module regular expressions in regexps and literals (except
+  for Stdlib)
+
+
+Commit message
+--------------
+
+- internal syntax
+- pre-AST + AST, conversion, printers with auxp, current-module
+- constraint variables are module qualified since no differentiation between flexible / constant variable names
+- module-qualified lookups in typing environment
+- stdlib representation change to differentiate between data-constructors and values
+- IR and interpreter changes
+- cli options to show raw(pre-) and converted AST
+- removal of try/except helpers to aid debugging exceptions
+
+===================== OLD ==========================================
+
+    Entry creation
+    --------------
+
+    [ This is now handled by the pre-parsing step above.  The
+      implication is that the `typingEnvironment` will only receive
+      fully-qualified identifiers in type expressions, since the
+      pre-parsing is done before the type checking.  This means that
+      entries will always be created for fully specified identifiers
+      that map to fully specified entries. ]
+
+    Entry creation always occurs in the `current` module.
+
+    When entering the definition of a type, the body of the type
+    expression should be traversed to insert explicit module
+    qualifiers for
+
+    . data constructors/variants and the types in their signatures,
+    . record field destructors,
+    . types in function signatures,
+    . non-terminal types.
+
+    That is, at the time of the creation of any entry in the typing
+    environment, any embedded unqualified entities in entry value are
+    converted into qualified entries using the module in which the
+    entry is being created.
+
+    Entry lookup
+    ------------
+
+    [ Due to pre-parsing now producing always explicitly qualified
+      identifiers, lookups will always be performed on fully qualified
+      identifiers, which in turn will return fully-specified entries. ]
+
+    Approach 1: when looking up, first look up in the `current`
+    module; if not found, then look up in Mod_stdlib.
+
+       Con: If Stdlib types can be overriden, then there could be
+       consistency problems: initial definitions (before the
+       definition of the overridden type) could refer to Stdlib types,
+       and then later definitions (after the overridden type) could
+       refer to the local redefined type.  Since we internally process
+       all non-terminals after all other definitions, the internal
+       reordering might not match user expectations of type-usage in
+       source-ordered definitions.
+
+    Approach 2: when looking up, first look up in Mod_stdlib; if not
+    found, then look up the `current` module.
+
+    We could support override by requiring the module specifier: If
+    module M redefines type `int`, then it could use that type by
+    specifying it as `M.int` (since otherwise `int` would resolve to
+    the Stdlib `int`.)
+
+       Con: We could warn at type definition location about the Stdlib
+       conflict.
+
+===================== OLD ==========================================
+
+Grammar modules
+===============
+
+One grammar module needs to be able to call a non-terminal defined in
+another grammar module in a production rule.
+
+Several things need to happen for this to work:
+
+. A syntax needs to be defined for such an import.  This should
+  specify the name of the other grammar, the non-terminals to import,
+  and any associated types.
+
+  `use` is already used for within-specification imports.  So use
+  `import` for cross-specification imports.
+
+  `from gram import {
+      type T [as T'] [[= <type-expr>]];
+      non-term NT [as NT'] [[(inherits) : Synth_Type]];
+      fun f [as f'] [[: (pt) -> ret]];
+   }`
+
+  What is not clear is whether the `[[]]` portions are needed; that
+  might depend on the type-checking strategy.
+
+  The design goal is to have cross-module naming very lightweight,
+  without using the dot-notation `M.v` syntax.  We do this with
+  re-naming support for imports, allowing the importer to
+  . avoid name conflicts
+  . chose custom names if needed that make more sense in the context
+    of the current spec
+
+. Parsley needs to be able to find the specification for the other
+  grammar module (`gram` above).  This requires options like
+  `-I <include-dir>` to specify directories in which to search for the
+  grammar file.
+
+Implementation notes
+====================
+
+There are significant constraints imposed from the constraint-solving
+type system: I don't think it can solve equations incrementally.  This
+means we can't set up a context from type checked imports, solve those
+equations, and then type check the current spec as an increment to the
+solutions in that context.
+
+Some options I can think of:
+
+- Always check the whole spec:
+
+  This means including all the imported specs in the type-check
+  constraint equations, and then solving them in one go.
+
+  Pro:
+
+  The benefit here is that the `[[]]` sections in the syntax can be
+  omitted.
+
+  Con:
+
+  How to handle name clashes across modules, especially when
+  those names are not imported into the current spec?  We could handle
+  this by silently renaming variables and types with module-qualified
+  names internally.  This might complicate error-reporting, since
+  that's where silent naming usually gets exposed (or gets confusing).
+
+  Con:
+
+  Checking all referenced specs for incremental spec
+  development might be a bit slow/painful.
+
+- Specify imports translucently; i.e. require the `[[]]` sections.
+
+  Pro:
+
+  The benefit here is that the spec can be more self-contained.  The
+  spec could be type-checked without processing any imported specs.
+  The type-consistency of the imported specs needs to be checked at
+  link time, to ensure that the information in `[[]]` is consistent
+  with the imported specs; and these type-consistency checks could be
+  done syntactically, without requiring full constraint-solving.
+
+  Con:
+
+  Repeating that information will be error-prone, and is heavy-weight.
+
+  Con:
+
+  The scope of the renaming will be unclear: does it come into scope
+  in the immediately following `[[]]` sections of the import clause?
+
+  Con:
+
+  Record fields and data constructors might still need renaming with
+  module-qualifiers to avoid conflicts.
+
+- Ditch the goal of avoiding the dot-notation `M.v` syntax; instead,
+  embrace it.  Clearly, it has evolved for a reason; the alternatives
+  are not pleasant.
+
+  Pro:
+
+  No silent renaming required anywhere, except perhaps at the module
+  level (i.e. 'import Grammar as G`).
+
+  Pro:
+
+  Lightweight imports, with no need for the `[[]]` syntax.
+
+  Con:
+
+  Need syntactic support for paths in every identifer.
+
+  Con:
+
+  Will force whole-spec type-checking.

@@ -35,15 +35,14 @@ open Ast
 let variables_of_typ =
   let rec vtyp acu t =
     match t.type_expr with
-    | TE_tvar x ->
-        let loc = Location.loc x in
-        StringMap.add (Location.value x) loc acu
-    | TE_tname _ ->
-        acu
-    | TE_tapp (_, ts) ->
-        List.fold_left vtyp acu ts
-  in
-    vtyp StringMap.empty
+      | TE_tvar x ->
+          let loc = Location.loc x in
+          StringMap.add (Location.value x) loc acu
+      | TE_tname _ ->
+          acu
+      | TE_tapp (_, ts) ->
+          List.fold_left vtyp acu ts in
+  vtyp StringMap.empty
 
 let arrow tenv =
   arrow (typcon_variable tenv)
@@ -57,8 +56,8 @@ let bitvector_t tenv =
 let type_of_args t =
   let rec chop acu typ =
     match typ.type_expr with
-    | TE_tapp ({type_expr = TE_tname c; _}, [t1; t2])
-         when Location.value c = "->" ->
+    | TE_tapp ({type_expr = TE_tname (m, c); _}, [t1; t2])
+         when m = AstUtils.stdlib && Location.value c = "->" ->
         chop (t1 :: acu) t2
     | _ ->
         acu
@@ -69,8 +68,10 @@ let arity t =
 
 let rec intern' tenv t : crterm =
   match t.type_expr with
-    | TE_tvar name | TE_tname name ->
-        as_fun tenv (TName (Location.value name))
+    | TE_tvar tv  ->
+        as_fun tenv (AstUtils.stdlib, TName (Location.value tv))
+    | TE_tname (m, name) ->
+        as_fun tenv (m, TName (Location.value name))
     | TE_tapp (t, args) ->
         let iargs = List.map (intern' tenv) args in
           CoreAlgebra.app (intern' tenv t) iargs

@@ -227,8 +227,8 @@ let rec eq lc op l r : (bool, error) result =
     | V_list ls, V_list rs | V_tuple ls, V_tuple rs ->
         eqs lc op (Ok true) ls rs
 
-    | V_constr ((tl, cl), ls), V_constr ((tr, cr), rs) ->
-        if   tl != tr
+    | V_constr ((ml, tl, cl), ls), V_constr ((mr, tr, cr), rs) ->
+        if   ml != mr || tl != tr
         then Error (Type_error (op, 2, vtype_of l, vtype_of r))
         else if cl != cr
         then Ok false
@@ -334,7 +334,7 @@ let set_field lc (l: value) (f: string) (v: value) : value =
     | _ ->
         internal_error lc (Type_error ("." ^ f, 1, vtype_of l, T_record [f, T_empty]))
 
-let constr_match lc (l: value) (c: string * string) : value =
+let constr_match lc (l: value) (c: constr) : value =
   match l with
     | V_constr (c', _) ->
         V_bool (c = c')
@@ -359,7 +359,7 @@ let subterm lc (v: value) (o: Ir.Anf.occurrence) : value =
           if   1 <= idx && idx <= arity
           then let v' = List.nth vs (idx - 1) in
                walk v' tl
-          else let tc = "*", "_Tuple" in
+          else let tc  = Ir.Anf.M_stdlib, "*", "_Tuple" in
                let err = Bad_subterm_index (tc, idx, o) in
                internal_error lc err
       (* user-defined constructions *)
