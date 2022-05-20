@@ -16,9 +16,10 @@
 (**************************************************************************)
 
 open Parsing
-open Misc
 open Ast
 open TypingEnvironment
+
+module StringSet : Set.S with type elt = string
 
 (* pattern matrix utilities *)
 

@@ -23,10 +23,11 @@
 (** This module implements a typing environment useful for type inference. *)
 
 open Parsing
-open Misc
 open TypeAlgebra
 open Ast
 open TypingExceptions
+
+module StringMap = Misc.StringMap
 
 (** {2 Typing environment} *)
 
@@ -286,7 +287,7 @@ let fold_type_info f init env =
 (* Some accessors. *)
 
 let typcon_variable env t =
-  CoreAlgebra.TVariable (proj2_3 (lookup_typcon env t))
+  CoreAlgebra.TVariable (Misc.proj2_3 (lookup_typcon env t))
 
 let as_fun tenv name =
   match find_typcon tenv name with

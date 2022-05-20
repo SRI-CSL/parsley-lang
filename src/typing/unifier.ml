@@ -31,7 +31,6 @@
     It is understood that finite and infinite terms are legal -- no
     occur check is performed here. *)
 
-open Misc
 open CoreAlgebra
 open MultiEquation
 
@@ -44,7 +43,7 @@ exception Error of Parsing.Location.t * unify_error
    is, it adds the equation [v1 = v2] to the constraint which it
    maintains, then rewrites it in a number of ways until an
    inconsistency is found or a solved form is reached. If the
-   former, then [Inconsistency] is raised.
+   former, then [CannotUnify] is raised.
 
    Any variables which are freshly created during the process are
    passed to [register], so as to make the caller aware of their
@@ -52,7 +51,7 @@ exception Error of Parsing.Location.t * unify_error
 
 let unify ?tracer pos register =
 
-  let tracer = default (fun _ -> ignore) tracer in
+  let tracer = Misc.default (fun _ -> ignore) tracer in
 
   (* Define an auxiliary function which creates a fresh variable,
      found within a multi-equation of its own, with specified

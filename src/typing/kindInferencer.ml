@@ -25,7 +25,6 @@
 open Parsing
 open Ast
 open TypingExceptions
-open Misc
 
 type variable =
   descriptor UnionFind.point
@@ -65,7 +64,7 @@ let iter_term f = function
       f t1;
       f t2
 
-let iter f v = iter_term f (unSome (structure v))
+let iter f v = iter_term f (Misc.unSome (structure v))
 
 let lookup id loc tenv = (fst tenv) id loc
 

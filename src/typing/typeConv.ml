@@ -24,11 +24,12 @@
     internal representation of the inference engine. *)
 
 open Parsing
-open Misc
 open TypeAlgebra
 open MultiEquation
 open TypingEnvironment
 open Ast
+
+module StringMap = Misc.StringMap
 
 (** {2 From user's syntax to internal term representation} *)
 

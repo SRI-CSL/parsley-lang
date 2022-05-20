@@ -20,17 +20,12 @@
 (*  Copyright (C) 2006. François Pottier, Yann Régis-Gianas               *)
 (*  and Didier Rémy.                                                      *)
 
-open Misc
 open TypeConstraint
 open Unifier
 open MultiEquation
 open CoreAlgebra
 
 type solver_error =
-  (* [TypingError] is raised when an inconsistency is detected during
-     constraint solving. *)
-  | TypingError
-
   (* [UnboundIdentifier] is raised when an identifier is undefined in
      a particular context. *)
   | UnboundIdentifier of string
@@ -272,10 +267,7 @@ let generic_variables pos vl =
 let solve tracer env pool c =
   let final_env = ref env in
   let rec solve env pool c =
-    let pos = cposition c in
-      try
-        solve_constraint env pool c
-      with Inconsistency -> raise (Error (pos, TypingError))
+    solve_constraint env pool c
 
   and solve_constraint env pool c =
     tracer (Solve c);
@@ -288,9 +280,9 @@ let solve tracer env pool c =
            final_env := env
 
        | CEquation (pos, term1, term2) ->
-           let t1, t2 = twice (chop pool) term1 term2 in
-             tracer (UnifyTerms (term1, term2));
-             unify_terms pos pool t1 t2
+           let t1, t2 = Misc.twice (chop pool) term1 term2 in
+           tracer (UnifyTerms (term1, term2));
+           unify_terms pos pool t1 t2
 
        | CConjunction cl ->
            List.iter (solve env pool) cl
@@ -328,7 +320,7 @@ let solve tracer env pool c =
            This is only an optimization of the general case. *)
 
         solve env pool c1;
-        StringMap.map (fun (t, _) -> chop pool t) header
+        Misc.StringMap.map (fun (t, _) -> chop pool t) header
 
     | Scheme (pos, rqs, fqs, c1, header) ->
         (
@@ -336,7 +328,7 @@ let solve tracer env pool c =
           let pool' = new_pool pool in
             List.iter (introduce pool') rqs;
             List.iter (introduce pool') fqs;
-            let header = StringMap.map (fun (t, _) -> chop pool' t) header in
+            let header = Misc.StringMap.map (fun (t, _) -> chop pool' t) header in
               solve env pool' c1;
               tracer (Generalize (number pool', rqs, fqs));
               distinct_variables pos rqs;
@@ -345,9 +337,9 @@ let solve tracer env pool c =
               header
         )
   and concat env header =
-    StringMap.fold (fun name v env ->
-                      EEnvFrame (env, name, v)
-                   ) header env
+    Misc.StringMap.fold (fun name v env ->
+        EEnvFrame (env, name, v)
+      ) header env
 
   and unify_terms pos pool t1 t2 =
     unify
@@ -367,7 +359,7 @@ let init () =
     and produces no result, except possibly an exception. *)
 let solve ?tracer c =
   let env, pool = init () in
-  let tracer = default ignore tracer in
+  let tracer = Misc.default ignore tracer in
     tracer (Init c);
     (* TEMPORARY integrer un occur check ici aussi *)
     solve tracer env pool c
@@ -479,8 +471,6 @@ let check_width_constraints wc =
   checker wc
 
 let error_msg = function
-  | TypingError ->
-      "Typing error."
   | UnboundIdentifier t ->
       Printf.sprintf "Unbound identifier `%s'." t
   | CannotGeneralizeNonVariable v ->

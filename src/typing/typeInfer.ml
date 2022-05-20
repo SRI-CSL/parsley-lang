@@ -23,13 +23,15 @@
 (** This module implements type inference and checking. *)
 
 open Parsing
-open Misc
 open TypeConstraint
 open TypeAlgebra
 open MultiEquation
 open TypingEnvironment
 open TypingExceptions
 open Ast
+
+module StringSet = Set.Make(String)
+module StringMap = Misc.StringMap
 
 (** Local variable naming environment.
 
@@ -240,7 +242,7 @@ let intern_data_constructor internal (m: mname) adt_id qs env_info dcon_info =
        constant data constructors, where make_dc_signature would
        otherwise add an unnecessary return type. *)
     if   internal
-    then unSome opt_arg
+    then Misc.unSome opt_arg
     else make_dc_signature m adt_id qs dname opt_arg in
   let qs = List.map (fun q -> stdlib, TName (Location.value q)) qs in
   let rqs, rtenv = fresh_unnamed_rigid_vars (Location.loc adt_id) tenv qs in

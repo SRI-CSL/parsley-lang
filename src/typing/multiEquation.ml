@@ -21,7 +21,6 @@
 (*  and Didier Rémy.                                                      *)
 
 open Parsing
-open Misc
 open CoreAlgebra
 
 (** Multi-equations are reachable through variable. *)
@@ -145,7 +144,7 @@ let instance pool v =
     desc.var <- Some v
 
   and get desc =
-    unSome desc.var
+    Misc.unSome desc.var
   in
 
   (* If [v] has rank [none], then [copy v] returns a copy of the variable

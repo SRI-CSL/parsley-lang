@@ -16,9 +16,10 @@
 (**************************************************************************)
 
 open Parsing
-open Misc
 open Ast
 open TypingEnvironment
+
+module StringSet = Set.Make(String)
 
 (** Adapted from the algorithm in
     'Warnings for pattern matching', by Luc Maranget.

@@ -16,7 +16,6 @@
 (**************************************************************************)
 
 open Parsing
-open Misc
 open Ast
 open TypingExceptions
 open Pattern_utils
