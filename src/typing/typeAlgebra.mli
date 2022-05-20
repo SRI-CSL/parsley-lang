@@ -140,6 +140,7 @@ val is_builtin_value: string -> bool
 
 (** [builtin_modules] is a list of the builtin module values. *)
 val builtin_modules: builtin_module list
+val is_builtin_module: string -> bool
 
 (** [builtin_non_terms] is an array of the builtin non-terminals. *)
 val builtin_non_terms: builtin_non_term array

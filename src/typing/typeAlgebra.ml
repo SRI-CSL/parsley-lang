@@ -412,6 +412,14 @@ let std_nonterms =
                        (Array.to_list builtin_non_terms))
 let is_builtin_nonterm s = StringSet.mem s std_nonterms
 
+let std_modules =
+  StringSet.of_list (List.map (fun ({mod_name = m; _}) ->
+                                    match m with
+                                      | Ast.Mod_inferred m -> m
+                                      | _ -> assert false)
+                       builtin_modules)
+let is_builtin_module s = StringSet.mem s std_modules
+
 (* module members that are higher-order *)
 module ModuleMembers = Set.Make(struct type t = string * string
                                        let compare = compare

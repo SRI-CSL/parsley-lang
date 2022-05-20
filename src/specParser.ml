@@ -125,6 +125,13 @@ let do_parse_spec f show_raw_ast : (unit, unit) spec_module =
   let m = Filename.basename f in
   let m = Filename.remove_extension m in
   let m = String.capitalize_ascii m in
+  (* check for conflict with stdlib *)
+  if   TypeAlgebra.is_builtin_module m
+  then (Printf.eprintf
+          "Name error: Specification module `%s' conflicts with a standard library module.\n"
+          m;
+        Printf.eprintf "Consider renaming the specification file.\n";
+        exit Cmdliner.Cmd.Exit.some_error);
   cur_module := Some m;
 
   let pre_ast: (unit, unit) pre_spec_module =
