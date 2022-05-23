@@ -29,28 +29,28 @@ type rule_pos =
   | At_end
 
 type typing_error =
-  (* [UnboundTypeIdentifier] is raised when an unbound type identifier
-     is found. *)
+  (* [UnboundTypeIdentifier t] is raised when an unbound type identifier
+     `t` is found. *)
   | UnboundTypeIdentifier of Ast.full_tname
 
-  (* [DuplicateTypeVariable] is raised when a type variable declaration
-     is repeated in a type definition. *)
+  (* [DuplicateTypeVariable v] is raised when a type variable declaration
+     `v` is repeated in a type definition. *)
   | DuplicateTypeVariable of Ast.ident
 
-  (* [UnusedTypeVariable] is raised when a type variable declaration
-     is not used in a type definition. *)
+  (* [UnusedTypeVariable v] is raised when a type variable declaration
+     `v` is not used in a type definition. *)
   | UnusedTypeVariable of Ast.ident
 
-  (* [InvalidTypeVariableIdentifier] is raised when a type variable is
-     overwriting a type constructor. *)
+  (* [InvalidTypeVariableIdentifier t] is raised when a type variable
+     `t` is overwriting a type constructor. *)
   | InvalidTypeVariableIdentifier of Ast.full_tname
 
   (* [DuplicateTypeDefinition t] is raised when a type [t] is defined
      multiple times. *)
   | DuplicateTypeDefinition of Ast.full_tname
 
-  (* [UnboundDataConstructor] is raised when a constructor identifier is
-     used although it has not been defined. *)
+  (* [UnboundDataConstructor c] is raised when a constructor
+     identifier `c` is used although it has not been defined. *)
   | UnboundDataConstructor of Ast.full_dname
 
   (* [DuplicateDataConstructor dc t] is raised when a constructor
@@ -60,23 +60,32 @@ type typing_error =
     (* current definition *) (* previous definition *)
     of Ast.full_dname * Ast.full_tname * Location.t
 
-  (* [UnboundRecordField] is raised when a field label is
+  (* [UnboundRecordField l] is raised when a field label `l` is
      used although it has not been defined. *)
   | UnboundRecordField of Ast.full_lname
 
-  (* [UnboundRecord] is raised when a record is used although it has
+  (* [UnboundRecord r] is raised when a record `r` is used although it has
      not been defined. *)
   | UnboundRecord of Ast.full_tname
 
-  (* [DuplicateRecordField] is raised when a field label is
+  (* [DuplicateRecordField l] is raised when a field label `l` is
      defined multiple times, perhaps in different types. *)
   | DuplicateRecordField
     (* current definition *) (* previous definition *)
     of Ast.full_lname * Ast.full_tname * Location.t
 
-  (* [RepeatedRecordField] is raised when a field label is
+  (* [RepeatedRecordField l] is raised when a field label `l` is
      repeated in a record. *)
   | RepeatedRecordField of Ast.ident
+
+  (* [InconsistentFieldModules] is raised when two fields of a record
+     are module-qualified to belong to different modules. *)
+  | InconsistentFieldModules of Ast.full_lname * Ast.full_lname
+
+  (* [InconsistentRecordModule t f] is raised the module for a record type
+     `t` and a field `f` for that type specify modules that don't
+     match. *)
+  | InconsistentRecordModule of Ast.full_tname * Ast.full_lname
 
   (* [IncompleteRecord adt f] is raised when a field label [f] is not
      initialized in a record [adt]. *)
@@ -398,6 +407,16 @@ let error_msg = function
   | RepeatedRecordField l ->
       Printf.sprintf "Record field `%s' is repeated."
         (Location.value l)
+
+  | InconsistentFieldModules ((m, LName l), (m', LName l')) ->
+      Printf.sprintf
+        "Fields `%s%s' and `%s%s' do not belong to the same module."
+        (AstUtils.mk_modprefix m) l (AstUtils.mk_modprefix m') l'
+
+  | InconsistentRecordModule ((m, TName t), (m', LName l)) ->
+      Printf.sprintf
+        "Modules for record type `%s%s' and field `%s%s' do not match."
+        (AstUtils.mk_modprefix m) t (AstUtils.mk_modprefix m') l
 
   | IncompleteRecord (t, l) ->
       Printf.sprintf "Field `%s' of `%s' is not initialized."

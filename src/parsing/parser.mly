@@ -362,7 +362,7 @@ bit_range_fields:
 
 rec_exp_field:
 | i=ident COLON e=expr
-  { (i, e) }
+  { ((Modul None, i), e) }
 
 rec_exp_fields:
 | l=separated_nonempty_list(COMMA, rec_exp_field)
@@ -398,7 +398,7 @@ expr:
 | u=UID DOT m=ident
   { make_expr (E_mod_member (u, m)) $startpos $endpos }
 | e=expr DOT f=ident
-  { make_expr (E_field (e, f)) $startpos $endpos }
+  { make_expr (E_field (e, (Modul None, f))) $startpos $endpos }
 | l=LITERAL
   { make_expr (E_literal (PL_bytes (Location.value l))) $startpos $endpos }
 | l=INT_LITERAL
@@ -532,7 +532,7 @@ assign_lhs_expr:
 | v=ident
   { make_expr (E_var (make_var v)) $startpos $endpos }
 | e=assign_lhs_expr DOT f=ident
-  { make_expr (E_field (e, f)) $startpos $endpos }
+  { make_expr (E_field (e, (Modul None, f))) $startpos $endpos }
 | e=assign_lhs_expr LBRACK i=expr RBRACK
   { make_expr (E_binop (Index, e, i)) $startpos $endpos }
 

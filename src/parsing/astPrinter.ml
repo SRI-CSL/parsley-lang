@@ -247,8 +247,9 @@ and print_expr auxp e =
         pp_string ")"
     | E_record fields ->
         pp_string "{";
-        print_list ", " (fun (f, e) ->
-            pp_string (Location.value f);
+        print_list ", " (fun ((m, f), e) ->
+            pp_string (Printf.sprintf "%s%s"
+                         (auxp.auxp_mod m) (Location.value f));
             pp_string ": ";
             print_expr auxp e;
           ) fields;
@@ -297,13 +298,14 @@ and print_expr auxp e =
         pp_string "]]"
     | E_literal l ->
         pp_string (string_of_literal l)
-    | E_field (e, f) ->
+    | E_field (e, (m, f)) ->
         let complex = (match e.expr with E_var _ -> false | _ -> true) in
         if complex then pp_string "(";
         print_expr auxp e;
         if complex then pp_string ")";
         pp_string ".";
-        pp_string (Location.value f)
+        pp_string (Printf.sprintf "%s%s"
+                     (auxp.auxp_mod m) (Location.value f))
     | E_mod_member (m, i) ->
         if   print_module_member_types
         then (pp_string "(";

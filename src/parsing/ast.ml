@@ -108,7 +108,7 @@ and ('a, 'b, 'm) pattern =
 type ('a, 'b, 'm) expr_desc =
   | E_var        of 'b var
   | E_constr     of ('m modul * ident * ident) * ('a, 'b, 'm) expr list
-  | E_record     of (ident * ('a, 'b, 'm) expr) list
+  | E_record     of (('m modul * ident) * ('a, 'b, 'm) expr) list
   | E_apply      of ('a, 'b, 'm) expr * ('a, 'b, 'm) expr list
   | E_unop       of unop * ('a, 'b, 'm) expr
   | E_binop      of binop * ('a, 'b, 'm) expr * ('a, 'b, 'm) expr
@@ -116,7 +116,7 @@ type ('a, 'b, 'm) expr_desc =
   | E_bitrange   of ('a, 'b, 'm) expr * int * int
   | E_match      of ('a, 'b, 'm) expr * ('m modul * ident * ident)
   | E_literal    of primitive_literal
-  | E_field      of ('a, 'b, 'm) expr * ident
+  | E_field      of ('a, 'b, 'm) expr * ('m modul * ident)
   | E_mod_member of modident * ident
   | E_case       of ('a, 'b, 'm) expr * (('a, 'b, 'm) pattern * ('a, 'b, 'm) expr) list
   | E_let        of ('a, 'b, 'm) pattern * ('a, 'b, 'm) expr * ('a, 'b, 'm) expr

@@ -297,7 +297,7 @@ let intern_field_destructor m adt_id qs env_info f_info =
   let fname = Location.value fname in
   let binding = Printf.sprintf "{%s}" fname in
   let v = variable ~structure:ityp Flexible () in
-  ((add_field_destructor tenv pos (m, TName adt_name) (LName fname)
+  ((add_field_destructor tenv pos (m, TName adt_name) (m, LName fname)
       (rqs, ityp)),
    (LName fname, v) :: acu,
    (rqs @ lrqs),
@@ -312,9 +312,9 @@ let make_record_signature (m: mname) (adt: ident) tvars fields =
     then AstUtils.make_tname_id m adt
     else AstUtils.make_mod_type_app m
            (Location.value adt) tvars (Location.loc adt) in
-  let fields = AstUtils.sort_fields fields in
+  let fields = AstUtils.sort_fields (List.map (fun (f, e) -> (m, f), e) fields) in
   let signature =
-    List.fold_left (fun acc (f, t) ->
+    List.fold_left (fun acc ((_m, f), t) ->
         AstUtils.make_arrow_type [t; acc] (Location.loc f)
       ) res (List.rev fields) in
     signature, fields
@@ -493,7 +493,8 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
         let dids, drqs, (tenv, cid, crqs, let_env) =
           process_record_fields fields in
         (* Fill in the adt_info. *)
-        adt_ref := Some {adt = Record {adt = ident;
+        adt_ref := Some {adt = Record {adt                = ident;
+                                       modul              = m;
                                        fields;
                                        record_constructor = cid;
                                        field_destructors  = dids;
@@ -520,7 +521,8 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
         let bf_info = {bf_name   = Location.value ident;
                        bf_fields = finfos;
                        bf_length = len} in
-        adt_ref := Some {adt = Record {adt = ident;
+        adt_ref := Some {adt = Record {adt                = ident;
+                                       modul              = m;
                                        fields;
                                        record_constructor = cid;
                                        field_destructors  = dids;
@@ -579,15 +581,15 @@ let make_match_case_expr m exp typ dcon arity loc =
 
 (** looks up the adt in [tenv] matching the [fields] in a literal
     record expression; it reports mismatch errors at location [loc]. *)
-let lookup_record_adt tenv (m: mname) fields =
-  let f = List.hd fields in (* nonempty list is ensured in the parser *)
-  let fid = Location.value f in
-  let lid = LName fid in
-  let adtid = match lookup_field_adt tenv lid with
+let lookup_record_adt tenv fields =
+  let mid, fid = List.hd fields in (* nonempty list is ensured in the parser *)
+  let f = Location.value fid in
+  let l = LName f in
+  let adtid = match lookup_field_adt tenv (mid, l) with
       | Some adtid ->
           adtid
       | None ->
-          raise (Error (Location.loc f, UnboundRecordField (m, lid))) in
+          raise (Error (Location.loc fid, UnboundRecordField (mid, l))) in
   let rec_info, rec_loc = match lookup_adt tenv adtid with
       | Some {adt = Record rec_info; loc = rec_loc} ->
           rec_info, rec_loc
@@ -602,19 +604,24 @@ let lookup_record_adt tenv (m: mname) fields =
                   Location.mk_loc_val id rec_loc in
   (* Make sure the used fields match the declared fields. *)
   let decset = List.fold_left (fun acc (field, _) ->
-                   let l = Location.value field in
+                   let f = Location.value field in
                    (* there should be no duplicates *)
-                   assert (not (StringSet.mem l acc));
-                   StringSet.add l acc
+                   assert (not (StringSet.mem f acc));
+                   StringSet.add f acc
                  ) StringSet.empty rec_info.fields in
-  let useset = List.fold_left (fun acc locid ->
-                   let id = Location.value locid in
-                   if   StringSet.mem id acc
-                   then raise (Error (Location.loc locid, RepeatedRecordField locid))
-                   else if not (StringSet.mem id decset)
-                   then let loc = Location.loc locid in
-                        raise (Error (loc, InvalidRecordField (locid, adt_ident)))
-                   else StringSet.add id acc
+  let useset = List.fold_left (fun acc (mid', fid') ->
+                   let f = Location.value fid' in
+                   let l' = LName f in
+                   let loc = Location.loc fid' in
+                   if      AstUtils.mod_compare mid mid' != 0
+                   then    let err =
+                             InconsistentFieldModules ((mid, l), (mid', l')) in
+                           raise (Error (loc, err))
+                   else if not (StringSet.mem f decset)
+                   then    raise (Error (loc, InvalidRecordField (fid', adt_ident)))
+                   else if StringSet.mem f acc
+                   then    raise (Error (Location.loc fid', RepeatedRecordField fid'))
+                   else StringSet.add f acc
                  ) StringSet.empty fields in
   (match StringSet.choose_opt (StringSet.diff decset useset) with
      | Some f -> let loc = Location.loc adt_ident in
@@ -679,9 +686,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
            corresponding field destructor. *)
         let fields = AstUtils.sort_fields fields in
         let f_names, _ = List.split fields in
-        (* TODO: module qualification of field names *)
-        let m = Modul (Mod_inferred "rcd") in
-        let rec_info = lookup_record_adt tenv m f_names in
+        let rec_info = lookup_record_adt tenv f_names in
         let rcon =
           Printf.sprintf "<%s>" (Location.value rec_info.adt) in
         exists_list_aux fields (
@@ -700,14 +705,11 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
             (wc,
              (* annotated ast has fields in canonical order *)
              mk_auxexpr (E_record fields)))
-    | E_field (exp, f) ->
+    | E_field (exp, (m, f)) ->
         (* A record field index is similar to a data constructor but
            has no arity check; its constraint makes its destructor
            type equal to the type taking [exp] to [t].*)
         let field = Location.value f in
-        (* Without qualification, a field destructor is looked up in
-           the current typing module. *)
-        let m = infer_mod (typing_module tenv) in
         let _ = lookup_field_destructor tenv (Location.loc f)
                   (m, LName field) in
         let binding = Printf.sprintf "{%s}" field in
@@ -716,7 +718,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
             let typ = TypeConv.arrow tenv exvar t in
             c' ^ (SName binding <? typ) e.expr_loc,
             (wc',
-             mk_auxexpr (E_field (exp', f))))
+             mk_auxexpr (E_field (exp', (m, f)))))
     | E_apply ({expr = E_mod_member (m, i); _} as f, [n])
          when Location.value m = "Bits"
               && (Location.value i = "ones"
@@ -1368,6 +1370,7 @@ let infer_non_term_type tenv ctxt ntd =
           intern_record_constructor m ntid []
             (tenv', let_env) attrs in
         let rec_info = {adt                = ntid;
+                        modul              = m;
                         fields             = attrs;
                         record_constructor = cid;
                         field_destructors  = dids;

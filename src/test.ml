@@ -84,6 +84,7 @@ let gen_ir (test_name: string) (spec: string) : ir option =
         let pre_spec = {pre_decls = List.rev pre_ast} in
         let bltins =
           Qualify_ast.({bltin_type    = TypeAlgebra.is_builtin_type;
+                        bltin_field   = TypeAlgebra.is_builtin_field;
                         bltin_value   = TypeAlgebra.is_builtin_value;
                         bltin_nonterm = TypeAlgebra.is_builtin_nonterm}) in
         Some (Qualify_ast.convert_spec bltins pre_spec)

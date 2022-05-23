@@ -571,9 +571,7 @@ let replace_list_fold hoi args : (unit, unit, mod_qual) expr =
 
 module StringMap = Map.Make(String)
 module StdlibMap = Map.Make(struct type t = mname * string
-                                   let compare (m, v) (m', v') =
-                                     let mc = AstUtils.mod_compare m m' in
-                                     if mc = 0 then compare v v' else mc
+                                   let compare = AstUtils.qual_compare
                             end)
 
 type builtin = TypeAlgebra.builtin_value

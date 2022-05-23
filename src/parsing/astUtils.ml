@@ -28,14 +28,19 @@ let mod_compare m m' =
         compare (Location.value m) (Location.value m')
     | Modul (Mod_inferred m), Modul (Mod_inferred m') ->
         compare m m'
-    | Modul (Mod_explicit m), Modul (Mod_inferred m')
-    | Modul (Mod_inferred m'), Modul (Mod_explicit m) ->
+    | Modul (Mod_explicit m), Modul (Mod_inferred m') ->
         compare (Location.value m) m'
+    | Modul (Mod_inferred m), Modul (Mod_explicit m') ->
+        compare m (Location.value m')
     | _ ->
         compare m m'
 
 let mod_equiv m m' =
   0 = mod_compare m m'
+
+let qual_compare (m, t) (m', t') =
+  let mc = mod_compare m m' in
+  if mc = 0 then compare t t' else mc
 
 let stdlib: mod_qual modul =
   Modul Mod_stdlib
@@ -191,6 +196,7 @@ let make_expr_loc (type b m) (exp: (unit, b, m) expr_desc) loc =
 
 (* sorting record fields into canonical order *)
 let sort_fields fields =
-  List.sort (fun (f1, _) (f2, _) ->
-      String.compare (Location.value f1) (Location.value f2)
+  List.sort (fun ((m1, f1), _) ((m2, f2), _) ->
+      let f, f' = (m1, Location.value f1), (m2, Location.value f2) in
+      qual_compare f f'
     ) fields

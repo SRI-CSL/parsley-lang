@@ -38,7 +38,8 @@ type bitfield_info =
 (** [record_info] tracks the field names, and the variables associated
     with their destructors and constructors *)
 type record_info =
-  {adt: Ast.ident;
+  {adt:                Ast.ident;
+   modul:              Ast.mname;
    fields:             (Ast.ident * Ast.type_expr) list;
    record_constructor: Ast.tname * MultiEquation.variable;
    field_destructors:  (Ast.lname * MultiEquation.variable) list;
@@ -118,7 +119,7 @@ val add_record_constructor:
 
 (** Add a field destructor for an ADT into the environment. *)
 val add_field_destructor:
-  environment -> Location.t -> Ast.full_tname -> Ast.lname -> field_destructor -> environment
+  environment -> Location.t -> Ast.full_tname -> Ast.full_lname -> field_destructor -> environment
 
 (** Add the type definition for a non-terminal into the environment. *)
 val add_non_terminal:
@@ -181,7 +182,7 @@ val lookup_datacon_adt:
 (** [lookup_field_adt env f] returns the name of the ADT associated
     with the data constructor [k] in [env], if any. *)
 val lookup_field_adt:
-  environment -> Ast.lname -> Ast.full_tname option
+  environment -> Ast.full_lname -> Ast.full_tname option
 
 (** Looks up the type for a type constructor given its name. *)
 val lookup_type_variable:

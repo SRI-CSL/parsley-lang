@@ -146,6 +146,9 @@ val is_builtin_module: string -> bool
 val builtin_non_terms: builtin_non_term array
 val is_builtin_nonterm: string -> bool
 
+(** predicate for builtin fields *)
+val is_builtin_field: string -> bool
+
 (** names of builtin operator constants *)
 val unop_const_name: Ast.unop -> string
 val binop_const_name: Ast.binop -> string

@@ -144,6 +144,7 @@ let do_parse_spec f show_raw_ast : (unit, unit) spec_module =
 
   let bltins =
     Qualify_ast.({bltin_type    = TypeAlgebra.is_builtin_type;
+                  bltin_field   = TypeAlgebra.is_builtin_field;
                   bltin_value   = TypeAlgebra.is_builtin_value;
                   bltin_nonterm = TypeAlgebra.is_builtin_nonterm}) in
   Qualify_ast.convert_spec bltins pre_ast

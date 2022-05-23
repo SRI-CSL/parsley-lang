@@ -420,6 +420,11 @@ let std_modules =
                        builtin_modules)
 let is_builtin_module s = StringSet.mem s std_modules
 
+(* future-proofing *)
+
+let std_fields = StringSet.empty
+let is_builtin_field f = StringSet.mem f std_fields
+
 (* module members that are higher-order *)
 module ModuleMembers = Set.Make(struct type t = string * string
                                        let compare = compare

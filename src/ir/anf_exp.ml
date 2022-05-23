@@ -100,7 +100,8 @@ and normalize_exp tenv venv (e: exp) : aexp * VEnv.t =
     | E_record fs ->
         (* Order of evaluation is first to last *)
         let (binds, fvs), venv =
-          List.fold_left (fun ((binds, vs), venv) (f, e) ->
+          (* strip module qualifier for field in ANF *)
+          List.fold_left (fun ((binds, vs), venv) ((_, f), e) ->
               let se, venv = subnorm tenv venv e in
               (match se with
                  | S_var av          -> binds, (f, av) :: vs
@@ -188,7 +189,8 @@ and normalize_exp tenv venv (e: exp) : aexp * VEnv.t =
         let ae = wrap (AE_match (av, convert_con c)) in
         let ae = make_lets binds ae in
         ae, venv
-    | E_field (e, f) ->
+    | E_field (e, (_, f)) ->
+        (* strip module qualifier for field in ANF *)
         let se, venv  = subnorm tenv venv e in
         let binds, av = match se with
             | S_var av          -> [], av
@@ -427,6 +429,8 @@ let rec normalize_stmt tenv venv (s: stmt) : astmt * VEnv.t =
                 wrap (AS_set_var (v, rn))
             | AE_val {av = AV_var v; _}, _ :: _ ->
                 let v = make_var v ln.aexp_typ ln.aexp_loc in
+                (* strip module qualifiers for fields in ANF *)
+                let fs = List.map (fun (_, f) -> f) fs in
                 wrap (AS_set_field (v, fs, rn))
             | AE_field (_, _), _ ->
                 (* This should have been part of the fields suffix. *)

@@ -23,17 +23,20 @@ module StringSet = Set.Make(String)
 
 type builtins =
   {bltin_type:    string -> bool;
+   bltin_field:   string -> bool;
    bltin_value:   string -> bool;
    bltin_nonterm: string -> bool}
 
 type context =
   {ctx_types:    StringSet.t;
+   ctx_fields:   StringSet.t;
    ctx_locals:   StringSet.t;
    ctx_nonterms: StringSet.t;
    ctx_bltins:   builtins}
 
 let init_ctx bltins : context =
   {ctx_types    = StringSet.empty;
+   ctx_fields   = StringSet.empty;
    ctx_locals   = StringSet.empty;
    ctx_nonterms = StringSet.empty;
    ctx_bltins   = bltins}
@@ -70,6 +73,14 @@ let mod_of_nonterm ctx lm id =
   if      StringSet.mem n ctx.ctx_nonterms
   then    lm
   else if ctx.ctx_bltins.bltin_nonterm n
+  then    stdlib
+  else    lm
+
+let mod_of_field ctx lm f =
+  let fn = Location.value f in
+  if      StringSet.mem fn ctx.ctx_fields
+  then    lm
+  else if ctx.ctx_bltins.bltin_field fn
   then    stdlib
   else    lm
 
@@ -139,7 +150,15 @@ let convert_types ctx (ts: raw_mod type_decl list)
     List.fold_left (fun ctx td ->
         let tn    = Location.value td.type_decl_ident in
         let types = StringSet.add tn ctx.ctx_types in
-        {ctx with ctx_types = types}
+        let fields = match td.type_decl_body.type_rep with
+            | TR_record fs ->
+                List.fold_left (fun acc (f, _) ->
+                    StringSet.add (Location.value f) acc
+                  ) ctx.ctx_fields fs
+            | _ ->
+                ctx.ctx_fields in
+        {ctx with ctx_types  = types;
+                  ctx_fields = fields}
       ) ctx ts in
   ctx, List.map (convert_type_decl ctx) ts
 
@@ -205,7 +224,12 @@ let rec convert_exp ctx lm e =
         wrap (E_constr ((m, t, c), es))
     | E_record flds ->
         let flds =
-          List.map (fun (f, e) -> f, convert_exp ctx lm e) flds in
+          List.map (fun ((m, f), e) ->
+              (let m = match m with
+                 | Modul (Some m) -> Modul (Mod_explicit m)
+                 | Modul None     -> mod_of_field ctx lm f in
+               m, f),
+              convert_exp ctx lm e) flds in
         wrap (E_record flds)
     | E_apply (f, args) ->
         let f    = convert_exp ctx lm f in
@@ -238,9 +262,13 @@ let rec convert_exp ctx lm e =
         wrap (E_match (e, (m, t, c)))
     | E_literal l ->
         wrap (E_literal l)
-    | E_field (e, f) ->
+    | E_field (e, (Modul (Some m), f)) ->
         let e = convert_exp ctx lm e in
-        wrap (E_field (e, f))
+        wrap (E_field (e, (Modul (Mod_explicit m), f)))
+    | E_field (e, (Modul None, f)) ->
+        let e = convert_exp ctx lm e in
+        let m = mod_of_field ctx lm f in
+        wrap (E_field (e, (m, f)))
     | E_mod_member (m, c) ->
         wrap (E_mod_member (m, c))
     | E_case (e, cls) ->

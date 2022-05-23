@@ -40,7 +40,8 @@ type bitfield_info =
    bf_length: int}
 
 type record_info =
-  {adt: ident;
+  {adt:                ident;
+   modul:              Ast.mname;
    fields:             (ident * type_expr) list;
    record_constructor: Ast.tname * MultiEquation.variable; (* named "<adt>" *)
    field_destructors:  (lname * MultiEquation.variable) list;
@@ -99,21 +100,17 @@ type non_term_type = non_term_inh_type * non_term_syn_type
 (* data constructors *)
 module DNameMap = Map.Make(struct
                       type t = full_dname
-                      let compare (m, d) (m', d') =
-                        let mc = AstUtils.mod_compare m m' in
-                        if mc = 0 then compare d d' else mc
+                      let compare = AstUtils.qual_compare
                     end)
 (* record fields (TODO: module qualification) *)
 module LNameMap = Map.Make(struct
-                      type t = lname
-                      let compare = compare
+                      type t = full_lname
+                      let compare = AstUtils.qual_compare
                     end)
 (* predefined stdlib values (functions and constants) *)
 module VNameMap = Map.Make(struct
                       type t = full_vname
-                      let compare (m, v) (m', v') =
-                        let mc = AstUtils.mod_compare m m' in
-                        if mc = 0 then compare v v' else mc
+                      let compare = AstUtils.qual_compare
                     end)
 
 (* type signature of a value *)
@@ -193,13 +190,14 @@ let add_data_constructor env loc ((m,_) as adt) dc x =
 let add_record_constructor env adt x =
   {env with record_constructor = CoreEnv.add env.record_constructor adt x}
 
-let add_field_destructor env loc ((m,_) as adt) fd f =
-  let mfd = m, fd in
-  match LNameMap.find_opt fd env.field_adts with
+let add_field_destructor env loc ((m,_) as adt) ((m',_) as mfd) f =
+  (if   AstUtils.mod_compare m m' != 0
+   then raise (Error (loc, InconsistentRecordModule (adt, mfd))));
+  match LNameMap.find_opt mfd env.field_adts with
     | None ->
         {env with
           field_destructor = CoreEnv.add env.field_destructor mfd f;
-          field_adts       = LNameMap.add fd (adt, loc) env.field_adts}
+          field_adts       = LNameMap.add mfd (adt, loc) env.field_adts}
     | Some (adt, loc') ->
         raise (Error (loc, DuplicateRecordField (mfd, adt, loc')))
 

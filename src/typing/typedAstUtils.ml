@@ -212,11 +212,11 @@ let is_non_zero: 't 'v 'm. ('t, 'v, 'm) expr -> bool =
 (* Extract a nested sequence of field accessors in an expression,
    along with the head variable.  This is usually applied to check
    whether an expression is a reference. *)
-let lhs_fields (type b) e : ((string * b) * string list) option =
-  let rec traverse (acc: string list) e =
+let lhs_fields (type b m) e : ((string * b) * (m modul * string) list) option =
+  let rec traverse (acc: (m modul * string) list) e =
     match e.expr with
-      | E_field (e', f) ->
-          traverse (Location.value f :: acc) e'
+      | E_field (e', (m, f)) ->
+          traverse ((m, Location.value f) :: acc) e'
       | E_var v ->
           Some (Location.value v, acc)
       | _ ->
@@ -439,8 +439,8 @@ let rec unwrap_exp exp =
           E_constr (c, List.map unwrap_exp es)
       | E_record fs ->
           E_record (List.map
-                      (fun (f, e) ->
-                        (unwrap_id f, unwrap_exp e)
+                      (fun ((m, f), e) ->
+                        ((m, unwrap_id f), unwrap_exp e)
                       ) fs)
       | E_apply (f, es) ->
           E_apply (unwrap_exp f, List.map unwrap_exp es)
@@ -456,8 +456,8 @@ let rec unwrap_exp exp =
           E_match (unwrap_exp e, (unwrap_mod m, unwrap_id t, unwrap_id c))
       | E_literal l ->
           E_literal l
-      | E_field (e, f) ->
-          E_field (unwrap_exp e, unwrap_id f)
+      | E_field (e, (m, f)) ->
+          E_field (unwrap_exp e, (m, unwrap_id f))
       | E_mod_member (m, v) ->
           E_mod_member (unwrap_id m, unwrap_id v)
       | E_let (p, e, b) ->
