@@ -93,7 +93,9 @@ let gen_ir (test_name: string) (spec: string) : ir option =
     | None   -> None
     | Some s -> Some (Check.ir_of_ast false Options.default_ckopts s)
 
-let exe_ir (test: string) (ir: ir) (entry: string) (data: string) : Values.value option =
+let exe_ir (test: string) (ir: ir) (entry: string) (data: string)
+    : Values.value option =
+  let entry = Ir.Anf.M_name "Test", entry in
   try  fst (Interpret.once_on_test_string test ir entry data)
   with
     | Runtime_exceptions.Runtime_exception (_, e) ->

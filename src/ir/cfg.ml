@@ -326,7 +326,7 @@ module Node = struct
        labels of the `nt_succcont` and `nt_failcont` for the
        non-terminal's CFG, as specified in its `nt_entry`. *)
     | N_call_nonterm:
-        Ast.mname * Ast.ident * (Ast.ident * var) list * return * label * label
+        Anf.modul * Ast.ident * (Ast.ident * var) list * return * label * label
         -> (Block.o, Block.c, unit) node
 
   type entry_node  = (Block.c, Block.o, unit) node
@@ -396,7 +396,7 @@ type nt_entry =
 (* The 'grammar table-of-contents' maps each non-terminal name to its
    nt_entry.  It is only a ToC and not complete since it does not
    contain the actual CFGs. *)
-module FormatGToC = Map.Make(struct type t = string
+module FormatGToC = Map.Make(struct type t = modul * string
                                     let compare = compare
                              end)
 

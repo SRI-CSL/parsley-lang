@@ -181,8 +181,8 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                             (Location.value a)
                             (Anf_printer.string_of_var v.v)
                         ) args) in
-        pp_string (Printf.sprintf "call %s%s[%s], %s, %s, %s"
-                     (AstUtils.mk_modprefix m) (Location.value nt)
+        pp_string (Printf.sprintf "call %s[%s], %s, %s, %s"
+                     (Anf.mod_prefix m (Location.value nt))
                      sargs
                      (string_of_return ret)
                      (string_of_label s)

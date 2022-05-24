@@ -273,7 +273,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
                do_jump loc s lsc)
 
     | Cfg.Node.N_call_nonterm (m, nt, params, ret, lsc, lf)
-         when m = AstUtils.stdlib
+         when m = Anf.M_stdlib
               && is_std_nonterm (Location.value nt) ->
         assert (s.st_mode = Mode_normal);
         (* We don't have an nt_entry for stdlib non-terminals, so
@@ -305,10 +305,9 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
                (* Transfer control to the failure continuation. *)
                do_jump loc s lf
         )
-    | Cfg.Node.N_call_nonterm (_, nt, params, ret, lsc, lf) ->
-        (* TODO: handle cross module calls *)
+    | Cfg.Node.N_call_nonterm (m, nt, params, ret, lsc, lf) ->
         assert (s.st_mode = Mode_normal);
-        let ent = get_ntentry s nt in
+        let ent = get_ntentry s (m, nt) in
         let ntn = Location.value nt in
         (* sanity check *)
         assert (ntn = Location.value ent.nt_name);

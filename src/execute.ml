@@ -56,6 +56,7 @@ let interpret spec nt f loop =
           (Printf.sprintf "Error processing %s: %s: %s.\n"
              f op (Unix.error_message e))
 
-let execute _verbose (loop: bool) (start: string) (spec: Cfg.spec_ir)
-      (data: string) =
-  interpret spec start data loop
+let execute _verbose (loop: bool) (m: string) (start: string)
+      (spec: Cfg.spec_ir) (data: string) =
+  let m = Anf.M_name m in
+  interpret spec (m, start) data loop

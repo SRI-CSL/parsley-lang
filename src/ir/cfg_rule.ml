@@ -414,6 +414,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
            works correctly.  *)
         (* create a new label and block for the success continuation *)
         let lsc = fresh_static () in
+        let m = modul_of_mname m in
         let nd =
           Node.N_call_nonterm (m, nt, [], ret, lsc, ctx.ctx_failcont) in
         let ctx = close_block ctx b nd in
@@ -439,6 +440,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
               (i, v) :: args
             ) (b, []) args in
         let lsc = fresh_static () in
+        let m = modul_of_mname m in
         let nd =
           Node.N_call_nonterm (m, nt, args, ret, lsc, ctx.ctx_failcont) in
         let ctx = close_block ctx b nd in
@@ -1004,6 +1006,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         (* construct the inherited attr argument list for the call *)
         let iters' = List.map (fun ((i, _), vv) -> (i, vv)) viters in
         let args' = iters' @ consts in
+        let m = modul_of_mname m in
         (* Construct a return value for non-terminal parse if needed,
            and the success continuation block for the call.
            Since the call terminates the current block, there needs to
@@ -1246,6 +1249,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   let new_vars = VEnv.new_since ctx.ctx_venv orig_venv in
   (* Construct the nt_entry. *)
   assert (is_static lent);
+  let m = modul_of_mname mname in
   let nte =
     {nt_name      = ntd.non_term_name;
      nt_inh_attrs;
@@ -1257,7 +1261,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
      nt_used_vars = new_vars;
      nt_loc       = ntd.non_term_loc} in
   (* Add it to the grammar ToC. *)
-  let toc = FormatGToC.add nt_name nte ctx.ctx_gtoc in
+  let toc = FormatGToC.add (m, nt_name) nte ctx.ctx_gtoc in
   {ctx with ctx_gtoc     = toc;
             ctx_failcont = orig_failcont}
 

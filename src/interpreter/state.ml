@@ -178,9 +178,9 @@ let get_block lc (s: state) (l: Cfg.label) : Cfg.closed =
         let err = Internal_errors.No_block_for_label l in
         internal_error lc err
 
-let get_ntentry (s: state) (nt: Ast.ident) : Cfg.nt_entry =
+let get_ntentry (s: state) ((m, nt): Anf.modul * Ast.ident) : Cfg.nt_entry =
   let ntn = Location.value nt in
-  match Cfg.FormatGToC.find_opt ntn s.st_spec_toc with
+  match Cfg.FormatGToC.find_opt (m, ntn) s.st_spec_toc with
     | None ->
         let err = Internal_errors.No_nonterm_entry nt in
         internal_error (Location.loc nt) err
@@ -189,5 +189,5 @@ let get_ntentry (s: state) (nt: Ast.ident) : Cfg.nt_entry =
 
 (* An error in looking up the entry non-terminal is not an internal
    error. *)
-let get_init_ntentry (s: state) (ntn: string) : Cfg.nt_entry option =
-  Cfg.FormatGToC.find_opt ntn s.st_spec_toc
+let get_init_ntentry (s: state) (nt: Anf.modul * string) : Cfg.nt_entry option =
+  Cfg.FormatGToC.find_opt nt s.st_spec_toc

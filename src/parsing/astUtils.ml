@@ -19,6 +19,12 @@ open Ast
 
 type raw_type_expr  = raw_mod gen_type_expr
 
+(* convert a filename to a module name *)
+let modname_of_file f : string =
+  let m = Filename.basename f in
+  let m = Filename.remove_extension m in
+  String.capitalize_ascii m
+
 (* module qualifier utils *)
 
 (* a comparator compatible with `OrderedType.compare`. *)

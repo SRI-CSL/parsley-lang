@@ -22,7 +22,7 @@ open Values
 
 (* Returns the entry block for the given non-terminal along with the
    interpreter state that is initialized by executing the static block. *)
-let init (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
+let init (spec: Cfg.spec_ir) (entry_nt: Anf.modul * string) (view: view)
   : state * Cfg.closed =
   let venv  = VEnv.empty in
   let fenv  = FEnv.empty in
@@ -47,7 +47,7 @@ let init (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
       | Some b -> b
       | None   -> (Printf.eprintf
                      "Unknown user-defined non-terminal `%s' specified.\n"
-                     entry_nt;
+                     (snd entry_nt);
                    exit 1) in
   (* In the interpreter, we cannot support entry non-terminals with
      inherited attributes, since their values cannot easily be
@@ -58,7 +58,7 @@ let init (spec: Cfg.spec_ir) (entry_nt: string) (view: view)
           "The interpreter does not support an entry non-terminal with inherited attributes.\n";
         Printf.eprintf
           "The non-terminal `%s' has %d inherited attributes.\n"
-          entry_nt niattrs;
+          (snd entry_nt) niattrs;
         exit 1);
   (* Set up the top-level call frame (with no return
      continuations). *)

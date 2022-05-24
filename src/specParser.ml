@@ -122,9 +122,7 @@ let do_parse_spec f show_raw_ast : (unit, unit) spec_module =
   update_inc_dir f;
 
   (* set current module *)
-  let m = Filename.basename f in
-  let m = Filename.remove_extension m in
-  let m = String.capitalize_ascii m in
+  let m = AstUtils.modname_of_file f in
   (* check for conflict with stdlib *)
   if   TypeAlgebra.is_builtin_module m
   then (Printf.eprintf

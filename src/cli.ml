@@ -36,7 +36,8 @@ let execute copts loop start spec_file data_file : unit =
   let verbose = copts.co_verbose in
   let ckopts = Options.default_ckopts in
   let spec = Check.ir_of_spec verbose ckopts spec_file in
-  Execute.execute verbose loop start spec data_file
+  let m = Parsing.AstUtils.modname_of_file spec_file in
+  Execute.execute verbose loop m start spec data_file
 
 (* TODO: help command *)
 
