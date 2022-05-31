@@ -471,11 +471,12 @@ NOTE: There are restrictions on the kinds of arguments taken by these
 operators to ensure that the resulting literal set can be computed and
 matched efficiently.
 
-The *wildcard* regular expression, denoted either by `#` or `.`,
-matches any single byte.  The matched value returned by the wildcard
-will be a single element byte list containing the matched byte.  (Two
-wildcard symbols are provided in the syntax, since the `.` character
-commonly used for this purpose is sometimes hard to see in an editor.)
+The *wildcard* regular expression, denoted `#`, matches any single
+byte.  The matched value returned by the wildcard will be a single
+element byte list containing the matched byte.  (The `#` symbol is
+used instead of the more common `.`, since the `.` character is
+sometimes hard to see in an editor, and it conflicts with the `.`
+notation used in the module system for the grammar sublanguage.)
 
 A *regular expression non-terminal* can be used as a regular
 expression element composable with other regular expressions using the
@@ -735,3 +736,20 @@ construct dealing with bitvectors.
 NOTE: One can use the `-dd` option to print the rules of a
 non-terminal after whitespace decoration to ensure they align with
 expectations.
+
+== Modules
+
+Parsley supports the use of definitions from one Parsley
+specification, considered as a *module*, within another Parsley
+specification; this is described further in the
+<<expressions.adoc#modules,expression language documentation>>.
+
+As described there, the non-terminal used as a rule element in a
+production rule for a non-terminal definition can refer to a
+non-terminal defined in another module: `M.NT` refers to the
+non-terminal `NT` defined in module `M`.
+
+Unlike non-terminals, Parsley does not support cross-module use of
+definitions for regular expressions and literals.  A specification can
+however refer to regular expressions and literals defined in the
+Parsley standard library.

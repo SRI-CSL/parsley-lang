@@ -239,9 +239,7 @@ type ('a, 'b, 'm) non_term_defn =
    non_term_mod:       string;
    non_term_loc:       Location.t}
 
-type use =
-  {use_modules: ident list;
-   use_loc: Location.t}
+type mod_list = ident list
 
 type 'm type_decl =
   {type_decl_ident: ident;
@@ -297,7 +295,7 @@ type ('a, 'b, 'm) format =
 (* Pre-AST from parsing a single file. *)
 
 type ('a, 'b) pre_decl =
-  | PDecl_use     of use
+  | PDecl_include of mod_list
   | PDecl_types   of raw_mod type_decl list * Location.t
   | PDecl_const   of ('a, 'b, raw_mod) const_defn
   | PDecl_fun     of ('a, 'b, raw_mod) fun_defn
@@ -307,7 +305,7 @@ type ('a, 'b) pre_decl =
 type ('a, 'b) pre_spec_module =
   {pre_decls: ('a, 'b) pre_decl list}
 
-(* Spec AST: flattened version after including use files *)
+(* Spec AST: flattened version after include files *)
 
 type type_expr      = mod_qual gen_type_expr
 type type_expr_desc = mod_qual gen_type_expr_desc

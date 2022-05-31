@@ -26,7 +26,7 @@
     List.iter (fun (key, tok) -> Hashtbl.add tbl key tok)
       [ "format",   FORMAT;
         "bitfield", BITFIELD;
-        "use",      USE;
+        "include",  INCLUDE;
         "type",     TYPE;
         "and",      AND;
         "fun",      FUN;
@@ -159,8 +159,17 @@ rule token = parse
       let c, v = List.hd ls, List.nth ls 2 in
       let c = Location.mk_loc_val c (Location.curr lexbuf) in
       let v = Location.mk_loc_val v (Location.curr lexbuf) in
-      (* TODO: add module *)
       CONSTR (None, c, v) }
+| upper ident* "." lower ident* "::" upper ident*
+    { let id = Lexing.lexeme lexbuf in
+      let ls = String.split_on_char ':' id in
+      let c, v = List.hd ls, List.nth ls 2 in
+      let ls = String.split_on_char '.' c in
+      let m, c = List.hd ls, List.nth ls 1 in
+      let m = Location.mk_loc_val m (Location.curr lexbuf) in
+      let c = Location.mk_loc_val c (Location.curr lexbuf) in
+      let v = Location.mk_loc_val v (Location.curr lexbuf) in
+      CONSTR (Some m, c, v) }
 
 | "$"? "_"* alpha ident*
     { decide_ident (Lexing.lexeme lexbuf) (Location.curr lexbuf) }

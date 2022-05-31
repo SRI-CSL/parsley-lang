@@ -74,8 +74,8 @@ let mk_filename modnm =
     | None   -> f
     | Some d -> Filename.concat d f
 
-(* recursively include all the modules referenced by use declarations
- * to generate a flattened declaration list *)
+(* recursively include all the modules referenced by include
+   declarations to generate a flattened declaration list *)
 module StringSet = Set.Make(struct type t = string
                                    let compare = compare
                             end)
@@ -95,13 +95,13 @@ let rec flatten accum includes pending =
                flatten (PDecl_recfuns r :: accum) includes rest
            | PDecl_format f ->
                flatten (PDecl_format f :: accum) includes rest
-           | PDecl_use u ->
-               (match u.use_modules with
+           | PDecl_include i ->
+               (match i with
                   | [] -> flatten accum includes rest
                   | h :: t ->
                       (* pick the first, the others go back to pending *)
-                      let pending_use = {u with use_modules = t} in
-                      let pending = PDecl_use pending_use :: rest in
+                      let pending_incls = t in
+                      let pending = PDecl_include pending_incls :: rest in
                       let fname = mk_filename (Location.value h) in
                       if StringSet.mem fname includes then
                         (* we've already included this, skip *)

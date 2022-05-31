@@ -130,7 +130,7 @@ one of these files will have the same structure.  A file
 contains a sequence of declarations, each of which can be one of the
 following:
 
-* `use` specifiers for inclusions of declarations from other Parsley files
+* `include` specifiers for inclusions of declarations from other Parsley files
 * `type` definitions
 * `const` definitions of constant expressions
 * `fun` (function) or `recfun` (recursive function) definitions
@@ -147,11 +147,11 @@ the Parsley compiler.
 NOTE: The files currently need to be in the same directory.
 
 Conceptually, the contents of the included file are placed at the
-point of the first including `use` declaration.  Subsequent `use`
-declarations of the same file do not have any effect.  The
-specification is only processed once all `use` declarations have been
-substituted away, and all subsequent processing is performed on the
-entire specification.
+point of the first `include` declaration for that file.  Subsequent
+`include` declarations of the same file do not have any effect.  The
+specification is only processed once all `include` declarations have
+been substituted away, and all subsequent processing is performed on
+the entire specification.
 
 The scoping of `type` and `fun`/`recfun` is _lexical_: a `type`
 definition can only use the types defined by definitions in scope at

@@ -21,7 +21,7 @@ open Parseerror
 %}
 
 %token EOF
-%token FORMAT TYPE BITFIELD AND FUN RECFUN USE OF CASE LET IN CONST PRINT
+%token FORMAT TYPE BITFIELD AND FUN RECFUN INCLUDE OF CASE LET IN CONST PRINT
 %token DECO
 %token EPSILON PAD ALIGN USE_BITFIELD
 %token SLASH_SF_LBRACK SLASH_SB_LBRACK
@@ -197,10 +197,6 @@ let make_const_defn n t v b e =
    const_defn_mod   = get_cur_module ();
    const_defn_aux   = ()}
 
-let make_use m b e =
-  {use_modules = m;
-   use_loc     = Location.mk_loc b e}
-
 let make_format_decl d a b e =
   {format_decl     = d;
    format_deco     = a;
@@ -363,6 +359,8 @@ bit_range_fields:
 rec_exp_field:
 | i=ident COLON e=expr
   { ((Modul None, i), e) }
+| m=UID DOT i=ident COLON e=expr
+  { ((Modul (Some m), i), e) }
 
 rec_exp_fields:
 | l=separated_nonempty_list(COMMA, rec_exp_field)
@@ -392,13 +390,18 @@ listelems:
 expr:
 | v=ident
   { make_expr (E_var (make_var v)) $startpos $endpos }
-/* TODO: module syntax */
 | r=ident ARROW rop=ident LPAREN e=expr RPAREN
   { make_expr (E_recop ((Modul None, r, rop), e)) $startpos $endpos }
+/* TODO: module syntax: this causes a shift/reduce conflict with E_mod_member
+| LPAREN m=UID DOT r=ident RPAREN ARROW rop=ident LPAREN e=expr RPAREN
+  { make_expr (E_recop ((Modul (Some m), r, rop), e)) $startpos $endpos }
+*/
 | u=UID DOT m=ident
   { make_expr (E_mod_member (u, m)) $startpos $endpos }
 | e=expr DOT f=ident
   { make_expr (E_field (e, (Modul None, f))) $startpos $endpos }
+| e=expr DOT LPAREN m=UID DOT f=ident RPAREN
+  { make_expr (E_field (e, (Modul (Some m), f))) $startpos $endpos }
 | l=LITERAL
   { make_expr (E_literal (PL_bytes (Location.value l))) $startpos $endpos }
 | l=INT_LITERAL
@@ -563,6 +566,8 @@ action:
 literal_set:
 | t=UID
   { make_literal_set (LS_type (Modul None, t)) $startpos $endpos }
+| m=UID DOT t=UID
+  { make_literal_set (LS_type (Modul (Some m), t)) $startpos $endpos }
 | l=separated_nonempty_list(BAR, LITERAL)
   { make_literal_set (LS_set l) $startpos $endpos }
 | l=literal_set BACKSLASH r=literal_set
@@ -575,10 +580,12 @@ literal_set:
 regexp:
 | LBRACK l=literal_set RBRACK
   { make_regexp (RX_literals l) $startpos $endpos }
-| DOT | HASH
+| HASH
   { make_regexp RX_wildcard $startpos $endpos }
 | i=UID
   { make_regexp  (RX_type (Modul None, i)) $startpos $endpos }
+| m=UID DOT i=UID
+  { make_regexp  (RX_type (Modul (Some m), i)) $startpos $endpos }
 | r=regexp STAR
   { make_regexp  (RX_star (r, None)) $startpos $endpos }
 | r=regexp CARET e=expr
@@ -624,6 +631,8 @@ rule_elem:
                    else Invalid_bitvector_syntax in
          parse_error err (Location.loc nt)
     else make_rule_elem (RE_non_term (Modul None, nt, inh)) $startpos $endpos }
+| m=UID DOT nt=UID inh=option(nt_args)
+  { make_rule_elem (RE_non_term (Modul (Some m), nt, inh)) $startpos $endpos }
 | nt=UID LT i=int_exp GT
   { let id = Location.value nt in
     if id <> "BitVector"
@@ -784,10 +793,10 @@ recfun_decl:
   { make_fun_defn (make_var f) true tvs p r e $startpos $endpos }
 
 pre_decl:
-| USE m=ident
-  { PDecl_use (make_use [m] $startpos $endpos) }
-| USE LBRACE m=separated_list(COMMA, ident) RBRACE
-  { PDecl_use (make_use m $startpos $endpos) }
+| INCLUDE m=ident
+  { PDecl_include [m] }
+| INCLUDE LBRACE m=separated_list(COMMA, ident) RBRACE
+  { PDecl_include m }
 | l=type_decls
   { PDecl_types (l, Location.mk_loc $startpos $endpos) }
 | CONST c=ident COLON t=type_expr EQ e=expr

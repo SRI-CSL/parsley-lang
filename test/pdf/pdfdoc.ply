@@ -1,6 +1,6 @@
 // Top-level document syntax.
 
-use {pdfprim, pdfobj}
+include {pdfprim, pdfobj}
 
 type xr_free     = { xr_next: int }
 type xr_inuse    = { xr_file_ofs: int }

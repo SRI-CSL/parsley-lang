@@ -1,7 +1,7 @@
 // This Parsley file is a partial implementation of the
 // IP Version 4 specification: https://tools.ietf.org/html/rfc791
 
-use udp
+include udp
 
 type ip_packet = {
   version: int,
@@ -23,14 +23,14 @@ format {
   IPPacket ipp {ip_packet} :=
     (| version: int := 0, ihl: int := 0, flags: int := 0, 
        fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
-    version_and_ihl = UInt8<endian=endian::Big()>
+    version_and_ihl = UInt8
     {
       version := version_and_ihl / 16;
       ihl := (version_and_ihl * 16) / 16
     }
     [version = 4]
     [ihl >= 5]  // the header length should be at least 5 as per the spec
-    type_of_service = UInt8<endian=endian::Big()>
+    type_of_service = UInt8
     total_length = UInt16<endian=endian::Big()>
     identification = (Byte^2)
     flags_and_fragment_offset = UInt16<endian=endian::Big()>
@@ -38,8 +38,8 @@ format {
       flags := flags_and_fragment_offset / 1024;
       fragment_offset := (flags_and_fragment_offset * 8) / 8
     }
-    time_to_live = UInt8<endian=endian::Big()>
-    protocol = UInt8<endian=endian::Big()>
+    time_to_live = UInt8
+    protocol = UInt8
     header_checksum = UInt16<endian=endian::Big()>
     source_address = (Byte^4)
     destination_address = (Byte^4)

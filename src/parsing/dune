@@ -80,6 +80,8 @@
 
 ;; This rule merges new error states with placeholder error messages
 ;; with the ones already defined.
+;; [parseErrorMessages.messages.merged] will need to be hand-edited to
+;; replace the placeholder error messages for the new error states.
 
 (rule
  (with-stdout-to parseErrorMessages.messages.merged

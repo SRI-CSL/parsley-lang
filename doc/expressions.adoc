@@ -413,3 +413,62 @@ an exception being thrown within the Parsley execution engine, and an
 error being returned to the application using the engine.
 
 NOTE: The parsing state after this exception is currently unspecified.
+
+== Modules
+
+Parsley supports the use of definitions from one Parsley
+specification, considered as a *module*, within another Parsley
+specification.  The name of the Parsley module for a specification is
+derived from the top-level file for that specification by capitalizing
+the first character of the filename and omitting any suffix.  For
+example, a specification with top-level file `gram.ply` corresponds to
+a Parsley module called `Gram`.
+
+Functions `f`, constants `c`, and types `t` from a Parsley module `M`
+are specified with the syntax `M.f`, `M.c` and `M.t` respectively.  A
+data constructor `D(...)` for a type `t` in module `M` is specified
+with the syntax `M.t::D(...)` (as compared to its within-module syntax
+of `t::D(...)`).  If a record field `f` is defined in module `M`, that
+field can be extracted from an expression `e` with the syntax
+`e.(M.f)` (as compared to the within-module syntax of `e.f`).
+
+Parsley does not support nested modules.
+
+=== Conflicts with the standard library
+
+Parsley forbids specifications whose module names conflict with the
+modules in the standard library.  This means that it does not allow
+_top-level_ specifications to be written in files with names like
+`list.ply`, `view.ply`, etc.  It does however support top-level
+specifications that `include` files with these names.  That is, a
+specification in a top-level file called `gram.ply` can include a file
+called `list.ply`.
+
+Identifiers with a module qualifier, e.g. `M.i` using the syntax
+described above, are called *explicitly qualified* identifiers.
+Identifiers `i` without such qualification are *implicitly qualified*.
+When processing the identifiers in the specification in a top-level
+file `gram.ply`, Parsley resolves the module membership of an
+implicitly qualified identifier using the following algorithm:
+
+. If it is within the lexical scope of a local declaration, it is
+qualified to belong to the parent `Gram` module.  Top-level type and
+function definitions are not considered local declarations; they are
+global declarations in that module.  Examples of local declarations
+are function parameters, the local name for a non-terminal used within
+its definition, and local bindings for rule elements.
+
+. Otherwise, if there is a standard library identifier with the same
+name, it is qualified to belong to the standard library module.
+
+. Otherwise, it is qualified to belong to the parent `Gram` module.
+
+It is possible to define entities with names that conflict with names
+in the standard library; one only needs to refer to them using an
+explicitly qualified identifier.  For example, if the specification
+`gram.ply` defines a type called `int`, it can refer to that type
+where needed as `Gram.int`; an implicitly qualified type identifier
+named `int` in `gram.ply` will continue to refer to the type `int`
+from the Parsley standard library.  The handling of name conflicts in
+other definitions, such as constants, functions, and non-terminals, is
+similar.

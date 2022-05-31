@@ -4,7 +4,7 @@ In the previous lesson, we developed a Parsley specification for the https://too
 In this lesson, we continue looking at the IP suite.
 In particular, we develop a Parsley specification for the https://tools.ietf.org/html/rfc791[Internet Protocol] (version 4).
 
-== The Use Declaration
+== The `include` Declaration
 
 First, we note that, as is the case with many protocols, we cannot parse IPv4 in isolation.
 IPv4 packets may contain a UDP packet, a TCP packet, other packets, or even fragments of packets.
@@ -12,12 +12,12 @@ Moreover, correctly parsing IPv4 and UDP packets requires the parsers to be link
 
 NOTE: For the time being we will not ensure the correctness of checksums. Once we have incorporated bits into Parsley, we will.
 
-Bridging this parser-parser barrier is done via the `use` declaration.
-The `use` declaration is followed by a filename of a file within the same directory.
+Bridging this parser-parser barrier is done via the `include` declaration.
+The `include` declaration is followed by a filename of a file within the same directory.
 It enables one to include all declarations within the specified file.
 
 ....
-use udp
+include udp
 ....
 
 Here, we include `udp.ply`.
@@ -196,7 +196,7 @@ format {
 
 NOTE: Instead of using an action block to computer `options_and_padding_len`, we could have alternatively computed the expression corresponding to the options and paddling length directly within the `options_and_padding` assignment itself. We used the approach above for pedagogical purposes.
 
-=== The Use Declaration at Play
+=== The `include` Declaration at Play
 
 Later on in the format declaration, we see:
 
@@ -214,7 +214,7 @@ format {
 }
 ....
 
-This is where the `use` declaration comes into play.
+This is where the `include` declaration comes into play.
 We are now using the `UDPPacket` non-terminal from `udp.ply`.
 In a future iteration of this tutorial, once bits have been implemented, we will demonstrate how these two parsers interact in validating the checksums.
 This will also require passing along information to the `UDPPacket` non-terminal via inherited attributes.
@@ -224,7 +224,7 @@ This will also require passing along information to the `UDPPacket` non-terminal
 Thus, we have the final file:
 
 ....
-use udp
+include udp
 
 type ip_packet = {
   version: int,

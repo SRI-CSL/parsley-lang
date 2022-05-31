@@ -6,7 +6,7 @@ specification checker, and as an interpreter.
 In both modes, a Parsley specification needs to be provided to the
 compiler.  This is provided as the name of a single top-level file for
 the specification.  The top-level specification file can include other
-Parsley files with `use` declarations.  The included files are
+Parsley files with `include` declarations.  The included files are
 currently expected to be found in the same directory as the top-level
 specification file.
 

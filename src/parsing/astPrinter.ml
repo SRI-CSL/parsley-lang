@@ -768,15 +768,15 @@ let string_of_constructor c =
 
 (* spec printers *)
 
-let print_use u =
-  pp_string "use ";
-  print_list ", " (fun e -> pp_string (Location.value e)) u.use_modules;
+let print_include i =
+  pp_string "include ";
+  print_list ", " (fun e -> pp_string (Location.value e)) i;
   pp_newline ()
 
 let print_pre_decl auxp d =
   match d with
-    | PDecl_use u ->
-        print_use u
+    | PDecl_include i ->
+        print_include i
     | PDecl_types (typs, _) ->
         List.iter (print_type_decl auxp) typs
     | PDecl_const c ->

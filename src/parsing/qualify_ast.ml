@@ -596,7 +596,7 @@ let rec convert ctx acc pds =
         acc
     | pd :: rest ->
         (match pd with
-           | PDecl_use _ ->
+           | PDecl_include _ ->
                (* This should have been processed and removed. *)
                assert false
            | PDecl_types (ts, l) ->

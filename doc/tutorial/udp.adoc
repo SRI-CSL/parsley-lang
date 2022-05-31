@@ -17,7 +17,7 @@ However, UDP is lightweight and simple, making it a great introductory example u
 A format specification in Parsley is constructed via a sequence of <<../intro.adoc#structure-of-a-parsley-specification-file, declarations>>.
 Currently, there are four classes of declarations:
 
-- `use` declarations that specify other Parsley files whose declarations shall be included. These are similar to `include` in C or `import` in Python.
+- `include` declarations that specify other Parsley files whose declarations shall be included. These are similar to `include` in C or `import` in Python.
 - `type` definitions that allow users to specify their own types.
 - `fun` and `recfun` declarations that correspond to functions and recursive functions respectively.
 - `format` block declarations that specify non-terminal definitions.

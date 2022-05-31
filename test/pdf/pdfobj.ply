@@ -1,6 +1,6 @@
 // Compound object syntax.
 
-use pdfprim
+include pdfprim
 
 // The expression sublanguage for semantic actions has access to a
 // Parsley standard library, which contains maps, lists, vectors,
