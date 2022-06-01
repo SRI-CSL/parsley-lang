@@ -39,11 +39,11 @@ specification file follow.
 == The expression sub-language
 
 Parsley uses a fairly typical typed functional language as the
-expression sub-language.  This language allows a user to specify types
-and functions.  These can be then used in the grammar sub-language to
-specify the types of the grammar non-terminals, the computations in
-constraint expressions, and the computation of values to be assigned
-to synthesized attributes.
+<<expressions.adoc#,expression sub-language>>.  This language allows a
+user to specify types and functions.  These can be then used in the
+grammar sub-language to specify the types of the grammar
+non-terminals, the computations in constraint expressions, and the
+computation of values to be assigned to synthesized attributes.
 
 The basic atomic types in this language are `byte`, `int`, `double`,
 `string`, `bool`, `endian`, `bit` and `unit` (known as `void` in
@@ -72,11 +72,11 @@ modules cannot be specified by the user.
 
 == The grammar sub-language
 
-The grammar sub-language is used to define the non-terminals in the
-grammar.  A non-terminal is defined in terms of a sequence of
-production rules.  These rules form an ordered choice: later rules in
-the sequence are only tried if the earlier rules fail to apply to the
-input.
+The <<grammar.adoc#,grammar sub-language>> is used to define the
+non-terminals in the grammar.  A non-terminal is defined in terms of a
+sequence of production rules.  These rules form an ordered choice:
+later rules in the sequence are only tried if the earlier rules fail
+to apply to the input.
 
 Each standard non-terminal can be specified to have a set of
 synthesized attributes, each with a declared type.  The type of such a
@@ -125,12 +125,24 @@ various widths, signedness and endianness.
 
 == Structure of a Parsley specification file
 
-The specification of a format can be split across multiple files.  Any
-one of these files will have the same structure.  A file
-contains a sequence of declarations, each of which can be one of the
-following:
+Parsley source files are named with a `.ply` suffix.
+
+The specification of a format can be split across multiple files,
+using the `include` specifier described below.  A specification has a
+top-level source file, which is typically the file specified on the
+command line to the Parsley compiler.  The name for the Parsley
+specification is derived from the name of this top-level file: the
+top-level filename is stripped of its `.ply` suffix and then
+capitalized (i.e. the first character is made uppercase if it is not
+already uppercase, with the remaining characters unchanged).
+
+Any one of these files will have the same structure.
+
+A file contains a sequence of declarations, each of which can be one
+of the following:
 
 * `include` specifiers for inclusions of declarations from other Parsley files
+* `import` specifiers for imports of declarations from other Parsley specifications
 * `type` definitions
 * `const` definitions of constant expressions
 * `fun` (function) or `recfun` (recursive function) definitions
@@ -138,13 +150,16 @@ following:
 
 The grammar sub-language is used only within the `format` blocks.
 
+=== `include` specifiers
+
 File inclusion allows a specification to be split across multiple
 files, with closely related declarations appearing in the same file.
 There will be typically a top-level Parsley file for the entire
 specification, and this is the only file that needs to be passed to
 the Parsley compiler.
 
-NOTE: The files currently need to be in the same directory.
+NOTE: All source files for a single Parsley specification need to be
+in the same directory.
 
 Conceptually, the contents of the included file are placed at the
 point of the first `include` declaration for that file.  Subsequent
@@ -152,6 +167,8 @@ point of the first `include` declaration for that file.  Subsequent
 specification is only processed once all `include` declarations have
 been substituted away, and all subsequent processing is performed on
 the entire specification.
+
+=== Scoping
 
 The scoping of `type` and `fun`/`recfun` is _lexical_: a `type`
 definition can only use the types defined by definitions in scope at
@@ -164,5 +181,28 @@ other functions whose definitions are in scope.
 any format block, so all type, constant and function definitions are
 in scope in every format block.
 
+=== Comments
+
 Comments are marked with a leading `//` and continue until the end of
 the line.
+
+=== `import` specifiers and specification modules
+
+Parsley supports the modular composition of specifications.  Each
+specification is treated as a module, with the module name given by
+the specification name as described above (i.e. the capitalized
+basename of the top-level source file of the specification).
+
+The modules given by an `import` specifier are searched for in the
+import directories specified on the <<compiler.adoc#,command line>>.
+Once a top-level source file has been found for a module in an import
+directory, that directory is expected to contain all the source files
+for that module, as described above.
+
+Parsley modules are capitalized identifiers (i.e. the first character
+of the identifier is uppercase), whereas their source files need not
+be capitalized.  However, it is an error if uncapitalized and
+capitalized versions of a top-level source file are both present.
+
+More information about the module system is present in the
+<<expressions.adoc#modules,expression language documentation>>.

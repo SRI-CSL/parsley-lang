@@ -26,6 +26,17 @@ open Internal_errors
    in typeAlgebra.ml.  The modules use the 'P' prefix to avoid
    colliding with any OCaml libraries with the same name. *)
 
+module PByte = struct
+  let of_int_unsafe lc (v: value) : value =
+    match v with
+    | V_int i
+         when Int64.compare i Int64.zero >= 0
+              && Int64.compare i 256L < 0 ->
+        V_char (Char.chr (Int64.to_int i))
+    | _ ->
+        fault lc (Overflow "Byte.of_int_unsafe")
+end
+
 module PInt = struct
   let of_byte lc (v: value) : value =
     match v with
@@ -488,6 +499,7 @@ let mk_dtable () : dtable =
       ("Map", "empty"),               PMap.empty;
     ] in
   let arg1s = [
+      ("Byte", "of_int_unsafe"),      PByte.of_int_unsafe;
       ("Int", "of_byte"),             PInt.of_byte;
       ("Int", "of_string"),           PInt.of_string;
       ("Int", "of_bytes"),            PInt.of_bytes;

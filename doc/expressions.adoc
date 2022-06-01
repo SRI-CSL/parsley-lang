@@ -421,8 +421,8 @@ specification, considered as a *module*, within another Parsley
 specification.  The name of the Parsley module for a specification is
 derived from the top-level file for that specification by capitalizing
 the first character of the filename and omitting any suffix.  For
-example, a specification with top-level file `gram.ply` corresponds to
-a Parsley module called `Gram`.
+example, a specification with top-level file `gram_spec.ply`
+corresponds to a Parsley module called `Gram_spec`.
 
 Functions `f`, constants `c`, and types `t` from a Parsley module `M`
 are specified with the syntax `M.f`, `M.c` and `M.t` respectively.  A

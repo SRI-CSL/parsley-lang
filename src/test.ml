@@ -80,14 +80,16 @@ let gen_ir (test_name: string) (spec: string) : ir option =
   let includes = SpecParser.StringSet.empty in
   let spec =
     parse_spec test_name spec (fun ast ->
-        let pre_ast = SpecParser.flatten [] includes ast.pre_decls in
+        let imports = SpecParser.StringMap.empty in
+        let pre_ast, imports =
+          SpecParser.flatten ([], imports) includes ast.pre_decls in
         let pre_spec = {pre_decls = List.rev pre_ast} in
         let bltins =
           Qualify_ast.({bltin_type    = TypeAlgebra.is_builtin_type;
                         bltin_field   = TypeAlgebra.is_builtin_field;
                         bltin_value   = TypeAlgebra.is_builtin_value;
                         bltin_nonterm = TypeAlgebra.is_builtin_nonterm}) in
-        Some (Qualify_ast.convert_spec bltins pre_spec)
+        Some (Qualify_ast.convert_spec bltins imports pre_spec)
       ) in
   match spec with
     | None   -> None

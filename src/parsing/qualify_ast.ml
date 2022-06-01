@@ -20,6 +20,7 @@
 open Ast
 
 module StringSet = Set.Make(String)
+module StringMap = Map.Make(String)
 
 type builtins =
   {bltin_type:    string -> bool;
@@ -32,14 +33,21 @@ type context =
    ctx_fields:   StringSet.t;
    ctx_locals:   StringSet.t;
    ctx_nonterms: StringSet.t;
+   ctx_imports:  ident StringMap.t;
    ctx_bltins:   builtins}
 
-let init_ctx bltins : context =
+let init_ctx bltins imports : context =
   {ctx_types    = StringSet.empty;
    ctx_fields   = StringSet.empty;
    ctx_locals   = StringSet.empty;
    ctx_nonterms = StringSet.empty;
+   ctx_imports  = imports;
    ctx_bltins   = bltins}
+
+type qualify_error =
+  | Unknown_module of ident
+
+exception Error of Location.t * qualify_error
 
 let stdlib = AstUtils.stdlib
 
@@ -84,6 +92,13 @@ let mod_of_field ctx lm f =
   then    stdlib
   else    lm
 
+let check_explicit_mod ctx m =
+  (* `m` should be in `ctx_imports` *)
+  let ms = Location.value m in
+  let l  = Location.loc m in
+  if   not (StringMap.mem ms ctx.ctx_imports)
+  then raise (Error (l, Unknown_module m))
+
 let convert_type_expr ctx lm (te: raw_mod gen_type_expr)
     : type_expr =
   let wrap t = {type_expr     = t;
@@ -94,6 +109,7 @@ let convert_type_expr ctx lm (te: raw_mod gen_type_expr)
       | TE_tvar t ->
           wrap (TE_tvar t)
       | TE_tname (Modul (Some m), t) ->
+          check_explicit_mod ctx m;
           let m = Modul (Mod_explicit m) in
           wrap (TE_tname (m, t))
       | TE_tname (Modul None, t) when std_qual ->
@@ -183,6 +199,7 @@ let rec convert_pat ctx lm p =
               let ctx, a = convert_pat ctx lm a in
               ctx, a :: acc
             ) (ctx, []) args in
+        check_explicit_mod ctx m;
         let m = Modul (Mod_explicit m) in
         ctx, wrap (P_variant ((m, t, c), List.rev args))
     | P_variant ((Modul None, t, c), args) ->
@@ -211,6 +228,7 @@ let rec convert_exp ctx lm e =
              wrap (E_mod_member (m, v))
     | E_constr ((Modul (Some m), t, c), es) ->
         let es = List.map (convert_exp ctx lm) es in
+        check_explicit_mod ctx m;
         let m = Modul (Mod_explicit m) in
         wrap (E_constr ((m, t, c), es))
     | E_constr ((Modul None, t, c), es) ->
@@ -226,8 +244,11 @@ let rec convert_exp ctx lm e =
         let flds =
           List.map (fun ((m, f), e) ->
               (let m = match m with
-                 | Modul (Some m) -> Modul (Mod_explicit m)
-                 | Modul None     -> mod_of_field ctx lm f in
+                   | Modul (Some m) ->
+                       check_explicit_mod ctx m;
+                       Modul (Mod_explicit m)
+                   | Modul None ->
+                       mod_of_field ctx lm f in
                m, f),
               convert_exp ctx lm e) flds in
         wrap (E_record flds)
@@ -243,6 +264,7 @@ let rec convert_exp ctx lm e =
         wrap (E_binop (op, l, r))
     | E_recop ((Modul (Some m), r, op), e) ->
         let e = convert_exp ctx lm e in
+        check_explicit_mod ctx m;
         let m = Modul (Mod_explicit m) in
         wrap (E_recop ((m, r, op), e))
     | E_recop ((Modul None, r, op), e) ->
@@ -254,6 +276,7 @@ let rec convert_exp ctx lm e =
         wrap (E_bitrange (e, l, r))
     | E_match (e, (Modul (Some m), t, c)) ->
         let e = convert_exp ctx lm e in
+        check_explicit_mod ctx m;
         let m = Modul (Mod_explicit m) in
         wrap (E_match (e, (m, t, c)))
     | E_match (e, (Modul None, t, c)) ->
@@ -264,6 +287,7 @@ let rec convert_exp ctx lm e =
         wrap (E_literal l)
     | E_field (e, (Modul (Some m), f)) ->
         let e = convert_exp ctx lm e in
+        check_explicit_mod ctx m;
         wrap (E_field (e, (Modul (Mod_explicit m), f)))
     | E_field (e, (Modul None, f)) ->
         let e = convert_exp ctx lm e in
@@ -325,6 +349,7 @@ let rec convert_literals ctx lm l =
                  literal_set_loc = l.literal_set_loc} in
   match l.literal_set with
     | LS_type (Modul (Some m), id) ->
+        check_explicit_mod ctx m;
         let m = Modul (Mod_explicit m) in
         wrap (LS_type (m, id))
     | LS_type (Modul None, id) ->
@@ -353,6 +378,7 @@ let rec convert_regexp ctx r =
     | RX_literals ls ->
         wrap (RX_literals (convert_literals ctx lm ls))
     | RX_type (Modul (Some m), id) ->
+        check_explicit_mod ctx m;
         let m = Modul (Mod_explicit m) in
         wrap (RX_type (m, id))
     | RX_type (Modul None, id) ->
@@ -392,9 +418,11 @@ let rec convert_rule_elem ctx r =
     | RE_regexp rx ->
         ctx, wrap (RE_regexp (convert_regexp ctx rx))
     | RE_non_term (Modul (Some m), id, None) ->
+        check_explicit_mod ctx m;
         let m = Modul (Mod_explicit m) in
         ctx, wrap (RE_non_term (m, id, None))
     | RE_non_term (Modul (Some m), id, Some inhs) ->
+        check_explicit_mod ctx m;
         let m = Modul (Mod_explicit m) in
         let inhs = List.map (fun (i, a, e) ->
                        i, a, convert_exp ctx lm e
@@ -596,8 +624,8 @@ let rec convert ctx acc pds =
         acc
     | pd :: rest ->
         (match pd with
-           | PDecl_include _ ->
-               (* This should have been processed and removed. *)
+           | PDecl_include _ | PDecl_import _ ->
+               (* These should have been processed and removed. *)
                assert false
            | PDecl_types (ts, l) ->
                let ctx, ts = convert_types ctx ts in
@@ -616,7 +644,13 @@ let rec convert ctx acc pds =
                let d = Decl_format (convert_format ctx f) in
                convert ctx (d :: acc) rest)
 
-let convert_spec (b: builtins) (s: (unit, unit) pre_spec_module)
+let convert_spec (b: builtins) (imports: ident StringMap.t)
+      (s: (unit, unit) pre_spec_module)
     : (unit, unit) spec_module =
-  let decls = convert (init_ctx b) [] s.pre_decls in
+  let decls = convert (init_ctx b imports) [] s.pre_decls in
   {decls = List.rev decls}
+
+let error_msg = function
+  | Unknown_module m ->
+      Printf.sprintf "Unknown module `%s': this module has not been imported."
+        (Location.value m)

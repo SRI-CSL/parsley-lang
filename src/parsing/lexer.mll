@@ -27,6 +27,7 @@
       [ "format",   FORMAT;
         "bitfield", BITFIELD;
         "include",  INCLUDE;
+        "import",   IMPORT;
         "type",     TYPE;
         "and",      AND;
         "fun",      FUN;

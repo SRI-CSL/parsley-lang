@@ -46,6 +46,12 @@ let default_ckopts =
    co_show_decorated    = [];
    co_output_json       = false}
 
+type spec_opts =
+  {so_import_dirs: string list}
+
+let default_sopts =
+  {so_import_dirs = []}
+
 let process_copts copts =
   Printexc.record_backtrace copts.co_debug
 

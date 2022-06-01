@@ -46,31 +46,42 @@ module VEnv : sig
   type t
 
   val empty:     t
+
+  (* update current module *)
+  val in_module: t -> string -> t
+
   val add:       t -> unit var -> varid var * t
   val extend:    t -> string -> varid var -> t
   val lookup:    t -> unit var -> varid var option
+
   val fold_left: ('a -> varid var -> 'a) -> 'a -> t -> 'a
 end = struct
-  type t = (string, varid var) CoreEnv.t
+  (* Binding entries are tagged with the current module when created; on
+     lookup, the current module is compared to the binding entry's
+     module to ensure that the lookup in within module scope. *)
+  type modul = string
+  type t = (modul * string, varid var) CoreEnv.t * modul
 
   let binding = ref (-1)
 
-  let empty = CoreEnv.empty
+  let empty = CoreEnv.empty, ""
 
-  let add env v =
+  let in_module (env, _) m = (env, m)
+
+  let add (env, m) v =
     incr binding;
     let l = Location.loc v in
     let n = var_name v in
     let v = Location.mk_loc_val (n, !binding) l in
-    v, CoreEnv.add env n v
+    v, (CoreEnv.add env (m, n) v, m)
 
-  let extend env n v =
-    CoreEnv.add env n v
+  let extend (env, m) n v =
+    CoreEnv.add env (m, n) v, m
 
-  let lookup env v =
-    CoreEnv.lookup_opt env (var_name v)
+  let lookup (env, m) v =
+    CoreEnv.lookup_opt env (m, var_name v)
 
-  let fold_left f a t =
+  let fold_left f a (t, _) =
     CoreEnv.fold_left (fun a (_, v) -> f a v) a t
 end
 
@@ -228,6 +239,11 @@ let make_dc_signature (m: mname) (adt: ident) tvars _dc typ
     | None      -> res
     | Some sign -> AstUtils.add_arrow_result sign res
 
+(** name of the field destructor in the typing constraint *)
+let constr_name_data_constructor (m: mname) (t: ident) (d: ident) =
+  Printf.sprintf "%s%s::%s"
+    (AstUtils.mk_modprefix m) (Location.value t) (Location.value d)
+
 (** [intern_data_constructor external adt_ident env_info dcon_info] returns
     env_info augmented with the data constructor's typing information
     It also checks if its definition is legal. [internal] specifies
@@ -253,10 +269,11 @@ let intern_data_constructor internal (m: mname) adt_id qs env_info dcon_info =
     then let l = Location.loc dname in
          raise (Error (l, InvalidDataConstructorDefinition dname)) in
   let pos = Location.loc dname in
+  let binding = constr_name_data_constructor m adt_id dname in
   let dname = Location.value dname in
-  let binding = AstUtils.canonicalize_dcon adt_name dname in
+  let dcid = AstUtils.canonicalize_dcon adt_name dname in
   let v = variable ~structure:ityp Flexible () in
-  ((add_data_constructor tenv pos (m, TName adt_name) (DName binding)
+  ((add_data_constructor tenv pos (m, TName adt_name) (DName dcid)
       (TypeConv.arity typ, rqs, ityp)),
    (DName dname, v) :: acu,
    (rqs @ lrqs),
@@ -278,6 +295,10 @@ let make_field_signature (m: mname) (adt: ident) tvars f typ =
      also check it here, e.g. for builtins. *)
   AstUtils.make_arrow_type [source; typ] (Location.loc f)
 
+(** name of the field destructor in the typing constraint *)
+let constr_name_field_destructor (m: mname) (f: ident) =
+  Printf.sprintf "{%s%s}" (AstUtils.mk_modprefix m) (Location.value f)
+
 (** [intern_field_destructor adt_name env_info f_info] returns
     env_info augmented with the field destructor's typing information
     It also checks if its definition is legal. *)
@@ -294,8 +315,8 @@ let intern_field_destructor m adt_id qs env_info f_info =
    then let l = Location.loc fname in
         raise (Error (l, InvalidFieldDestructorDefinition fname)));
   let pos = Location.loc fname in
+  let binding = constr_name_field_destructor m fname in
   let fname = Location.value fname in
-  let binding = Printf.sprintf "{%s}" fname in
   let v = variable ~structure:ityp Flexible () in
   ((add_field_destructor tenv pos (m, TName adt_name) (m, LName fname)
       (rqs, ityp)),
@@ -319,6 +340,10 @@ let make_record_signature (m: mname) (adt: ident) tvars fields =
       ) res (List.rev fields) in
     signature, fields
 
+(** name of the record constructor in the typing constraint *)
+let constr_name_record_constructor (m: mname) (adt_id: ident) =
+  Printf.sprintf "<%s%s>" (AstUtils.mk_modprefix m) (Location.value adt_id)
+
 (** [intern_record_constructor adt_name env_info fields] returns
     env_info augmented with the record constructor's typing
     information.  The constructor is named '<adt>' for a record named
@@ -326,7 +351,7 @@ let make_record_signature (m: mname) (adt: ident) tvars fields =
 let intern_record_constructor (m: mname) (adt_id: ident) qs env_info fields =
   let adt_name = Location.value adt_id in
   let tenv, let_env = env_info in
-  let rcon = Printf.sprintf "<%s>" adt_name in
+  let rcon = constr_name_record_constructor m adt_id in
   let constructor, _fields = make_record_signature m adt_id qs fields in
   let qs = List.map (fun q -> stdlib, TName (Location.value q)) qs in
   let rqs, rtenv = fresh_unnamed_rigid_vars (Location.loc adt_id) tenv qs in
@@ -656,9 +681,10 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
     | E_constr ((m, adt, dcon), args) ->
         (* A data constructor application is similar to the usual
            application except that it must be fully applied. *)
-        let typid = Location.value adt in
-        let cid, cloc = Location.value dcon, Location.loc dcon in
-        let dcid = AstUtils.canonicalize_dcon typid cid in
+        let dcid = AstUtils.canonicalize_dcon
+                     (Location.value adt) (Location.value dcon) in
+        let binding = constr_name_data_constructor m adt dcon in
+        let cloc = Location.loc dcon in
         let arity, _, _ = lookup_datacon tenv cloc (m, DName dcid) in
         let nargs = List.length args in
         if   nargs <> arity
@@ -676,19 +702,20 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
                        arg' :: args)
                      (t, CTrue e.expr_loc, WC_true, [])
                      (List.rev exs) in
-                 c ^ (SName dcid <? typ) e.expr_loc,
+                 c ^ (SName binding <? typ) e.expr_loc,
                  (wc,
                   mk_auxexpr (E_constr ((m, adt, dcon), args))))
 
     | E_record fields ->
+        assert (List.length fields > 0);
         (* Lookup the record ADT matched by this set of fields, and
            constrain each field value to the result type of the
            corresponding field destructor. *)
         let fields = AstUtils.sort_fields fields in
         let f_names, _ = List.split fields in
         let rec_info = lookup_record_adt tenv f_names in
-        let rcon =
-          Printf.sprintf "<%s>" (Location.value rec_info.adt) in
+        let m = fst (List.hd f_names) in
+        let rcon = constr_name_record_constructor m rec_info.adt in
         exists_list_aux fields (
             fun exs ->
             let typ, c, wc, fields =
@@ -712,7 +739,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
         let field = Location.value f in
         let _ = lookup_field_destructor tenv (Location.loc f)
                   (m, LName field) in
-        let binding = Printf.sprintf "{%s}" field in
+        let binding = constr_name_field_destructor m f in
         exists_aux (fun exvar ->
             let c', (wc', exp') = infer_expr tenv venv exp exvar in
             let typ = TypeConv.arrow tenv exvar t in
@@ -2496,6 +2523,7 @@ let infer_spec tenv venv spec =
                      tenv', ctxt, wc, decls', venv
               )
           | Decl_const const ->
+              let venv = VEnv.in_module venv const.const_defn_mod in
               let c, wc', const' =
                 infer_const_defn tenv venv ctxt const in
               (* bind the const name *)
@@ -2503,6 +2531,7 @@ let infer_spec tenv venv spec =
               let venv' = VEnv.extend venv (var_name cid) cid in
               tenv, c, wc @^ wc', Decl_const const' :: decls, venv'
           | Decl_fun f ->
+              let venv = VEnv.in_module venv f.fun_defn_mod in
               let c, wc', f' = infer_fun_defn tenv venv ctxt f in
               (* bind the function names *)
               let fid = f'.fun_defn_ident in
@@ -2511,6 +2540,7 @@ let infer_spec tenv venv spec =
           | Decl_recfuns r ->
               let c, wc', r' = infer_recfun_defns tenv venv ctxt r in
               let venv' = List.fold_left (fun venv f' ->
+                              let venv = VEnv.in_module venv f'.fun_defn_mod in
                               let fid = f'.fun_defn_ident in
                               VEnv.extend venv (var_name fid) fid
                             ) venv r'.recfuns in
@@ -2546,8 +2576,9 @@ let infer_spec tenv venv spec =
                        transform the untyped rules for a non-terminal,
                        resulting in new or different type-constraints
                        being generated. *)
-                    let fd = process_decorator tenv venv fd in
-                    let ntd = fd.format_decl in
+                    let fd   = process_decorator tenv venv fd in
+                    let ntd  = fd.format_decl in
+                    let venv = VEnv.in_module venv ntd.non_term_mod in
                     let c', wc', ntd' = infer_non_term tenv venv ntd in
                     let fd' = {format_decl     = ntd';
                                format_deco     = fd.format_deco;

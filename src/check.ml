@@ -22,8 +22,8 @@ open Analysis
 open Ir
 open Options
 
-let parse_spec ckopts spec_file =
-  let spec = SpecParser.parse_spec spec_file ckopts.co_show_raw_ast in
+let parse_spec ckopts sopts spec_file =
+  let spec = SpecParser.build_spec spec_file sopts ckopts.co_show_raw_ast in
   if   ckopts.co_show_parsed_ast
   then AstPrinter.print_parsed_spec spec;
   spec
@@ -92,9 +92,9 @@ let ir_of_ast _verbose ckopts ast : Cfg.spec_ir =
   then Ir_printer.print_spec ir;
   ir
 
-let ir_of_spec verbose ckopts spec_file : Cfg.spec_ir =
-  let ast = parse_spec ckopts spec_file in
+let ir_of_spec verbose ckopts sopts spec_file : Cfg.spec_ir =
+  let ast = parse_spec ckopts sopts spec_file in
   ir_of_ast verbose ckopts ast
 
-let check_spec verbose ckopts spec_file : unit =
-  ignore (ir_of_spec verbose ckopts spec_file)
+let check_spec verbose ckopts sopts spec_file : unit =
+  ignore (ir_of_spec verbose ckopts sopts spec_file)

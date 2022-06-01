@@ -239,8 +239,6 @@ type ('a, 'b, 'm) non_term_defn =
    non_term_mod:       string;
    non_term_loc:       Location.t}
 
-type mod_list = ident list
-
 type 'm type_decl =
   {type_decl_ident: ident;
    type_decl_kind:  kind;
@@ -293,9 +291,11 @@ type ('a, 'b, 'm) format =
    format_loc:   Location.t}
 
 (* Pre-AST from parsing a single file. *)
-
+type inc_list = ident list
+type mod_list = modident list
 type ('a, 'b) pre_decl =
-  | PDecl_include of mod_list
+  | PDecl_include of inc_list
+  | PDecl_import  of mod_list
   | PDecl_types   of raw_mod type_decl list * Location.t
   | PDecl_const   of ('a, 'b, raw_mod) const_defn
   | PDecl_fun     of ('a, 'b, raw_mod) fun_defn
@@ -332,6 +332,8 @@ let register_bitwidth i =
 (* module being currently parsed, which should always be set when
    this function is called. *)
 let cur_module : string option ref = ref None
+let set_cur_module m =
+  cur_module := Some m
 let get_cur_module () : string =
   match !cur_module with
     | None   -> assert false

@@ -72,11 +72,11 @@ format {
   HexString hs {hs: [byte] := []} :=
     !"<"!
     ( h1=HexChar h2=HexChar
-      { hs.hs := byte_of_int_unsafe((Int.of_byte(h1)*16 + Int.of_byte(h2))) :: hs.hs }
+      { hs.hs := Byte.of_int_unsafe((Int.of_byte(h1)*16 + Int.of_byte(h2))) :: hs.hs }
     )*
 
     ( h=HexChar
-      { hs.hs := byte_of_int_unsafe(Int.of_byte(h) * 16) :: hs.hs}
+      { hs.hs := Byte.of_int_unsafe(Int.of_byte(h) * 16) :: hs.hs}
     )?
     !">"!
     { hs.hs := List.rev(hs.hs) }

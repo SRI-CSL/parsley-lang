@@ -60,6 +60,11 @@ This will cause the interpreter to consume as many of these instances
 as possible, and print each value bound to `s` for every successful
 parse of `Start`.
 
+If the module system is used by the specification to import other
+Parsley specifications, the `-I` option should be used to specify the
+directories in which those specifications can be found, once per
+directory.
+
 Additional command line options can be specified to each of these
 modes of the compiler.  A list of these options can be examined using
 the `--help` option.

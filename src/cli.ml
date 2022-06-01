@@ -26,16 +26,16 @@ let test copts : unit =
   Options.process_copts copts;
   Tests.do_tests copts.co_verbose Test.gen_ir Test.exe_ir
 
-let check copts ckopts spec_file : unit =
+let check copts ckopts sopts spec_file : unit =
   Options.process_copts copts;
   Options.process_ckopts ckopts;
-  Check.check_spec copts.co_verbose ckopts spec_file
+  Check.check_spec copts.co_verbose ckopts sopts spec_file
 
-let execute copts loop start spec_file data_file : unit =
+let execute copts sopts loop start spec_file data_file : unit =
   Options.process_copts copts;
   let verbose = copts.co_verbose in
   let ckopts = Options.default_ckopts in
-  let spec = Check.ir_of_spec verbose ckopts spec_file in
+  let spec = Check.ir_of_spec verbose ckopts sopts spec_file in
   let m = Parsing.AstUtils.modname_of_file spec_file in
   Execute.execute verbose loop m start spec data_file
 
@@ -106,18 +106,28 @@ let ckopts_t : check_opts Term.t =
         $ show_after_macros $ show_types $ show_typed_ast
         $ show_anf $ show_cfg $ show_decorated $ output_json)
 
+let mk_sopts so_import_dirs : spec_opts =
+  {so_import_dirs}
+
+let sopts_t : spec_opts Term.t =
+  let import_dir =
+    let docv = "dir" in
+    let doc  = "Import directory." in
+    Arg.(value & opt_all dir [] & info ["I"] ~doc ~docv) in
+  Term.(const mk_sopts $ import_dir)
+
 let spec : string Term.t =
-  let docv = "SPEC_FILE" in
+  let docv = "spec_file" in
   let doc  = "The file containing the input Parsley specification." in
   Arg.(required & (pos 0 (some non_dir_file) None & info [] ~doc ~docv))
 
 let data : string Term.t =
-  let docv = "DATA_FILE" in
+  let docv = "data_file" in
   let doc  = "The file with input data in the specified format." in
   Arg.(required & (pos 1 (some non_dir_file) None & info [] ~doc ~docv))
 
 let start : string Term.t =
-  let docv = "START" in
+  let docv = "Start" in
   let doc  = "The start (or entry) non-terminal for the parse." in
   Arg.(required & (opt (some string) None & info ["s"; "start"] ~doc ~docv))
 
@@ -136,12 +146,12 @@ let test_cmd : unit Cmd.t =
 let check_cmd : unit Cmd.t =
   let doc  = "parse, type-check and generate IR for a specification" in
   let info = Cmd.info "check" ~doc in
-  Cmd.v info Term.(const check $ copts_t $ ckopts_t $ spec)
+  Cmd.v info Term.(const check $ copts_t $ ckopts_t $ sopts_t $ spec)
 
 let execute_cmd : unit Cmd.t =
   let doc  = "parse the given data using the given specification" in
   let info = Cmd.info "execute" ~doc in
-  Cmd.v info Term.(const execute $ copts_t $ loop $ start $ spec $ data)
+  Cmd.v info Term.(const execute $ copts_t $ sopts_t $ loop $ start $ spec $ data)
 
 (* top-level command *)
 let main_cmd : unit Cmd.t =

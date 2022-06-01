@@ -21,8 +21,8 @@ open Parseerror
 %}
 
 %token EOF
-%token FORMAT TYPE BITFIELD AND FUN RECFUN INCLUDE OF CASE LET IN CONST PRINT
-%token DECO
+%token FORMAT TYPE BITFIELD AND FUN RECFUN INCLUDE IMPORT OF CASE LET IN CONST
+%token DECO PRINT
 %token EPSILON PAD ALIGN USE_BITFIELD
 %token SLASH_SF_LBRACK SLASH_SB_LBRACK
 
@@ -793,10 +793,14 @@ recfun_decl:
   { make_fun_defn (make_var f) true tvs p r e $startpos $endpos }
 
 pre_decl:
-| INCLUDE m=ident
+| INCLUDE m=def
   { PDecl_include [m] }
-| INCLUDE LBRACE m=separated_list(COMMA, ident) RBRACE
+| INCLUDE LBRACE m=separated_list(COMMA, def) RBRACE
   { PDecl_include m }
+| IMPORT m=UID
+  { PDecl_import [m] }
+| IMPORT LBRACE m=separated_list(COMMA, UID) RBRACE
+  { PDecl_import m }
 | l=type_decls
   { PDecl_types (l, Location.mk_loc $startpos $endpos) }
 | CONST c=ident COLON t=type_expr EQ e=expr

@@ -208,13 +208,17 @@ let builtin_types, builtin_ops, builtin_values,
                                            (opt_type (gen_tvar "a"))));
     |] in
   let builtin_values : builtin_value array = [|
-      (* utility convertors *)
-      (Ast.VName "byte_of_int_unsafe", [], arrow_type int_t byte_t);
     |] in
 
   (* When adding modules or functions below, please also add their
      implementations to parsleylib.ml *)
   let builtin_modules : builtin_module list = [
+      {mod_name   = Ast.Mod_inferred "Byte";
+       mod_values = [
+           (Ast.VName "of_int_unsafe", [],
+            arrow_type int_t byte_t);
+         ];
+      };
       {mod_name   = Ast.Mod_inferred "Int";
        mod_values = [
            (Ast.VName "of_byte", [],
