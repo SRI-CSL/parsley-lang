@@ -35,14 +35,14 @@ bitfield bitf_pads = {
 }
 
 format {
-  DDS d {magic: [byte], imajor: int, iminor: int, submessages: [submessage]} := magic=!"RTPS"!
+  DDS d {magic: [byte], imajor: int, iminor: int, submessages: [submessage], checkbytes: [byte]} := magic=!"RTPS"!
                                                                                 version=ProtocolVersion
                                                                                 vendor=VendorId
                                                                                 prefix=(Byte ^ 12)
                                                                                 submessages=(SubMessage)*
                                                                                 checkbytes=(Byte)*
   [List.length(submessages) > 0 && List.length(checkbytes) = 0]
-  {d.magic := magic; d.imajor := version.major ; d.iminor := version.minor; d.submessages := submessages}
+  {d.magic := magic; d.imajor := version.major ; d.iminor := version.minor; d.submessages := submessages; d.checkbytes := checkbytes}
   // Ensure we have at least one submessage
   ;;
 
@@ -153,12 +153,12 @@ format {
                                     readerSNState=SequenceNumberSet<endian = bool::True()>
                                     count=UInt32<endian=endian::Little()>
                                     {d.acknackcount := count}) |
-                                    ([Bits.to_bool(Bits.to_bit(flags.e2)) = bool::True()]
-                                    octetsToNextHeader=UInt16<endian=endian::Little()>
-                                    readerEntityID=UInt32<endian=endian::Little()>
-                                    writerEntityID=UInt32<endian=endian::Little()>
+                                    ([Bits.to_bool(Bits.to_bit(flags.e2)) = bool::False()]
+                                    octetsToNextHeader=UInt16<endian=endian::Big()>
+                                    readerEntityID=UInt32<endian=endian::Big()>
+                                    writerEntityID=UInt32<endian=endian::Big()>
                                     readerSNState=SequenceNumberSet<endian = bool::False()>
-                                    count=UInt32<endian=endian::Little()>
+                                    count=UInt32<endian=endian::Big()>
                                     {d.acknackcount := count}))
   ;;
 
