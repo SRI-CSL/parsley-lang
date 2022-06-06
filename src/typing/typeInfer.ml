@@ -432,7 +432,6 @@ type context = tconstraint -> tconstraint
 let rec infer_type_decls tenv ctxt tdsloc tds =
   let tenv', tdsrefs, vs =
     List.fold_left (fun (tenv, tdsrefs, vs) td ->
-        let tenv  = set_typing_module tenv td.type_decl_mod in
         let name  = Location.value td.type_decl_ident in
         let loc   = td.type_decl_loc in
         let kind  = td.type_decl_kind in
@@ -566,7 +565,6 @@ and infer_type_decl (tenv, rqs, let_env) td adt_ref =
    engine), at the expense of larger constraints and suboptimal
    error messages. *)
 let infer_type_abbrev tenv td =
-  let tenv  = set_typing_module tenv td.type_decl_mod in
   let ident = td.type_decl_ident
   and tvars = td.type_decl_tvars
   and pos   = td.type_decl_loc
@@ -660,6 +658,11 @@ let lookup_record_adt tenv fields =
 let intern_expanded_type tenv typ =
   let typ  = TypedAstUtils.expand_type_abbrevs tenv typ in
   TypeConv.intern tenv typ
+
+(** name of the module-qualified value in the typing constraint *)
+let constr_name_mod_value (m: mname) v =
+  Printf.sprintf "%s%s"
+    (AstUtils.mk_modprefix m) (var_name v)
 
 (** [infer_expr tenv venv e t] generates a constraint that guarantees that
     [e] has type [t] in the typing environment [tenv]. *)
@@ -944,30 +947,13 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
         let wc = wce @^ (WC_pred (e.expr_loc, x, WP_more n)) in
         (ex ~pos:e.expr_loc [x] c),
         (wc, mk_auxexpr (E_bitrange (bve', n, m)))
-    (* values in the local module *)
-    | E_mod_member (m, i) when Location.value m = typing_module tenv ->
-        (* local values are not registered into the typing environment
-           until after typing pass, so handle this like a local
-           variable *)
-        let v = AstUtils.make_var i in
-        (match VEnv.lookup venv v with
-           | None ->
-               let err = UnboundIdentifier (var_name v) in
-               raise (Error (e.expr_loc, err))
-           | Some _ -> ());
-        (* The type of a variable must be at least as general as [t]. *)
-        (SName (var_name v) <? t) (Location.loc v),
-        (WC_true,
-         mk_auxexpr (E_mod_member (m, i)))
-    (* values in external modules *)
     | E_mod_member (m, i) ->
+        let loc = Location.extent (Location.loc m) (Location.loc i) in
         let mid = Modul (Mod_explicit m) in
         let vid = Location.value i in
-        let loc = Location.extent (Location.loc m) (Location.loc i) in
+        let v = AstUtils.make_var i in
         let _ = lookup_value loc tenv (mid, VName vid) in
-        (* Use the encoded name registered in the environment *)
-        let id = Printf.sprintf "%s%s" (AstUtils.mk_modprefix mid) vid in
-        (* This is typed as a regular identifier. *)
+        let id = constr_name_mod_value mid v in
         (SName id <? t) loc,
         (WC_true,
          mk_auxexpr (E_mod_member (m, i)))
@@ -977,9 +963,8 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
    value environment [venv] and generates an updated constraint
    context for [ctxt] and a type signature for [cd]. *)
 let infer_const_defn tenv venv ctxt cd =
-  let tenv = set_typing_module tenv cd.const_defn_mod in
-  let loc = Location.loc cd.const_defn_ident
-  and cn = var_name cd.const_defn_ident in
+  let loc = Location.loc cd.const_defn_ident in
+  let cn  = var_name cd.const_defn_ident in
   (* Introduce a type variable for the constant signature. *)
   let cv = variable Flexible () in
   let ctyp = CoreAlgebra.TVariable cv in
@@ -992,10 +977,14 @@ let infer_const_defn tenv venv ctxt cd =
     infer_expr tenv venv cd.const_defn_val ityp in
   (* Bind the type variable for the full constraint *)
   let cc = (ctyp =?= ityp) cd.const_defn_loc ^ cval in
-  let bind = StringMap.singleton cn (ctyp, loc) in
+  let m  = infer_mod cd.const_defn_mod in
+  let bind = constr_name_mod_value m cd.const_defn_ident in
+  let env = StringMap.singleton bind (ctyp, loc) in
   (* Construct the binding for the value definition. *)
   let scheme =
-    Scheme (cd.const_defn_loc, [], [cv], cc, bind) in
+    Scheme (cd.const_defn_loc, [], [cv], cc, env) in
+  (* Enter value into the typing environment. *)
+  add_value tenv loc (m, VName cn) ([], ctyp),
   (* Generate the constraint context *)
   (fun c -> ctxt (CLet ([scheme], c))),
   wcval,
@@ -1012,9 +1001,9 @@ let infer_const_defn tenv venv ctxt cd =
    value environment [venv] and generates an updated constraint
    context for [ctxt] and a type signature for [fd]. *)
 let infer_fun_defn tenv venv ctxt fd =
-  let tenv = set_typing_module tenv fd.fun_defn_mod in
   let loc = Location.loc fd.fun_defn_ident
   and fdn = var_name fd.fun_defn_ident
+  and m  = infer_mod fd.fun_defn_mod
   and qs = fd.fun_defn_tvars in
   let qs = List.map (fun q -> stdlib, TName (Location.value q)) qs in
   let rqs, rtenv = fresh_unnamed_rigid_vars fd.fun_defn_loc tenv qs in
@@ -1023,6 +1012,8 @@ let infer_fun_defn tenv venv ctxt fd =
   (* Introduce a type variable for the function signature. *)
   let fv = variable Flexible () in
   let ftyp = CoreAlgebra.TVariable fv in
+  (* Value type in the typing environment. *)
+  let vtyp = rqs, ftyp in
 
   (* Prevent duplicate definitions.  The functional sublanguage is
      processed before the grammar sublanguage; as a result, functions
@@ -1040,11 +1031,13 @@ let infer_fun_defn tenv venv ctxt fd =
 
   (* for recursive functions, make sure the function name is bound *)
   let fdn', venv' = VEnv.add venv fd.fun_defn_ident in
-  let venv', ids =
+  let tenv', venv', ids =
     if   fd.fun_defn_recursive
-    then venv',
+    then add_value tenv' loc (m, VName fdn) vtyp,
+         venv',
          StringMap.singleton fdn (ident_of_var fd.fun_defn_ident)
-    else venv,
+    else tenv',
+         venv,
          StringMap.empty in
 
   (* First construct the function signature and the argument bindings
@@ -1101,14 +1094,17 @@ let infer_fun_defn tenv venv ctxt fd =
     let def_c = CLet ([arg_schm],
                       (ftyp =?= signature) loc
                       ^ cbody) in
-    let bind = StringMap.singleton fdn (ftyp, loc) in
-    Scheme (fd.fun_defn_loc, rqs, [fv], def_c, bind) in
+    let bind = constr_name_mod_value m fd.fun_defn_ident in
+    let env = StringMap.singleton bind (ftyp, loc) in
+    Scheme (fd.fun_defn_loc, rqs, [fv], def_c, env) in
 
+  (* Enter value into the typing environment. *)
+  add_value tenv loc (m, VName fdn) vtyp,
   (* Generate the constraint context. *)
   (fun c -> ctxt (CLet ([scheme], c))),
   wcbody,
   (* The annotated function contains the function signature and the
-   * annotated body *)
+   * annotated body. *)
   {fun_defn_ident     = fdn';
    fun_defn_tvars     = fd.fun_defn_tvars;
    fun_defn_params    = params';
@@ -1134,9 +1130,9 @@ let infer_recfun_defns tenv venv ctxt r =
 
      This differs from the handling for a single function, which can
      be processed in a single pass.  *)
-  let tenv', venv', fdns', rqs, fvs, sigs, binds, eqns =
-    List.fold_left (fun (tenv, venv, fdns', rqs, fvs, sigs, binds, eqns) fd ->
-        let tenv = set_typing_module tenv fd.fun_defn_mod in
+  let vinfos, tenv', venv', fdns', rqs, fvs, sigs, env, eqns =
+    List.fold_left
+      (fun (vinfos, tenv, venv, fdns', rqs, fvs, sigs, env, eqns) fd ->
         let loc = Location.loc fd.fun_defn_ident
         and fdn = var_name fd.fun_defn_ident
         and qs = fd.fun_defn_tvars in
@@ -1189,12 +1185,17 @@ let infer_recfun_defns tenv venv ctxt r =
            the top-level bindings *)
         let fv = variable Flexible () in
         let ftv = CoreAlgebra.TVariable fv in
-        let binds = StringMap.add fdn (ftv, loc) binds in
+        (* Value type for the typing environment. *)
+        let vtyp = rqs, ftv in
+        let m = infer_mod fd.fun_defn_mod in
+        let vinfo = loc, (m, VName fdn), vtyp in
+        let tenv' = add_value tenv' loc (m, VName fdn) vtyp in
+        let bind = constr_name_mod_value m fd.fun_defn_ident in
+        let env = StringMap.add bind (ftv, loc) env in
         let eqn = (ftv =?= signature) loc in
-        tenv', venv', fdn' :: fdns', rqs' @ rqs, fv :: fvs,
-        signature :: sigs,
-        binds, eqn :: eqns)
-      (tenv, venv, [], [], [], [], StringMap.empty, [])
+        vinfo :: vinfos, tenv', venv', fdn' :: fdns', rqs' @ rqs, fv :: fvs,
+        signature :: sigs, env, eqn :: eqns)
+      ([], tenv, venv, [], [], [], [], StringMap.empty, [])
       (List.rev r.recfuns) in
 
   (* Now that we have the base environments that include the function
@@ -1221,8 +1222,8 @@ let infer_recfun_defns tenv venv ctxt r =
                tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
                              ^ argbinders.tconstraint;
                vars = v :: argbinders.vars})
-            (* venv' and binds already contain the function bindings *)
-            ([], venv', {empty_fragment with gamma = binds})
+            (* venv' and env already contain the function bindings *)
+            ([], venv', {empty_fragment with gamma = env})
             (List.rev fd.fun_defn_params) in
         (* Construct the binding context for the body type constraint *)
         let arg_schm =
@@ -1249,10 +1250,15 @@ let infer_recfun_defns tenv venv ctxt r =
         wcbody @^ wc,
         fd' :: fds'
       ) ([], WC_true, []) (List.rev fdinfos) in
+  (* Enter values into environment *)
+  let tenv = List.fold_left (fun tenv (l, vid, vtyp) ->
+                 add_value tenv l vid vtyp
+               ) tenv vinfos in
   (* Now combine the constraints *)
   let scheme =
     let rc = conj cs in
-    Scheme (r.recfuns_loc, rqs, fvs, rc, binds) in
+    Scheme (r.recfuns_loc, rqs, fvs, rc, env) in
+  tenv,
   (fun c -> ctxt (CLet ([scheme], c))),
   wc,
   {r with recfuns = fds'}
@@ -1324,7 +1330,6 @@ let infer_non_term_inh_type tenv ntd =
    and updates ctxt with the names of the corresponding field
    destructors. *)
 let infer_non_term_type tenv ctxt ntd =
-  let tenv  = set_typing_module tenv ntd.non_term_mod in
   let ntid  = ntd.non_term_name
   and loc   = ntd.non_term_loc in
   let ntnm  = Location.value ntid
@@ -2216,7 +2221,6 @@ let infer_non_term_rule tenv venv ntd rule pids =
    {rule_rhs = List.rev rhs'; rule_temps = List.rev temps'; rule_loc = rule.rule_loc})
 
 let infer_non_term tenv venv ntd =
-  let tenv = set_typing_module tenv ntd.non_term_mod in
   let m = infer_mod ntd.non_term_mod in
   let ntid = NName (Location.value ntd.non_term_name) in
   let inh_attr_map, inh_attrs = match lookup_non_term tenv (m, ntid) with
@@ -2477,11 +2481,11 @@ let has_type_abbrevs tds =
     ) None tds
 
 
-let process_decorator tenv _venv (fd: (unit, unit, mod_qual) format_decl)
+let process_decorator _tenv _venv (fd: (unit, unit, mod_qual) format_decl)
     : (unit, unit, mod_qual) format_decl =
   (* Currently, the only supported decorator is 'whitespace'.  If
      specified, it should name a valid non-terminal. *)
-  let m = infer_mod (typing_module tenv) in
+  let m = infer_mod fd.format_decl.non_term_mod in
   match Format_decorators.get_whitespace_nonterm m fd.format_deco with
     | None ->
         fd
@@ -2523,8 +2527,9 @@ let infer_spec tenv venv spec =
                      tenv', ctxt, wc, decls', venv
               )
           | Decl_const const ->
-              let venv = VEnv.in_module venv const.const_defn_mod in
-              let c, wc', const' =
+              let m = const.const_defn_mod in
+              let venv = VEnv.in_module venv m in
+              let tenv, c, wc', const' =
                 infer_const_defn tenv venv ctxt const in
               (* bind the const name *)
               let cid = const'.const_defn_ident in
@@ -2532,13 +2537,13 @@ let infer_spec tenv venv spec =
               tenv, c, wc @^ wc', Decl_const const' :: decls, venv'
           | Decl_fun f ->
               let venv = VEnv.in_module venv f.fun_defn_mod in
-              let c, wc', f' = infer_fun_defn tenv venv ctxt f in
+              let tenv, c, wc', f' = infer_fun_defn tenv venv ctxt f in
               (* bind the function names *)
               let fid = f'.fun_defn_ident in
               let venv' = VEnv.extend venv (var_name fid) fid in
               tenv, c, wc @^ wc', Decl_fun f' :: decls, venv'
           | Decl_recfuns r ->
-              let c, wc', r' = infer_recfun_defns tenv venv ctxt r in
+              let tenv, c, wc', r' = infer_recfun_defns tenv venv ctxt r in
               let venv' = List.fold_left (fun venv f' ->
                               let venv = VEnv.in_module venv f'.fun_defn_mod in
                               let fid = f'.fun_defn_ident in
@@ -2550,7 +2555,6 @@ let infer_spec tenv venv spec =
                 List.fold_left (fun (te, c) fd ->
                     let nt = fd.format_decl in
                     let m  = nt.non_term_mod in
-                    let te = set_typing_module te m in
                     let m  = infer_mod m in
                     Format_decorators.check_decorator m fd.format_deco;
                     let ntd = fd.format_decl in

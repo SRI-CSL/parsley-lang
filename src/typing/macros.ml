@@ -345,8 +345,9 @@ let synth_list_map hoi =
                        [mk_expr (E_apply (func, [h])) func.expr_loc;
                         acc])) accloc in
   let reccall =
-    let f = mk_var hoi.hoi_synthname func.expr_loc in
-    mk_expr (E_apply ((mk_expr (E_var f) func.expr_loc),
+    let m = Location.mk_loc_val hoi.hoi_cur_mod   func.expr_loc in
+    let f = Location.mk_loc_val hoi.hoi_synthname func.expr_loc in
+    mk_expr (E_apply ((mk_expr (E_mod_member (m, f)) func.expr_loc),
                       [tl; acc_arg]))
       accloc in
   (* case expression *)
@@ -443,8 +444,9 @@ let synth_list_map2 hoi =
                        [mk_expr (E_apply (func, [ah; bh])) func.expr_loc;
                         l])) lloc in
   let reccall =
-    let f = mk_var hoi.hoi_synthname func.expr_loc in
-    mk_expr (E_apply ((mk_expr (E_var f) func.expr_loc),
+    let m = Location.mk_loc_val hoi.hoi_cur_mod   func.expr_loc in
+    let f = Location.mk_loc_val hoi.hoi_synthname func.expr_loc in
+    mk_expr (E_apply ((mk_expr (E_mod_member (m, f)) func.expr_loc),
                       [at; bt; acc_arg]))
       lloc in
   (* case (al, bl) ... *)
@@ -519,9 +521,11 @@ let synth_list_fold hoi =
           mk_expr (E_mod_member (m, f))
             (Location.extent (Location.loc m) (Location.loc f)) in
   let acc_arg = mk_expr (E_apply (func, [acc; h])) acloc in
+
   let reccall =
-    let f = mk_var hoi.hoi_synthname func.expr_loc in
-    mk_expr (E_apply ((mk_expr (E_var f) func.expr_loc),
+    let m = Location.mk_loc_val hoi.hoi_cur_mod   func.expr_loc in
+    let f = Location.mk_loc_val hoi.hoi_synthname func.expr_loc in
+    mk_expr (E_apply ((mk_expr (E_mod_member (m, f)) func.expr_loc),
                       [acc_arg; t]))
       rloc in
   (* case (lst) ... *)
@@ -548,22 +552,25 @@ let synth_list_fold hoi =
 
 let replace_list_map hoi args : (unit, unit, mod_qual) expr =
   assert (List.length args = 1);
-  let fv = mk_var hoi.hoi_synthname hoi.hoi_retloc in
-  let fn = mk_expr (E_var fv) hoi.hoi_retloc in
+  let m  = Location.mk_loc_val hoi.hoi_cur_mod   hoi.hoi_retloc in
+  let fv = Location.mk_loc_val hoi.hoi_synthname hoi.hoi_retloc in
+  let fn = mk_expr (E_mod_member (m, fv)) hoi.hoi_retloc in
   let args = args @ [mk_empty_list hoi.hoi_retloc] in
   mk_expr (E_apply (fn, args)) hoi.hoi_retloc
 
 let replace_list_map2 hoi args : (unit, unit, mod_qual) expr =
   assert (List.length args = 2);
-  let fv = mk_var hoi.hoi_synthname hoi.hoi_retloc in
-  let fn = mk_expr (E_var fv) hoi.hoi_retloc in
+  let m  = Location.mk_loc_val hoi.hoi_cur_mod   hoi.hoi_retloc in
+  let fv = Location.mk_loc_val hoi.hoi_synthname hoi.hoi_retloc in
+  let fn = mk_expr (E_mod_member (m, fv)) hoi.hoi_retloc in
   let args = args @ [mk_empty_list hoi.hoi_retloc] in
   mk_expr (E_apply (fn, args)) hoi.hoi_retloc
 
 let replace_list_fold hoi args : (unit, unit, mod_qual) expr =
   assert (List.length args = 2);
-  let fv = mk_var hoi.hoi_synthname hoi.hoi_retloc in
-  let fn = mk_expr (E_var fv) hoi.hoi_retloc in
+  let m  = Location.mk_loc_val hoi.hoi_cur_mod   hoi.hoi_retloc in
+  let fv = Location.mk_loc_val hoi.hoi_synthname hoi.hoi_retloc in
+  let fn = mk_expr (E_mod_member (m, fv)) hoi.hoi_retloc in
   mk_expr (E_apply (fn, args)) hoi.hoi_retloc
 
 (** Scan the specification looking for higher-order invocations, and
@@ -582,7 +589,7 @@ type context =
    (* stdlib functions *)
    ctx_stddefs: builtin StdlibMap.t;
    (* increment to synthesized functions *)
-   ctx_synths:  (unit, unit, mod_qual) fun_defn list;
+   ctx_synths:  (unit, unit, mod_qual) rec_funs_defn list;
    (* synthesis cache *)
    ctx_cache:   synth_cache;
    ctx_cur_mod: string}
@@ -723,9 +730,11 @@ let expand_call ctx ((m, i, l), rl) (args: (unit, unit, mod_qual) expr list)
   let ctx = if   SynthCache.mem sname ctx.ctx_cache
             then ctx
             else let sf = synther hoi in
+                 let rf = {recfuns     = [sf];
+                           recfuns_loc = sf.fun_defn_loc} in
                  let ctx_cache =
                    SynthCache.add sname (hoi, sf) ctx.ctx_cache in
-                 let ctx_synths = sf :: ctx.ctx_synths in
+                 let ctx_synths = rf :: ctx.ctx_synths in
                  {ctx with ctx_cache; ctx_synths} in
   ctx, replacer hoi args
 
@@ -1174,7 +1183,7 @@ let expand_spec (spec: (unit, unit) spec_module)
        functions appear before the expanded component to ensure
        proper scoping. *)
     let ds =
-      d :: ((List.map (fun f -> Decl_fun f) ctx.ctx_synths) @ ds) in
+      d :: ((List.map (fun f -> Decl_recfuns f) ctx.ctx_synths) @ ds) in
     {ctx with ctx_synths = []}, ds in
   let expand_recfuns ctx r =
     let ctx, efs =

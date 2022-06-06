@@ -63,16 +63,13 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
              afun_params = params;
              afun_body   = afb;
              afun_vars   = vars;
-             afun_synth  = synth;
              afun_mod    = m;
              afun_loc    = loc; _} = af in
     let nd =
-      (* synthesized functions are not module exports. *)
-      if   synth
-      then N_assign_fun (fv, params, afb, vars)
-      else let mn = Location.mk_loc_val m fv.v_loc in
-           let fn = Location.mk_loc_val (fst fv.v) fv.v_loc in
-           N_assign_mod_fun (mn, fn, params, afb, vars) in
+      (* all functions (including synthesized ones) are module exports. *)
+      let mn = Location.mk_loc_val m fv.v_loc in
+      let fn = Location.mk_loc_val (fst fv.v) fv.v_loc in
+      N_assign_mod_fun (mn, fn, params, afb, vars) in
     Cfg_rule.add_gnode fb nd afb.aexp_typ loc in
 
   (* Process the spec in lexical order. *)

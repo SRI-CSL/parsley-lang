@@ -231,7 +231,3 @@ val fresh_field_destructor_scheme:
     variables without visible names and an environment fragment. *)
 val fresh_unnamed_rigid_vars:
   Location.t -> environment -> 'a list -> MultiEquation.variable list * ('a * type_info) list
-
-(** [current_module env] returns the current module context for the environment *)
-val typing_module:     environment -> string
-val set_typing_module: environment -> string -> environment

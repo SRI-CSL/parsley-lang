@@ -102,7 +102,7 @@ module DNameMap = Map.Make(struct
                       type t = full_dname
                       let compare = AstUtils.qual_compare
                     end)
-(* record fields (TODO: module qualification) *)
+(* record fields *)
 module LNameMap = Map.Make(struct
                       type t = full_lname
                       let compare = AstUtils.qual_compare
@@ -426,8 +426,3 @@ let fresh_unnamed_rigid_vars _pos _env vars =
        | (n, CoreAlgebra.TVariable v) -> (n, (KindInferencer.fresh_kind (), v, ref None))
        | _                            -> assert false)
      denv)
-
-(* current module *)
-
-let typing_module env       = env.cur_module
-let set_typing_module env m = {env with cur_module = m}
