@@ -27,14 +27,25 @@ open Internal_errors
    colliding with any OCaml libraries with the same name. *)
 
 module PByte = struct
-  let of_int_unsafe lc (v: value) : value =
+  let of_int lc (v: value) : value =
     match v with
     | V_int i
          when Int64.compare i Int64.zero >= 0
               && Int64.compare i 256L < 0 ->
-        V_char (Char.chr (Int64.to_int i))
+        V_option (Some (V_char (Char.chr (Int64.to_int i))))
+    | V_int _ ->
+        V_option None
     | _ ->
-        fault lc (Overflow "Byte.of_int_unsafe")
+        fault lc (Overflow "Byte.of_int")
+
+  let of_int_unsafe lc (v: value) : value =
+    match of_int lc v with
+      | V_option (Some b) ->
+          b
+      | V_option None ->
+          fault lc (Unsafe_operation_failure "Byte.of_int_unsafe")
+      | _ ->
+          assert false
 end
 
 module PInt = struct
@@ -108,24 +119,14 @@ module PList = struct
           internal_error lc (Type_error ("List.index", 1, vtype_of l, T_list T_empty))
 
   let index_unsafe lc (l: value) (r: value) : value =
-    match l, r with
-      | V_list l, V_int r ->
-          (* FIXME: this conversion is lossy on 32-bit platforms and
-             hence a source of bugs.  This should be addressed via a
-             resource bound mechanism, that ensures that list sizes
-             don't exceed platform-specific representable bounds.
-             Indices should be compared against these bounds before
-             conversion. *)
-          let idx = Int64.to_int r in
-          (match List.nth_opt l idx with
-             | None   ->
-                 let err = Unsafe_operation_failure("List.index_unsafe") in
-                 fault lc err
-             | Some v -> v)
-      | V_list _, _ ->
-          internal_error lc (Type_error ("List.index", 2, vtype_of r, T_int))
-      | _, _ ->
-          internal_error lc (Type_error ("List.index", 1, vtype_of l, T_list T_empty))
+    match index lc l r with
+      | V_option (Some v) ->
+          v
+      | V_option None ->
+          let err = Unsafe_operation_failure("List.index_unsafe") in
+          fault lc err
+      | _ ->
+          assert false
 
   let length lc (v: value) : value =
     match v with
@@ -499,6 +500,7 @@ let mk_dtable () : dtable =
       ("Map", "empty"),               PMap.empty;
     ] in
   let arg1s = [
+      ("Byte", "of_int"),             PByte.of_int;
       ("Byte", "of_int_unsafe"),      PByte.of_int_unsafe;
       ("Int", "of_byte"),             PInt.of_byte;
       ("Int", "of_string"),           PInt.of_string;

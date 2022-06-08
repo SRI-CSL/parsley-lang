@@ -1,0 +1,15 @@
+Version 0.2.0
+-------------
+
+. The implementation of module system.
+
+. The keyword `include` replaced `use` and has the same file-inclusion
+  semantics.
+
+. `.` was removed as an indicator for the wildcard in regular
+  expressions; `#` remains now as the only symbol for a wildcard.
+
+Version 0.1.0
+-------------
+
+The first prototype release.

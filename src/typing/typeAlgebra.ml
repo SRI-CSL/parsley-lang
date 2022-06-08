@@ -217,6 +217,8 @@ let builtin_types, builtin_ops, builtin_values,
        mod_values = [
            (Ast.VName "of_int_unsafe", [],
             arrow_type int_t byte_t);
+           (Ast.VName "of_int", [],
+            arrow_type int_t (opt_type byte_t));
          ];
       };
       {mod_name   = Ast.Mod_inferred "Int";

@@ -93,6 +93,21 @@ throws an exception if conversion fails
 
 |===
 
+.`Byte`
+|===
+| Value | Signature | Description
+
+| `of_int`
+| `int -> option<byte>`
+| safe integer to byte conversion
+
+| `of_int_unsafe`
+| `int -> byte`
+| integer to byte conversion
+throws an exception if conversion fails
+
+|===
+
 .`Bits`
 |===
 | Value | Signature | Description
