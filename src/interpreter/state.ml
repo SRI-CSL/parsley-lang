@@ -19,7 +19,6 @@
 
 open Parsing
 open Typing
-open Flow
 open Ir
 open Runtime_exceptions
 open Internal_errors
@@ -131,11 +130,6 @@ module MFEnv = struct
                          let err = No_mod_binding_for_read (m, v) in
                          internal_error l err
 end
-
-(* Label bindings *)
-module LBindings = Map.Make (struct type t = Label.label
-                                    let compare = compare
-                             end)
 
 (* Control stack entry, set up/pushed by `N_call_nonterm` and
    used/popped by `N_return`. *)

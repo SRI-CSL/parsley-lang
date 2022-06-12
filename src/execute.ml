@@ -15,14 +15,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Parsing
 open Ir
 open Interpreter
 
 let interpret spec nt f loop =
   let fmt_pos (o, e) =
     Printf.sprintf "offset %d (%d bytes remaining)" o (e - o) in
+  let fmt_stk nts =
+    String.concat " <- " (List.map Location.value nts) in
   let do_loop () =
-    let vs, lp = Interpret.loop_on_file spec nt f in
+    let vs, (lp, _) = Interpret.loop_on_file spec nt f in
     let n = List.length vs in
     Printf.printf "%d values extracted with parse terminating at %s%s\n\n"
       n (fmt_pos lp) (if n = 0 then "." else ":");
@@ -31,15 +34,16 @@ let interpret spec nt f loop =
       ) vs in
   let do_once () =
     match Interpret.once_on_file spec nt f with
-      | Some v, lp -> (Printf.printf
-                         "Parse terminated successfully at %s with:\n"
-                         (fmt_pos lp);
-                       Printf.printf "%s\n%!" (Values.string_of_value v);
-                       exit Cmdliner.Cmd.Exit.ok)
-      | None, lp   -> (Printf.printf
-                         "Parse terminated in failure at %s.\n"
-                         (fmt_pos lp);
-                       exit Cmdliner.Cmd.Exit.some_error) in
+      | Some v, (lp, _) ->
+          Printf.printf "Parse terminated successfully at %s with:\n"
+            (fmt_pos lp);
+          Printf.printf "%s\n%!" (Values.string_of_value v);
+          exit Cmdliner.Cmd.Exit.ok
+      | None, (lp, stk) ->
+          Printf.printf
+            "Parse terminated in failure at %s\nwith parse stack: %s.\n"
+            (fmt_pos lp) (fmt_stk stk);
+          exit Cmdliner.Cmd.Exit.some_error in
   try
     if   loop
     then do_loop ()

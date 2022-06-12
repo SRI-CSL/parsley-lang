@@ -81,21 +81,30 @@ let view_info (s: state) : last_pos =
   let v = s.st_cur_view in
   v.vu_ofs, v.vu_end
 
+(* returns the parse call stack *)
+type parse_stk = Ast.ident list
+let parse_info (s: state) : parse_stk =
+  List.map (fun cf -> cf.cf_nt) s.st_ctrl_stk
+
+type error_info = last_pos * parse_stk
+let error_info (s: state) : error_info =
+  view_info s, parse_info s
+
 let run_once ((s: state), (b: Cfg.closed))
-    : value option * last_pos =
+    : value option * error_info =
   let r, s = Interpret_cfg.do_closed_block s b in
   match r with
-    | Ok v     -> Some v, view_info s
-    | Error s' -> None,   view_info s'
+    | Ok v     -> Some v, error_info s
+    | Error s' -> None,   error_info s'
 
 let run_loop ((s: state), (b: Cfg.closed))
-    : value list * last_pos =
+    : value list * error_info =
   let rec loop acc s_init =
     match Interpret_cfg.do_closed_block s_init b with
       | Ok vl, s ->
           loop (vl :: acc) {s_init with st_cur_view = s.st_cur_view}
       | Error s, _ ->
-          List.rev acc, view_info s in
+          List.rev acc, error_info s in
   loop [] s
 
 let once_on_file spec entry f =
