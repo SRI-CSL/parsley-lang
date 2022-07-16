@@ -1,0 +1,34 @@
+type http_request = {
+    method_string: [byte],
+    path: [byte],
+    version: [byte],
+    header: [byte],
+    payload: [byte]
+}
+
+format {
+  Payload := (#["\000" .. "\255"]#);;
+  Header := (#[AsciiCharS \ (":" | "\n" | "\r")]*#) !":"! (#[AsciiCharS  \ ("\n" | ":" | "\r")]*#);;
+  Version := (#["HTTP/1.1" | "HTTP/2"]#);;
+  Path := (#[AsciiCharS \ (" " | "\n")]*#);;
+  Method := !"GET"! | !"POST"!;;
+
+  HTTPRequest hreq {h : http_request} :=
+    method_string = Method
+    !" "!
+    p = Path
+    !" "!
+    v = Version
+    !"\n"! | !"\r\n"! // line break
+    h=Header
+    !"\n"! | !"\r\n"! // line break
+    !"\n"! | !"\r\n"! // line break
+    pld = Payload
+    {
+        hreq.h.method_string := method_string;
+        hreq.h.version := v;
+        hreq.h.path := p;
+        hreq.h.header := h;
+        hreq.h.payload := pld
+    }
+}
