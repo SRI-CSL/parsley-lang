@@ -65,6 +65,10 @@ type print_info =
 and arg =
   Arg of print_info
 
+type type_info =
+    (MultiEquation.variable * string) list (* forall quantifiers *)
+  * print_info
+
 let paren b e = if b then "(" ^ e ^ ")" else e
 
 (** [print is_type_scheme v] returns a printable representation of
@@ -123,7 +127,7 @@ let printer is_type_scheme =
     (AstUtils.mk_modprefix m) ^ n in
 
   (* Term traversal. *)
-  let rec print_variable v : print_info =
+  let rec variable_info v : print_info =
     let is_hit v =
       Mark.same (UnionFind.find v).mark hit
     and is_visited v =
@@ -159,7 +163,7 @@ let printer is_type_scheme =
                 var_or_sym v
             | Some t ->
                 let (v', name, args, infix, assoc, p) as r =
-                  print_term t in
+                  term_info t in
                 if   is_hit v
                 then let m, TName vname = var_name v in
                      (v, (m, TName (vname ^ " =")),
@@ -167,16 +171,16 @@ let printer is_type_scheme =
                       false, assoc, true)
                 else (desc.mark <- Mark.none; r))
 
-  and print_term t : print_info =
+  and term_info t : print_info =
     let at_left     = function [] -> true | [ _x ] -> false | _ -> assert false
     and at_right    = function [] -> true | [ _x ] -> false | _ -> assert false
     and is_enclosed = function Assoc_enclosed _ -> true  | _ -> false in
-    let print = function
+    let info = function
       | App (t1, t2) ->
           let (op1, name1, args1, infix1, assoc1, force_paren1) =
-            print_variable t1
+            variable_info t1
           and (op2, name2, args2, infix2, assoc2, force_paren2) =
-            print_variable t2 in
+            variable_info t2 in
           let priority name =
             match as_symbol name with
               | Some sym -> priority sym
@@ -193,8 +197,8 @@ let printer is_type_scheme =
            (args1 @ [Arg (op2, name2, args2, infix2, assoc2, paren_t2)]),
            infix1, assoc1, force_paren1)
       | Var v ->
-          print_variable v
-    in print t in
+          variable_info v
+    in info t in
 
   let prefix () =
     if   is_type_scheme
@@ -232,11 +236,26 @@ let printer is_type_scheme =
     let (op, name, args, infix, assoc, _) = f r in
     prefix () ^ loop (Arg (op, name, args, infix, assoc, false)) in
 
-  (as_string print_variable, as_string print_term)
+  let as_info f r : type_info =
+    let info = f r in
+    let quantifiers = if   is_type_scheme
+                      then !history
+                      else [] in
+    (quantifiers, info) in
+
+  (as_string variable_info, as_string term_info),
+  (as_info   variable_info, as_info   term_info)
+
+let print_variable b v =
+  (fst (fst (printer b))) v
 
 let print_term b t =
   let t = explode t in
-  (snd (printer b)) t
+  (snd (fst (printer b))) t
 
-let print_variable b v =
-  (fst (printer b)) v
+let variable_type_info b v =
+  (fst (snd (printer b))) v
+
+let term_type_info b t =
+  let t = explode t in
+  (snd (snd (printer b))) t

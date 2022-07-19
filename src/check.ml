@@ -28,6 +28,18 @@ let parse_spec ckopts sopts spec_file =
   then AstPrinter.print_parsed_spec spec;
   spec
 
+let show_types tenv env wc =
+  (* TODO: extend to a type reconstructor, i.e. map a solved
+     constraint variable back to the source type info. *)
+  TypingEnvironment.fold_type_info
+    (fun _ ((m, Ast.TName n), (_k, v, _adt)) ->
+      Printf.printf "type %s = %s\n"
+        ((AstUtils.mk_modprefix m) ^ n)
+        (TypeEnvPrinter.print_variable true v)
+    ) () tenv;
+  ConstraintSolver.print_env (TypeEnvPrinter.print_variable true) env;
+  TypeConstraintPrinter.print_width_constraint wc
+
 let checker ckopts spec =
   let tracer = if   ckopts.co_trace_solver
                then Some (ConstraintSolver.tracer ())
@@ -41,10 +53,7 @@ let checker ckopts spec =
   let env = ConstraintSolver.solve ?tracer c in
   ConstraintSolver.check_width_constraints wc;
   if   ckopts.co_show_types
-  then (ConstraintSolver.print_env
-          (TypeEnvPrinter.print_variable true)
-          env;
-        TypeConstraintPrinter.print_width_constraint wc)
+  then show_types tenv env wc
   else ();
   if   ckopts.co_show_typed_ast
   then AstPrinter.print_typed_spec TypeConstraintPrinter.print_crterm spec';
