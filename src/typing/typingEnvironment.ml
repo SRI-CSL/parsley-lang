@@ -118,24 +118,24 @@ type val_info = MultiEquation.variable list * MultiEquation.crterm
 
 (** [environment] denotes typing information associated to identifiers. *)
 type environment =
-  {type_abbrev        : (full_tname, Location.t * type_abbrev) CoreEnv.t;
-   type_info          : (full_tname, type_info) CoreEnv.t;
-   data_constructor   : (full_dname, data_constructor) CoreEnv.t;
-   record_constructor : (full_tname, record_constructor) CoreEnv.t;
-   field_destructor   : (full_lname, field_destructor) CoreEnv.t;
+  {type_abbrev:        (full_tname, Location.t * type_abbrev) CoreEnv.t;
+   type_info:          (full_tname, type_info) CoreEnv.t;
+   data_constructor:   (full_dname, data_constructor) CoreEnv.t;
+   record_constructor: (full_tname, record_constructor) CoreEnv.t;
+   field_destructor:   (full_lname, field_destructor) CoreEnv.t;
 
    (* map constructors and destructors to their owning ADT *)
-   datacon_adts : (full_tname * Location.t) DNameMap.t;
-   field_adts   : (full_tname * Location.t) LNameMap.t;
+   datacon_adts: (full_tname * Location.t) DNameMap.t;
+   field_adts:   (full_tname * Location.t) LNameMap.t;
 
    (* value components *)
-   values       : (val_info * Location.t) VNameMap.t;
+   values:       (val_info * Location.t) VNameMap.t;
 
    (* non-terminal types *)
-   non_terms    : (full_nname, (non_term_type * Location.t)) CoreEnv.t;
+   non_terms:    (full_nname, (non_term_type * Location.t)) CoreEnv.t;
 
    (* current module *)
-   cur_module   : string}
+   cur_module:   string}
 
 let empty_environment =
   {type_abbrev        = CoreEnv.empty;
@@ -154,7 +154,8 @@ let empty_environment =
 
 let add_type_variable env t (k, v) =
   assert (MultiEquation.((UnionFind.find v).kind) != Constant);
-  {env with type_info = CoreEnv.add env.type_info t (k, v, ref None)}
+  {env with
+    type_info = CoreEnv.add env.type_info t (k, v, ref None)}
 
 let add_type_variables var_env env =
   let folder = fun env (x, ((_, v, _) as k)) ->
@@ -366,8 +367,8 @@ let rigid_args rt =
           if   MultiEquation.((UnionFind.find v).kind = Rigid)
           then v :: acu
           else acu
-      | _ -> acu) []
-    (tycon_args rt)
+      | _ -> acu
+    ) [] (tycon_args rt)
 
 let fresh_scheme kvars kt =
   let fresh_kvars =
@@ -424,5 +425,5 @@ let fresh_unnamed_rigid_vars _pos _env vars =
   (rqs,
    List.map (function
        | (n, CoreAlgebra.TVariable v) -> (n, (KindInferencer.fresh_kind (), v, ref None))
-       | _                            -> assert false)
-     denv)
+       | _                            -> assert false
+     ) denv)

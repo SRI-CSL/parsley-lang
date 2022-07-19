@@ -57,15 +57,14 @@ type variable =
 
     The [mark] field is transient, and may be used by the unifier's
     client for any purpose. *)
-and descriptor = {
-  mutable structure: structure option;
-  mutable rank: IntRank.t;
-  mutable mark: Mark.t;
-  mutable kind: variable_kind;
-  mutable name: Ast.full_tname option;
-  mutable pos: Location.t option;
-  mutable var: variable option
-}
+and descriptor =
+  {mutable structure: structure option;
+   mutable rank: IntRank.t;
+   mutable mark: Mark.t;
+   mutable kind: variable_kind;
+   mutable name: Ast.full_tname option;
+   mutable pos:  Location.t option;
+   mutable var:  variable option}
 
 (** A multi-equation can be related to a term. In that case, it is
     structured. *)

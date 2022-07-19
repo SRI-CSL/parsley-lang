@@ -75,11 +75,11 @@ let rec intern' tenv t : crterm =
         as_fun tenv (m, TName (Location.value name))
     | TE_tapp (t, args) ->
         let iargs = List.map (intern' tenv) args in
-          CoreAlgebra.app (intern' tenv t) iargs
+        CoreAlgebra.app (intern' tenv t) iargs
 
 (** [intern tenv typ] converts the type expression [typ] to a type.
     The environment [tenv] maps type identifiers to types. *)
 let intern tenv ty =
   let kind_env = as_kind_env tenv in
   let _ = KindInferencer.check kind_env ty KindInferencer.star in
-    intern' tenv ty
+  intern' tenv ty

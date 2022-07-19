@@ -25,15 +25,11 @@
     requires allocating a new cell, and comparing marks requires
     comparing pointers. *)
 
-type t =
-    unit ref
+type t = unit ref
 
-let fresh =
-  ref
+let fresh = ref
 
-let same =
-  (==)
+let same  = (==)
 
-let none =
-  fresh ()
+let none  = fresh ()
 

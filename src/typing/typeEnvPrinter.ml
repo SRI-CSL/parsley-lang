@@ -190,7 +190,7 @@ let printer is_type_scheme =
               else (not (is_enclosed assoc2))
                    && (priority name2 > priority name1) in
           (op1, name1,
-           (args1 @ [ Arg (op2, name2, args2, infix2, assoc2, paren_t2)]),
+           (args1 @ [Arg (op2, name2, args2, infix2, assoc2, paren_t2)]),
            infix1, assoc1, force_paren1)
       | Var v ->
           print_variable v

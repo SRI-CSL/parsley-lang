@@ -64,13 +64,11 @@ let rec repr point =
   | Link point' ->
       let point'' = repr point' in
       if point'' != point' then
-
         (* [point''] is [point']'s representative element. Because we
            just invoked [repr point'], [point'.link] must be [Link
            point'']. We write this value into [point.link], thus
            performing path compression. Note that this function never
            performs memory allocation. *)
-
         point.link <- point'.link;
       point''
   | Info _ ->
@@ -79,11 +77,9 @@ let rec repr point =
 (** [find point] returns the descriptor associated with [point]'s
     equivalence class. *)
 let rec find point =
-
   (* By not calling [repr] immediately, we optimize the common cases
      where the path starting at [point] has length 0 or 1, at the
      expense of the general case. *)
-
   match point.link with
   | Info info
   | Link {link = Info info} ->
