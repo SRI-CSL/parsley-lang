@@ -41,7 +41,7 @@ within `{` and `}`, and separated by `,`.  The production rules for
 the non-terminal are specified on the right-hand side of a `:=`
 separator.
 ....
- NT {s1: int, s2: bool} := ...
+ NT {s1: i32, s2: bool} := ...
 ....
 A value of such a non-terminal has a record type whose fields
 correspond to these synthesized attributes.  In fact, a record type
@@ -49,7 +49,7 @@ can be used as an abbreviation for the declaration of the synthesized
 attributes.  For example, the declaration of `NT` above is equivalent
 to the one below:
 ....
- type nt = {s1: int, s2: bool}
+ type nt = {s1: i32, s2: bool}
 
  format {
    NT {nt} := ...
@@ -68,7 +68,7 @@ A non-terminal could have *inherited attributes*.  These are specified
 in name-type pairs similar to synthesized attributes, except that they
 are enclosed in `(` and `)` (i.e. in parentheses instead of braces).
 ....
- NTI (i1: bool, i2: int) {is1: int, is2: bool} :=
+ NTI (i1: bool, i2: i32) {is1: i32, is2: bool} :=
 ....
 Inherited attributes, if present, need to be specified before any
 synthesized attributes.  The declaration of inherited attributes
@@ -84,7 +84,7 @@ The non-terminal being defined can be given a short name, which can
 used in the right-hand side of the definition for the assignment of
 the computed values of the synthesized attributes.
 ....
- NT n {s1: int, s2: bool} := ... {n.s1 := ...; n.s2 := ...} ...
+ NT n {s1: i32, s2: bool} := ... {n.s1 := ...; n.s2 := ...} ...
 ....
 Such a name should start with a lowercase letter, and needs to appear
 immediately after the non-terminal name.
@@ -92,7 +92,7 @@ immediately after the non-terminal name.
 Inherited attributes are accessed directly on the right-hand side of
 the definition:
 ....
- NTI n (i1: bool, i2: int) {is1: int, is2: bool} := ... {n.is1 := i2; n.is2 := i1} ...
+ NTI n (i1: bool, i2: i32) {is1: i32, is2: bool} := ... {n.is1 := i2; n.is2 := i1} ...
 ....
 
 === Rules and Rule Elements
@@ -114,7 +114,7 @@ rule.  These are placed within `(|` and `|)` markers before the first
 rule element.  These variables are within scope for each rule element
 in the rule.
 ....
-... := (| s: set<int> := Set.empty, i: int := 0 |) ...
+... := (| s: set<i32> := Set.empty, i: i32 := 0_i32 |) ...
 ....
 
 Each rule element can optionally be named (with an identifier that
@@ -196,12 +196,12 @@ attribute or a temporary.  For convenience, these assignment
 sequences can be placed in the bodies of `let` bindings or the branch
 bodies of `case` discriminators.
 ....
-  Act a {v: int, w: int} :=
+  Act a {v: i32, w: i32} :=
     b=[bool::True()]
     { let c = b in
       (case c of
-      | bool::True()  -> {a.v := 0; a.w := 1}
-      | bool::False() -> {a.v := 1; a.w := 0}
+      | bool::True()  -> {a.v := 0_i32; a.w := 1_i32}
+      | bool::False() -> {a.v := 1_i32; a.w := 0_i32}
       )
     }
 ....
@@ -294,21 +294,22 @@ The matching performed by a rule element can be restricted to a `view`
 using the view-mapping combinators.  By default, all parsing is
 performed at the *current cursor* location within an implicit *current
 view*. `View.get_current` returns a copy of this current view, and
-`View.get_current_cursor` provides the (integer) value of the current
-cursor in the current view.  `View.get_base` provides a copy of the
-current view with the cursor location set to the start of the buffer.
-`View.make_current` takes a view and makes it the current view.
+`View.get_current_cursor` provides the integer value (of type `usize`)
+of the current cursor in the current view.  `View.get_base` provides a
+copy of the current view with the cursor location set to the start of
+the buffer.  `View.make_current` takes a view and makes it the current
+view.
 
 The *at-position* combinator `@(p, RE)` operates on an integer
 expression `p` and a rule element `RE`.  This combinator creates a new
 view, say `v`, from the current view, with its cursor pointing at the
-integer offset given by the evaluation of `p`.  The value returned by
-the combinator is the value matched by `RE` in `v`.  Hence, the type
-of this combinator application is the same as the type of `RE`.
-The combinator fails if `RE` fails to match.  After the combinator is
-processed, whether to success or failure, the view `v` created for the
-combinator is discarded, and the current view active before the
-combinator was processed is unmodified and remains current.
+integer offset (of type `usize`) given by the evaluation of `p`.  The
+value returned by the combinator is the value matched by `RE` in `v`.
+Hence, the type of this combinator application is the same as the type
+of `RE`.  The combinator fails if `RE` fails to match.  After the
+combinator is processed, whether to success or failure, the view `v`
+created for the combinator is discarded, and the current view active
+before the combinator was processed is unmodified and remains current.
 
 NOTE: Within the processing of `RE`, a call to `View.get_current` will
 typically return a view derived from `v`.
@@ -331,16 +332,16 @@ if `RE` fails at any view in `views`.
 The side-effects of parsing on the views used in a view-mapping
 combinator are not visible outside the combinator.
 ....
-  T t {i: int, j: int} :=
+  T t {i: usize, j: usize} :=
     Byte
-    v={;; View.restrict(View.get_current(), 0, 4)}
+    v={;; View.restrict(View.get_current(), 0u, 4u)}
     @[v, UInt32<endian::endian::Little()>]
     { t.i := View.get_current(v);
       t.j := View.get_remaining(v) }
 ....
-In the above example, `t.i` and `t.j` will be `0` and `4`
+In the above example, `t.i` and `t.j` will be `0u` and `4u`
 respectively.  If the side-effects had been visible, the values would
-instead be `4` and `0`.
+instead be `4u` and `0u`.
 
 When a map-view combinator is used with a non-terminal with inherited
 attributes, it is often convenient to provide different values for one
@@ -351,10 +352,10 @@ evaluates to a list of values that is of the same length as the number
 of views in the map.  For each view in the map, the corresponding
 value in the list is provided to the inherited attribute.
 ....
-  NT n (i: int, j: int) {n: unit} := ... ;;
+  NT n (i: i32, j: usize) {n: unit} := ... ;;
 
-  T t (vs: [view], is: [int]) {t: unit} :=
-      @#[vs, NT<i <- (is), j = 0>]
+  T t (vs: [view], is: [i32]) {t: unit} :=
+      @#[vs, NT<i <- (is), j = 0u>]
       ...
 ....
 In the fragment above, when `NT` is mapped over the list of views `vs`
@@ -375,11 +376,11 @@ views in the map-view.  In the example above, this internal constraint
 ensures that `vs` and `is` have the same lengths.  That is, the above
 fragment is equivalent to:
 ....
-  NT n (i: int, j: int) {n: unit} := ... ;;
+  NT n (i: i32, j: usize) {n: unit} := ... ;;
 
-  T t (vs: [view], is: [int]) {t: unit} :=
+  T t (vs: [view], is: [i32]) {t: unit} :=
       [List.length(vs) = List.length(is)]
-      @#[vs, NT<i <- (is), j = 0>]
+      @#[vs, NT<i <- (is), j = 0u>]
       ...
 ....
 The insertion of an internal constraint may result in unexpected types
@@ -392,9 +393,9 @@ For example, the below named binding may result in the type of `a`
 being a 3-tuple instead of a 2-tuple, due to the internal list length
 constraint being including in the `a` binding.
 ....
-  T t (vs: [view], is: [int]) {t: unit} :=
+  T t (vs: [view], is: [i32]) {t: unit} :=
       a=(Byte
-         @#[vs, NT<i <- (is), j = 0>]
+         @#[vs, NT<i <- (is), j = 0u>]
         )
       ...
 ....
@@ -403,9 +404,9 @@ should bind the map-view directly.  The naming below will result in
 `a` and `b` getting their expected types, and will not be affected by
 the internal list-length constraint.
 ....
-  T t (vs: [view], is: [int]) {t: unit} :=
+  T t (vs: [view], is: [i32]) {t: unit} :=
       a=Byte
-      b=@#[vs, NT<i <- (is), j = 0>]
+      b=@#[vs, NT<i <- (is), j = 0u>]
       ...
 ....
 ====

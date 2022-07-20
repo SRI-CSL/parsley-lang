@@ -26,12 +26,18 @@ NOTE: The standard library is under rapid evolution.
 | `bit::One()`, `bit::Zero()`
 |===
 
+
+The integer operators are suffixed by the type `<int_type>`of their
+operands and result type.  `<int_type>` can be either `i8`, `u8`,
+`i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `u`, or `i`, where `u` and
+`i` denote `usize` and `isize` respectively.
+
 .Built-in operators
 |===
 | Symbol | Signature | Description
 
-| `-`
-| `int -> int`
+| `-_<int_type>`
+| `<int_type> -> <int_type>`
 | Unary minus
 
 | `!`
@@ -42,12 +48,12 @@ NOTE: The standard library is under rapid evolution.
 | `bitvector<'n> -> bitvector<'n>`
 | Bitwise complement
 
-| `+`, `-`, `*`, `/`
-| `int -> int -> int`
+| `+_<int_type>`, `-_<int_type>`, `*_<int_type>`, `/_<int_type>`
+| `<int_type> -> <int_type> -> <int_type>`
 | Binary integer arithmetic operators
 
-| `<`, `<=`, `>`, `>=`
-| `int -> int -> bool`
+| `<_<int_type>`, `<=_<int_type>`, `>_<int_type>`, `>=_<int_type>`
+| `<int_type> -> <int_type> -> bool`
 | Integer comparisons
 
 | `&&`, `\|\|`
@@ -63,33 +69,62 @@ NOTE: The standard library is under rapid evolution.
 | Operators to check equality
 
 | `[]`
-| `list<'a> -> int -> option<'a`>
+| `list<'a> -> usize -> option<'a`>
 | `l[n]` extracts the `n` th element of list `l` if present
 
 |===
 
-The following modules provide useful operations for the built-in types.
+The following modules provide useful operations for the built-in
+types.
 
-.`Int`
+There is a module for each integer type, named after the type with the
+initial letter capitalized, e.g. `I8` and `Usize` for the `i8` and
+`Usize` types respectively.  `result<t>` denotes `t` when the
+conversion from `source_int_type` to `<t>` is possible without loss of
+precision (i.e. the numerical integer value remains the same after
+conversion), and `option<t>` otherwise.  The `wrapping` conversions
+always convert the source value to the result type with wrapping
+semantics; here, the numerical integer result value may differ from
+the source value.  A module does not contain a `wrapping` converter
+for a source type that always converts safely
+(e.g. `I16.of_u8_wrapped` does not exist, since it is always possible
+to safely convert a `u8` into a `i16` without change in numerical
+value.)
+
+.`<Int_type>`
 |===
 | Value | Signature | Description
 
 | `of_byte`
-| `byte -> int`
+| `byte -> <int_type>`
 | integer value of a byte
 
 | `of_string`
-| `string -> option<int>`
+| `string -> option<<int_type>>`
 | safe string to integer conversion
 
+| `of_string_unsafe`
+| `string -> <int_type>`
+| string to integer conversion;
+throws an exception if conversion fails
+
 | `of_bytes`
-| `[byte] -> option<int>`
+| `[byte] -> option<<int_type>>`
 | safe byte vector to integer conversion
 
 | `of_bytes_unsafe`
-| `[byte] -> int`
+| `[byte] -> <int_type>`
 | byte vector to integer conversion;
 throws an exception if conversion fails
+
+| `of_<source_int_type>`
+| `<source_int_type> -> result<int_type>`
+| safe integer type conversion
+
+| `of_<source_int_type>_wrapped`
+| `<source_int_type> -> <int_type>`
+| wrapping integer type conversion
+
 
 |===
 
@@ -97,14 +132,13 @@ throws an exception if conversion fails
 |===
 | Value | Signature | Description
 
-| `of_int`
-| `int -> option<byte>`
+| `of_<int_type>`
+| `<int_type> -> option<byte>`
 | safe integer to byte conversion
 
-| `of_int_unsafe`
-| `int -> byte`
-| integer to byte conversion
-throws an exception if conversion fails
+| `of_<int_type>_wrapped`
+| `<int_type> -> byte`
+| integer to byte conversion with wrapping semantics
 
 |===
 
@@ -112,13 +146,9 @@ throws an exception if conversion fails
 |===
 | Value | Signature | Description
 
-| `to_int`
-| `bitvector<'n> -> int`
-| signed integer value of a bitvector
-
-| `to_uint`
-| `bitvector<'n> -> int`
-| unsigned integer value of a bitvector
+| `to_<int_type>`
+| `bitvector<'n> -> <int_type>`
+| integer value of a bitvector
 
 | `to_bool`
 | `bit -> bool`
@@ -137,11 +167,11 @@ throws an exception if conversion fails
 | put a bit into a 1-bitvector
 
 | `ones`
-| `int -> bitvector<n>`
+| `usize -> bitvector<n>`
 | `ones(n)` generates a `bitvector<n>` with all bits set
 
 | `zeros`
-| `int -> bitvector<n>`
+| `usize -> bitvector<n>`
 | `zeros(n)` generates a `bitvector<n>` with all bits clear
 
 |===
@@ -165,7 +195,7 @@ throws an exception if list is empty
 throws an exception if list is empty
 
 | `length`
-| `['a] -> int`
+| `['a] -> usize`
 | list length
 
 | `concat`
@@ -194,7 +224,7 @@ throws an exception if list lengths are not equal
 | folds an accumulator over a list
 
 | `repl`
-| `a -> int -> ['a]`
+| `a -> usize -> ['a]`
 | creates a list containing the specified number of copies of the specified element
 
 |===
@@ -252,10 +282,6 @@ throws an exception if no binding exists
 | `string`
 | empty string
 
-| `to_int`
-| `string -> option<int>`
-| safe string to integer conversion
-
 | `to_bytes`
 | `string -> [byte]`
 | string to byte list conversion
@@ -291,28 +317,28 @@ addressed soon.
 | gets the current view with the cursor set at the beginning of the buffer
 
 | `get_cursor`
-| `view -> int`
+| `view -> usize`
 | gets the cursor offset in the specified view (a cursor at the start position has a zero offset)
 
 | `get_remaining`
-| `view -> int`
+| `view -> usize`
 | gets the remaining bytes in the specified view (i.e. the number of bytes from the cursor to the end of the view)
 
 | `get_current_cursor`
-| `unit -> int`
+| `unit -> usize`
 | get the cursor offset in the current view
 
 | `get_current_remaining`
-| `unit -> int`
+| `unit -> usize`
 | gets the remaining bytes in the current view
 
 | `restrict`
-| `view -> int -> int -> view`
+| `view -> usize -> usize -> view`
 | `restrict(v, n, len)` returns a view of size `len` that starts `n` bytes from the cursor of `v`;
 throws an exception the specified range is out-of-bounds
 
 | `restrict_from`
-| `view -> int -> view`
+| `view -> usize -> view`
 | `restrict_from(v, n)` returns a view that begins `n` bytes from the cursor location of `v` and continues until the end of `v`;
 throws an exception if `n` is out-of-bounds
 
@@ -373,35 +399,35 @@ bit-width).
 | Matches a single decimal numeric character
 
 | `Int8 (endian: endian)`
-| `int`
+| `i8`
 | Matches a single byte
 
 | `UInt8 (endian: endian)`
-| `int`
+| `u8`
 | Matches a single byte
 
 | `Int16 (endian: endian)`
-| `int`
+| `i16`
 | Matches two bytes
 
 | `UInt16 (endian: endian)`
-| `int`
+| `u16`
 | Matches two bytes
 
 | `Int32 (endian: endian)`
-| `int`
+| `i32`
 | Matches four bytes
 
 | `UInt32 (endian: endian)`
-| `int`
+| `u32`
 | Matches four bytes
 
 | `Int64 (endian: endian)`
-| `int`
+| `i64`
 | Matches eight bytes
 
 | `UInt64 (endian: endian)`
-| `int`
+| `u64`
 | Matches eight bytes
 
 | `BitVector<n>`

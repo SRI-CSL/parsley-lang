@@ -4,16 +4,16 @@
 include udp
 
 type ip_packet = {
-  version: int,
-  ihl: int,
-  type_of_service: int,
-  total_length: int,
+  version: u8,
+  ihl: u8,
+  type_of_service: u8,
+  total_length: u16,
   identification: [byte],
-  flags: int,
-  fragment_offset: int,
-  time_to_live: int,
-  protocol: int,
-  header_checksum: int,
+  flags: u8,
+  fragment_offset: u16,
+  time_to_live: u8,
+  protocol: u8,
+  header_checksum: u16,
   source_address: [byte],
   destination_address: [byte],
   options_and_padding: [byte]
@@ -21,35 +21,32 @@ type ip_packet = {
 
 format {
   IPPacket ipp {ip_packet} :=
-    (| version: int := 0, ihl: int := 0, flags: int := 0, 
-       fragment_offset: int := 0, expr1: int := 0, expr2: int := 0 |)
+    (| version: u8 := 0u8, ihl: u8 := 0u8, flags: u8 := 0u8,
+       fragment_offset: u16 := 0u16 |)
     version_and_ihl = UInt8
     {
-      version := version_and_ihl / 16;
-      ihl := (version_and_ihl * 16) / 16
+      version := version_and_ihl /_u8 16u8;
+      ihl := (version_and_ihl *_u8 16u8) /_u8 16u8
     }
-    [version = 4]
-    [ihl >= 5]  // the header length should be at least 5 as per the spec
+    [version = 4u8]
+    [ihl >=_u8 5u8]  // the header length should be at least 5 as per the spec
     type_of_service = UInt8
     total_length = UInt16<endian=endian::Big()>
-    identification = (Byte^2)
+    identification = (Byte^2u)
     flags_and_fragment_offset = UInt16<endian=endian::Big()>
     {
-      flags := flags_and_fragment_offset / 1024;
-      fragment_offset := (flags_and_fragment_offset * 8) / 8
+      flags := U8.of_u16_wrapped(flags_and_fragment_offset /_u16 1024u16);
+      fragment_offset := (flags_and_fragment_offset *_u16 8u16) /_u16 8u16
     }
     time_to_live = UInt8
     protocol = UInt8
     header_checksum = UInt16<endian=endian::Big()>
-    source_address = (Byte^4)
-    destination_address = (Byte^4)
-    options_and_padding_len = {      
-      expr1 := 4 * ihl;
-      expr2 := expr1 - 5
-      ;;
-      expr2
+    source_address = (Byte^4u)
+    destination_address = (Byte^4u)
+    options_and_padding_len = {;;
+      4u16 *_u16 U16.of_u8(ihl) -_u16 5u16
     }
-    options_and_padding = (Byte^options_and_padding_len)
+    options_and_padding = (Byte^Usize.of_u16(options_and_padding_len))
     {
       ipp.version := version;
       ipp.ihl := ihl;
@@ -59,18 +56,17 @@ format {
       ipp.flags := flags;
       ipp.fragment_offset := fragment_offset;
       ipp.time_to_live := time_to_live;
-      ipp.protocol := protocol; 
+      ipp.protocol := protocol;
       ipp.header_checksum := header_checksum;
       ipp.source_address := source_address;
       ipp.destination_address := destination_address;
       ipp.options_and_padding := options_and_padding
     }
-    
+
     // udp w/o fragmentation
-    [protocol = 17 && flags = 2] UDPPacket | // udp w/o fragmentation
+    [protocol = 17u8 && flags = 2u8] UDPPacket | // udp w/o fragmentation
 
     // placeholder for udp w/o fragmentation or other next level protocols,
     // e.g., protocol 6 is tcp
-    [protocol != 17 || (protocol = 17 && flags != 2)] ()
+    [protocol != 17u8 || (protocol = 17u8 && flags != 2u8)] ()
 }
-

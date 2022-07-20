@@ -2,16 +2,16 @@ type op =
  | Single
  | Multiple of [op]
 
-recfun num_ops (o: op) -> int = {
+recfun num_ops (o: op) -> usize = {
   (case o of
-   | op::Single() -> 1
-   | op::Multiple(s) -> 1 + num_seq_ops(s, 0)
+   | op::Single() -> 1u
+   | op::Multiple(s) -> 1u +_u num_seq_ops(s, 0u)
    )
 }
 
-and num_seq_ops (os: [op], acc: int) -> int = {
+and num_seq_ops (os: [op], acc: usize) -> usize = {
   (case os of
    | [] -> acc
-   | hd :: tl -> num_ops(hd) + num_seq_ops(tl, acc)
+   | hd :: tl -> num_ops(hd) +_u num_seq_ops(tl, acc)
   )
 }

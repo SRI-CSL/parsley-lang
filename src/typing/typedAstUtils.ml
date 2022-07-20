@@ -18,7 +18,6 @@
 open Parsing
 open Ast
 
-module ME = MultiEquation
 module TEnv = TypingEnvironment
 module TExc = TypingExceptions
 
@@ -133,45 +132,79 @@ let rec const_fold: 't 'v 'm. ('t, 'v, 'm) expr -> ('t, 'v, 'm) expr =
     | E_unop (op, e') ->
         let e' = const_fold e' in
         (match op, e'.expr with
-          | Uminus, E_literal (PL_int i) ->
-              {e with expr = E_literal (PL_int (~- i))}
-          | Not, E_literal (PL_bool b) ->
-              {e with expr = E_literal (PL_bool (not b))}
-          | _ ->
+           | Uminus _, E_literal (PL_int (i, n)) ->
+               let i = -i in
+               (if   not (AstUtils.check_int_literal n i)
+                then let err = TExc.Invalid_integer_value (i, n) in
+                     raise (TExc.Error (e.expr_loc, err)));
+               {e with expr = E_literal (PL_int (-i, n))}
+           | Not, E_literal (PL_bool b) ->
+               {e with expr = E_literal (PL_bool (not b))}
+           | _ ->
               {e with expr = E_unop (op, e')})
     | E_binop (op, l, r) ->
         let l', r' = const_fold l, const_fold r in
         (match op, l'.expr, r'.expr with
-           | Lt,   E_literal (PL_int l), E_literal (PL_int r) ->
+           | Lt on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
                {e with expr = E_literal (PL_bool (l < r))}
-           | Gt,   E_literal (PL_int l), E_literal (PL_int r) ->
+           | Gt on,   E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
                {e with expr = E_literal (PL_bool (l > r))}
-           | Lteq, E_literal (PL_int l), E_literal (PL_int r) ->
+           | Lteq on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
                {e with expr = E_literal (PL_bool (l <= r))}
-           | Gteq, E_literal (PL_int l), E_literal (PL_int r) ->
+           | Gteq on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
                {e with expr = E_literal (PL_bool (l >= r))}
-           | Plus, E_literal (PL_int l), E_literal (PL_int r) ->
-               {e with expr = E_literal (PL_int (l + r))}
-           | Minus, E_literal (PL_int l), E_literal (PL_int r) ->
-               {e with expr = E_literal (PL_int (l - r))}
-           | Mult, E_literal (PL_int l), E_literal (PL_int r) ->
-               {e with expr = E_literal (PL_int (l * r))}
-           | Mod,  E_literal (PL_int _), E_literal (PL_int r)
+           | Plus on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = l + r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Minus on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = l - r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Mult on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = l * r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Mod _,  E_literal (PL_int _), E_literal (PL_int (r, _))
                 when r = 0 ->
                raise (TExc.Error (e.expr_loc, TExc.Possible_division_by_zero))
-           | Mod,  E_literal (PL_int l), E_literal (PL_int r) ->
-               {e with expr = E_literal (PL_int (l mod r))}
-           | Div,  E_literal (PL_int _), E_literal (PL_int r)
+           | Mod on,  E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = l mod r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Div _,  E_literal (PL_int _), E_literal (PL_int (r, _))
                 when r = 0 ->
                raise (TExc.Error (e.expr_loc, TExc.Possible_division_by_zero))
-           | Div,  E_literal (PL_int l), E_literal (PL_int r) ->
-               {e with expr = E_literal (PL_int (l / r))}
+           | Div on,  E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = l / r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
            | Land, E_literal (PL_bool l), E_literal (PL_bool r) ->
                {e with expr = E_literal (PL_bool (l && r))}
            | Lor,  E_literal (PL_bool l), E_literal (PL_bool r) ->
                {e with expr = E_literal (PL_bool (l || r))}
            (* Eq and Neq are polymorphic. *)
-           | Eq,   E_literal (PL_int l), E_literal (PL_int r) ->
+           | Eq,   E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when ln = rn ->
                {e with expr = E_literal (PL_bool (l = r))}
            | Eq,   E_literal (PL_bytes l), E_literal (PL_bytes r) ->
                {e with expr = E_literal (PL_bool (l = r))}
@@ -183,7 +216,8 @@ let rec const_fold: 't 'v 'm. ('t, 'v, 'm) expr -> ('t, 'v, 'm) expr =
                {e with expr = E_literal (PL_bool (l = r))}
            | Eq,   E_literal (PL_bitvector l), E_literal (PL_bitvector r) ->
                {e with expr = E_literal (PL_bool (l = r))}
-           | Neq,  E_literal (PL_int l), E_literal (PL_int r) ->
+           | Neq,  E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when ln = rn ->
                {e with expr = E_literal (PL_bool (not (l = r)))}
            | Neq,  E_literal (PL_bytes l), E_literal (PL_bytes r) ->
                {e with expr = E_literal (PL_bool (not (l = r)))}
@@ -205,8 +239,8 @@ let rec const_fold: 't 'v 'm. ('t, 'v, 'm) expr -> ('t, 'v, 'm) expr =
 let is_non_zero: 't 'v 'm. ('t, 'v, 'm) expr -> bool =
   fun e ->
   match (const_fold e).expr with
-    | E_literal (PL_int i) -> i != 0
-    | _                    -> true
+    | E_literal (PL_int (i, _)) -> i != 0
+    | _                         -> true
 
 
 (* Extract a nested sequence of field accessors in an expression,

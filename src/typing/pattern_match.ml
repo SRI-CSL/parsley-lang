@@ -37,7 +37,8 @@ let mk_head_instance p =
           List.map (fun p -> {p with pattern = P_wildcard}) ps in
         {p with pattern = P_variant ((m, typ, constr), ps')}
 
-let pick_missed_int il =
+let pick_missed_int il _n =
+  (* TODO: also pick small negative numbers if the integer type supports it *)
   let module IntSet = Set.Make(Nativeint) in
   let iset = IntSet.of_list (List.map Nativeint.of_int il) in
   let rec loop i =
@@ -72,14 +73,14 @@ let pick_missed_constructor tenv signature =
         assert false
     | P_literal PL_unit ->
         assert false
-    | P_literal (PL_int _) ->
+    | P_literal (PL_int (_, n)) ->
         let l =
           List.map (function
-              | {pattern = P_literal (PL_int i); _} -> i
+              | {pattern = P_literal (PL_int (i, _)); _} -> i
               | _ -> assert false
             ) signature in
-        let i = pick_missed_int l in
-        {p with pattern = P_literal (PL_int i)}
+        let i = pick_missed_int l n in
+        {p with pattern = P_literal (PL_int (i, n))}
     | P_literal (PL_bytes _) ->
         let l =
           List.map (function

@@ -206,3 +206,26 @@ let sort_fields fields =
       let f, f' = (m1, Location.value f1), (m2, Location.value f2) in
       qual_compare f f'
     ) fields
+
+(* integer literal checks *)
+
+let check_int_literal ((s, w): num_t) (i: int) =
+  match s, w with
+    | S_unsigned, NW_8  ->
+        0 <= i && i < 256
+    | S_unsigned, NW_16 ->
+        0 <= i && i < 65536
+    | S_unsigned, NW_32 ->
+        0 <= i && i < 4294967296
+    | S_unsigned, NW_64
+    | S_unsigned, NW_size ->
+        0 <= i
+    | S_signed, NW_8  ->
+        -128 <= i && i < 128
+    | S_signed, NW_16 ->
+        -32768 <= i && i < 32768
+    | S_signed, NW_32 ->
+        -2147483648 <= i && i < 2147483648
+    | S_signed, NW_64
+    | S_signed, NW_size ->
+        true

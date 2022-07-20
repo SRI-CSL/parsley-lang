@@ -9,17 +9,17 @@ fun cons <'a> (l: my_list<'a>, e: 'a) -> my_list<'a> = {
   )
 }
 
-recfun my_len <'a> (l: my_list<'a>) -> int = {
+recfun my_len <'a> (l: my_list<'a>) -> usize = {
   (case l of
-  | my_list::Null()     -> 0
-  | my_list::Cons(_, t) -> 1 + my_len(t)
+  | my_list::Null()     -> 0u
+  | my_list::Cons(_, t) -> 1u +_u my_len(t)
   )
 }
 
-recfun len <'a> (l: ['a]) -> int = {
+recfun len <'a> (l: ['a]) -> usize = {
   (case l of
-  | []     -> 0
-  | _ :: t -> 1 + len(t)
+  | []     -> 0u
+  | _ :: t -> 1u +_u len(t)
   )
 }
 

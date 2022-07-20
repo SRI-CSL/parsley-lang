@@ -1,6 +1,6 @@
 type recd('a, 'b) =
  { key: 'a, val: 'b }
 
-fun mk_record() -> recd<int, int> = {
- { key: 1, val: 1 }
+fun mk_record() -> recd<usize, usize> = {
+ { key: 1u, val: 1u }
 }

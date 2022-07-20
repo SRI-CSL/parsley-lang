@@ -63,9 +63,10 @@ let bind_var venv v t =
 
 (* ANF value utilities *)
 
-let av_of_int ctx i loc =
-  let int = get_std_typ ctx "int" in
-  make_av (AV_lit (PL_int i)) int loc
+let av_of_int ctx i num_t loc =
+  let n = Ast.str_of_num_t num_t in
+  let t = get_std_typ ctx n in
+  make_av (AV_lit (PL_int (i, num_t))) t loc
 
 let constr_av t c args typ loc =
   (* This module only constructs values in the stdlib. *)
@@ -687,8 +688,8 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let b = new_labeled_block loc lc in
         (* build the boolean comparison variable: c := bv > 0 *)
         let bool = get_std_typ ctx "bool" in
-        let z = av_of_int ctx 0 e.expr_loc in
-        let ae = AE_binop (Ast.Gt, av_of_var bv, z) in
+        let z = av_of_int ctx 0 Ast.usize_t e.expr_loc in
+        let ae = AE_binop (Ast.Gt Ast.usize_t, av_of_var bv, z) in
         let ae = make_ae ae bool e.expr_loc in
         let c, venv = fresh_var venv bool e.expr_loc in
         let b = add_gnode b (N_assign (c, ae)) bool e.expr_loc in
@@ -720,9 +721,9 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
                 let b = add_gnode b nd typ loc in
                 ctx, b in
         (* bv := bv - 1 *)
-        let int = get_std_typ ctx "int" in
-        let o = av_of_int ctx 1 e.expr_loc in
-        let ae = AE_binop (Ast.Minus, av_of_var bv, o) in
+        let int = get_std_typ ctx "usize" in
+        let o = av_of_int ctx 1 Ast.usize_t e.expr_loc in
+        let ae = AE_binop (Ast.Minus Ast.usize_t, av_of_var bv, o) in
         let ae = make_ae ae int e.expr_loc in
         let nd = N_assign (bv, ae) in
         let b = add_gnode b nd int e.expr_loc in

@@ -16,10 +16,34 @@ type constructors, and support for polymorphic user-defined types.
 
 === Atomic types
 
-The basic atomic types in this language are `byte`, `int`, `double`,
-`string`, `bool`, `endian`, `bit` and `unit` (known as `void` in
-C-like languages).  In addition, the language includes parsing buffers
-as atomic values, which belong to a special atomic type called `view`.
+The basic atomic types in this language are `byte`, `string`, `bool`,
+`endian`, `bit`, `unit` (known as `void` in C-like languages), and the
+integer types described below.  In addition, the language includes
+parsing buffers as atomic values, which belong to a special atomic
+type called `view`.
+
+==== Integer types and literals
+
+Parsley contains signed and unsigned integer types of widths 8, 16,
+32, and 64.  These are called `i8`, `u8`, `i16`, `u16`, `i32`, `u32`,
+`i64` and `u64`.  `usize` and `isize` are additional integer types of
+unspecified widths.
+
+Integer literals are specified with a suffix indicating their
+type. For example, `15_u32` and `15_i64` specify an unsigned 32-bit
+and signed 64-bit value of 15 respectively.  The separating `_`
+between the numerical portion of the literal and the type suffix is
+optional.  The suffixes for `usize` and `isize` are `u` and `i`
+respectively; e.g. `15u` and `15i`.  Similar suffixes are used for
+arithmetic operators, see below.
+
+Integer types can be converted into each other using their respective
+modules in the standard library (e.g. `I16` for `i16` and `Usize` for
+`usize`).  There is no implicit integer type conversion in Parsley.
+
+Sizes, lengths and offsets used in the standard library are typically
+specified using `usize`.  This applies, for example, to lengths of
+lists, sizes of sets, or offsets into and bytes remaining in a view.
 
 === Type constructors
 
@@ -36,12 +60,15 @@ constant positive numbers as arguments instead of other types.  A
 bitvector of length `n` (e.g. 3) is specified as `bitvector<n>`
 (e.g. `bitvector<3>`).
 
+NOTE: Integer literals used to specify bitvector widths cannot have
+type suffixes.
+
 User-defined types are introduced with the `type` keyword, and must
 begin with a lowercase letter.
 ....
  type list_of_bytes   = [ byte ]
- type pair_of_ints    = ( int, int )
- type list_of_pairs   = [ (int, int) ]
+ type pair_of_i32s    = ( i32, i32 )
+ type list_of_pairs   = [ (i32, i32) ]
  type list_of_bitvecs = [ bitvector<5> ]
 ....
 
@@ -59,7 +86,7 @@ type is instantiated with the type arguments supplied within `<` and
 
 ....
  type list_of_generic_pairs ('a, 'b) = [ ('a, 'b) ]
- type list_of_int_pairs = list_of_generic_pairs<int,int>
+ type list_of_u32_pairs = list_of_generic_pairs<u32,u32>
 ....
 
 *Variant types* are declared as follows, as a sequence of data
@@ -69,7 +96,7 @@ required to have an initial uppercase letter.
 ....
  type my_list =
  | Null
- | Cons of int * my_list
+ | Cons of usize * my_list
 
  type tree ('a) =
  | Node of tree<'a> * 'a * tree<'a>
@@ -98,8 +125,8 @@ and `bit::One()`.
    ycoord: 'b }
 ....
 
-For example, one value of the record type `point<int,int>` is
-`{xcoord: 1, ycoord: 2}`.
+For example, one value of the record type `point<i32,i32>` is
+`{xcoord: 1_i32, ycoord: 2_i32}`.
 
 Fields of record values are accessed through the usual `.` operator.
 For example, if `p` is a variable of the above `point` type, its
@@ -137,7 +164,7 @@ that declaration:
 
 ....
  type dict ('a) =
- { d: (int, node<'a>) }
+ { d: (i32, node<'a>) }
 
  and node ('a) =
  | Leaf of 'a
@@ -156,13 +183,14 @@ conforms to a valid character encoding.
 NOTE: Full support for character encodings in strings is not yet
 present.
 
+
 == Constant definitions
 
 Constants are declared with the `const` keyword, and with an explicit
 type and value expression, with the following syntax:
 
 ....
- const max_packet_length : int = 1554
+ const max_packet_length : u32 = 1554
 ....
 
 Constants cannot have polymorphic type.
@@ -173,8 +201,8 @@ Functions are declared with the `fun` keyword, and with explicit
 parameter types and a return type, with the following syntax:
 
 ....
- fun max (a: int, b: int) -> int = {
-   (case a < b of
+ fun max (a: i32, b: i32) -> i32 = {
+   (case a <_i32 b of
    | bool::True()  -> b
    | bool::False() -> a
    )
@@ -198,10 +226,10 @@ Functions can be *self-recursive*; such functions are declared using
 the `recfun` keyword:
 
 ....
- recfun len <'a> (l: my_list<'a>) -> int = {
+ recfun len <'a> (l: my_list<'a>) -> usize = {
    (case l of
-   | my_list::Null()     -> 0
-   | my_list::Cons(_, t) -> 1 + len(t)
+   | my_list::Null()     -> 0u
+   | my_list::Cons(_, t) -> 1u +_u len(t)
    )
  }
 ....
@@ -214,17 +242,17 @@ type op =
  | Single
  | Multiple of [op]
 
-recfun num_ops (o: op) -> int = {
+recfun num_ops (o: op) -> usize = {
   (case o of
-   | op::Single() -> 1
-   | op::Multiple(s) -> 1 + num_seq_ops(s, 0)
+   | op::Single() -> 1u
+   | op::Multiple(s) -> 1u +_u num_seq_ops(s, 0u)
    )
 }
 
-and num_seq_ops (os: [op], acc: int) -> int = {
+and num_seq_ops (os: [op], acc: usize) -> usize = {
   (case os of
    | [] -> acc
-   | hd :: tl -> num_ops(hd) + num_seq_ops(tl, acc)
+   | hd :: tl -> num_ops(hd) +_u num_seq_ops(tl, acc)
   )
 }
 ....
@@ -236,12 +264,12 @@ supported.
 == Expressions
 
 The primitive expressions are *literal values*, which can either be
-integer literals like `21`, strings like `"this is a string"`, or the
-unit value `()`.  Literal values can also be constructed from data
-constructors of variant and record types, such as `my_list::Null()`
-and `{xcoord:1, ycoord:2}` above.  Bitvector literals are specified
-with a leading `0b`, e.g. `0b010` is a literal of type `bitvector<3>`.
-The `[]` literal represents the empty list.
+integer literals like `21_i32` (as described above), strings like
+`"this is a string"`, or the unit value `()`.  Literal values can also
+be constructed from data constructors of variant and record types,
+such as `my_list::Null()` and `{xcoord:1, ycoord:2}` above.  Bitvector
+literals are specified with a leading `0b`, e.g. `0b010` is a literal
+of type `bitvector<3>`.  The `[]` literal represents the empty list.
 
 *Variables* are denoted by identifiers containing alphanumeric
 characters, `_` and `@`.  Variable names must begin with a lowercase
@@ -249,6 +277,17 @@ letter.
 
 Expressions can be combined with unary and binary *operators*.  Unless
 specified, the operators below are binary and take two arguments.
+Integer operators are suffixed with their operand type; `<int_type>`
+in the table below stands for an integer type, such as `i8`, `u8`,
+..., `i16`, or `u64`.  Operators over `usize` and `isize` are
+specified with an `<int_type>` of `u` and `i` respective.  For
+example, `+_u32` is addition defined over operands of type `u32`, and
+`/_u` is division over `usize` operands.  Integer operators over an
+integer type have result values within the same type.
+
+NOTE: Wrapping semantics is used for values of operators that overflow
+or underflow their type. That is, `0u8 -_u 1u8` evaluates to `255u`,
+and `127_i8 +_i8 1_i8` to `-128_i8`.
 
 .Operators
 [%header, cols=2*]
@@ -256,22 +295,22 @@ specified, the operators below are binary and take two arguments.
 | Operator symbol
 | Semantics
 
-| -
+| -_<int_type>
 | Integer negation (unary)
 
-| +
+| +_<int_type>
 | Integer addition
 
-| -
+| -_<int_type>
 | Integer subtraction
 
-| *
+| *_<int_type>
 | Integer multiplication
 
-| %
+| %_<int_type>
 | Integer modulus
 
-| /
+| /_<int_type>
 | Integer division
 
 | &&
@@ -280,10 +319,10 @@ specified, the operators below are binary and take two arguments.
 | \|\|
 | Boolean or
 
-| \<=
+| \<=_<int_type>
 | Integer less-than-equal
 
-| >=
+| >=_<int_type>
 | Integer greater-than-equal
 
 | =
@@ -334,10 +373,10 @@ variables, and the wildcard pattern `_`.  They are composed with data
 constructors of variant types or the tuple constructor.
 
 ....
- recfun len <'a> (l: my_list<'a>) -> int = {
+ recfun len <'a> (l: my_list<'a>) -> usize = {
    (case l of
-   | my_list::Null()     -> 0
-   | my_list::Cons(_, t) -> 1 + len(t)
+   | my_list::Null()     -> 0u
+   | my_list::Cons(_, t) -> 1u +_u len(t)
    )
  }
 ....
@@ -346,10 +385,10 @@ The above example used a user-defined list `my_list`.  There is
 syntactic support for the `list` of the standard library:
 
 ....
- recfun len <'a> (l: ['a]) -> int = {
+ recfun len <'a> (l: ['a]) -> usize = {
    (case l of
-   | []     -> 0
-   | _ :: t -> 1 + len(t)
+   | []     -> 0u
+   | _ :: t -> 1u +_u len(t)
    )
  }
 ....
@@ -363,6 +402,9 @@ bitvector `v` of type `bitvector<3>`,
 ....
 extracts the top two bits and the lowest bit into a tuple of two
 bitvectors of type `(bitvector<2>, bitvector<1>)`.
+
+NOTE: Integer literals used to specify bitvector indices and ranges
+cannot have type suffixes.
 
 *Bitfield conversions* allow the conversion between bitfields and
  bitvectors of the appropriate length.  `bf->bits(r)` converts a
@@ -466,9 +508,9 @@ name, it is qualified to belong to the standard library module.
 It is possible to define entities with names that conflict with names
 in the standard library; one only needs to refer to them using an
 explicitly qualified identifier.  For example, if the specification
-`gram.ply` defines a type called `int`, it can refer to that type
-where needed as `Gram.int`; an implicitly qualified type identifier
-named `int` in `gram.ply` will continue to refer to the type `int`
+`gram.ply` defines a type called `isize`, it can refer to that type
+where needed as `Gram.isize`; an implicitly qualified type identifier
+named `isize` in `gram.ply` will continue to refer to the type `isize`
 from the Parsley standard library.  The handling of name conflicts in
 other definitions, such as constants, functions, and non-terminals, is
 similar.

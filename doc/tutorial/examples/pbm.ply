@@ -3,8 +3,8 @@
 
 type ppbm_fc = {
   magic_bytes: [byte],
-  height: int,
-  width: int,
+  height: usize,
+  width: usize,
   img: [byte]
 }
 
@@ -16,72 +16,72 @@ format {
   DimensionValue := (#[DigitS]+#);;
   BinaryDigit := (# ["0" | "1"] #);;
   Comment := !"#"! (# [AsciiCharS \ EndLineWhitespace]*  EndLineWhitespace #);;
-  Junk := ; (# Whitespace AsciiCharS* #);;
+  Junk := (# Whitespace AsciiCharS* #)?;;
 
-  LineCheck :=
+  LineCheck {} :=
     clone_view = {;; View.clone(View.get_current())}
     line = @[clone_view, (# [AsciiCharS \ EndLineWhitespace]*
-                          EndLineWhitespace #) ]
-    [List.length(line) <= 70];;
+			    EndLineWhitespace #) ]
+    [List.length(line) <=_u 70u];;
 
   TokenSeparatorLine := (# LineCheck NonEndLineWhitespace*
-                           (Comment | EndLineWhitespace) #);;
+			   (Comment | EndLineWhitespace) #);;
   PartialTokenSeparatorLine := (# LineCheck NonEndLineWhitespace #);;
-  
-  TokenSeparator := (# TokenSeparatorLine* (LineCheck Whitespace) 
-                     TokenSeparatorLine* PartialTokenSeparatorLine* #);;
+
+  TokenSeparator := (# TokenSeparatorLine* (LineCheck Whitespace)
+		       TokenSeparatorLine* PartialTokenSeparatorLine* #);;
   RasterSeparator := (# (LineCheck Comment)* LineCheck Whitespace #);;
 
-  ReadRasterLine rrl (pixels_left: int) {pixels_read: [byte],
-                                         pixels_left_new: int} :=
-    [pixels_left > 0]
+  ReadRasterLine rrl (pixels_left: isize) {pixels_read: [byte],
+					   pixels_left_new: isize} :=
+    [pixels_left >_i 0i]
     img_val = BinaryDigit
-    rrl_res = ReadRasterLine<pixels_left = pixels_left - 1> 
+    rrl_res = ReadRasterLine<pixels_left = pixels_left -_i 1i>
     {
-      rrl.pixels_read := img_val[0]::rrl_res.pixels_read;
+      rrl.pixels_read := img_val[0u]::rrl_res.pixels_read;
       rrl.pixels_left_new := rrl_res.pixels_left_new
-    } 
-  ; [pixels_left >= 0] // this guard is not strictly necessary 
+    }
+  ; [pixels_left >=_i 0i] // this guard is not strictly necessary
     NonEndLineWhitespace
     rrl_res = ReadRasterLine<pixels_left = pixels_left>
     {
       rrl.pixels_read := rrl_res.pixels_read;
       rrl.pixels_left_new := rrl_res.pixels_left_new
     }
-  ; [pixels_left >= 0] // this guard is not strictly necessary
+  ; [pixels_left >=_i 0i] // this guard is not strictly necessary
     EndLineWhitespace
     {
       rrl.pixels_read := [];
       rrl.pixels_left_new := pixels_left
     };;
 
-  ReadRaster rr (pixels_left: int) {raster_image: [byte]} := 
-    [pixels_left > 0]
+  ReadRaster rr (pixels_left: isize) {raster_image: [byte]} :=
+    [pixels_left >_i 0i]
     LineCheck
     rrl = ReadRasterLine<pixels_left = pixels_left>
     rr_rest = ReadRaster<pixels_left = rrl.pixels_left_new>
     {
      rr.raster_image := List.concat(rrl.pixels_read, rr_rest.raster_image)
     }
-  ; [pixels_left = 0]
-    { 
-      rr.raster_image := [] 
+  ; [pixels_left = 0i]
+    {
+      rr.raster_image := []
     };;
-     
+
   PBM_FC fc {ppbm_fc} :=
-    (| raster_width: int := 0, raster_height: int := 0,
-       raster_size: int := 0 |) 
+    (| raster_width: usize := 0u, raster_height: usize := 0u,
+       raster_size:  usize := 0u |)
     magic_bytes = MagicBytes
     TokenSeparator
-    width = DimensionValue 
-    [Int.of_bytes(width) ~~ option::Some]
+    width = DimensionValue
+    [Usize.of_bytes(width)  ~~ option::Some]
     TokenSeparator
     height = DimensionValue
-    [Int.of_bytes(height) ~~ option::Some]
+    [Usize.of_bytes(height) ~~ option::Some]
     {
-      raster_width := Int.of_bytes_unsafe(width);
-      raster_height := Int.of_bytes_unsafe(height);
-      raster_size := raster_width * raster_height
+      raster_width := Usize.of_bytes_unsafe(width);
+      raster_height := Usize.of_bytes_unsafe(height);
+      raster_size := raster_width *_u raster_height
     }
     RasterSeparator
     img = ReadRaster<pixels_left = raster_size>

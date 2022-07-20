@@ -1,24 +1,24 @@
 type tlv =
- | TTL  of int
- | Port of int
+ | TTL  of u32
+ | Port of u32
  | Unknown of byte * [byte]
 
-fun ttl_to_int(b : [byte]) -> int = {
-  Int.of_byte(List.index_unsafe(b, 0))
+fun ttl_to_int(b : [byte]) -> u32 = {
+  U32.of_byte(List.index_unsafe(b, 0u))
 }
 
-fun port_to_int(b : [byte]) -> int = {
-  (256 * Int.of_byte(List.index_unsafe(b, 1)))
-  + Int.of_byte(List.index_unsafe(b, 0))
+fun port_to_int(b : [byte]) -> u32 = {
+  (256u32 *_u32 U32.of_byte(List.index_unsafe(b, 1u)))
+  +_u32 U32.of_byte(List.index_unsafe(b, 0u))
 }
 
 format {
   // Example of a tagged-length-value (TLV), another common dependent type:
   TLV t { val: tlv } :=
-    tag=Byte len=Byte v=(Byte ^ Int.of_byte(len))
+    tag=Byte len=Byte v=(Byte ^ Usize.of_byte(len))
 
-    ( ([Int.of_byte(tag) = 1 && Int.of_byte(len) > 1] { t.val := tlv::TTL(ttl_to_int(v))   })
-    | ([Int.of_byte(tag) = 2 && Int.of_byte(len) > 0] { t.val := tlv::Port(port_to_int(v)) })
-    | (                                               { t.val := tlv::Unknown(tag, v)      })
+    ( ([Isize.of_byte(tag) = 1i && Usize.of_byte(len) >_u 1u] { t.val := tlv::TTL(ttl_to_int(v))   })
+    | ([Isize.of_byte(tag) = 2i && Usize.of_byte(len) >_u 0u] { t.val := tlv::Port(port_to_int(v)) })
+    | (                                                       { t.val := tlv::Unknown(tag, v)      })
     )
 }

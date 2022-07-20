@@ -96,7 +96,18 @@ let builtin_types, builtin_ops, builtin_values,
     let tn = Location.mk_loc_val t ghost_loc in
     make_builtin_type (Ast.TE_tname (AstUtils.stdlib, tn)) in
   let unit_t   = gen_tname "unit" in
-  let int_t    = gen_tname "int" in
+  (* ints, along the lines of Rust *)
+  let i8_t     = gen_tname "i8" in
+  let i16_t    = gen_tname "i16" in
+  let i32_t    = gen_tname "i32" in
+  let i64_t    = gen_tname "i64" in
+  let isize_t  = gen_tname "isize" in
+  let u8_t     = gen_tname "u8" in
+  let u16_t    = gen_tname "u16" in
+  let u32_t    = gen_tname "u32" in
+  let u64_t    = gen_tname "u64" in
+  let usize_t  = gen_tname "usize" in
+  (* others *)
   let double_t = gen_tname "double" in
   let bool_t   = gen_tname "bool" in
   let bit_t    = gen_tname "bit" in
@@ -134,8 +145,16 @@ let builtin_types, builtin_ops, builtin_values,
                          (Ast.DName "Some", [ TName "a" ],
                           arrow_type (gen_tvar "a")
                             (opt_type (gen_tvar "a"))) ]);
-
-      TName "int",    (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "i8",     (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "i16",    (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "i32",    (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "i64",    (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "u8",     (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "u16",    (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "u32",    (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "u64",    (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "isize",  (Ast.KStar, (false, Assoc_none, 2), []);
+      TName "usize",  (Ast.KStar, (false, Assoc_none, 2), []);
       TName "double", (Ast.KStar, (false, Assoc_none, 2), []);
       TName "char",   (Ast.KStar, (false, Assoc_none, 2), []);
       TName "byte",   (Ast.KStar, (false, Assoc_none, 2), []);
@@ -172,19 +191,128 @@ let builtin_types, builtin_ops, builtin_values,
   (* When adding new builtins, please also add their implementations
      to builtins.ml *)
   let builtin_ops : builtin_value array = [|
-      (Ast.VName "1-", [], arrow_type int_t int_t);
+      (Ast.VName "1-_i",   [], arrow_type isize_t isize_t);
+      (Ast.VName "1-_i8",  [], arrow_type i8_t i8_t);
+      (Ast.VName "1-_i16", [], arrow_type i16_t i16_t);
+      (Ast.VName "1-_i32", [], arrow_type i32_t i32_t);
+      (Ast.VName "1-_i64", [], arrow_type i64_t i64_t);
+      (Ast.VName "1-_u",   [], arrow_type usize_t usize_t);
+      (Ast.VName "1-_u8",  [], arrow_type u8_t u8_t);
+      (Ast.VName "1-_u16", [], arrow_type u16_t u16_t);
+      (Ast.VName "1-_u32", [], arrow_type u32_t u32_t);
+      (Ast.VName "1-_u64", [], arrow_type u64_t u64_t);
+
       (Ast.VName "!",  [], arrow_type bool_t bool_t);
 
-      (Ast.VName "+",  [], arrow_type int_t (arrow_type int_t int_t));
-      (Ast.VName "-",  [], arrow_type int_t (arrow_type int_t int_t));
-      (Ast.VName "*",  [], arrow_type int_t (arrow_type int_t int_t));
-      (Ast.VName "%",  [], arrow_type int_t (arrow_type int_t int_t));
-      (Ast.VName "/",  [], arrow_type int_t (arrow_type int_t int_t));
+      (Ast.VName "+_i",  [], arrow_type isize_t (arrow_type isize_t isize_t));
+      (Ast.VName "-_i",  [], arrow_type isize_t (arrow_type isize_t isize_t));
+      (Ast.VName "*_i",  [], arrow_type isize_t (arrow_type isize_t isize_t));
+      (Ast.VName "/_i",  [], arrow_type isize_t (arrow_type isize_t isize_t));
+      (Ast.VName "%_i",  [], arrow_type isize_t (arrow_type isize_t isize_t));
 
-      (Ast.VName "<",  [], arrow_type int_t (arrow_type int_t bool_t));
-      (Ast.VName ">",  [], arrow_type int_t (arrow_type int_t bool_t));
-      (Ast.VName "<=", [], arrow_type int_t (arrow_type int_t bool_t));
-      (Ast.VName ">=", [], arrow_type int_t (arrow_type int_t bool_t));
+      (Ast.VName "<_i",  [], arrow_type isize_t (arrow_type isize_t bool_t));
+      (Ast.VName ">_i",  [], arrow_type isize_t (arrow_type isize_t bool_t));
+      (Ast.VName "<=_i", [], arrow_type isize_t (arrow_type isize_t bool_t));
+      (Ast.VName ">=_i", [], arrow_type isize_t (arrow_type isize_t bool_t));
+
+      (Ast.VName "+_i8",  [], arrow_type i8_t (arrow_type i8_t i8_t));
+      (Ast.VName "-_i8",  [], arrow_type i8_t (arrow_type i8_t i8_t));
+      (Ast.VName "*_i8",  [], arrow_type i8_t (arrow_type i8_t i8_t));
+      (Ast.VName "/_i8",  [], arrow_type i8_t (arrow_type i8_t i8_t));
+      (Ast.VName "%_i8",  [], arrow_type i8_t (arrow_type i8_t i8_t));
+
+      (Ast.VName "<_i8",  [], arrow_type i8_t (arrow_type i8_t bool_t));
+      (Ast.VName ">_i8",  [], arrow_type i8_t (arrow_type i8_t bool_t));
+      (Ast.VName "<=_i8", [], arrow_type i8_t (arrow_type i8_t bool_t));
+      (Ast.VName ">=_i8", [], arrow_type i8_t (arrow_type i8_t bool_t));
+
+      (Ast.VName "+_i16",  [], arrow_type i16_t (arrow_type i16_t i16_t));
+      (Ast.VName "-_i16",  [], arrow_type i16_t (arrow_type i16_t i16_t));
+      (Ast.VName "*_i16",  [], arrow_type i16_t (arrow_type i16_t i16_t));
+      (Ast.VName "/_i16",  [], arrow_type i16_t (arrow_type i16_t i16_t));
+      (Ast.VName "%_i16",  [], arrow_type i16_t (arrow_type i16_t i16_t));
+
+      (Ast.VName "<_i16",  [], arrow_type i16_t (arrow_type i16_t bool_t));
+      (Ast.VName ">_i16",  [], arrow_type i16_t (arrow_type i16_t bool_t));
+      (Ast.VName "<=_i16", [], arrow_type i16_t (arrow_type i16_t bool_t));
+      (Ast.VName ">=_i16", [], arrow_type i16_t (arrow_type i16_t bool_t));
+
+      (Ast.VName "+_i32",  [], arrow_type i32_t (arrow_type i32_t i32_t));
+      (Ast.VName "-_i32",  [], arrow_type i32_t (arrow_type i32_t i32_t));
+      (Ast.VName "*_i32",  [], arrow_type i32_t (arrow_type i32_t i32_t));
+      (Ast.VName "/_i32",  [], arrow_type i32_t (arrow_type i32_t i32_t));
+      (Ast.VName "%_i32",  [], arrow_type i32_t (arrow_type i32_t i32_t));
+
+      (Ast.VName "<_i32",  [], arrow_type i32_t (arrow_type i32_t bool_t));
+      (Ast.VName ">_i32",  [], arrow_type i32_t (arrow_type i32_t bool_t));
+      (Ast.VName "<=_i32", [], arrow_type i32_t (arrow_type i32_t bool_t));
+      (Ast.VName ">=_i32", [], arrow_type i32_t (arrow_type i32_t bool_t));
+
+      (Ast.VName "+_i64",  [], arrow_type i64_t (arrow_type i64_t i64_t));
+      (Ast.VName "-_i64",  [], arrow_type i64_t (arrow_type i64_t i64_t));
+      (Ast.VName "*_i64",  [], arrow_type i64_t (arrow_type i64_t i64_t));
+      (Ast.VName "/_i64",  [], arrow_type i64_t (arrow_type i64_t i64_t));
+      (Ast.VName "%_i64",  [], arrow_type i64_t (arrow_type i64_t i64_t));
+
+      (Ast.VName "<_i64",  [], arrow_type i64_t (arrow_type i64_t bool_t));
+      (Ast.VName ">_i64",  [], arrow_type i64_t (arrow_type i64_t bool_t));
+      (Ast.VName "<=_i64", [], arrow_type i64_t (arrow_type i64_t bool_t));
+      (Ast.VName ">=_i64", [], arrow_type i64_t (arrow_type i64_t bool_t));
+
+      (Ast.VName "+_u",  [], arrow_type usize_t (arrow_type usize_t usize_t));
+      (Ast.VName "-_u",  [], arrow_type usize_t (arrow_type usize_t usize_t));
+      (Ast.VName "*_u",  [], arrow_type usize_t (arrow_type usize_t usize_t));
+      (Ast.VName "/_u",  [], arrow_type usize_t (arrow_type usize_t usize_t));
+      (Ast.VName "%_u",  [], arrow_type usize_t (arrow_type usize_t usize_t));
+
+      (Ast.VName "<_u",  [], arrow_type usize_t (arrow_type usize_t bool_t));
+      (Ast.VName ">_u",  [], arrow_type usize_t (arrow_type usize_t bool_t));
+      (Ast.VName "<=_u", [], arrow_type usize_t (arrow_type usize_t bool_t));
+      (Ast.VName ">=_u", [], arrow_type usize_t (arrow_type usize_t bool_t));
+
+      (Ast.VName "+_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
+      (Ast.VName "-_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
+      (Ast.VName "*_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
+      (Ast.VName "/_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
+      (Ast.VName "%_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
+
+      (Ast.VName "<_u8",  [], arrow_type u8_t (arrow_type u8_t bool_t));
+      (Ast.VName ">_u8",  [], arrow_type u8_t (arrow_type u8_t bool_t));
+      (Ast.VName "<=_u8", [], arrow_type u8_t (arrow_type u8_t bool_t));
+      (Ast.VName ">=_u8", [], arrow_type u8_t (arrow_type u8_t bool_t));
+
+      (Ast.VName "+_u16",  [], arrow_type u16_t (arrow_type u16_t u16_t));
+      (Ast.VName "-_u16",  [], arrow_type u16_t (arrow_type u16_t u16_t));
+      (Ast.VName "*_u16",  [], arrow_type u16_t (arrow_type u16_t u16_t));
+      (Ast.VName "/_u16",  [], arrow_type u16_t (arrow_type u16_t u16_t));
+      (Ast.VName "%_u16",  [], arrow_type u16_t (arrow_type u16_t u16_t));
+
+      (Ast.VName "<_u16",  [], arrow_type u16_t (arrow_type u16_t bool_t));
+      (Ast.VName ">_u16",  [], arrow_type u16_t (arrow_type u16_t bool_t));
+      (Ast.VName "<=_u16", [], arrow_type u16_t (arrow_type u16_t bool_t));
+      (Ast.VName ">=_u16", [], arrow_type u16_t (arrow_type u16_t bool_t));
+
+      (Ast.VName "+_u32",  [], arrow_type u32_t (arrow_type u32_t u32_t));
+      (Ast.VName "-_u32",  [], arrow_type u32_t (arrow_type u32_t u32_t));
+      (Ast.VName "*_u32",  [], arrow_type u32_t (arrow_type u32_t u32_t));
+      (Ast.VName "/_u32",  [], arrow_type u32_t (arrow_type u32_t u32_t));
+      (Ast.VName "%_u32",  [], arrow_type u32_t (arrow_type u32_t u32_t));
+
+      (Ast.VName "<_u32",  [], arrow_type u32_t (arrow_type u32_t bool_t));
+      (Ast.VName ">_u32",  [], arrow_type u32_t (arrow_type u32_t bool_t));
+      (Ast.VName "<=_u32", [], arrow_type u32_t (arrow_type u32_t bool_t));
+      (Ast.VName ">=_u32", [], arrow_type u32_t (arrow_type u32_t bool_t));
+
+      (Ast.VName "+_u64",  [], arrow_type u64_t (arrow_type u64_t u64_t));
+      (Ast.VName "-_u64",  [], arrow_type u64_t (arrow_type u64_t u64_t));
+      (Ast.VName "*_u64",  [], arrow_type u64_t (arrow_type u64_t u64_t));
+      (Ast.VName "/_u64",  [], arrow_type u64_t (arrow_type u64_t u64_t));
+      (Ast.VName "%_u64",  [], arrow_type u64_t (arrow_type u64_t u64_t));
+
+      (Ast.VName "<_u64",  [], arrow_type u64_t (arrow_type u64_t bool_t));
+      (Ast.VName ">_u64",  [], arrow_type u64_t (arrow_type u64_t bool_t));
+      (Ast.VName "<=_u64", [], arrow_type u64_t (arrow_type u64_t bool_t));
+      (Ast.VName ">=_u64", [], arrow_type u64_t (arrow_type u64_t bool_t));
 
       (Ast.VName "&&", [], arrow_type bool_t (arrow_type bool_t bool_t));
       (Ast.VName "||", [], arrow_type bool_t (arrow_type bool_t bool_t));
@@ -204,7 +332,7 @@ let builtin_types, builtin_ops, builtin_values,
                                         (arrow_type (gen_tvar "a") bool_t));
 
       (Ast.VName ".[]", [ TName "a" ], arrow_type (list_type (gen_tvar "a"))
-                                        (arrow_type int_t
+                                        (arrow_type usize_t
                                            (opt_type (gen_tvar "a"))));
     |] in
   let builtin_values : builtin_value array = [|
@@ -215,34 +343,518 @@ let builtin_types, builtin_ops, builtin_values,
   let builtin_modules : builtin_module list = [
       {mod_name   = Ast.Mod_inferred "Byte";
        mod_values = [
-           (Ast.VName "of_int_unsafe", [],
-            arrow_type int_t byte_t);
-           (Ast.VName "of_int", [],
-            arrow_type int_t (opt_type byte_t));
+           (* checked conversions *)
+           (Ast.VName "of_i8", [],
+            arrow_type i8_t (opt_type byte_t));
+           (Ast.VName "of_u8", [],
+            arrow_type u8_t (opt_type byte_t));
+           (Ast.VName "of_i16", [],
+            arrow_type i16_t (opt_type byte_t));
+           (Ast.VName "of_u16", [],
+            arrow_type u16_t (opt_type byte_t));
+           (Ast.VName "of_i32", [],
+            arrow_type i32_t (opt_type byte_t));
+           (Ast.VName "of_u32", [],
+            arrow_type u32_t (opt_type byte_t));
+           (Ast.VName "of_i64", [],
+            arrow_type i64_t (opt_type byte_t));
+           (Ast.VName "of_u64", [],
+            arrow_type u64_t (opt_type byte_t));
+           (Ast.VName "of_isize", [],
+            arrow_type isize_t (opt_type byte_t));
+           (Ast.VName "of_usize", [],
+            arrow_type usize_t (opt_type byte_t));
+
+           (* wrapped conversions *)
+           (Ast.VName "of_i8_wrapped", [],
+            arrow_type i8_t byte_t);
+           (Ast.VName "of_u8_wrapped", [],
+            arrow_type u8_t byte_t);
+           (Ast.VName "of_i16_wrapped", [],
+            arrow_type i16_t byte_t);
+           (Ast.VName "of_u16_wrapped", [],
+            arrow_type u16_t byte_t);
+           (Ast.VName "of_i32_wrapped", [],
+            arrow_type i32_t byte_t);
+           (Ast.VName "of_u32_wrapped", [],
+            arrow_type u32_t byte_t);
+           (Ast.VName "of_i64_wrapped", [],
+            arrow_type i64_t byte_t);
+           (Ast.VName "of_u64_wrapped", [],
+            arrow_type u64_t byte_t);
+           (Ast.VName "of_isize_wrapped", [],
+            arrow_type isize_t byte_t);
+           (Ast.VName "of_usize_wrapped", [],
+            arrow_type usize_t byte_t);
+
+           (Ast.VName "to_isize", [],
+            arrow_type byte_t isize_t);
+           (Ast.VName "to_i8", [],
+            arrow_type byte_t i8_t);
+           (Ast.VName "to_i16", [],
+            arrow_type byte_t i16_t);
+           (Ast.VName "to_i32", [],
+            arrow_type byte_t i32_t);
+           (Ast.VName "to_i64", [],
+            arrow_type byte_t i64_t);
+           (Ast.VName "to_usize", [],
+            arrow_type byte_t usize_t);
+           (Ast.VName "to_u8", [],
+            arrow_type byte_t u8_t);
+           (Ast.VName "to_u16", [],
+            arrow_type byte_t u16_t);
+           (Ast.VName "to_u32", [],
+            arrow_type byte_t u32_t);
+           (Ast.VName "to_u64", [],
+            arrow_type byte_t u64_t);
          ];
       };
-      {mod_name   = Ast.Mod_inferred "Int";
+      {mod_name   = Ast.Mod_inferred "I8";
        mod_values = [
            (Ast.VName "of_byte", [],
-            arrow_type byte_t int_t);
+            arrow_type byte_t (opt_type i8_t));
            (Ast.VName "of_string", [],
-            arrow_type string_t (opt_type int_t));
+            arrow_type string_t (opt_type i8_t));
+           (Ast.VName "of_string_unsafe", [],
+            arrow_type string_t i8_t);
+           (Ast.VName "of_i16", [],
+            arrow_type i16_t (opt_type i8_t));
+           (Ast.VName "of_i32", [],
+            arrow_type i32_t (opt_type i8_t));
+           (Ast.VName "of_i64", [],
+            arrow_type i64_t (opt_type i8_t));
+           (Ast.VName "of_isize", [],
+            arrow_type isize_t (opt_type i8_t));
+           (Ast.VName "of_u8", [],
+            arrow_type u8_t  (opt_type i8_t));
+           (Ast.VName "of_u16", [],
+            arrow_type u16_t (opt_type i8_t));
+           (Ast.VName "of_u32", [],
+            arrow_type u32_t (opt_type i8_t));
+           (Ast.VName "of_u64", [],
+            arrow_type u64_t (opt_type i8_t));
+           (Ast.VName "of_usize", [],
+            arrow_type usize_t (opt_type i8_t));
+           (Ast.VName "of_i16_wrapped", [],
+            arrow_type i16_t i8_t);
+           (Ast.VName "of_i32_wrapped", [],
+            arrow_type i32_t i8_t);
+           (Ast.VName "of_i64_wrapped", [],
+            arrow_type i64_t i8_t);
+           (Ast.VName "of_isize_wrapped", [],
+            arrow_type isize_t i8_t);
+           (Ast.VName "of_u8_wrapped", [],
+            arrow_type u8_t  i8_t);
+           (Ast.VName "of_u16_wrapped", [],
+            arrow_type u16_t i8_t);
+           (Ast.VName "of_u32_wrapped", [],
+            arrow_type u32_t i8_t);
+           (Ast.VName "of_u64_wrapped", [],
+            arrow_type u64_t i8_t);
+           (Ast.VName "of_usize_wrapped", [],
+            arrow_type usize_t i8_t);
+         ];
+      };
+      {mod_name   = Ast.Mod_inferred "U8";
+       mod_values = [
+           (Ast.VName "of_byte", [],
+            arrow_type byte_t u8_t);
+           (Ast.VName "of_string", [],
+            arrow_type string_t (opt_type u8_t));
+           (Ast.VName "of_string_unsafe", [],
+            arrow_type string_t u8_t);
+           (Ast.VName "of_i8", [],
+            arrow_type i8_t  (opt_type u8_t));
+           (Ast.VName "of_i16", [],
+            arrow_type i16_t (opt_type u8_t));
+           (Ast.VName "of_i32", [],
+            arrow_type i32_t (opt_type u8_t));
+           (Ast.VName "of_i64", [],
+            arrow_type i64_t (opt_type u8_t));
+           (Ast.VName "of_isize", [],
+            arrow_type isize_t (opt_type u8_t));
+           (Ast.VName "of_u16", [],
+            arrow_type u16_t (opt_type u8_t));
+           (Ast.VName "of_u32", [],
+            arrow_type u32_t (opt_type u8_t));
+           (Ast.VName "of_u64", [],
+            arrow_type u64_t (opt_type u8_t));
+           (Ast.VName "of_usize", [],
+            arrow_type usize_t (opt_type u8_t));
+           (Ast.VName "of_i8_wrapped", [],
+            arrow_type i8_t  u8_t);
+           (Ast.VName "of_i16_wrapped", [],
+            arrow_type i16_t u8_t);
+           (Ast.VName "of_i32_wrapped", [],
+            arrow_type i32_t u8_t);
+           (Ast.VName "of_i64_wrapped", [],
+            arrow_type i64_t u8_t);
+           (Ast.VName "of_isize_wrapped", [],
+            arrow_type isize_t u8_t);
+           (Ast.VName "of_u16_wrapped", [],
+            arrow_type u16_t u8_t);
+           (Ast.VName "of_u32_wrapped", [],
+            arrow_type u32_t u8_t);
+           (Ast.VName "of_u64_wrapped", [],
+            arrow_type u64_t u8_t);
+           (Ast.VName "of_usize_wrapped", [],
+            arrow_type usize_t u8_t);
+         ];
+      };
+      {mod_name   = Ast.Mod_inferred "I16";
+       mod_values = [
+           (Ast.VName "of_byte", [],
+            arrow_type byte_t i16_t);
            (Ast.VName "of_bytes", [],
-            arrow_type (list_type byte_t) (opt_type int_t));
+            arrow_type (list_type byte_t) (opt_type i16_t));
            (Ast.VName "of_bytes_unsafe", [],
-            arrow_type (list_type byte_t) int_t);
+            arrow_type (list_type byte_t) i16_t);
+           (Ast.VName "of_string", [],
+            arrow_type string_t (opt_type i16_t));
+           (Ast.VName "of_string_unsafe", [],
+            arrow_type string_t i16_t);
+           (Ast.VName "of_i8", [],
+            arrow_type i8_t  i16_t);
+           (Ast.VName "of_i32", [],
+            arrow_type i32_t (opt_type i16_t));
+           (Ast.VName "of_i64", [],
+            arrow_type i64_t (opt_type i16_t));
+           (Ast.VName "of_isize", [],
+            arrow_type isize_t (opt_type i16_t));
+           (Ast.VName "of_u8", [],
+            arrow_type u8_t  i16_t);
+           (Ast.VName "of_u16", [],
+            arrow_type u16_t (opt_type i16_t));
+           (Ast.VName "of_u32", [],
+            arrow_type u32_t (opt_type i16_t));
+           (Ast.VName "of_u64", [],
+            arrow_type u64_t (opt_type i16_t));
+           (Ast.VName "of_usize", [],
+            arrow_type usize_t (opt_type i16_t));
+           (Ast.VName "of_i32_wrapped", [],
+            arrow_type i32_t i16_t);
+           (Ast.VName "of_i64_wrapped", [],
+            arrow_type i64_t i16_t);
+           (Ast.VName "of_isize_wrapped", [],
+            arrow_type isize_t i16_t);
+           (Ast.VName "of_u16_wrapped", [],
+            arrow_type u16_t i16_t);
+           (Ast.VName "of_u32_wrapped", [],
+            arrow_type u32_t i16_t);
+           (Ast.VName "of_u64_wrapped", [],
+            arrow_type u64_t i16_t);
+           (Ast.VName "of_usize_wrapped", [],
+            arrow_type usize_t i16_t);
+         ];
+      };
+      {mod_name   = Ast.Mod_inferred "U16";
+       mod_values = [
+           (Ast.VName "of_byte", [],
+            arrow_type byte_t u16_t);
+           (Ast.VName "of_bytes", [],
+            arrow_type (list_type byte_t) (opt_type u16_t));
+           (Ast.VName "of_bytes_unsafe", [],
+            arrow_type (list_type byte_t) u16_t);
+           (Ast.VName "of_string", [],
+            arrow_type string_t (opt_type u16_t));
+           (Ast.VName "of_string_unsafe", [],
+            arrow_type string_t u16_t);
+           (Ast.VName "of_i8", [],
+            arrow_type i8_t  (opt_type u16_t));
+           (Ast.VName "of_i16", [],
+            arrow_type i16_t (opt_type u16_t));
+           (Ast.VName "of_i32", [],
+            arrow_type i32_t (opt_type u16_t));
+           (Ast.VName "of_i64", [],
+            arrow_type i64_t (opt_type u16_t));
+           (Ast.VName "of_isize", [],
+            arrow_type isize_t (opt_type u16_t));
+           (Ast.VName "of_u8", [],
+            arrow_type u8_t  u16_t);
+           (Ast.VName "of_u32", [],
+            arrow_type u32_t (opt_type u16_t));
+           (Ast.VName "of_u64", [],
+            arrow_type u64_t (opt_type u16_t));
+           (Ast.VName "of_usize", [],
+            arrow_type usize_t (opt_type u16_t));
+           (Ast.VName "of_i8_wrapped", [],
+            arrow_type i8_t  u16_t);
+           (Ast.VName "of_i16_wrapped", [],
+            arrow_type i16_t u16_t);
+           (Ast.VName "of_i32_wrapped", [],
+            arrow_type i32_t u16_t);
+           (Ast.VName "of_i64_wrapped", [],
+            arrow_type i64_t u16_t);
+           (Ast.VName "of_isize_wrapped", [],
+            arrow_type isize_t u16_t);
+           (Ast.VName "of_u32_wrapped", [],
+            arrow_type u32_t u16_t);
+           (Ast.VName "of_u64_wrapped", [],
+            arrow_type u64_t u16_t);
+           (Ast.VName "of_usize_wrapped", [],
+            arrow_type usize_t u16_t);
+         ];
+      };
+      {mod_name   = Ast.Mod_inferred "I32";
+       mod_values = [
+           (Ast.VName "of_byte", [],
+            arrow_type byte_t i32_t);
+           (Ast.VName "of_bytes", [],
+            arrow_type (list_type byte_t) (opt_type i32_t));
+           (Ast.VName "of_bytes_unsafe", [],
+            arrow_type (list_type byte_t) i32_t);
+           (Ast.VName "of_string", [],
+            arrow_type string_t (opt_type i32_t));
+           (Ast.VName "of_string_unsafe", [],
+            arrow_type string_t i32_t);
+           (Ast.VName "of_i8", [],
+            arrow_type i8_t  i32_t);
+           (Ast.VName "of_i16", [],
+            arrow_type i16_t i32_t);
+           (Ast.VName "of_i64", [],
+            arrow_type i64_t (opt_type i32_t));
+           (Ast.VName "of_isize", [],
+            arrow_type isize_t (opt_type i32_t));
+           (Ast.VName "of_u8", [],
+            arrow_type u8_t  i32_t);
+           (Ast.VName "of_u16", [],
+            arrow_type u16_t i32_t);
+           (Ast.VName "of_u32", [],
+            arrow_type u32_t (opt_type i32_t));
+           (Ast.VName "of_u64", [],
+            arrow_type u64_t (opt_type i32_t));
+           (Ast.VName "of_usize", [],
+            arrow_type usize_t (opt_type i32_t));
+           (Ast.VName "of_i64_wrapped", [],
+            arrow_type i64_t i32_t);
+           (Ast.VName "of_isize_wrapped", [],
+            arrow_type isize_t i32_t);
+           (Ast.VName "of_u32_wrapped", [],
+            arrow_type u32_t i32_t);
+           (Ast.VName "of_u64_wrapped", [],
+            arrow_type u64_t i32_t);
+           (Ast.VName "of_usize_wrapped", [],
+            arrow_type usize_t i32_t);
+         ];
+      };
+      {mod_name   = Ast.Mod_inferred "U32";
+       mod_values = [
+           (Ast.VName "of_byte", [],
+            arrow_type byte_t u32_t);
+           (Ast.VName "of_bytes", [],
+            arrow_type (list_type byte_t) (opt_type u32_t));
+           (Ast.VName "of_bytes_unsafe", [],
+            arrow_type (list_type byte_t) u32_t);
+           (Ast.VName "of_string", [],
+            arrow_type string_t (opt_type u32_t));
+           (Ast.VName "of_string_unsafe", [],
+            arrow_type string_t u32_t);
+           (Ast.VName "of_i8", [],
+            arrow_type i8_t  (opt_type u32_t));
+           (Ast.VName "of_i16", [],
+            arrow_type i16_t (opt_type u32_t));
+           (Ast.VName "of_i32", [],
+            arrow_type i32_t (opt_type u32_t));
+           (Ast.VName "of_i64", [],
+            arrow_type i64_t (opt_type u32_t));
+           (Ast.VName "of_isize", [],
+            arrow_type isize_t (opt_type u32_t));
+           (Ast.VName "of_u8", [],
+            arrow_type u8_t  u32_t);
+           (Ast.VName "of_u16", [],
+            arrow_type u16_t u32_t);
+           (Ast.VName "of_u64", [],
+            arrow_type u64_t (opt_type u32_t));
+           (Ast.VName "of_usize", [],
+            arrow_type usize_t (opt_type u32_t));
+           (Ast.VName "of_i8_wrapped", [],
+            arrow_type i8_t  u32_t);
+           (Ast.VName "of_i16_wrapped", [],
+            arrow_type i16_t u32_t);
+           (Ast.VName "of_i32_wrapped", [],
+            arrow_type i32_t u32_t);
+           (Ast.VName "of_i64_wrapped", [],
+            arrow_type i64_t u32_t);
+           (Ast.VName "of_isize_wrapped", [],
+            arrow_type isize_t u32_t);
+           (Ast.VName "of_u64_wrapped", [],
+            arrow_type u64_t u32_t);
+           (Ast.VName "of_usize_wrapped", [],
+            arrow_type usize_t u32_t);
+         ];
+      };
+      {mod_name   = Ast.Mod_inferred "I64";
+       mod_values = [
+           (Ast.VName "of_byte", [],
+            arrow_type byte_t i64_t);
+           (Ast.VName "of_bytes", [],
+            arrow_type (list_type byte_t) (opt_type i64_t));
+           (Ast.VName "of_bytes_unsafe", [],
+            arrow_type (list_type byte_t) i64_t);
+           (Ast.VName "of_string", [],
+            arrow_type string_t (opt_type i64_t));
+           (Ast.VName "of_string_unsafe", [],
+            arrow_type string_t i64_t);
+           (Ast.VName "of_i8", [],
+            arrow_type i8_t  i64_t);
+           (Ast.VName "of_i16", [],
+            arrow_type i16_t i64_t);
+           (Ast.VName "of_i32", [],
+            arrow_type i32_t i64_t);
+           (Ast.VName "of_isize", [],
+            arrow_type isize_t (opt_type i64_t));
+           (Ast.VName "of_u8", [],
+            arrow_type u8_t  i64_t);
+           (Ast.VName "of_u16", [],
+            arrow_type u16_t i64_t);
+           (Ast.VName "of_u32", [],
+            arrow_type u32_t i64_t);
+           (Ast.VName "of_u64", [],
+            arrow_type u64_t (opt_type i64_t));
+           (Ast.VName "of_usize", [],
+            arrow_type usize_t (opt_type i64_t));
+           (Ast.VName "of_u64_wrapped", [],
+            arrow_type u64_t i64_t);
+           (Ast.VName "of_isize_wrapped", [],
+            arrow_type isize_t i64_t);
+           (Ast.VName "of_usize_wrapped", [],
+            arrow_type usize_t i64_t);
+         ];
+      };
+      {mod_name   = Ast.Mod_inferred "Isize";
+       mod_values = [
+           (Ast.VName "of_byte", [],
+            arrow_type byte_t isize_t);
+           (Ast.VName "of_bytes", [],
+            arrow_type (list_type byte_t) (opt_type isize_t));
+           (Ast.VName "of_bytes_unsafe", [],
+            arrow_type (list_type byte_t) isize_t);
+           (Ast.VName "of_string", [],
+            arrow_type string_t (opt_type isize_t));
+           (Ast.VName "of_string_unsafe", [],
+            arrow_type string_t isize_t);
+           (Ast.VName "of_i8", [],
+            arrow_type i8_t  isize_t);
+           (Ast.VName "of_i16", [],
+            arrow_type i16_t isize_t);
+           (Ast.VName "of_i32", [],
+            arrow_type i32_t isize_t);
+           (Ast.VName "of_i64", [],
+            arrow_type i64_t isize_t);
+           (Ast.VName "of_u8", [],
+            arrow_type u8_t isize_t);
+           (Ast.VName "of_u16", [],
+            arrow_type u16_t isize_t);
+           (Ast.VName "of_u32", [],
+            arrow_type u32_t isize_t);
+           (Ast.VName "of_u64", [],
+            arrow_type u64_t (opt_type isize_t));
+           (Ast.VName "of_usize", [],
+            arrow_type usize_t (opt_type isize_t));
+           (Ast.VName "of_u64_wrapped", [],
+            arrow_type u64_t isize_t);
+           (Ast.VName "of_usize_wrapped", [],
+            arrow_type usize_t isize_t);
+         ];
+      };
+      {mod_name   = Ast.Mod_inferred "U64";
+       mod_values = [
+           (Ast.VName "of_byte", [],
+            arrow_type byte_t u64_t);
+           (Ast.VName "of_bytes", [],
+            arrow_type (list_type byte_t) (opt_type u64_t));
+           (Ast.VName "of_bytes_unsafe", [],
+            arrow_type (list_type byte_t) u64_t);
+           (Ast.VName "of_string", [],
+            arrow_type string_t (opt_type u64_t));
+           (Ast.VName "of_string_unsafe", [],
+            arrow_type string_t u64_t);
+           (Ast.VName "of_i8", [],
+            arrow_type i8_t  (opt_type u64_t));
+           (Ast.VName "of_i16", [],
+            arrow_type i16_t (opt_type u64_t));
+           (Ast.VName "of_i32", [],
+            arrow_type i32_t (opt_type u64_t));
+           (Ast.VName "of_i64", [],
+            arrow_type i64_t (opt_type u64_t));
+           (Ast.VName "of_isize", [],
+            arrow_type isize_t (opt_type u64_t));
+           (Ast.VName "of_u8", [],
+            arrow_type u8_t  u64_t);
+           (Ast.VName "of_u16", [],
+            arrow_type u16_t u64_t);
+           (Ast.VName "of_u32", [],
+            arrow_type u32_t u64_t);
+           (Ast.VName "of_usize", [],
+            arrow_type usize_t (opt_type u64_t));
+           (Ast.VName "of_i8_wrapped", [],
+            arrow_type i8_t  u64_t);
+           (Ast.VName "of_i16_wrapped", [],
+            arrow_type i16_t u64_t);
+           (Ast.VName "of_i32_wrapped", [],
+            arrow_type i32_t u64_t);
+           (Ast.VName "of_i64_wrapped", [],
+            arrow_type i64_t u64_t);
+           (Ast.VName "of_isize_wrapped", [],
+            arrow_type isize_t u64_t);
+           (Ast.VName "of_usize_wrapped", [],
+            arrow_type usize_t u64_t);
+         ];
+      };
+      {mod_name   = Ast.Mod_inferred "Usize";
+       mod_values = [
+           (Ast.VName "of_byte", [],
+            arrow_type byte_t usize_t);
+           (Ast.VName "of_bytes", [],
+            arrow_type (list_type byte_t) (opt_type usize_t));
+           (Ast.VName "of_bytes_unsafe", [],
+            arrow_type (list_type byte_t) usize_t);
+           (Ast.VName "of_string", [],
+            arrow_type string_t (opt_type usize_t));
+           (Ast.VName "of_string_unsafe", [],
+            arrow_type string_t usize_t);
+           (Ast.VName "of_i8", [],
+            arrow_type i8_t  (opt_type usize_t));
+           (Ast.VName "of_i16", [],
+            arrow_type i16_t (opt_type usize_t));
+           (Ast.VName "of_i32", [],
+            arrow_type i32_t (opt_type usize_t));
+           (Ast.VName "of_i64", [],
+            arrow_type i64_t (opt_type usize_t));
+           (Ast.VName "of_u8", [],
+            arrow_type u8_t usize_t);
+           (Ast.VName "of_u16", [],
+            arrow_type u16_t usize_t);
+           (Ast.VName "of_u32", [],
+            arrow_type u32_t usize_t);
+           (Ast.VName "of_u64", [],
+            arrow_type u64_t usize_t);
+           (Ast.VName "of_isize", [],
+            arrow_type isize_t (opt_type usize_t));
+           (Ast.VName "of_i8_wrapped", [],
+            arrow_type i8_t  usize_t);
+           (Ast.VName "of_i16_wrapped", [],
+            arrow_type i16_t usize_t);
+           (Ast.VName "of_i32_wrapped", [],
+            arrow_type i32_t usize_t);
+           (Ast.VName "of_i64_wrapped", [],
+            arrow_type i64_t usize_t);
+           (Ast.VName "of_isize_wrapped", [],
+            arrow_type isize_t usize_t);
          ];
       };
       {mod_name   = Ast.Mod_inferred "Double";
        mod_values = [
            (Ast.VName "of_byte", [],
             arrow_type byte_t double_t);
-           (Ast.VName "of_string", [],
-            arrow_type string_t (opt_type double_t));
            (Ast.VName "of_bytes", [],
             arrow_type (list_type byte_t) (opt_type double_t));
            (Ast.VName "of_bytes_unsafe", [],
             arrow_type (list_type byte_t) double_t);
+           (Ast.VName "of_string", [],
+            arrow_type string_t (opt_type double_t));
+           (Ast.VName "of_string_unsafe", [],
+            arrow_type string_t double_t);
          ];
       };
       {mod_name   = Ast.Mod_inferred "List";
@@ -255,12 +867,12 @@ let builtin_types, builtin_ops, builtin_values,
               (list_type (gen_tvar "a")));
            (Ast.VName "index", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
-              (arrow_type int_t (opt_type (gen_tvar "a"))));
+              (arrow_type usize_t (opt_type (gen_tvar "a"))));
            (Ast.VName "index_unsafe", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
-              (arrow_type int_t (gen_tvar "a")));
+              (arrow_type usize_t (gen_tvar "a")));
            (Ast.VName "length", [ TName "a" ],
-            arrow_type (list_type (gen_tvar "a")) int_t);
+            arrow_type (list_type (gen_tvar "a")) usize_t);
            (Ast.VName "concat", [ TName "a" ],
             arrow_type (list_type (gen_tvar "a"))
               (arrow_type (list_type (gen_tvar "a"))
@@ -287,7 +899,7 @@ let builtin_types, builtin_ops, builtin_values,
                     (list_type (gen_tvar "c")))));
            (Ast.VName "repl", [ TName "a" ],
             arrow_type (gen_tvar "a")
-              (arrow_type int_t (list_type (gen_tvar "a"))));
+              (arrow_type usize_t (list_type (gen_tvar "a"))));
          ];
       };
       {mod_name   = Ast.Mod_inferred "String";
@@ -295,8 +907,6 @@ let builtin_types, builtin_ops, builtin_values,
            (Ast.VName "empty", [], string_t);
            (Ast.VName "concat", [],
             arrow_type string_t (arrow_type string_t string_t));
-           (Ast.VName "to_int", [],
-            arrow_type string_t (opt_type int_t));
            (Ast.VName "to_bytes", [],
             arrow_type string_t (list_type byte_t));
            (Ast.VName "of_bytes", [],
@@ -309,10 +919,27 @@ let builtin_types, builtin_ops, builtin_values,
       };
       {mod_name   = Ast.Mod_inferred "Bits";
        mod_values = [
-           (Ast.VName "to_int", [ TName "a" ],
-            arrow_type (bitvector_type (gen_tvar "a")) int_t);
-           (Ast.VName "to_uint", [ TName "a" ],
-            arrow_type (bitvector_type (gen_tvar "a")) int_t);
+           (* TODO: safe version of these conversions *)
+           (Ast.VName "to_isize", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a")) isize_t);
+           (Ast.VName "to_usize", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a")) usize_t);
+           (Ast.VName "to_i8", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a")) i8_t);
+           (Ast.VName "to_u8", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a")) u8_t);
+           (Ast.VName "to_i16", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a")) i16_t);
+           (Ast.VName "to_u16", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a")) u16_t);
+           (Ast.VName "to_i32", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a")) i32_t);
+           (Ast.VName "to_u32", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a")) u32_t);
+           (Ast.VName "to_i64", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a")) i64_t);
+           (Ast.VName "to_u64", [ TName "a" ],
+            arrow_type (bitvector_type (gen_tvar "a")) u64_t);
            (Ast.VName "to_bool", [], arrow_type bit_t bool_t);
            (Ast.VName "of_bool", [], arrow_type bool_t bit_t);
            (Ast.VName "to_bit", [],
@@ -320,9 +947,9 @@ let builtin_types, builtin_ops, builtin_values,
            (Ast.VName "of_bit", [],
             arrow_type bit_t (bitvector_type (gen_tname "1")));
            (Ast.VName "ones", [ TName "a" ],
-            arrow_type int_t (bitvector_type (gen_tvar "a")));
+            arrow_type usize_t (bitvector_type (gen_tvar "a")));
            (Ast.VName "zeros", [ TName "a" ],
-            arrow_type int_t (bitvector_type (gen_tvar "a")));
+            arrow_type usize_t (bitvector_type (gen_tvar "a")));
          ];
       };
       {mod_name   = Ast.Mod_inferred "Set";
@@ -362,14 +989,14 @@ let builtin_types, builtin_ops, builtin_values,
        mod_values = [
            (Ast.VName "get_current", [], (arrow_type unit_t view_t));
            (Ast.VName "get_base", [],  (arrow_type unit_t view_t));
-           (Ast.VName "get_cursor", [], (arrow_type view_t int_t));
-           (Ast.VName "get_remaining", [], (arrow_type view_t int_t));
-           (Ast.VName "get_current_cursor", [], (arrow_type unit_t int_t));
-           (Ast.VName "get_current_remaining", [], (arrow_type unit_t int_t));
+           (Ast.VName "get_cursor", [], (arrow_type view_t usize_t));
+           (Ast.VName "get_remaining", [], (arrow_type view_t usize_t));
+           (Ast.VName "get_current_cursor", [], (arrow_type unit_t usize_t));
+           (Ast.VName "get_current_remaining", [], (arrow_type unit_t usize_t));
            (Ast.VName "restrict", [],
-            (arrow_type view_t (arrow_type int_t (arrow_type int_t view_t))));
+            (arrow_type view_t (arrow_type usize_t (arrow_type usize_t view_t))));
            (Ast.VName "restrict_from", [],
-            (arrow_type view_t (arrow_type int_t view_t)));
+            (arrow_type view_t (arrow_type usize_t view_t)));
            (Ast.VName "clone", [],
             (arrow_type view_t view_t));
          ];
@@ -389,14 +1016,14 @@ let builtin_types, builtin_ops, builtin_values,
       NName "AlphaNumS",  [], list_type byte_t;
       NName "DigitS",     [], list_type byte_t;
       (* binary integer types *)
-      NName "Int8",   [], int_t;
-      NName "UInt8",  [], int_t;
-      NName "Int16",  [make_var "endian", endian_t, ()], int_t;
-      NName "UInt16", [make_var "endian", endian_t, ()], int_t;
-      NName "Int32",  [make_var "endian", endian_t, ()], int_t;
-      NName "UInt32", [make_var "endian", endian_t, ()], int_t;
-      NName "Int64",  [make_var "endian", endian_t, ()], int_t;
-      NName "UInt64", [make_var "endian", endian_t, ()], int_t;
+      NName "Int8",   [], i8_t;
+      NName "UInt8",  [], u8_t;
+      NName "Int16",  [make_var "endian", endian_t, ()], i16_t;
+      NName "UInt16", [make_var "endian", endian_t, ()], u16_t;
+      NName "Int32",  [make_var "endian", endian_t, ()], i32_t;
+      NName "UInt32", [make_var "endian", endian_t, ()], u32_t;
+      NName "Int64",  [make_var "endian", endian_t, ()], i64_t;
+      NName "UInt64", [make_var "endian", endian_t, ()], u64_t;
     |] in
   builtin_types, builtin_ops, builtin_values,
   builtin_modules, builtin_non_terms
@@ -519,33 +1146,49 @@ let infix, priority, associativity =
 
 (** These names are used in the constraints and need to correspond to
     the type::constructor encoding of the builtin definitions. *)
+
+(* use internal naming of width for operators *)
+let str_of_width = function
+  | Ast.NW_size -> ""
+  | Ast.NW_8    -> "8"
+  | Ast.NW_16   -> "16"
+  | Ast.NW_32   -> "32"
+  | Ast.NW_64   -> "64"
+
+let str_of_num (s, w) =
+  Ast.str_of_signed s ^ str_of_width w
+
 let unop_const_name = function
-  | Ast.Uminus -> "1-"
-  | Ast.Not    -> "!"
-  | Ast.Neg_b  -> "~"
+  | Ast.Uminus n -> "1-_" ^ str_of_num n
+  | Ast.Not      -> "!"
+  | Ast.Neg_b    -> "~"
 
 let binop_const_name = function
-  | Ast.Or_b  -> "|_b"
-  | Ast.And_b -> "&_b"
-  | Ast.Plus  -> "+"
-  | Ast.Minus -> "-"
-  | Ast.Mult  -> "*"
-  | Ast.Mod   -> "%"
-  | Ast.Div   -> "/"
-  | Ast.Lt    -> "<"
-  | Ast.Gt    -> ">"
-  | Ast.Lteq  -> "<="
-  | Ast.Gteq  -> ">="
-  | Ast.Land  -> "&&"
-  | Ast.Lor   -> "||"
-  | Ast.Eq    -> "="
-  | Ast.Neq   -> "!="
-  | Ast.Index -> ".[]"
+  | Ast.Plus n  -> "+_"  ^ str_of_num n
+  | Ast.Minus n -> "-_"  ^ str_of_num n
+  | Ast.Mult n  -> "*_"  ^ str_of_num n
+  | Ast.Mod n   -> "%_"  ^ str_of_num n
+  | Ast.Div n   -> "/_"  ^ str_of_num n
+  | Ast.Lt n    -> "<_"  ^ str_of_num n
+  | Ast.Gt n    -> ">_"  ^ str_of_num n
+  | Ast.Lteq n  -> "<=_" ^ str_of_num n
+  | Ast.Gteq n  -> ">=_" ^ str_of_num n
+
+  | Ast.Or_b    -> "|_b"
+  | Ast.And_b   -> "&_b"
+  | Ast.Land    -> "&&"
+  | Ast.Lor     -> "||"
+
+  | Ast.Eq      -> "="
+  | Ast.Neq     -> "!="
+
+  | Ast.Index   -> ".[]"
+
   (* data constructors *)
-  | Ast.Cons  -> "[]::::"
+  | Ast.Cons    -> "[]::::"
   (* functions *)
-  | Ast.Plus_s -> "String.concat"
-  | Ast.At     -> "List.concat"
+  | Ast.Plus_s  -> "String.concat"
+  | Ast.At      -> "List.concat"
 
 type 'a environment = Ast.full_tname -> 'a arterm
 
@@ -595,7 +1238,7 @@ let is_regexp_type tenv t =
     | _ -> false
 
 let type_of_primitive tenv = function
-  | Ast.PL_int _        -> symbol tenv (mk_stdlib_t "int")
+  | Ast.PL_int (_, n)   -> symbol tenv (mk_stdlib_t (Ast.str_of_num_t n))
   | Ast.PL_bytes _      -> list tenv (symbol tenv (mk_stdlib_t "byte"))
   | Ast.PL_unit         -> symbol tenv (mk_stdlib_t "unit")
   | Ast.PL_bool _       -> symbol tenv (mk_stdlib_t "bool")

@@ -11,22 +11,22 @@ type basic_obj =
  | Dict of map<string, basic_obj>
  | Array of [basic_obj]
  | Stream of (map<string, basic_obj>, [byte])
- | Reference of (int, int)
+ | Reference of (usize, usize)
  | Boolean of bool
  | Real of double
- | Integer of int
+ | Integer of isize
  | String of [byte]
  | Name of string
  | Null
 
 // The type of the indirect object.
 type indirect_obj =
- { oid: int,
-   ogen: int,
+ { oid: usize,
+   ogen: usize,
    obj: basic_obj }
 
 // The parsing context maps object identifers to indirect objects.
-type parse_ctxt = map<(int, int), basic_obj>
+type parse_ctxt = map<(usize, usize), basic_obj>
 
 // Type abbreviation for the dictionary type.
 type dict = map<string, basic_obj>
@@ -44,12 +44,12 @@ format {
   // Whitespace is needed to separate these tokens.  The decorator uses the
   // Whitespace non-terminal defined in pdfprim.
   #[whitespace(Whitespace:allow_empty=false)]
-  Reference r {id: int, gen: int} :=
-    n=Integer [ n.i >  0 ]
-    g=Integer [ g.i >= 0 ]
+  Reference r {id: usize, gen: usize} :=
+    n=Integer [ n.i >_i  0i ]
+    g=Integer [ g.i >=_i 0i ]
     !"R"!
-    { r.id  := n.i;
-      r.gen := g.i }
+    { r.id  := Usize.of_isize_wrapped(n.i);
+      r.gen := Usize.of_isize_wrapped(g.i) }
   ;;
 
   // Whitespace is not needed to demarcate the objects.
@@ -122,7 +122,8 @@ format {
     len={ ;;
           let key = String.of_bytes_unsafe("Length") in
           let basic_obj::Integer(len) = Map.find_unsafe(d.d, key) in
-          len }
+          // TODO: handle when len is < 0
+          Usize.of_isize_wrapped(len) }
     rs=RawStream<len = len>
     { s.dict   := d.d;
       s.stream := rs.bytes }
@@ -134,9 +135,11 @@ format {
   #[whitespace(Whitespace:allow_empty=true)]
   Indirect i (ctxt: parse_ctxt)
              {indirect_obj} :=
-    n=Integer [ n.i >  0 ]
-    g=Integer [ g.i >= 0 ]
-    [ !Map.mem(ctxt, (n.i, g.i)) ] // Forbid duplicate definition.
+    n=Integer [ n.i >_i  0i ]
+    g=Integer [ g.i >=_i 0i ]
+    [ let n = Usize.of_isize_wrapped(n.i) in
+      let g = Usize.of_isize_wrapped(g.i) in
+      !Map.mem(ctxt, (n, g)) ] // Forbid duplicate definition.
 
     !"obj"!
     // Parse the basic object.  Note the special rule for parsing
@@ -147,8 +150,9 @@ format {
     !"endobj"!
 
     // Set the identifiers, and register the object in the context.
-    { i.oid  := n.i;
-      i.ogen := g.i;
-      ctxt   := Map.add(ctxt, (n.i, g.i), i.obj) }
-
+    { let n = Usize.of_isize_wrapped(n.i) in
+      let g = Usize.of_isize_wrapped(g.i) in
+      { i.oid := n;
+        i.ogen := g;
+        ctxt   := Map.add(ctxt, (n, g), i.obj) } }
 }

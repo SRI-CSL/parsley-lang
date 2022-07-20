@@ -24,19 +24,19 @@
   let keywords =
     let tbl = Hashtbl.create 16 in
     List.iter (fun (key, tok) -> Hashtbl.add tbl key tok)
-      [ "format",   FORMAT;
-        "bitfield", BITFIELD;
-        "include",  INCLUDE;
-        "import",   IMPORT;
-        "type",     TYPE;
-        "and",      AND;
-        "fun",      FUN;
-        "recfun",   RECFUN;
-        "of",       OF;
-        "case",     CASE;
-        "let",      LET;
-        "in",       IN;
-        "const",    CONST;
+      [ "format",    FORMAT;
+        "bitfield",  BITFIELD;
+        "include",   INCLUDE;
+        "import",    IMPORT;
+        "type",      TYPE;
+        "and",       AND;
+        "fun",       FUN;
+        "recfun",    RECFUN;
+        "of",        OF;
+        "case",      CASE;
+        "let",       LET;
+        "in",        IN;
+        "const",     CONST;
 
         "$epsilon",  EPSILON;
         "$pad",      PAD;
@@ -73,7 +73,9 @@ let digit = ['0'-'9']
 let alnum = ['A'-'Z' 'a'-'z' '0'-'9']
 let bit   = ['0' '1']
 let ident = ['A'-'Z' 'a'-'z' '0'-'9' '_' '@']
+
 let int_literal = '-'? ['0'-'9']+
+let int_suffix  = '_' ('i'|'u') ("8"|"16"|"32"|"64")
 
 let re_char_class = "[:" alnum+ ":]"
 
@@ -92,6 +94,106 @@ rule token = parse
 | "+_s" { PLUS_S }
 | "@#[" { AT_MAP }
 | "@^[" { SET_VIEW }
+
+| "+_i"    { PLUS  (S_signed, NW_size) }
+| "-_i"    { MINUS (S_signed, NW_size) }
+| "*_i"    { MUL   (S_signed, NW_size) }
+| "/_i"    { DIV   (S_signed, NW_size) }
+| "%_i"    { MOD   (S_signed, NW_size) }
+| "<_i"    { LT    (S_signed, NW_size) }
+| ">_i"    { GT    (S_signed, NW_size) }
+| "<=_i"   { LTEQ  (S_signed, NW_size) }
+| ">=_i"   { GTEQ  (S_signed, NW_size) }
+
+| "+_i8"   { PLUS  (S_signed, NW_8) }
+| "-_i8"   { MINUS (S_signed, NW_8) }
+| "*_i8"   { MUL   (S_signed, NW_8) }
+| "/_i8"   { DIV   (S_signed, NW_8) }
+| "%_i8"   { MOD   (S_signed, NW_8) }
+| "<_i8"   { LT    (S_signed, NW_8) }
+| ">_i8"   { GT    (S_signed, NW_8) }
+| "<=_i8"  { LTEQ  (S_signed, NW_8) }
+| ">=_i8"  { GTEQ  (S_signed, NW_8) }
+
+| "+_i16"  { PLUS  (S_signed, NW_16) }
+| "-_i16"  { MINUS (S_signed, NW_16) }
+| "*_i16"  { MUL   (S_signed, NW_16) }
+| "/_i16"  { DIV   (S_signed, NW_16) }
+| "%_i16"  { MOD   (S_signed, NW_16) }
+| "<_i16"  { LT    (S_signed, NW_16) }
+| ">_i16"  { GT    (S_signed, NW_16) }
+| "<=_i16" { LTEQ  (S_signed, NW_16) }
+| ">=_i16" { GTEQ  (S_signed, NW_16) }
+
+| "+_i32"  { PLUS  (S_signed, NW_32) }
+| "-_i32"  { MINUS (S_signed, NW_32) }
+| "*_i32"  { MUL   (S_signed, NW_32) }
+| "/_i32"  { DIV   (S_signed, NW_32) }
+| "%_i32"  { MOD   (S_signed, NW_32) }
+| "<_i32"  { LT    (S_signed, NW_32) }
+| ">_i32"  { GT    (S_signed, NW_32) }
+| "<=_i32" { LTEQ  (S_signed, NW_32) }
+| ">=_i32" { GTEQ  (S_signed, NW_32) }
+
+| "+_i64"  { PLUS  (S_signed, NW_64) }
+| "-_i64"  { MINUS (S_signed, NW_64) }
+| "*_i64"  { MUL   (S_signed, NW_64) }
+| "/_i64"  { DIV   (S_signed, NW_64) }
+| "%_i64"  { MOD   (S_signed, NW_64) }
+| "<_i64"  { LT    (S_signed, NW_64) }
+| ">_i64"  { GT    (S_signed, NW_64) }
+| "<=_i64" { LTEQ  (S_signed, NW_64) }
+| ">=_i64" { GTEQ  (S_signed, NW_64) }
+
+| "+_u"    { PLUS  (S_unsigned, NW_size) }
+| "-_u"    { MINUS (S_unsigned, NW_size) }
+| "*_u"    { MUL   (S_unsigned, NW_size) }
+| "/_u"    { DIV   (S_unsigned, NW_size) }
+| "%_u"    { MOD   (S_unsigned, NW_size) }
+| "<_u"    { LT    (S_unsigned, NW_size) }
+| ">_u"    { GT    (S_unsigned, NW_size) }
+| "<=_u"   { LTEQ  (S_unsigned, NW_size) }
+| ">=_u"   { GTEQ  (S_unsigned, NW_size) }
+
+| "+_u8"   { PLUS  (S_unsigned, NW_8) }
+| "-_u8"   { MINUS (S_unsigned, NW_8) }
+| "*_u8"   { MUL   (S_unsigned, NW_8) }
+| "/_u8"   { DIV   (S_unsigned, NW_8) }
+| "%_u8"   { MOD   (S_unsigned, NW_8) }
+| "<_u8"   { LT    (S_unsigned, NW_8) }
+| ">_u8"   { GT    (S_unsigned, NW_8) }
+| "<=_u8"  { LTEQ  (S_unsigned, NW_8) }
+| ">=_u8"  { GTEQ  (S_unsigned, NW_8) }
+
+| "+_u16"  { PLUS  (S_unsigned, NW_16) }
+| "-_u16"  { MINUS (S_unsigned, NW_16) }
+| "*_u16"  { MUL   (S_unsigned, NW_16) }
+| "/_u16"  { DIV   (S_unsigned, NW_16) }
+| "%_u16"  { MOD   (S_unsigned, NW_16) }
+| "<_u16"  { LT    (S_unsigned, NW_16) }
+| ">_u16"  { GT    (S_unsigned, NW_16) }
+| "<=_u16" { LTEQ  (S_unsigned, NW_16) }
+| ">=_u16" { GTEQ  (S_unsigned, NW_16) }
+
+| "+_u32"  { PLUS  (S_unsigned, NW_32) }
+| "-_u32"  { MINUS (S_unsigned, NW_32) }
+| "*_u32"  { MUL   (S_unsigned, NW_32) }
+| "/_u32"  { DIV   (S_unsigned, NW_32) }
+| "%_u32"  { MOD   (S_unsigned, NW_32) }
+| "<_u32"  { LT    (S_unsigned, NW_32) }
+| ">_u32"  { GT    (S_unsigned, NW_32) }
+| "<=_u32" { LTEQ  (S_unsigned, NW_32) }
+| ">=_u32" { GTEQ  (S_unsigned, NW_32) }
+
+| "+_u64"  { PLUS  (S_unsigned, NW_64) }
+| "-_u64"  { MINUS (S_unsigned, NW_64) }
+| "*_u64"  { MUL   (S_unsigned, NW_64) }
+| "/_u64"  { DIV   (S_unsigned, NW_64) }
+| "%_u64"  { MOD   (S_unsigned, NW_64) }
+| "<_u64"  { LT    (S_unsigned, NW_64) }
+| ">_u64"  { GT    (S_unsigned, NW_64) }
+| "<=_u64" { LTEQ  (S_unsigned, NW_64) }
+| ">=_u64" { GTEQ  (S_unsigned, NW_64) }
 
 | "//" { eol_comment lexbuf }
 
@@ -112,8 +214,6 @@ rule token = parse
 | "->" { ARROW }
 | "&&" { LAND }
 | "||" { LOR }
-| "<=" { LTEQ }
-| ">=" { GTEQ }
 | "!=" { NEQ }
 | "~~" { CONSTR_MATCH }
 | ".." { DOTDOT }
@@ -137,19 +237,17 @@ rule token = parse
 | ","  { COMMA }
 | ":"  { COLON }
 | ";"  { SEMICOLON}
-| "+"  { PLUS }
 | "~"  { TILDE }
-| "-"  { MINUS }
-| "*"  { STAR }
-| "%"  { MOD }
-| "/"  { DIV }
 | "!"  { EXCLAIM }
-| "<"  { LT }
-| ">"  { GT }
 | "="  { EQ }
 | "?"  { QUESTION }
 | "^"  { CARET }
 | "#"  { HASH }
+| "*"  { STAR }
+| "+"  { POS }
+| "-"  { NEG }
+| "<"  { LANGLE }
+| ">"  { RANGLE }
 
 | upper ident*
     { let id = Lexing.lexeme lexbuf in
@@ -183,9 +281,48 @@ rule token = parse
     { let s = Lexing.lexeme lexbuf in
       BV_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
 
-| int_literal
-    { let s = Lexing.lexeme lexbuf in
+| (int_literal as i) '_'? "i8"
+    { let s = i, Ast.i8_t in
       INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| (int_literal as i) '_'? "i16"
+    { let s = i, Ast.i16_t in
+      INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| (int_literal as i) '_'? "i32"
+    { let s = i, Ast.i32_t in
+      INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| (int_literal as i) '_'? "i64"
+    { let s = i, Ast.i64_t in
+      INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| (int_literal as i) '_'? "u8"
+    { let s = i, Ast.u8_t in
+      INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| (int_literal as i) '_'? "u16"
+    { let s = i, Ast.u16_t in
+      INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| (int_literal as i) '_'? "u32"
+    { let s = i, Ast.u32_t in
+      INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| (int_literal as i) '_'? "u64"
+    { let s = i, Ast.u64_t in
+      INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| (int_literal as i) '_'? "i"
+    { let s = i, Ast.isize_t in
+      INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| (int_literal as i) '_'? "u"
+    { let s = i, Ast.usize_t in
+      INT_LITERAL (Location.mk_loc_val s (Location.curr lexbuf)) }
+
+| (int_literal as i)
+    { RAW_INT (Location.mk_loc_val i (Location.curr lexbuf)) }
 
 | "_"  { UNDERSCORE }
 

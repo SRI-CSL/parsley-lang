@@ -6,9 +6,9 @@
 // version of IP we are using.
 
 type udp_packet = {
-  source_port: int,
-  destination_port: int,
-  length: int,
+  source_port: u16,
+  destination_port: u16,
+  length: usize,
   checksum: [byte],
   data: [byte]
 }
@@ -18,13 +18,13 @@ format {
     source_port = UInt16<endian=endian::Big()>
     destination_port = UInt16<endian=endian::Big()>
     length = UInt16<endian=endian::Big()>
-    checksum = (Byte^2) 
-    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
-    [length >= 8] // length field must be at least 8, the UDP header length
+    checksum = (Byte^2u)
+    data = (Byte^(Usize.of_u16(length) -_u 8u)) // subtract 8 for the UDP header length
+    [length >=_u16 8u16] // length field must be at least 8, the UDP header length
     {
       udpp.u.source_port := source_port;
       udpp.u.destination_port := destination_port;
-      udpp.u.length := length;
+      udpp.u.length := Usize.of_u16(length);
       udpp.u.checksum := checksum;
       udpp.u.data := data
     }

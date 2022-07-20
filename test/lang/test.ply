@@ -11,14 +11,14 @@ type point ('a, 'b) = {
   ycoord : 'b
 }
 
-fun max (a: int, b: int) -> int = {
-  (case a < b of
+fun max (a: i32, b: i32) -> i32 = {
+  (case a <_i32 b of
    | bool::True()  -> b
    | bool::False() -> a
   )
 }
 
-fun pick (arg: (int, int)) -> int = {
+fun pick (arg: (i32, i32)) -> i32 = {
   let (i, _) = arg in
   i
 }
@@ -35,11 +35,11 @@ fun cons <'a> (e: 'a, l: my_list<'a>) -> my_list<'a> = {
 
 format {
   NTVec nv { v: [byte] } :=
-    (b=Byte { nv.v := [b] })^(1 + 0 * 0);;
+    (b=Byte { nv.v := [b] })^(1u +_u 0u *_u 0u);;
 
   DepVec dv { val: [byte] } :=
     c=Byte
     dummy={ ;; c }
-    v=(Byte ^ Int.of_byte(c))
+    v=(Byte ^ Usize.of_byte(c))
     { dv.val := v }
 }

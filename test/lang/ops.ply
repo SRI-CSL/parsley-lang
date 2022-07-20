@@ -1,27 +1,27 @@
 // this resource signature currently only models the stack
 type resource =
-{ consume: int,
-  produce: int }
+{ consume: usize,
+  produce: usize }
 
 type operation =
  | If of resource * [operation]
  | If_else of resource * [operation] * [operation]
  // ... other ops
 
-recfun num_ops (o: operation) -> int = {
+recfun num_ops (o: operation) -> usize = {
   (case o of
    | operation::If(_, s) ->
-       1 + num_stream_ops(s, 0)
+       1u +_u num_stream_ops(s, 0u)
    | operation::If_else(_, s, t) ->
-       2 + num_stream_ops(s, 0) + num_stream_ops(t, 0)
+       2u +_u num_stream_ops(s, 0u) +_u num_stream_ops(t, 0u)
    // other ops
    )
 }
 
-and num_stream_ops (os: [operation], acc: int) -> int = {
+and num_stream_ops (os: [operation], acc: usize) -> usize = {
   (case os of
    | [] -> acc
-   | hd :: tl -> num_ops(hd) + num_stream_ops(tl, acc)
+   | hd :: tl -> num_ops(hd) +_u num_stream_ops(tl, acc)
   )
 }
 
@@ -32,35 +32,35 @@ format {
       !"if  "! t=U32
       !"else"! u=U32
       tv = {;; let v = View.get_current() in
-               View.restrict(v, 0, 8*t) }
+               View.restrict(v, 0u, 8u *_u Usize.of_u32(t)) }
       uv = {;; let v = View.get_current() in
-               let v = View.restrict_from(v, 8*t) in
-               View.restrict(v, 0, 8*u) }
-      ifops  = @[tv, OpStream<nops = t>]
-      elsops = @[uv, OpStream<nops = u>]
-      { let r = { consume: 1,
-                  produce: 0 } in
+               let v = View.restrict_from(v, 8u *_u Usize.of_u32(t)) in
+               View.restrict(v, 0u, 8u *_u Usize.of_u32(u)) }
+      ifops  = @[tv, OpStream<nops = Usize.of_u32(t)>]
+      elsops = @[uv, OpStream<nops = Usize.of_u32(u)>]
+      { let r = { consume: 1u,
+                  produce: 0u } in
         o.op := operation::If_else(r, ifops, elsops) }
    ;
       !"if  "! t=U32
       tv = {;; let v = View.get_current() in
-               View.restrict(v, 0, 8*t) }
-      ifops  = @[tv, OpStream<nops = t>]
-      { let r = { consume: 1,
-                  produce: 0 } in
+               View.restrict(v, 0u, 8u *_u Usize.of_u32(t)) }
+      ifops  = @[tv, OpStream<nops = Usize.of_u32(t)>]
+      { let r = { consume: 1u,
+                  produce: 0u } in
         o.op := operation::If(r, ifops) }
 
    // ... other ops
 
    ;;
 
-  OpStream os (nops: int) {ops: [operation]} :=
-      (| l : [operation] := [], cnt : int := 0 |)
+  OpStream os (nops: usize) {ops: [operation]} :=
+      (| l : [operation] := [], cnt : usize := 0u |)
 
-      ( [cnt < nops]
+      ( [cnt <_u nops]
         o=Operation
         { l := o.op :: l;
-          cnt := cnt + num_ops(o.op) }
+          cnt := cnt +_u num_ops(o.op) }
       ) *
       [ cnt = nops ]
 

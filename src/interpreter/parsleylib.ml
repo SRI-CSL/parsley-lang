@@ -22,48 +22,105 @@ open Values
 open Runtime_exceptions
 open Internal_errors
 
+let get_width ((_, w): Ast.num_t) : int =
+  match w with
+    | Ast.NW_8    -> 8
+    | Ast.NW_16   -> 16
+    | Ast.NW_32   -> 32
+    | Ast.NW_64   -> 64
+    | Ast.NW_size -> 64
+
 (* Please ensure that the modules and functions below follow the order
    in typeAlgebra.ml.  The modules use the 'P' prefix to avoid
    colliding with any OCaml libraries with the same name. *)
 
 module PByte = struct
-  let of_int lc (v: value) : value =
+  let of_int_checked ta lc (v: value) : value =
+    let ts = Ast.str_of_num_t ta in
+    let fn = "Byte.of_" ^ ts in
     match v with
-    | V_int i
-         when Int64.compare i Int64.zero >= 0
-              && Int64.compare i 256L < 0 ->
-        V_option (Some (V_char (Char.chr (Int64.to_int i))))
-    | V_int _ ->
-        V_option None
-    | _ ->
-        fault lc (Overflow "Byte.of_int")
-
-  let of_int_unsafe lc (v: value) : value =
-    match of_int lc v with
-      | V_option (Some b) ->
-          b
-      | V_option None ->
-          fault lc (Unsafe_operation_failure "Byte.of_int_unsafe")
+      | V_int (ti, i)
+           when ta = ti && Builtins.check_int_bounds Ast.u8_t i ->
+          V_option (Some (V_char (Char.chr (Int64.to_int i))))
+      | V_int (ti, _) when ta = ti ->
+          V_option None
       | _ ->
-          assert false
+          internal_error lc (Type_error (fn, 1, vtype_of v, T_int ta))
+
+  let of_int_wrapped t lc (v: value) : value =
+    let ts = Ast.str_of_num_t t in
+    let fn = "Byte.of_" ^ ts ^ "_wrapped" in
+    match v with
+      | V_int (ti, i) when t = ti ->
+          let c = Int64.unsigned_rem i 256L in
+          V_char (Char.chr (Int64.to_int c))
+      | _ ->
+          internal_error lc (Type_error (fn, 1, vtype_of v, T_int t))
+
+  let to_int t lc (v: value) : value =
+    let ts = Ast.str_of_num_t t in
+    let fn = "Byte.to_" ^ ts in
+    match v with
+      | V_char c when t = (Ast.S_signed, Ast.NW_8) ->
+          (* handle wraparound for i8_t *)
+          let i = Char.code c in
+          let i = if i > 127 then i - 256 else i in
+          V_int (t, Int64.of_int i)
+      | V_char c ->
+          V_int (t, Int64.of_int (Char.code c))
+      | _ ->
+          internal_error lc (Type_error (fn, 1, vtype_of v, T_char))
 end
 
+(* This module implements all the various stdlib modules for the
+   various integer types.  The `tm` argument indicates the type
+   implemented by the module. *)
 module PInt = struct
-  let of_byte lc (v: value) : value =
+  let of_byte tm lc (v: value) : value =
+    let ms = String.uppercase_ascii (Ast.str_of_num_t tm) in
+    let fn = ms ^ ".of_byte" in
     match v with
-      | V_char c -> V_int (Int64.of_int (Char.code c))
-      | _ -> internal_error lc (Type_error ("Int.of_byte", 1, vtype_of v, T_byte))
+      | V_char c when tm = (Ast.S_signed, Ast.NW_8) ->
+          (* handle wraparound for i8_t *)
+          let i = Char.code c in
+          let i = if i > 127 then i - 256 else i in
+          V_int (tm, Int64.of_int i)
+      | V_char c ->
+          V_int (tm, Int64.of_int (Char.code c))
+      | _ -> internal_error lc (Type_error (fn, 1, vtype_of v, T_int tm))
 
-  let of_string lc (v: value) : value =
+  let of_string tm lc (v: value) : value =
+    let ms = String.uppercase_ascii (Ast.str_of_num_t tm) in
+    let fn = ms ^ ".of_string" in
     match v with
-      | V_string s -> (match int_of_string_opt s with
-                         | Some i -> V_option (Some (V_int (Int64.of_int i)))
-                         | None   -> V_option None)
-      | _ -> internal_error lc (Type_error ("Int.of_string", 1, vtype_of v, T_string))
+      | V_string s ->
+          (match int_of_string_opt s with
+             | Some i ->
+                 let i = Int64.of_int i in
+                 if   Builtins.check_int_bounds tm i
+                 then V_option (Some (V_int (tm, i)))
+                 else V_option None
+             | _ ->
+                 V_option None)
+      | _ -> internal_error lc (Type_error (fn, 1, vtype_of v, T_string))
 
-  let of_bytes lc (v: value) : value =
-    let err =
-      Type_error ("Int.of_bytes", 1, vtype_of v, T_list T_byte) in
+  let of_string_unsafe tm lc (v: value) : value =
+    let ms = String.uppercase_ascii (Ast.str_of_num_t tm) in
+    let fn = ms ^ ".of_string_unsafe" in
+    (* FIXME: on type errors, the error message comes from `of_string`
+       instead of `of_string_unsafe`. *)
+    match of_string tm lc v with
+      | V_option None ->
+          fault lc (Unsafe_operation_failure fn)
+      | V_option (Some v) ->
+          v
+      | _ ->
+          assert false
+
+  let of_bytes tm lc (v: value) : value =
+    let ms  = String.uppercase_ascii (Ast.str_of_num_t tm) in
+    let fn  = ms ^ ".of_bytes" in
+    let err = Type_error (fn, 1, vtype_of v, T_list T_byte) in
     let conv v =
       match v with
         | V_char c -> c
@@ -71,20 +128,62 @@ module PInt = struct
     match v with
       | V_list l ->
           let cs = List.map conv l in
-          let buf = Buffer.create 16 in
-          List.iter (Buffer.add_char buf) cs;
-          of_string lc (V_string (Buffer.contents buf))
+          (* This assumes big-endian; i.e. leading byte is most
+             significant.  FIXME: should we parameterize by
+             endianness? *)
+          let max_bytes = (get_width tm) / 8 in
+          (* Allow conversion from byte-vectors of shorter lengths
+             since they cannot overflow. *)
+          if   max_bytes <= List.length cs
+          then V_option None
+          else let i =
+                 List.fold_left (fun i b ->
+                     let i = Int64.shift_left i 8 in
+                     Int64.logor i (Int64.of_int (Char.code b))
+                   ) 0L cs in
+               let i = Builtins.wrap_int_bounds tm i in
+               V_option (Some (V_int (tm, i)))
       | _ ->
           internal_error lc err
 
-  let of_bytes_unsafe lc (v: value) : value =
-    match of_bytes lc v with
+  let of_bytes_unsafe tm lc (v: value) : value =
+    let ms = String.uppercase_ascii (Ast.str_of_num_t tm) in
+    let fn = ms ^ ".of_bytes_unsafe" in
+    (* FIXME: on type errors, the error message comes from `of_bytes`
+       instead of `of_bytes_unsafe`. *)
+    match of_bytes tm lc v with
       | V_option None ->
-          fault lc (Unsafe_operation_failure "Int.of_bytes_unsafe")
+          fault lc (Unsafe_operation_failure fn)
       | V_option (Some i) ->
           i
       | _ ->
           assert false
+
+  (* These functions implement all the integer conversions for the
+     integer module.  The `ta` argument indicates the expected source
+     integer type. *)
+
+  let of_int_wrapped tm ta lc (v: value) : value =
+    (* wrapped conversions *)
+    let ms = String.uppercase_ascii (Ast.str_of_num_t tm) in
+    let fn = ms ^ ".of_" ^ Ast.str_of_num_t ta ^ "_wrapped" in
+    match v with
+      | V_int (ti, i) when ti = ta ->
+          let i = Builtins.wrap_int_bounds tm i in
+          V_int (tm, i)
+      | _ ->
+          internal_error lc (Type_error (fn, 1, vtype_of v, T_int ta))
+
+  let of_int tm ta lc (v: value) : value =
+    let ms = String.uppercase_ascii (Ast.str_of_num_t tm) in
+    let fn = ms ^ ".of_" ^ Ast.str_of_num_t ta ^ "_safe" in
+    match v with
+      | V_int (ti, i) when ti = ta ->
+          V_option (if   Builtins.check_int_bounds tm i
+                    then Some (V_int (tm, i))
+                    else None)
+      | _ ->
+          internal_error lc (Type_error (fn, 1, vtype_of v, T_int ta))
 end
 
 module PList = struct
@@ -102,7 +201,7 @@ module PList = struct
 
   let index lc (l: value) (r: value) : value =
     match l, r with
-      | V_list l, V_int r ->
+      | V_list l, V_int (tr, r) when tr = Ast.usize_t ->
           (* FIXME: this conversion is lossy on 32-bit platforms and
              hence a source of bugs.  This should be addressed via a
              resource bound mechanism, that ensures that list sizes
@@ -114,7 +213,7 @@ module PList = struct
              | None   -> V_option None
              | Some v -> V_option (Some v))
       | V_list _, _ ->
-          internal_error lc (Type_error ("List.index", 2, vtype_of r, T_int))
+          internal_error lc (Type_error ("List.index", 2, vtype_of r, T_int Ast.usize_t))
       | _, _ ->
           internal_error lc (Type_error ("List.index", 1, vtype_of l, T_list T_empty))
 
@@ -130,7 +229,7 @@ module PList = struct
 
   let length lc (v: value) : value =
     match v with
-      | V_list l -> V_int (Int64.of_int (List.length l))
+      | V_list l -> V_int (Ast.usize_t, Int64.of_int (List.length l))
       | _ -> internal_error lc (Type_error ("List.length", 1, vtype_of v, T_list T_empty))
 
   let cons lc (l: value) (r: value) : value =
@@ -167,14 +266,14 @@ module PList = struct
 
   let repl lc (v: value) (i: value) : value =
     match i with
-      | V_int i when Int64.compare i Int64.zero < 0 ->
+      | V_int (ti, i) when ti = Ast.usize_t && Int64.compare i Int64.zero < 0 ->
           fault lc (Invalid_argument ("List.repl", "count is negative"))
-      | V_int i ->
+      | V_int (ti, i) when ti = Ast.usize_t ->
           (* TODO: resource bound check on i *)
           let l = List.init (Int64.to_int i) (fun _ -> v) in
           V_list l
       | _ ->
-          internal_error lc (Type_error ("List.repl", 2, vtype_of i, T_int))
+          internal_error lc (Type_error ("List.repl", 2, vtype_of i, T_int Ast.usize_t))
 
   (* Higher order functions (e.g. `map` and `map2`) are implemented
      via macro-like code-generation. *)
@@ -192,13 +291,6 @@ module PString = struct
           internal_error lc (Type_error ("String.concat", 2, vtype_of r, T_string))
       | _, _ ->
           internal_error lc (Type_error ("String.concat", 1, vtype_of l, T_string))
-
-  let to_int lc (v: value) : value =
-    match v with
-      | V_string s -> (match int_of_string_opt s with
-                         | Some i -> V_option (Some (V_int (Int64.of_int i)))
-                         | None   -> V_option None)
-      | _ -> internal_error lc (Type_error ("String.to_int", 1, vtype_of v, T_string))
 
   let to_bytes lc (v: value) : value =
     match v with
@@ -262,43 +354,26 @@ module PString = struct
 end
 
 module PBits = struct
-  let to_uint lc (v: value) : value =
+  (* TODO: safe version of this conversion *)
+  let to_int t lc (v: value) : value =
+    let fn = "Bits.to_" ^ Ast.str_of_num_t t in
     match v with
       | V_bitvector [] ->
-          fault lc (Invalid_argument ("Bits.to_uint", "0-length bitvector"))
+          fault lc (Invalid_argument (fn, "0-length bitvector"))
       | V_bitvector bs ->
+          let width = get_width t in
           let i, _ =
             List.fold_left (fun (i, cnt) b ->
-                if   cnt >= 64
-                then fault lc (Overflow "Bits.to_uint")
+                if   cnt >= width
+                then fault lc (Overflow fn)
                 else let i = Int64.shift_left i 1 in
-                     let b = if b then Int64.one else Int64.zero in
+                     let b = if b then 1L else 0L in
                      Int64.logor i b, cnt + 1
-              ) (Int64.zero, 0) bs in
-          V_int i
+              ) (0L, 0) bs in
+          let i = Builtins.wrap_int_bounds t i in
+          V_int (t, i)
       | _ ->
-          internal_error lc (Type_error ("Bits.to_uint", 1, vtype_of v, T_bitvector))
-
-  let to_int lc (v: value) : value =
-    match v with
-      | V_bitvector [] ->
-          fault lc (Invalid_argument ("Bits.to_int", "0-length bitvector"))
-
-      (* TODO: it is probably wrong to always assume that the
-       * top-most width is the sign bit. *)
-      | V_bitvector (s :: bs) ->
-          let i, _ =
-            List.fold_left (fun (i, cnt) b ->
-                if   cnt >= 63
-                then fault lc (Overflow "Bits.to_int")
-                else let i = Int64.shift_left i 1 in
-                     let b = if b then Int64.one else Int64.zero in
-                     Int64.logor i b, cnt + 1
-              ) (Int64.zero, 0) bs in
-          V_int (if s then Int64.neg i else i)
-
-      | _ ->
-          internal_error lc (Type_error ("Bits.to_int", 1, vtype_of v, T_bitvector))
+          internal_error lc (Type_error (fn, 1, vtype_of v, T_bitvector))
 
   let to_bool lc (v: value) : value =
     match v with
@@ -333,17 +408,17 @@ module PBits = struct
 
   let ones lc (v: value) : value =
     match v with
-      | V_int i ->
+      | V_int (ti, i) when ti = Ast.usize_t ->
           mk_bv lc "Bits.ones" i true
       | _ ->
-          internal_error lc (Type_error ("Bits.ones", 1, vtype_of v, T_int))
+          internal_error lc (Type_error ("Bits.ones", 1, vtype_of v, T_int Ast.usize_t))
 
   let zeros lc (v: value) : value =
     match v with
-      | V_int i ->
+      | V_int (ti, i) when ti = Ast.usize_t ->
           mk_bv lc "Bits.zeros" i false
       | _ ->
-          internal_error lc (Type_error ("Bits.zeros", 1, vtype_of v, T_int))
+          internal_error lc (Type_error ("Bits.zeros", 1, vtype_of v, T_int Ast.usize_t))
 end
 
 module VSet = Set.Make(struct type t = value
@@ -500,24 +575,270 @@ let mk_dtable () : dtable =
       ("Map", "empty"),               PMap.empty;
     ] in
   let arg1s = [
-      ("Byte", "of_int"),             PByte.of_int;
-      ("Byte", "of_int_unsafe"),      PByte.of_int_unsafe;
-      ("Int", "of_byte"),             PInt.of_byte;
-      ("Int", "of_string"),           PInt.of_string;
-      ("Int", "of_bytes"),            PInt.of_bytes;
-      ("Int", "of_bytes_unsafe"),     PInt.of_bytes_unsafe;
+      ("Byte", "of_i8"),              PByte.of_int_checked Ast.i8_t;
+      ("Byte", "of_u8"),              PByte.of_int_checked Ast.u8_t;
+      ("Byte", "of_i16"),             PByte.of_int_checked Ast.i16_t;
+      ("Byte", "of_u16"),             PByte.of_int_checked Ast.u16_t;
+      ("Byte", "of_i32"),             PByte.of_int_checked Ast.i32_t;
+      ("Byte", "of_u32"),             PByte.of_int_checked Ast.u32_t;
+      ("Byte", "of_i64"),             PByte.of_int_checked Ast.i64_t;
+      ("Byte", "of_u64"),             PByte.of_int_checked Ast.u64_t;
+      ("Byte", "of_isize"),           PByte.of_int_checked Ast.isize_t;
+      ("Byte", "of_usize"),           PByte.of_int_checked Ast.usize_t;
+
+      ("Byte", "of_i8_wrapped"),      PByte.of_int_wrapped Ast.i8_t;
+      ("Byte", "of_u8_wrapped"),      PByte.of_int_wrapped Ast.u8_t;
+      ("Byte", "of_i16_wrapped"),     PByte.of_int_wrapped Ast.i16_t;
+      ("Byte", "of_u16_wrapped"),     PByte.of_int_wrapped Ast.u16_t;
+      ("Byte", "of_i32_wrapped"),     PByte.of_int_wrapped Ast.i32_t;
+      ("Byte", "of_u32_wrapped"),     PByte.of_int_wrapped Ast.u32_t;
+      ("Byte", "of_i64_wrapped"),     PByte.of_int_wrapped Ast.i64_t;
+      ("Byte", "of_u64_wrapped"),     PByte.of_int_wrapped Ast.u64_t;
+      ("Byte", "of_isize_wrapped"),   PByte.of_int_wrapped Ast.isize_t;
+      ("Byte", "of_usize_wrapped"),   PByte.of_int_wrapped Ast.usize_t;
+
+      ("I8", "of_byte"),              PInt.of_byte   Ast.i8_t;
+      ("I8", "of_string"),            PInt.of_string Ast.i8_t;
+      ("I8", "of_string_unsafe"),     PInt.of_string_unsafe Ast.i8_t;
+
+      ("I8", "of_i16"),               PInt.of_int Ast.i8_t Ast.i16_t;
+      ("I8", "of_i32"),               PInt.of_int Ast.i8_t Ast.i32_t;
+      ("I8", "of_i64"),               PInt.of_int Ast.i8_t Ast.i64_t;
+      ("I8", "of_isize"),             PInt.of_int Ast.i8_t Ast.isize_t;
+      ("I8", "of_u8"),                PInt.of_int Ast.i8_t Ast.u8_t;
+      ("I8", "of_u16"),               PInt.of_int Ast.i8_t Ast.u16_t;
+      ("I8", "of_u32"),               PInt.of_int Ast.i8_t Ast.u32_t;
+      ("I8", "of_u64"),               PInt.of_int Ast.i8_t Ast.u64_t;
+      ("I8", "of_usize"),             PInt.of_int Ast.i8_t Ast.usize_t;
+
+      ("I8", "of_i16_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.i16_t;
+      ("I8", "of_i32_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.i32_t;
+      ("I8", "of_i64_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.i64_t;
+      ("I8", "of_isize_wrapped"),     PInt.of_int_wrapped Ast.i8_t Ast.isize_t;
+      ("I8", "of_u8_wrapped"),        PInt.of_int_wrapped Ast.i8_t Ast.u8_t;
+      ("I8", "of_u16_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.u16_t;
+      ("I8", "of_u32_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.u32_t;
+      ("I8", "of_u64_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.u64_t;
+      ("I8", "of_usize_wrapped"),     PInt.of_int_wrapped Ast.i8_t Ast.usize_t;
+
+      ("U8", "of_byte"),              PInt.of_byte   Ast.u8_t;
+      ("U8", "of_string"),            PInt.of_string Ast.u8_t;
+      ("U8", "of_string_unsafe"),     PInt.of_string_unsafe Ast.u8_t;
+
+      ("U8", "of_i8"),                PInt.of_int Ast.u8_t Ast.i8_t;
+      ("U8", "of_i16"),               PInt.of_int Ast.u8_t Ast.i16_t;
+      ("U8", "of_i32"),               PInt.of_int Ast.u8_t Ast.i32_t;
+      ("U8", "of_i64"),               PInt.of_int Ast.u8_t Ast.i64_t;
+      ("U8", "of_isize"),             PInt.of_int Ast.u8_t Ast.isize_t;
+      ("U8", "of_u16"),               PInt.of_int Ast.u8_t Ast.u16_t;
+      ("U8", "of_u32"),               PInt.of_int Ast.u8_t Ast.u32_t;
+      ("U8", "of_u64"),               PInt.of_int Ast.u8_t Ast.u64_t;
+      ("U8", "of_usize"),             PInt.of_int Ast.u8_t Ast.usize_t;
+
+      ("U8", "of_i8_wrapped"),        PInt.of_int_wrapped Ast.u8_t Ast.i8_t;
+      ("U8", "of_i16_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.i16_t;
+      ("U8", "of_i32_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.i32_t;
+      ("U8", "of_i64_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.i64_t;
+      ("U8", "of_isize_wrapped"),     PInt.of_int_wrapped Ast.u8_t Ast.isize_t;
+      ("U8", "of_u16_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.u16_t;
+      ("U8", "of_u32_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.u32_t;
+      ("U8", "of_u64_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.u64_t;
+      ("U8", "of_usize_wrapped"),     PInt.of_int_wrapped Ast.u8_t Ast.usize_t;
+
+      ("I16", "of_byte"),             PInt.of_byte   Ast.i16_t;
+      ("I16", "of_string"),           PInt.of_string Ast.i16_t;
+      ("I16", "of_bytes"),            PInt.of_bytes  Ast.i16_t;
+      ("I16", "of_string_unsafe"),    PInt.of_string_unsafe Ast.i16_t;
+      ("I16", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.i16_t;
+
+      ("I16", "of_i8"),               PInt.of_int_wrapped Ast.i16_t Ast.i8_t;
+      ("I16", "of_i32"),              PInt.of_int Ast.i16_t Ast.i32_t;
+      ("I16", "of_i64"),              PInt.of_int Ast.i16_t Ast.i64_t;
+      ("I16", "of_isize"),            PInt.of_int Ast.i16_t Ast.isize_t;
+      ("I16", "of_u8"),               PInt.of_int_wrapped Ast.i16_t Ast.u8_t;
+      ("I16", "of_u16"),              PInt.of_int Ast.i16_t Ast.u16_t;
+      ("I16", "of_u32"),              PInt.of_int Ast.i16_t Ast.u32_t;
+      ("I16", "of_u64"),              PInt.of_int Ast.i16_t Ast.u64_t;
+      ("I16", "of_usize"),            PInt.of_int Ast.i16_t Ast.usize_t;
+
+      ("I16", "of_i32_wrapped"),      PInt.of_int_wrapped Ast.i16_t Ast.i32_t;
+      ("I16", "of_i64_wrapped"),      PInt.of_int_wrapped Ast.i16_t Ast.i64_t;
+      ("I16", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.i16_t Ast.isize_t;
+      ("I16", "of_u16_wrapped"),      PInt.of_int_wrapped Ast.i16_t Ast.u16_t;
+      ("I16", "of_u32_wrapped"),      PInt.of_int_wrapped Ast.i16_t Ast.u32_t;
+      ("I16", "of_u64_wrapped"),      PInt.of_int_wrapped Ast.i16_t Ast.u64_t;
+      ("I16", "of_usize_wrapped"),    PInt.of_int_wrapped Ast.i16_t Ast.usize_t;
+
+      ("U16", "of_byte"),             PInt.of_byte   Ast.u16_t;
+      ("U16", "of_string"),           PInt.of_string Ast.u16_t;
+      ("U16", "of_bytes"),            PInt.of_bytes  Ast.u16_t;
+      ("U16", "of_string_unsafe"),    PInt.of_string_unsafe Ast.u16_t;
+      ("U16", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.u16_t;
+
+      ("U16", "of_i8"),               PInt.of_int Ast.u16_t Ast.i8_t;
+      ("U16", "of_i16"),              PInt.of_int Ast.u16_t Ast.i16_t;
+      ("U16", "of_i32"),              PInt.of_int Ast.u16_t Ast.i32_t;
+      ("U16", "of_i64"),              PInt.of_int Ast.u16_t Ast.i64_t;
+      ("U16", "of_isize"),            PInt.of_int Ast.u16_t Ast.isize_t;
+      ("U16", "of_u8"),               PInt.of_int_wrapped Ast.u16_t Ast.u8_t;
+      ("U16", "of_u32"),              PInt.of_int Ast.u16_t Ast.u32_t;
+      ("U16", "of_u64"),              PInt.of_int Ast.u16_t Ast.u64_t;
+      ("U16", "of_usize"),            PInt.of_int Ast.u16_t Ast.usize_t;
+
+      ("U16", "of_i8_wrapped"),       PInt.of_int_wrapped Ast.u16_t Ast.i8_t;
+      ("U16", "of_i16_wrapped"),      PInt.of_int_wrapped Ast.u16_t Ast.i16_t;
+      ("U16", "of_i32_wrapped"),      PInt.of_int_wrapped Ast.u16_t Ast.i32_t;
+      ("U16", "of_i64_wrapped"),      PInt.of_int_wrapped Ast.u16_t Ast.i64_t;
+      ("U16", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.u16_t Ast.isize_t;
+      ("U16", "of_u32_wrapped"),      PInt.of_int_wrapped Ast.u16_t Ast.u32_t;
+      ("U16", "of_u64_wrapped"),      PInt.of_int_wrapped Ast.u16_t Ast.u64_t;
+      ("U16", "of_usize_wrapped"),    PInt.of_int_wrapped Ast.u16_t Ast.usize_t;
+
+      ("I32", "of_byte"),             PInt.of_byte   Ast.i32_t;
+      ("I32", "of_string"),           PInt.of_string Ast.i32_t;
+      ("I32", "of_bytes"),            PInt.of_bytes  Ast.i32_t;
+      ("I32", "of_string_unsafe"),    PInt.of_string_unsafe Ast.i32_t;
+      ("I32", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.i32_t;
+
+      ("I32", "of_i8"),               PInt.of_int_wrapped Ast.i32_t Ast.i8_t;
+      ("I32", "of_i16"),              PInt.of_int_wrapped Ast.i32_t Ast.i16_t;
+      ("I32", "of_i64"),              PInt.of_int Ast.i32_t Ast.i64_t;
+      ("I32", "of_isize"),            PInt.of_int Ast.i32_t Ast.isize_t;
+      ("I32", "of_u8"),               PInt.of_int_wrapped Ast.i32_t Ast.u8_t;
+      ("I32", "of_u16"),              PInt.of_int_wrapped Ast.i32_t Ast.u16_t;
+      ("I32", "of_u32"),              PInt.of_int Ast.i32_t Ast.u32_t;
+      ("I32", "of_u64"),              PInt.of_int Ast.i32_t Ast.u64_t;
+      ("I32", "of_usize"),            PInt.of_int Ast.i32_t Ast.usize_t;
+
+      ("I32", "of_i64_wrapped"),      PInt.of_int_wrapped Ast.i32_t Ast.i64_t;
+      ("I32", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.i32_t Ast.isize_t;
+      ("I32", "of_u32_wrapped"),      PInt.of_int_wrapped Ast.i32_t Ast.u32_t;
+      ("I32", "of_u64_wrapped"),      PInt.of_int_wrapped Ast.i32_t Ast.u64_t;
+      ("I32", "of_usize_wrapped"),    PInt.of_int_wrapped Ast.i32_t Ast.usize_t;
+
+      ("U32", "of_byte"),             PInt.of_byte   Ast.u32_t;
+      ("U32", "of_string"),           PInt.of_string Ast.u32_t;
+      ("U32", "of_bytes"),            PInt.of_bytes  Ast.u32_t;
+      ("U32", "of_string_unsafe"),    PInt.of_string_unsafe Ast.u32_t;
+      ("U32", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.u32_t;
+
+      ("U32", "of_i8"),               PInt.of_int Ast.u32_t Ast.i8_t;
+      ("U32", "of_i16"),              PInt.of_int Ast.u32_t Ast.i16_t;
+      ("U32", "of_i32"),              PInt.of_int Ast.u32_t Ast.i32_t;
+      ("U32", "of_i64"),              PInt.of_int Ast.u32_t Ast.i64_t;
+      ("U32", "of_isize"),            PInt.of_int Ast.u32_t Ast.isize_t;
+      ("U32", "of_u8"),               PInt.of_int_wrapped Ast.u32_t Ast.u8_t;
+      ("U32", "of_u16"),              PInt.of_int_wrapped Ast.u32_t Ast.u16_t;
+      ("U32", "of_u64"),              PInt.of_int Ast.u32_t Ast.u64_t;
+      ("U32", "of_usize"),            PInt.of_int Ast.u32_t Ast.usize_t;
+
+      ("U32", "of_i8_wrapped"),       PInt.of_int_wrapped Ast.u32_t Ast.i8_t;
+      ("U32", "of_i16_wrapped"),      PInt.of_int_wrapped Ast.u32_t Ast.i16_t;
+      ("U32", "of_i32_wrapped"),      PInt.of_int_wrapped Ast.u32_t Ast.i32_t;
+      ("U32", "of_i64_wrapped"),      PInt.of_int_wrapped Ast.u32_t Ast.i64_t;
+      ("U32", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.u32_t Ast.isize_t;
+      ("U32", "of_u64_wrapped"),      PInt.of_int_wrapped Ast.u32_t Ast.u64_t;
+      ("U32", "of_usize_wrapped"),    PInt.of_int_wrapped Ast.u32_t Ast.usize_t;
+
+      ("I64", "of_byte"),             PInt.of_byte   Ast.i64_t;
+      ("I64", "of_string"),           PInt.of_string Ast.i64_t;
+      ("I64", "of_bytes"),            PInt.of_bytes  Ast.i64_t;
+      ("I64", "of_string_unsafe"),    PInt.of_string_unsafe Ast.i64_t;
+      ("I64", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.i64_t;
+
+      ("I64", "of_i8"),               PInt.of_int_wrapped Ast.i64_t Ast.i8_t;
+      ("I64", "of_i16"),              PInt.of_int_wrapped Ast.i64_t Ast.i16_t;
+      ("I64", "of_i32"),              PInt.of_int_wrapped Ast.i64_t Ast.i32_t;
+      ("I64", "of_isize"),            PInt.of_int Ast.i64_t Ast.isize_t;
+      ("I64", "of_u8"),               PInt.of_int_wrapped Ast.i64_t Ast.u8_t;
+      ("I64", "of_u16"),              PInt.of_int_wrapped Ast.i64_t Ast.u16_t;
+      ("I64", "of_u32"),              PInt.of_int_wrapped Ast.i64_t Ast.u32_t;
+      ("I64", "of_u64"),              PInt.of_int Ast.i64_t Ast.u64_t;
+      ("I64", "of_usize"),            PInt.of_int Ast.i64_t Ast.usize_t;
+
+      ("I64", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.i64_t Ast.isize_t;
+      ("I64", "of_u64_wrapped"),      PInt.of_int_wrapped Ast.i64_t Ast.u64_t;
+      ("I64", "of_usize_wrapped"),    PInt.of_int_wrapped Ast.i64_t Ast.usize_t;
+
+      ("Isize", "of_byte"),           PInt.of_byte   Ast.isize_t;
+      ("Isize", "of_string"),         PInt.of_string Ast.isize_t;
+      ("Isize", "of_bytes"),          PInt.of_bytes  Ast.isize_t;
+      ("Isize", "of_string_unsafe"),  PInt.of_string_unsafe Ast.isize_t;
+      ("Isize", "of_bytes_unsafe"),   PInt.of_bytes_unsafe  Ast.isize_t;
+
+      ("Isize", "of_i8"),             PInt.of_int_wrapped Ast.isize_t Ast.i8_t;
+      ("Isize", "of_i16"),            PInt.of_int_wrapped Ast.isize_t Ast.i16_t;
+      ("Isize", "of_i32"),            PInt.of_int_wrapped Ast.isize_t Ast.i32_t;
+      ("Isize", "of_u8"),             PInt.of_int_wrapped Ast.isize_t Ast.u8_t;
+      ("Isize", "of_u16"),            PInt.of_int_wrapped Ast.isize_t Ast.u16_t;
+      ("Isize", "of_u32"),            PInt.of_int_wrapped Ast.isize_t Ast.u32_t;
+      ("Isize", "of_u64"),            PInt.of_int Ast.isize_t Ast.u64_t;
+      ("Isize", "of_usize"),          PInt.of_int Ast.isize_t Ast.usize_t;
+      ("Isize", "of_u64_wrapped"),    PInt.of_int_wrapped Ast.isize_t Ast.u64_t;
+      ("Isize", "of_usize_wrapped"),  PInt.of_int_wrapped Ast.isize_t Ast.usize_t;
+
+      ("U64", "of_byte"),             PInt.of_byte   Ast.u64_t;
+      ("U64", "of_string"),           PInt.of_string Ast.u64_t;
+      ("U64", "of_bytes"),            PInt.of_bytes  Ast.u64_t;
+      ("U64", "of_string_unsafe"),    PInt.of_string_unsafe Ast.u64_t;
+      ("U64", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.u64_t;
+
+      ("U64", "of_i8"),               PInt.of_int Ast.u64_t Ast.i8_t;
+      ("U64", "of_i16"),              PInt.of_int Ast.u64_t Ast.i16_t;
+      ("U64", "of_i32"),              PInt.of_int Ast.u64_t Ast.i32_t;
+      ("U64", "of_i64"),              PInt.of_int Ast.u64_t Ast.i64_t;
+      ("U64", "of_isize"),            PInt.of_int Ast.u64_t Ast.isize_t;
+      ("U64", "of_u8"),               PInt.of_int_wrapped Ast.u64_t Ast.u8_t;
+      ("U64", "of_u16"),              PInt.of_int_wrapped Ast.u64_t Ast.u16_t;
+      ("U64", "of_u32"),              PInt.of_int_wrapped Ast.u64_t Ast.u32_t;
+
+      ("U64", "of_i8_wrapped"),       PInt.of_int_wrapped Ast.u64_t Ast.i8_t;
+      ("U64", "of_i16_wrapped"),      PInt.of_int_wrapped Ast.u64_t Ast.i16_t;
+      ("U64", "of_i32_wrapped"),      PInt.of_int_wrapped Ast.u64_t Ast.i32_t;
+      ("U64", "of_i64_wrapped"),      PInt.of_int_wrapped Ast.u64_t Ast.i64_t;
+      ("U64", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.u64_t Ast.isize_t;
+
+      ("Usize", "of_byte"),           PInt.of_byte   Ast.usize_t;
+      ("Usize", "of_string"),         PInt.of_string Ast.usize_t;
+      ("Usize", "of_bytes"),          PInt.of_bytes  Ast.usize_t;
+      ("Usize", "of_string_unsafe"),  PInt.of_string_unsafe Ast.usize_t;
+      ("Usize", "of_bytes_unsafe"),   PInt.of_bytes_unsafe  Ast.usize_t;
+
+      ("Usize", "of_i8"),             PInt.of_int Ast.usize_t Ast.i8_t;
+      ("Usize", "of_i16"),            PInt.of_int Ast.usize_t Ast.i16_t;
+      ("Usize", "of_i32"),            PInt.of_int Ast.usize_t Ast.i32_t;
+      ("Usize", "of_i64"),            PInt.of_int Ast.usize_t Ast.i64_t;
+      ("Usize", "of_u8"),             PInt.of_int_wrapped Ast.usize_t Ast.u8_t;
+      ("Usize", "of_u16"),            PInt.of_int_wrapped Ast.usize_t Ast.u16_t;
+      ("Usize", "of_u32"),            PInt.of_int_wrapped Ast.usize_t Ast.u32_t;
+
+      ("Usize", "of_i8_wrapped"),     PInt.of_int_wrapped Ast.usize_t Ast.i8_t;
+      ("Usize", "of_i16_wrapped"),    PInt.of_int_wrapped Ast.usize_t Ast.i16_t;
+      ("Usize", "of_i32_wrapped"),    PInt.of_int_wrapped Ast.usize_t Ast.i32_t;
+      ("Usize", "of_i64_wrapped"),    PInt.of_int_wrapped Ast.usize_t Ast.i64_t;
+
       ("List", "head"),               PList.head;
       ("List", "tail"),               PList.tail;
       ("List", "length"),             PList.length;
       ("List", "flatten"),            PList.flatten;
       ("List", "rev"),                PList.rev;
-      ("String", "to_int"),           PString.to_int;
+
       ("String", "to_bytes"),         PString.to_bytes;
       ("String", "of_bytes"),         PString.of_bytes;
       ("String", "of_bytes_unsafe"),  PString.of_bytes_unsafe;
       ("String", "of_literal"),       PString.of_literal;
-      ("Bits", "to_uint"),            PBits.to_uint;
-      ("Bits", "to_int"),             PBits.to_int;
+
+      ("Bits", "to_isize"),           PBits.to_int Ast.isize_t;
+      ("Bits", "to_usize"),           PBits.to_int Ast.usize_t;
+      ("Bits", "to_i8"),              PBits.to_int Ast.i8_t;
+      ("Bits", "to_u8"),              PBits.to_int Ast.u8_t;
+      ("Bits", "to_i16"),             PBits.to_int Ast.i16_t;
+      ("Bits", "to_u16"),             PBits.to_int Ast.u16_t;
+      ("Bits", "to_i32"),             PBits.to_int Ast.i32_t;
+      ("Bits", "to_u32"),             PBits.to_int Ast.u32_t;
+      ("Bits", "to_i64"),             PBits.to_int Ast.i64_t;
+      ("Bits", "to_u64"),             PBits.to_int Ast.u64_t;
+
       ("Bits", "to_bool"),            PBits.to_bool;
       ("Bits", "of_bool"),            PBits.of_bool;
       ("Bits", "to_bit"),             PBits.to_bit;

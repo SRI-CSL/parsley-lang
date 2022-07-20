@@ -213,9 +213,11 @@ let rec simplify (renv: re_env) new_pos (r: regexp) : unit re =
         mk_re (R_star (simplify renv new_pos r'))
     | RX_star (r', Some e) ->
         (match (TypedAstUtils.const_fold e).expr with
-           | E_literal (PL_int i) when i < 0 ->
+           | E_literal (PL_int (i, _)) when i < 0 ->
+               (* FIXME: we should really assert here, now that `i` is
+                  required to be `usize`. *)
                raise (Error (e.expr_loc, Negative_seq_bound))
-           | E_literal (PL_int i) ->
+           | E_literal (PL_int (i, _)) ->
                bounded_rep (simplify renv new_pos r') i new_pos
            | _ ->
                raise (Error (e.expr_loc, Nonconstant_seq_bound)))

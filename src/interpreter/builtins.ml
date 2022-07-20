@@ -15,17 +15,70 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Parsing
 open Typing
 open Values
 open Runtime_exceptions
 open Internal_errors
 
+(* utilities *)
+
+(* This repeats the logic of AstUtils.check_int_literal, except that
+   it computes over runtime values instead of source literals.
+
+   NOTE: This is customized for the current representation in terms of
+   Int64.t, but will have to be adjusted for the compiler runtime. *)
+let check_int_bounds ((s, w): Ast.num_t) (i: Int64.t) : bool =
+  match s, w with
+    | Ast.S_unsigned, Ast.NW_8  ->
+        0L <= i && i < 256L
+    | Ast.S_unsigned, Ast.NW_16 ->
+        0L <= i && i < 65536L
+    | Ast.S_unsigned, Ast.NW_32 ->
+        0L <= i && i < 4294967296L
+    | Ast.S_unsigned, Ast.NW_64
+    | Ast.S_unsigned, Ast.NW_size ->
+        0L <= i
+    | Ast.S_signed, Ast.NW_8  ->
+        -128L <= i        && i < 128L
+    | Ast.S_signed, Ast.NW_16 ->
+        -32768L <= i      && i < 32768L
+    | Ast.S_signed, Ast.NW_32 ->
+        -2147483648L <= i && i < 2147483648L
+    | Ast.S_signed, Ast.NW_64
+    | Ast.S_signed, Ast.NW_size ->
+        true
+
+let wrap_int_bounds ((s, w): Ast.num_t) (i: Int64.t) : Int64.t =
+  match s, w with
+    | Ast.S_unsigned, Ast.NW_8  ->
+        Int64.unsigned_rem i 256L
+    | Ast.S_unsigned, Ast.NW_16 ->
+        Int64.unsigned_rem i 65536L
+    | Ast.S_unsigned, Ast.NW_32 ->
+        Int64.unsigned_rem i 4294967296L
+    | Ast.S_unsigned, Ast.NW_64
+    | Ast.S_unsigned, Ast.NW_size ->
+        i
+    | Ast.S_signed, Ast.NW_8  ->
+        let i = Int64.unsigned_rem i 256L in
+        if i > 127L        then Int64.sub i 256L else i
+    | Ast.S_signed, Ast.NW_16 ->
+        let i = Int64.unsigned_rem i 65536L in
+        if i > 32767L      then Int64.sub i 65536L else i
+    | Ast.S_signed, Ast.NW_32 ->
+        let i = Int64.unsigned_rem i 4294967296L in
+        if i > 2147483647L then Int64.sub i 4294967296L else i
+    | Ast.S_signed, Ast.NW_64
+    | Ast.S_signed, Ast.NW_size ->
+        i
+
 (* builtin operators *)
 
-let int_uminus lc (v: value) : value =
+let int_uminus t lc (v: value) : value =
   match v with
-    | V_int i -> V_int (Int64.neg i)
-    | _ -> internal_error lc (Type_error ("uminus", 1, vtype_of v, T_int))
+    | V_int (ti, i) when t = ti -> V_int (t, wrap_int_bounds t (Int64.neg i))
+    | _ -> internal_error lc (Type_error ("uminus", 1, vtype_of v, T_int t))
 
 let bool_not lc (v: value) : value =
   match v with
@@ -37,61 +90,81 @@ let bitvector_negate lc (v: value) : value =
     | V_bitvector bl -> V_bitvector (List.map not bl)
     | _ -> internal_error lc (Type_error ("negate", 1, vtype_of v, T_bitvector))
 
-let int_plus lc (l: value) (r: value) : value =
+let int_plus t lc (l: value) (r: value) : value =
   match l, r with
-    | V_int l, V_int r -> V_int (Int64.add l r)
-    | V_int _, _       -> internal_error lc (Type_error ("+", 2, vtype_of r, T_int))
-    | _, _             -> internal_error lc (Type_error ("+", 1, vtype_of l, T_int))
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt  -> V_int (lt, wrap_int_bounds lt (Int64.add l r))
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error ("+", 2, vtype_of r, T_int t))
+    | _, _             -> internal_error lc (Type_error ("+", 1, vtype_of l, T_int t))
 
-let int_minus lc (l: value) (r: value) : value =
+let int_minus t lc (l: value) (r: value) : value =
   match l, r with
-    | V_int l, V_int r -> V_int (Int64.sub l r)
-    | V_int _, _       -> internal_error lc (Type_error ("-", 2, vtype_of r, T_int))
-    | _, _             -> internal_error lc (Type_error ("-", 1, vtype_of l, T_int))
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt -> V_int (lt, wrap_int_bounds lt (Int64.sub l r))
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error ("-", 2, vtype_of r, T_int t))
+    | _, _             -> internal_error lc (Type_error ("-", 1, vtype_of l, T_int t))
 
-let int_mul lc (l: value) (r: value) : value =
+let int_mul t lc (l: value) (r: value) : value =
   match l, r with
-    | V_int l, V_int r -> V_int (Int64.mul l r)
-    | V_int _, _       -> internal_error lc (Type_error ("*", 2, vtype_of r, T_int))
-    | _, _             -> internal_error lc (Type_error ("*", 1, vtype_of l, T_int))
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt  -> V_int (lt, wrap_int_bounds lt (Int64.mul l r))
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error ("*", 2, vtype_of r, T_int t))
+    | _, _             -> internal_error lc (Type_error ("*", 1, vtype_of l, T_int t))
 
-let int_mod lc (l: value) (r: value) : value =
+let int_mod t lc (l: value) (r: value) : value =
   match l, r with
-    | V_int _, V_int r when r = Int64.zero -> fault lc Division_by_zero
-    | V_int l, V_int r -> V_int (Int64.rem l r)
-    | V_int _, _       -> internal_error lc (Type_error ("%", 2, vtype_of r, T_int))
-    | _, _             -> internal_error lc (Type_error ("%", 1, vtype_of l, T_int))
+    | V_int (lt, _), V_int (rt, r)
+         when t = lt && lt = rt && r = Int64.zero -> fault lc Division_by_zero
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt -> V_int (lt, wrap_int_bounds lt (Int64.rem l r))
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error ("%", 2, vtype_of r, T_int t))
+    | _, _             -> internal_error lc (Type_error ("%", 1, vtype_of l, T_int t))
 
-let int_div lc (l: value) (r: value) : value =
+let int_div t lc (l: value) (r: value) : value =
   match l, r with
-    | V_int _, V_int r when r = Int64.zero -> fault lc Division_by_zero
-    | V_int l, V_int r -> V_int (Int64.div l r)
-    | V_int _, _       -> internal_error lc (Type_error ("/", 2, vtype_of r, T_int))
-    | _, _             -> internal_error lc (Type_error ("/", 1, vtype_of l, T_int))
+    | V_int (lt, _), V_int (rt, r)
+         when t = lt && lt = rt && r = Int64.zero -> fault lc Division_by_zero
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt -> V_int (lt, wrap_int_bounds lt (Int64.div l r))
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error ("/", 2, vtype_of r, T_int t))
+    | _, _             -> internal_error lc (Type_error ("/", 1, vtype_of l, T_int t))
 
-let less_than lc (l: value) (r: value) : value =
+let less_than t lc (l: value) (r: value) : value =
   match l, r with
-    | V_int l, V_int r -> V_bool (Int64.compare l r < 0)
-    | V_int _, _       -> internal_error lc (Type_error ("<", 2, vtype_of r, T_int))
-    | _, _             -> internal_error lc (Type_error ("<", 1, vtype_of l, T_int))
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt  -> V_bool (Int64.compare l r < 0)
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error ("<", 2, vtype_of r, T_int t))
+    | _, _ -> internal_error lc (Type_error ("<", 1, vtype_of l, T_int t))
 
-let greater_than lc (l: value) (r: value) : value =
+let greater_than t lc (l: value) (r: value) : value =
   match l, r with
-    | V_int l, V_int r -> V_bool (Int64.compare l r > 0)
-    | V_int _, _       -> internal_error lc (Type_error (">", 2, vtype_of r, T_int))
-    | _, _             -> internal_error lc (Type_error (">", 1, vtype_of l, T_int))
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt  -> V_bool (Int64.compare l r > 0)
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error (">", 2, vtype_of r, T_int t))
+    | _, _             -> internal_error lc (Type_error (">", 1, vtype_of l, T_int t))
 
-let le_than lc (l: value) (r: value) : value =
+let le_than t lc (l: value) (r: value) : value =
   match l, r with
-    | V_int l, V_int r -> V_bool (Int64.compare l r <= 0)
-    | V_int _, _       -> internal_error lc (Type_error ("<=", 2, vtype_of r, T_int))
-    | _, _             -> internal_error lc (Type_error ("<=", 1, vtype_of l, T_int))
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt  -> V_bool (Int64.compare l r <= 0)
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error ("<=", 2, vtype_of r, T_int t))
+    | _, _             -> internal_error lc (Type_error ("<=", 1, vtype_of l, T_int t))
 
-let ge_than lc (l: value) (r: value) : value =
+let ge_than t lc (l: value) (r: value) : value =
   match l, r with
-    | V_int l, V_int r -> V_bool (Int64.compare l r >= 0)
-    | V_int _, _       -> internal_error lc (Type_error (">=", 2, vtype_of r, T_int))
-    | _, _             -> internal_error lc (Type_error (">=", 1, vtype_of l, T_int))
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt  -> V_bool (Int64.compare l r >= 0)
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error (">=", 2, vtype_of r, T_int t))
+    | _, _             -> internal_error lc (Type_error (">=", 1, vtype_of l, T_int t))
 
 let bool_and lc (l: value) (r: value) : value =
   match l, r with
@@ -208,7 +281,8 @@ let rec eq lc op l r : (bool, error) result =
     | V_bool l, V_bool r           -> Ok (l = r)
     | V_bit l, V_bit r             -> Ok (l = r)
     | V_char l, V_char r           -> Ok (l = r)
-    | V_int l, V_int r             -> Ok (l = r)
+    | V_int (lt, l), V_int (rt, r)
+         when lt = rt              -> Ok (l = r)
     | V_float l, V_float r         -> Ok (l = r)
     | V_string l, V_string r       -> Ok (l = r)
     | V_bitvector l, V_bitvector r -> Ok (l = r)

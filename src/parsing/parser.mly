@@ -27,19 +27,24 @@ open Parseerror
 %token SLASH_SF_LBRACK SLASH_SB_LBRACK
 
 %token LBRACE RBRACE LPAREN RPAREN LBRACK RBRACK LLBRACK RRBRACK LBRACKRBRACK
-%token LPARBAR RPARBAR SYN_BEGIN SYN_END
+%token LPARBAR RPARBAR LANGLE RANGLE SYN_BEGIN SYN_END
 %token SET_VIEW AT_POS AT_VIEW AT_MAP HASH
 %token BAR COMMA COLON COLONEQ SEMICOLON SEMISEMI DOT QUESTION ARROW LARROW
-%token STAR PLUS MINUS MOD DIV CARET PLUS_S AT BAR_B AND_B TILDE
-%token LT GT LTEQ GTEQ EQ NEQ LAND LOR
+%token CARET PLUS_S AT BAR_B AND_B TILDE
+%token EQ NEQ LAND LOR
 %token CONSTR_MATCH COLONCOLON BACKSLASH EXCLAIM UNDERSCORE DOTDOT
+%token STAR POS NEG
+
+%token<Ast.num_t> LT GT LTEQ GTEQ
+%token<Ast.num_t> MUL PLUS MINUS MOD DIV
 
 %token<Ast.literal> LITERAL
 %token<Ast.ident>   ID
 %token<Ast.ident>   UID
 %token<Ast.tvar>    TVAR
 
-%token<string Location.loc> INT_LITERAL BV_LITERAL
+%token<(string * Ast.num_t) Location.loc> INT_LITERAL
+%token<string Location.loc> BV_LITERAL RAW_INT
 
 %token<string Location.loc option * string Location.loc * string Location.loc> CONSTR
 
@@ -54,8 +59,8 @@ open Parseerror
 %left  BACKSLASH
 %right AT
 %right COLONCOLON
-%left  PLUS MINUS PLUS_S
-%left  STAR MOD DIV QUESTION
+%left  PLUS MINUS PLUS_S POS NEG
+%left  MUL MOD DIV QUESTION STAR
 %left  BAR_B
 %left  AND_B
 %left  CARET
@@ -78,6 +83,14 @@ let make_opt_var o =
     | Some v -> Some (make_var v)
 
 let make_int_literal s =
+  let (s, n), loc = (Location.value s), (Location.loc s) in
+  let i = try  int_of_string s
+          with _ -> parse_error (Invalid_integer s) loc in
+  if   not (AstUtils.check_int_literal n i)
+  then parse_error (Invalid_integer_literal (i, n)) loc;
+  i, n
+
+let make_raw_int s =
   let s, loc = (Location.value s), (Location.loc s) in
   try  int_of_string s
   with _ -> parse_error (Invalid_integer s) loc
@@ -87,14 +100,12 @@ let make_bitvector_literal s =
   let s = String.sub s 2 (len - 2) in
   let l =
     Seq.fold_left (fun l c ->
-        let b =
-          match c with
+        let b = match c with
             | '0' -> false
             | '1' -> true
             | _   -> assert false in
-        b :: l)
-      []
-      (String.to_seq s) in
+        b :: l
+      ) [] (String.to_seq s) in
   List.rev l
 
 let make_bitint n b e =
@@ -262,16 +273,16 @@ def:
 | d=ident
   { d }
 
-int_exp:
-| i=INT_LITERAL
-  { int_of_string (Location.value i) }
-| l=int_exp PLUS r=int_exp
+raw_int:
+| i=RAW_INT
+  { make_raw_int i }
+| l=raw_int POS r=raw_int
   { l + r }
-| l=int_exp MINUS r=int_exp
+| l=raw_int NEG r=raw_int
   { l - r }
-| l=int_exp STAR r=int_exp
+| l=raw_int STAR r=raw_int
   { l * r }
-| LPAREN i=int_exp RPAREN
+| LPAREN i=raw_int RPAREN
   { i }
 
 type_expr:
@@ -287,10 +298,10 @@ type_expr:
     else make_tuple_type l }
 | LBRACK t=type_expr RBRACK
   { make_list_type t $startpos $endpos }
-| d=def LT i=int_exp GT
+| d=def LANGLE i=raw_int RANGLE
   { let tc = Location.value d in
     let li = Location.mk_loc $startpos(i) $endpos(i) in
-    if tc <> "bitvector"
+    if   tc <> "bitvector"
     then let err = Invalid_bitvector_constructor tc in
          parse_error err (Location.loc d)
     else if i <= 0
@@ -302,7 +313,7 @@ type_expr:
          let t = AstUtils.make_raw_tname_id d in
          register_bitwidth i;
          make_type_expr (TE_tapp (t, [n])) $startpos $endpos }
-| d=def LT l=separated_list(COMMA, type_expr) GT
+| d=def LANGLE l=separated_list(COMMA, type_expr) RANGLE
   { let c = AstUtils.make_raw_tname_id d in
     make_type_expr (TE_tapp (c, l)) $startpos $endpos }
 
@@ -341,10 +352,10 @@ rec_typ_fields:
   { l }
 
 bit_range_field:
-| i=ident COLON n=int_exp
+| i=ident COLON n=raw_int
   { let n = make_bitint n $startpos(n) $endpos(n) in
     (i, (n, n)) }
-| i=ident COLON n=int_exp COLON m=int_exp
+| i=ident COLON n=raw_int COLON m=raw_int
   { register_bitwidth (max n m);
     let l = Location.mk_loc $startpos(n) $endpos(n) in
     let n = Location.mk_loc_val n l in
@@ -405,8 +416,8 @@ expr:
 | l=LITERAL
   { make_expr (E_literal (PL_bytes (Location.value l))) $startpos $endpos }
 | l=INT_LITERAL
-  { let i = make_int_literal l in
-    make_expr (E_literal (PL_int i)) $startpos $endpos }
+  { let i, n = make_int_literal l in
+    make_expr (E_literal (PL_int (i, n))) $startpos $endpos }
 | b=BV_LITERAL
   { let b = make_bitvector_literal (Location.value b) in
     make_expr (E_literal (PL_bitvector b)) $startpos $endpos }
@@ -428,14 +439,14 @@ expr:
   { make_expr (E_apply(e, l)) $startpos $endpos }
 | e=expr LBRACK i=expr RBRACK
   { make_expr (E_binop(Index, e, i)) $startpos $endpos }
-| e=expr LLBRACK n=int_exp COLON m=int_exp RRBRACK
+| e=expr LLBRACK n=raw_int COLON m=raw_int RRBRACK
   { make_expr (E_bitrange(e, n, m)) $startpos $endpos }
-| e=expr LLBRACK n=int_exp RRBRACK
+| e=expr LLBRACK n=raw_int RRBRACK
   { make_expr (E_bitrange(e, n, n)) $startpos $endpos }
 | c=CONSTR LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_constr(conv_constr c, l)) $startpos $endpos }
-| MINUS e=expr %prec UMINUS
-  { make_expr (E_unop (Uminus, e)) $startpos $endpos }
+| n=MINUS e=expr %prec UMINUS
+  { make_expr (E_unop (Uminus n, e)) $startpos $endpos }
 | TILDE e=expr %prec UMINUS
   { make_expr (E_unop (Neg_b, e)) $startpos $endpos }
 | EXCLAIM e=expr
@@ -454,26 +465,26 @@ expr:
   { make_expr (E_binop (Or_b, l, r)) $startpos $endpos }
 | l=expr AND_B r=expr
   { make_expr (E_binop (And_b, l, r)) $startpos $endpos }
-| l=expr PLUS r=expr
-  { make_expr (E_binop (Plus, l, r)) $startpos $endpos }
+| l=expr n=PLUS r=expr
+  { make_expr (E_binop (Plus n, l, r)) $startpos $endpos }
 | l=expr AT r=expr
   { make_expr (E_binop (At, l, r)) $startpos $endpos }
-| l=expr MINUS r=expr
-  { make_expr (E_binop (Minus, l, r)) $startpos $endpos }
-| l=expr STAR r=expr
-  { make_expr (E_binop (Mult, l, r)) $startpos $endpos }
-| l=expr MOD r=expr
-  { make_expr (E_binop (Mod, l, r)) $startpos $endpos }
-| l=expr DIV r=expr
-  { make_expr (E_binop (Div, l, r)) $startpos $endpos }
-| l=expr LT r=expr
-  { make_expr (E_binop (Lt, l, r)) $startpos $endpos }
-| l=expr GT r=expr
-  { make_expr (E_binop (Gt, l, r)) $startpos $endpos }
-| l=expr LTEQ r=expr
-  { make_expr (E_binop (Lteq, l, r)) $startpos $endpos }
-| l=expr GTEQ r=expr
-  { make_expr (E_binop (Gteq, l, r)) $startpos $endpos }
+| l=expr n=MINUS r=expr
+  { make_expr (E_binop (Minus n, l, r)) $startpos $endpos }
+| l=expr n=MUL r=expr
+  { make_expr (E_binop (Mult n, l, r)) $startpos $endpos }
+| l=expr n=MOD r=expr
+  { make_expr (E_binop (Mod n, l, r)) $startpos $endpos }
+| l=expr n=DIV r=expr
+  { make_expr (E_binop (Div n, l, r)) $startpos $endpos }
+| l=expr n=LT r=expr
+  { make_expr (E_binop (Lt n, l, r)) $startpos $endpos }
+| l=expr n=GT r=expr
+  { make_expr (E_binop (Gt n, l, r)) $startpos $endpos }
+| l=expr n=LTEQ r=expr
+  { make_expr (E_binop (Lteq n, l, r)) $startpos $endpos }
+| l=expr n=GTEQ r=expr
+  { make_expr (E_binop (Gteq n, l, r)) $startpos $endpos }
 | l=expr EQ r=expr
   { make_expr (E_binop (Eq, l, r)) $startpos $endpos }
 | l=expr NEQ r=expr
@@ -514,8 +525,8 @@ pattern:
 | l=LITERAL
   { make_pattern (P_literal (PL_bytes (Location.value l))) $startpos $endpos }
 | l=INT_LITERAL
-  { let i = make_int_literal l in
-    make_pattern (P_literal (PL_int i)) $startpos $endpos }
+  { let i, n = make_int_literal l in
+    make_pattern (P_literal (PL_int (i, n))) $startpos $endpos }
 | ps=pattern_args
   { if List.length ps = 0
     then make_pattern (P_literal PL_unit) $startpos $endpos
@@ -590,7 +601,7 @@ regexp:
   { make_regexp  (RX_star (r, None)) $startpos $endpos }
 | r=regexp CARET e=expr
   { make_regexp  (RX_star (r, Some e)) $startpos $endpos }
-| r=regexp PLUS
+| r=regexp POS
   { let k = make_regexp (RX_star (r, None)) $startpos $endpos in
     make_regexp (RX_seq [r; k]) $startpos $endpos }
 | r=regexp QUESTION
@@ -607,7 +618,7 @@ nt_attr_val:
   { (i, A_in, v) }
 
 nt_args:
-| LT inh=separated_list(COMMA, nt_attr_val) GT
+| LANGLE inh=separated_list(COMMA, nt_attr_val) RANGLE
   { inh }
 
 rule_elem:
@@ -633,17 +644,17 @@ rule_elem:
     else make_rule_elem (RE_non_term (Modul None, nt, inh)) $startpos $endpos }
 | m=UID DOT nt=UID inh=option(nt_args)
   { make_rule_elem (RE_non_term (Modul (Some m), nt, inh)) $startpos $endpos }
-| nt=UID LT i=int_exp GT
+| nt=UID LANGLE i=raw_int RANGLE
   { let id = Location.value nt in
     if id <> "BitVector"
     then let err = Invalid_bitvector_nonterminal id in
          parse_error err (Location.loc nt)
     else let i = make_bitint i $startpos(i) $endpos(i) in
          make_rule_elem (RE_bitvector i) $startpos $endpos }
-| ALIGN LT i=int_exp GT
+| ALIGN LANGLE i=raw_int RANGLE
   { let i = make_bitint i $startpos(i) $endpos(i) in
     make_rule_elem (RE_align i) $startpos $endpos }
-| PAD LT i=int_exp COMMA b=BV_LITERAL GT
+| PAD LANGLE i=raw_int COMMA b=BV_LITERAL RANGLE
   { let b = make_bitvector_literal (Location.value b) in
     let i = make_bitint i $startpos(i) $endpos(i) in
     make_rule_elem (RE_pad (i, b)) $startpos $endpos }
@@ -665,7 +676,7 @@ rule_elem:
   { if   List.length l == 1
     then List.nth l 0
     else make_rule_elem (RE_seq l) $startpos $endpos }
-| r=rule_elem PLUS
+| r=rule_elem POS
   { let k = make_rule_elem (RE_star (r, None)) $startpos $endpos in
     make_rule_elem (RE_seq [r; k]) $startpos $endpos }
 | r=rule_elem QUESTION
@@ -781,14 +792,14 @@ type_decls:
 fun_decl:
 | f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
   { make_fun_defn (make_var f) false [] p r e $startpos $endpos }
-| f=ident LT tvs=separated_list(COMMA, TVAR) GT
+| f=ident LANGLE tvs=separated_list(COMMA, TVAR) RANGLE
     LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
   { make_fun_defn (make_var f) false tvs p r e $startpos $endpos }
 
 recfun_decl:
 | f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
   { make_fun_defn (make_var f) true [] p r e $startpos $endpos }
-| f=ident LT tvs=separated_list(COMMA, TVAR) GT
+| f=ident LANGLE tvs=separated_list(COMMA, TVAR) RANGLE
     LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
   { make_fun_defn (make_var f) true tvs p r e $startpos $endpos }
 

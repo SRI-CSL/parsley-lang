@@ -27,7 +27,7 @@ let mod_value = AstUtils.str_of_mod
 
 let val_of_lit (l: Ast.primitive_literal) : value =
   match l with
-    | Ast.PL_int i       -> V_int (Int64.of_int i)
+    | Ast.PL_int (i, n)  -> V_int (n, Int64.of_int i)
     | Ast.PL_bytes s     -> PString.to_byte_list s
     | Ast.PL_unit        -> V_unit
     | Ast.PL_bool b      -> V_bool b
@@ -102,9 +102,9 @@ let matcher loc vr vl cases =
            when Anf.(p.apat) = Anf.AP_wildcard ->
           br
       (* literals *)
-      | V_int i, (p, br) :: _
+      | V_int (t, i), (p, br) :: _
            when let ilit  = Int64.to_int i in
-                Anf.(p.apat) = Anf.AP_literal (Ast.PL_int ilit) ->
+                Anf.(p.apat) = Anf.AP_literal (Ast.PL_int (ilit, t)) ->
           br
       | V_list _, (Anf.({apat = AP_literal (Ast.PL_bytes s);_}), br)
                    :: rest ->
@@ -176,32 +176,32 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
     | AE_unop (op, ae') ->
         let v = val_of_av s ae' in
         (match op with
-           | Uminus -> Builtins.int_uminus loc v
-           | Not    -> Builtins.bool_not loc v
-           | Neg_b  -> Builtins.bitvector_negate loc v)
+           | Uminus t -> Builtins.int_uminus t loc v
+           | Not      -> Builtins.bool_not loc v
+           | Neg_b    -> Builtins.bitvector_negate loc v)
     | AE_binop (op, ae', ae'') ->
         let v'  = val_of_av s ae' in
         let v'' = val_of_av s ae'' in
         let bin = match op with
-            | Lt     -> Builtins.less_than
-            | Gt     -> Builtins.greater_than
-            | Lteq   -> Builtins.le_than
-            | Gteq   -> Builtins.ge_than
-            | Eq     -> Builtins.equals
-            | Neq    -> Builtins.not_equals
-            | Plus   -> Builtins.int_plus
-            | Minus  -> Builtins.int_minus
-            | Mult   -> Builtins.int_mul
-            | Mod    -> Builtins.int_mod
-            | Div    -> Builtins.int_div
-            | Land   -> Builtins.bool_and
-            | Lor    -> Builtins.bool_or
-            | Or_b   -> Builtins.bv_or
-            | And_b  -> Builtins.bv_and
-            | Plus_s -> PString.concat
-            | At     -> PList.concat
-            | Cons   -> PList.cons
-            | Index  -> PList.index in
+            | Lt t    -> Builtins.less_than t
+            | Gt t    -> Builtins.greater_than t
+            | Lteq t  -> Builtins.le_than t
+            | Gteq t  -> Builtins.ge_than t
+            | Eq      -> Builtins.equals
+            | Neq     -> Builtins.not_equals
+            | Plus t  -> Builtins.int_plus t
+            | Minus t -> Builtins.int_minus t
+            | Mult t  -> Builtins.int_mul t
+            | Mod t   -> Builtins.int_mod t
+            | Div t   -> Builtins.int_div t
+            | Land    -> Builtins.bool_and
+            | Lor     -> Builtins.bool_or
+            | Or_b    -> Builtins.bv_or
+            | And_b   -> Builtins.bv_and
+            | Plus_s  -> PString.concat
+            | At      -> PList.concat
+            | Cons    -> PList.cons
+            | Index   -> PList.index in
         bin loc v' v''
     | AE_bits_of_rec (_, r, av, bfi) ->
         Builtins.bits_of_rec loc (Location.value r) (val_of_av s av) bfi

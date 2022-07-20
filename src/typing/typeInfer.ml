@@ -97,6 +97,16 @@ let std_type (t: string) =
 let std_tname (t: tname) =
   stdlib, t
 
+(** Check a literal type and bounds. *)
+
+let check_literal lit loc =
+  match lit with
+    | PL_int (i, nt) ->
+        if   not (AstUtils.check_int_literal nt i)
+        then let err = Invalid_integer_value (i, nt) in
+             raise (Error (loc, err))
+    | _ -> ()
+
 (** A fragment denotes the typing information acquired in a match branch.
     [gamma] is the typing environment coming from the binding of pattern
     variables. [vars] are the fresh variables introduced to type the
@@ -755,12 +765,12 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
                   || Location.value i = "zeros") ->
         (* special case handling of bitvector api *)
         (match n with
-           | {expr = E_literal (PL_int w); _} ->
-               (* zero-width bitvectors are invalid *)
-               (if   w = 0
-                then raise (Error (e.expr_loc, ZeroWidthBitvector)));
+           | {expr = E_literal ((PL_int (w, _)) as lit); _} ->
+               check_literal lit n.expr_loc;
+               if   w <= 0
+               then raise (Error (e.expr_loc, InvalidBitvectorWidth w));
                (* we only need the typed ast, not the constraints *)
-               let int = typcon_variable tenv (std_type "int") in
+               let int = typcon_variable tenv (std_type "usize") in
                let _, (_, n') = infer_expr tenv venv n int in
                (* we know the result type *)
                let v = TypeConv.bitvector_n tenv w in
@@ -770,8 +780,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
                    let _, (_, f') = infer_expr tenv venv f ftyp in
                    (v =?= t) e.expr_loc,
                    (WC_true,
-                    mk_auxexpr (E_apply (f', [n'])))
-                 )
+                    mk_auxexpr (E_apply (f', [n']))))
            | _ ->
                let err = Non_constant_numerical_arg (m, i) in
                raise (Error (n.expr_loc, err)))
@@ -825,7 +834,7 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
         (wc,
          mk_auxexpr (E_match (exp', (m, typ, dc))))
     | E_literal prim_lit ->
-        (* TODO: support various integer types *)
+        check_literal prim_lit e.expr_loc;
         let primtyp = type_of_primitive (as_fun tenv) prim_lit in
         (t =?= primtyp) e.expr_loc,
         (WC_true,
@@ -981,8 +990,7 @@ let infer_const_defn tenv venv ctxt cd =
   let bind = constr_name_mod_value m cd.const_defn_ident in
   let env = StringMap.singleton bind (ctyp, loc) in
   (* Construct the binding for the value definition. *)
-  let scheme =
-    Scheme (cd.const_defn_loc, [], [cv], cc, env) in
+  let scheme = Scheme (cd.const_defn_loc, [], [cv], cc, env) in
   (* Enter value into the typing environment. *)
   add_value tenv loc (m, VName cn) ([], ctyp),
   (* Generate the constraint context *)
@@ -996,9 +1004,9 @@ let infer_const_defn tenv venv ctxt cd =
    const_defn_loc   = loc;
    const_defn_aux   = ityp}
 
-(* [infer_fun_defn tenv venv ctxt fd] examines the function definition [fd]
-   and constraint context [ctxt] in the type environment [tenv] and
-   value environment [venv] and generates an updated constraint
+(* [infer_fun_defn tenv venv ctxt fd] examines the function definition
+   [fd] and constraint context [ctxt] in the type environment [tenv]
+   and value environment [venv] and generates an updated constraint
    context for [ctxt] and a type signature for [fd]. *)
 let infer_fun_defn tenv venv ctxt fd =
   let loc = Location.loc fd.fun_defn_ident
@@ -1303,8 +1311,8 @@ let guess_nt_rhs_type tenv ntd =
 let infer_non_term_attrs tenv nid attrs =
   let map, attrs', _ =
     List.fold_left (fun (ats, attrs', venv') (pid, te, _) ->
-        let p  = var_name pid in
-        let t  = intern_expanded_type tenv te in
+        let p = var_name pid in
+        let t = intern_expanded_type tenv te in
         match StringMap.find_opt p ats with
           | Some (_, l) ->
               let repid = Location.mk_loc_val p l in
@@ -1321,7 +1329,7 @@ let infer_non_term_attrs tenv nid attrs =
   map, List.rev attrs'
 
 let infer_non_term_inh_type tenv ntd =
-  let nid = ntd.non_term_name in
+  let nid   = ntd.non_term_name in
   let attrs = ntd.non_term_inh_attrs in
   infer_non_term_attrs tenv nid attrs
 
@@ -1561,7 +1569,7 @@ let rec infer_regexp tenv venv re t =
         (wc,
          mk_auxregexp (RX_star (re'', None)))
     | RX_star (re', Some e) ->
-        let int = typcon_variable tenv (std_type "int") in
+        let int = typcon_variable tenv (std_type "usize") in
         let ce, (wce, e') = infer_expr tenv venv e int in
         let cre, (wcre, re'') =
           exists_aux (fun t' -> infer_regexp tenv venv re' t') in
@@ -1831,9 +1839,8 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
         cursor
     | RE_bitvector w ->
         let width = Location.value w in
-        (* zero-width bitvectors are invalid *)
-        (if   width = 0
-         then raise (Error (re.rule_elem_loc, ZeroWidthBitvector)));
+        (if   width <= 0
+         then raise (Error (re.rule_elem_loc, InvalidBitvectorWidth width)));
         let cursor = cursor + width in
         let bvt = TypeConv.bitvector_n tenv width in
         let c = (t =?= bvt) re.rule_elem_loc in
@@ -2043,10 +2050,10 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
            bit-aligned positions. *)
         check_aligned cursor 8 re.rule_elem_loc At_begin;
         (* [re] has a type [list t'] where [t'] is the type of [re']
-           (unless [re'] is a regexp) and [e] has type int *)
+           (unless [re'] is a regexp) and [e] has type unsigned *)
         let m = infer_mod re.rule_elem_mod in
         let is_regexp = TypedAstUtils.is_regexp_elem tenv m re' in
-        let int = typcon_variable tenv (std_type "int") in
+        let int = typcon_variable tenv (std_type "usize") in
         let q  = variable Flexible () in
         let t' = CoreAlgebra.TVariable q in
         let ictx = {ictx with in_map_views = false} in
@@ -2117,8 +2124,8 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
         (* Non-sequence combinators can only start and end at
            bit-aligned positions. *)
         check_aligned cursor 8 re.rule_elem_loc At_begin;
-        (* [pos] needs to be an integer and [re'] should have type [t] *)
-        let int = typcon_variable tenv (std_type "int") in
+        (* [pos] needs to be unsigned and [re'] should have type [t] *)
+        let int = typcon_variable tenv (std_type "usize") in
         let ce, (wce, e') = infer_expr tenv venv e int in
         let ictx = {ictx with in_map_views = false} in
         let ctx', wc, re'', _, cursor' =

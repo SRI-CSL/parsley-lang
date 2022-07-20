@@ -29,6 +29,10 @@ type rule_pos =
   | At_end
 
 type typing_error =
+  (* [Invalid_integer_literal i t] is raised (e.g. after constant
+     folding) when integer [i] is not valid for the type [t] *)
+  | Invalid_integer_literal of int * Ast.num_t
+
   (* [UnboundTypeIdentifier t] is raised when an unbound type identifier
      `t` is found. *)
   | UnboundTypeIdentifier of Ast.full_tname
@@ -214,8 +218,9 @@ type typing_error =
      a particular context. *)
   | UnboundIdentifier of string
 
-  (* [ZeroWidthBitVector] is raised when a bitvector<0> is specified. *)
-  | ZeroWidthBitvector
+  (* [InvalidBitVectorWidth d] is raised when a bitvector<d> is
+     specified for zero or negative [d]. *)
+  | InvalidBitvectorWidth of int
 
   (* [InvalidBitrangeLowBound i] is raised when the lower bound of
      a bitrange is invalid (i.e. it is negative) *)
@@ -265,6 +270,10 @@ type typing_error =
      argument is given to a standard library api 'm.i' that expects a
      numerical argument. *)
   | Non_constant_numerical_arg of Ast.ident * Ast.ident
+
+  (* [Invalid_integer_value i n] is raised when `i` is not a valid
+     integer for the numerical type `n`. *)
+  | Invalid_integer_value of int * Ast.num_t
 
   (* [Possible_division_by_zero] is raised during constant folding *)
   | Possible_division_by_zero
@@ -355,6 +364,10 @@ let str_of_rule_pos = function
   | At_end   -> "end"
 
 let error_msg = function
+  | Invalid_integer_literal (i, n) ->
+      Printf.sprintf "Invalid integer literal for %s: `%d'."
+        (Ast.str_of_num_t n) i
+
   | UnboundTypeIdentifier (m, (TName t)) ->
       Printf.sprintf "Unbound type identifier `%s%s'."
         (AstUtils.mk_modprefix m) t
@@ -541,8 +554,8 @@ let error_msg = function
   | UnboundIdentifier t ->
       Printf.sprintf "Unbound identifier `%s'." t
 
-  | ZeroWidthBitvector ->
-      "A zero-width bitvector is not a valid type."
+  | InvalidBitvectorWidth d ->
+      Printf.sprintf "%d is an invalid bitvector width." d
 
   | InvalidBitrangeLowBound b ->
       Printf.sprintf "%d is an invalid low bound for bitvector range." b
@@ -584,6 +597,10 @@ let error_msg = function
       Printf.sprintf
         "Operation `%s.%s' requires this to be a constant numerical argument."
         (Location.value m) (Location.value i)
+
+  | Invalid_integer_value (i, n) ->
+      Printf.sprintf "Invalid integer value for %s: `%d'."
+        (Ast.str_of_num_t n) i
 
   | Possible_division_by_zero ->
       "Possible division by zero."

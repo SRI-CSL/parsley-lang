@@ -116,16 +116,16 @@ let int_of_byte lc (vu: view) (nt: string) : (int * view) match_result =
 
 let uint8 lc (vu: view) : val_result =
   match int_of_byte lc vu "UInt8" with
-    | R_ok (i, vu) -> R_ok (V_int (Int64.of_int i), vu)
+    | R_ok (i, vu) -> R_ok (V_int (Ast.u8_t, Int64.of_int i), vu)
     | R_nomatch    -> R_nomatch
     | R_err (l, e) -> R_err (l, e)
 
 let int8 lc (vu: view) : val_result =
-  match int_of_byte lc vu "UInt8" with
+  match int_of_byte lc vu "Int8" with
     | R_ok (i, vu) -> let i = if   i < 128
                               then i
                               else i - 256 in
-                      R_ok (V_int (Int64.of_int i), vu)
+                      R_ok (V_int (Ast.i8_t, Int64.of_int i), vu)
     | R_nomatch    -> R_nomatch
     | R_err (l, e) -> R_err (l, e)
 
@@ -160,7 +160,7 @@ let impl_uint16 lc (vu: view) (e: endian) : val_result =
   match int_of_nbytes lc vu nt 2 e with
     | R_err (l, e) -> R_err (l, e)
     | R_nomatch    -> R_nomatch
-    | R_ok (i, vu) -> R_ok (V_int i, vu)
+    | R_ok (i, vu) -> R_ok (V_int (Ast.u16_t, i), vu)
 
 let impl_int16 lc (vu: view) (e: endian) : val_result =
   let nt = match e with
@@ -172,7 +172,7 @@ let impl_int16 lc (vu: view) (e: endian) : val_result =
     | R_ok (i, vu) -> let i = if   Int64.compare i 32768L < 0
                               then i
                               else Int64.sub i 65536L in
-                      R_ok (V_int i, vu)
+                      R_ok (V_int (Ast.i16_t, i), vu)
 
 let impl_uint32 lc (vu: view) (e: endian) : val_result =
   let nt = match e with
@@ -181,7 +181,7 @@ let impl_uint32 lc (vu: view) (e: endian) : val_result =
   match int_of_nbytes lc vu nt 4 e with
     | R_err (l, e) -> R_err (l, e)
     | R_nomatch    -> R_nomatch
-    | R_ok (i, vu) -> R_ok (V_int i, vu)
+    | R_ok (i, vu) -> R_ok (V_int (Ast.u32_t, i), vu)
 
 let impl_int32 lc (vu: view) (e: endian) : val_result =
   let nt = match e with
@@ -193,7 +193,7 @@ let impl_int32 lc (vu: view) (e: endian) : val_result =
     | R_ok (i, vu) -> let i = if   Int64.compare i 2147483648L < 0
                               then i
                               else Int64.sub i 4294967296L in
-                      R_ok (V_int i, vu)
+                      R_ok (V_int (Ast.i32_t, i), vu)
 
 (* Int64.t is signed, and hence this can be negative *)
 let impl_uint64 lc (vu: view) (e: endian) : val_result =
@@ -203,7 +203,7 @@ let impl_uint64 lc (vu: view) (e: endian) : val_result =
   match int_of_nbytes lc vu nt 8 e with
     | R_err (l, e) -> R_err (l, e)
     | R_nomatch    -> R_nomatch
-    | R_ok (i, vu) -> R_ok (V_int i, vu)
+    | R_ok (i, vu) -> R_ok (V_int (Ast.u64_t, i), vu)
 
 let impl_int64 lc (vu: view) (e: endian) : val_result =
   let nt = match e with
@@ -212,7 +212,7 @@ let impl_int64 lc (vu: view) (e: endian) : val_result =
   match int_of_nbytes lc vu nt 8 e with
     | R_err (l, e) -> R_err (l, e)
     | R_nomatch    -> R_nomatch
-    | R_ok (i, vu) -> R_ok (V_int i, vu)
+    | R_ok (i, vu) -> R_ok (V_int (Ast.i64_t, i), vu)
 
 let get_int_endian lc nt (s, v) : endian =
   match s, v with

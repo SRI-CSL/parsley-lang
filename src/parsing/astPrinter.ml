@@ -51,18 +51,30 @@ let rec print_list sep printer = function
       print_list sep printer t
 
 let str_of_unop = function
-  | Uminus -> "-"
-  | Not -> "!"
-  | Neg_b -> "~"
+  | Uminus n -> "-_" ^ str_of_num_t n
+  | Not      -> "!"
+  | Neg_b    -> "~"
 
 let str_of_binop = function
-  | Lt -> "<" | Gt -> ">" | Lteq -> "<=" | Gteq -> ">=" | Eq -> "=" | Neq -> "!="
-  | Plus -> "+" | Plus_s -> "+_s" | Minus -> "-" | Mult -> "*"
-  | Mod -> "%s" | Div -> "/"
-  | Land -> "&&" | Lor -> "||"
-  | And_b -> "&_b" | Or_b -> "|_b"
-  | Cons -> "::" | At -> "@"
-  | Index -> assert false (* needs special handling by caller *)
+  | Lt n    -> "<_"  ^ str_of_num_t n
+  | Gt n    -> ">_"  ^ str_of_num_t n
+  | Lteq n  -> "<=_" ^ str_of_num_t n
+  | Gteq n  -> ">=_" ^ str_of_num_t n
+  | Plus n  -> "+_"  ^ str_of_num_t n
+  | Minus n -> "-_"  ^ str_of_num_t n
+  | Mult n  -> "*_"  ^ str_of_num_t n
+  | Mod n   -> "%_"  ^ str_of_num_t n
+  | Div n   -> "/_"  ^ str_of_num_t n
+  | Plus_s  -> "+_s"
+  | Eq      -> "="
+  | Neq     -> "!="
+  | Land    -> "&&"
+  | Lor     -> "||"
+  | And_b   -> "&_b"
+  | Or_b    -> "|_b"
+  | Cons    -> "::"
+  | At      -> "@"
+  | Index   -> assert false (* needs special handling by caller *)
 
 let string_of_bitvector v =
   "0b" ^ (String.concat "" (List.map (fun b ->
@@ -73,7 +85,7 @@ let string_of_literal l =
   match l with
     | PL_unit        -> "()"
     | PL_bytes s     -> Printf.sprintf "\"%s\"" s
-    | PL_int i       -> string_of_int i
+    | PL_int (i, n)  -> string_of_int i ^ "_" ^ str_of_num_t n
     | PL_bool b      -> if b then "bool::True" else "bool::False"
     | PL_bit b       -> if b then "bit::One"   else "bit::Zero"
     | PL_bitvector v -> string_of_bitvector v
@@ -202,12 +214,12 @@ let print_pattern (type a b m) (auxp: (a, b, m) auxp)
 let sprint_pattern (type a b m) (auxp: (a, b, m) auxp) p : string =
   let rec printer p =
     match p.pattern with
-      | P_wildcard | P_var _   -> "_"
-      | P_literal PL_unit      -> "()"
-      | P_literal (PL_bytes s) -> "\"" ^ s ^ "\""
-      | P_literal (PL_int i)   -> Printf.sprintf "%d" i
-      | P_literal (PL_bool b)  -> if b then "bool::True()" else "bool::False()"
-      | P_literal (PL_bit b)   -> if b then "bit::One()" else "bit::Zero()"
+      | P_wildcard | P_var _      -> "_"
+      | P_literal PL_unit         -> "()"
+      | P_literal (PL_bytes s)    -> "\"" ^ s ^ "\""
+      | P_literal (PL_int (i, n)) -> Printf.sprintf "%d_%s" i (str_of_num_t n)
+      | P_literal (PL_bool b)     -> if b then "bool::True()" else "bool::False()"
+      | P_literal (PL_bit b)      -> if b then "bit::One()" else "bit::Zero()"
       | P_literal (PL_bitvector bv) ->
           "0b" ^
             (String.concat "" (List.map (fun b -> if b then "1" else "0") bv))

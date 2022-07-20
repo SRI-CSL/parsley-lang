@@ -57,6 +57,45 @@ type kind =
   | KNat
   | KArrow of kind * kind
 
+type num_width =
+  | NW_size
+  | NW_8
+  | NW_16
+  | NW_32
+  | NW_64
+
+let str_of_num_width = function
+  | NW_size -> "size"
+  | NW_8    -> "8"
+  | NW_16   -> "16"
+  | NW_32   -> "32"
+  | NW_64   -> "64"
+
+type signed = S_signed | S_unsigned
+
+let str_of_signed = function
+  | S_signed   -> "i"
+  | S_unsigned -> "u"
+
+type num_t = signed * num_width
+
+let str_of_num_t (s, w) =
+  str_of_signed s ^ str_of_num_width w
+
+(* utility defines *)
+
+let i8_t    = S_signed, NW_8
+let i16_t   = S_signed, NW_16
+let i32_t   = S_signed, NW_32
+let i64_t   = S_signed, NW_64
+let isize_t = S_signed, NW_size
+
+let u8_t    = S_unsigned, NW_8
+let u16_t   = S_unsigned, NW_16
+let u32_t   = S_unsigned, NW_32
+let u64_t   = S_unsigned, NW_64
+let usize_t = S_unsigned, NW_size
+
 type 'm gen_type_expr_desc =
   | TE_tvar  of tvar                     (* can only appear in leaf position *)
   | TE_tname of 'm modul * ident         (* can appear in leaf and constructor position *)
@@ -77,18 +116,20 @@ and 'm gen_type_rep =
    type_rep_loc: Location.t}
 
 type binop =
-  | Lt | Gt | Lteq | Gteq | Eq | Neq
-  | Plus | Minus | Mult | Mod | Div | Land | Lor
+  | Lt of num_t   | Gt of num_t    | Lteq of num_t | Gteq of num_t
+  | Plus of num_t | Minus of num_t | Mult of num_t | Div of num_t | Mod of num_t
+  | Eq | Neq
+  | Land | Lor
   | Or_b | And_b
   | Plus_s | At
   | Cons | Index
 
 type unop =
-  | Uminus | Not | Neg_b
+  | Uminus of num_t | Not | Neg_b
 
 type primitive_literal =
   | PL_unit
-  | PL_int       of int
+  | PL_int       of int * num_t
   | PL_bytes     of string
   | PL_bool      of bool
   | PL_bit       of bool
@@ -323,13 +364,14 @@ type ('a, 'b) spec_module =
 let var_name v =
   fst (Location.value v)
 
-(* max concrete bit-width in spec.
-   we need at least a width of 1 due to the std library. *)
-let max_width : int ref = ref 1
+(* The maximum concrete bit-width in spec.
+   We need at least a width of 64 due to the max int size in the std
+   library. *)
+let max_width : int ref = ref 64
 let register_bitwidth i =
   max_width := max !max_width i
 
-(* module being currently parsed, which should always be set when
+(* The module being currently parsed, which should always be set when
    this function is called. *)
 let cur_module : string option ref = ref None
 let set_cur_module m =

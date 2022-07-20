@@ -43,7 +43,11 @@ module PView = struct
 
   let restrict lc (_s: state) (v: value) (o: value) (l: value) : value =
     match v, o, l with
-      | V_view v, V_int o, V_int l ->
+      | V_view v, V_int (on, o), V_int (ln, l)
+           when on = ln && ln = Ast.usize_t ->
+          (* We should ideally never get negative offsets below, but
+             since the backing type of `usize_t` is a signed
+             `Int64.t`, we do need to check. *)
           if   Int64.compare o Int64.zero < 0
           then fault lc (Invalid_argument ("View.restrict", "negative offset"))
           else if Int64.compare l Int64.zero < 0
@@ -60,16 +64,17 @@ module PView = struct
                                   vu_ofs   = v.vu_ofs + o;
                                   vu_end   = v.vu_ofs + o + l}
             end
-      | V_view _, V_int _, _ ->
-          internal_error lc (Type_error ("View.restrict", 3, vtype_of l, T_int))
+      | V_view _, V_int (on, _), _ when on = Ast.usize_t ->
+          internal_error lc (Type_error ("View.restrict", 3, vtype_of l, T_int Ast.usize_t))
       | V_view _, _, _ ->
-          internal_error lc (Type_error ("View.restrict", 2, vtype_of o, T_int))
+          internal_error lc (Type_error ("View.restrict", 2, vtype_of o, T_int Ast.usize_t))
       | _, _, _ ->
           internal_error lc (Type_error ("View.restrict", 1, vtype_of v, T_view))
 
   let restrict_from lc (_s: state) (v: value) (o: value) : value =
     match v, o with
-      | V_view v, V_int o ->
+      | V_view v, V_int (on, o) when on = Ast.usize_t ->
+          (* See above note on `usize_t` being negative. *)
           if   Int64.compare o Int64.zero < 0
           then fault lc (Invalid_argument ("View.restrict_from", "negative offset"))
           else begin
@@ -84,7 +89,7 @@ module PView = struct
                                   vu_ofs   = v.vu_ofs + o;}
             end
       | V_view _, _ ->
-          internal_error lc (Type_error ("View.restrict_from", 2, vtype_of o, T_int))
+          internal_error lc (Type_error ("View.restrict_from", 2, vtype_of o, T_int Ast.usize_t))
       | _, _ ->
           internal_error lc (Type_error ("View.restrict_from", 1, vtype_of v, T_view))
 
@@ -107,14 +112,14 @@ module PView = struct
   let get_cursor lc (_s: state) (v: value) : value =
     match v with
       | V_view vu ->
-          V_int (Int64.of_int (vu.vu_ofs - vu.vu_start))
+          V_int (Ast.usize_t, Int64.of_int (vu.vu_ofs - vu.vu_start))
       | _ ->
           internal_error lc (Type_error ("View.clone", 1, vtype_of v, T_view))
 
   let get_remaining lc (_s: state) (v: value) : value =
     match v with
       | V_view vu ->
-          V_int (Int64.of_int (vu.vu_end - vu.vu_ofs))
+          V_int (Ast.usize_t, Int64.of_int (vu.vu_end - vu.vu_ofs))
       | _ ->
           internal_error lc (Type_error ("View.clone", 1, vtype_of v, T_view))
 
@@ -232,7 +237,7 @@ let set_view lc (s: state) (v: value) : state =
 
 let set_pos lc (s: state) (v: value) : state =
   match v with
-    | V_int i ->
+    | V_int (ti, i) when ti = Ast.usize_t ->
         let i = Int64.to_int i in
         let vu = s.st_cur_view in
         if   i < 0
@@ -242,4 +247,4 @@ let set_pos lc (s: state) (v: value) : state =
         else let vu = {vu with vu_ofs = vu.vu_start + i} in
              {s with st_cur_view = vu}
     | _ ->
-        internal_error lc (Type_error ("set-pos", 1, vtype_of v, T_int))
+        internal_error lc (Type_error ("set-pos", 1, vtype_of v, T_int Ast.usize_t))

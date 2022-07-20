@@ -59,7 +59,7 @@ type value =
   | V_bool of bool
   | V_bit of bool
   | V_char of char (* also used for byte *)
-  | V_int of Int64.t
+  | V_int of Parsing.Ast.num_t * Int64.t
   | V_float of float
   | V_string of string
   | V_bitvector of bool list                (* big-endian *)
@@ -78,13 +78,13 @@ let empty_record = V_record []
 
 (* a type to describe the runtime type of the value *)
 type vtype =
-  | T_empty (* used for empty options, lists, sets and maps *)
+  | T_empty  (* used for empty options, lists, sets and maps *)
   | T_unit
   | T_bool
   | T_bit
   | T_char
   | T_byte
-  | T_int
+  | T_int of Parsing.Ast.num_t
   | T_float
   | T_string
   | T_bitvector
@@ -111,7 +111,7 @@ let rec string_of_vtype (t: vtype) : string =
     | T_bit       -> "bit"
     | T_char      -> "char"
     | T_byte      -> "byte"
-    | T_int       -> "int"
+    | T_int n     -> Parsing.Ast.str_of_num_t n
     | T_float     -> "float"
     | T_string    -> "string"
     | T_bitvector -> "bitvector"
@@ -148,7 +148,7 @@ let rec vtype_of (v: value) : vtype =
     | V_bool _         -> T_bool
     | V_bit  _         -> T_bit
     | V_char _         -> T_char
-    | V_int  _         -> T_int
+    | V_int  (n, _)    -> T_int n
     | V_float _        -> T_float
     | V_string _       -> T_string
     | V_bitvector _    -> T_bitvector
@@ -198,7 +198,7 @@ let string_of_value (v: value) : string =
       | V_bool b          -> if b then "true" else "false"
       | V_bit  b          -> if b then "1" else "0"
       | V_char c          -> Printf.sprintf "'%s'" (Char.escaped c)
-      | V_int  i          -> Printf.sprintf "%s (%#Lx)" (Int64.to_string i) i
+      | V_int  (_, i)     -> Printf.sprintf "%s (%#Lx)" (Int64.to_string i) i
       | V_float f         -> Float.to_string f
       | V_string s        -> Printf.sprintf "'%s'" s
       | V_bitvector v     -> pr_bvec v
