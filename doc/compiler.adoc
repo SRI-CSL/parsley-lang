@@ -79,5 +79,5 @@ need to specify `--help=plain` to see the help message.
 When debugging and testing a specification under development against
 sample data, it is useful to examine the values computed for various
 expressions in the specification.  The
-<<grammar.adoc#printing,`$print` statement>> was added to the language
-for this purpose.
+<<grammar.adoc#printing,`$print` and `$print_t` statements>> were
+added to the language for this purpose.

@@ -22,7 +22,8 @@ open Parseerror
 
 %token EOF
 %token FORMAT TYPE BITFIELD AND FUN RECFUN INCLUDE IMPORT OF CASE LET IN CONST
-%token DECO PRINT
+%token PRINT PRINTT
+%token DECO
 %token EPSILON PAD ALIGN USE_BITFIELD
 %token SLASH_SF_LBRACK SLASH_SB_LBRACK
 
@@ -578,7 +579,9 @@ stmt:
 | LPAREN CASE e=expr OF option(BAR) c=separated_list(BAR, branchstmt) RPAREN
   { make_stmt (S_case (e, c)) $startpos $endpos }
 | PRINT LPAREN e=expr RPAREN
-  { make_stmt (S_print e) $startpos $endpos }
+  { make_stmt (S_print (false, e)) $startpos $endpos }
+| PRINTT LPAREN e=expr RPAREN
+  { make_stmt (S_print (true, e)) $startpos $endpos }
 
 branchstmt:
 | p=pattern ARROW s=stmt

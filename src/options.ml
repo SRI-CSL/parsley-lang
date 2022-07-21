@@ -52,6 +52,9 @@ type spec_opts =
 let default_sopts =
   {so_import_dirs = []}
 
+type exe_opts =
+  {exe_show_data_as_ascii: bool}
+
 let process_copts copts =
   Printexc.record_backtrace copts.co_debug
 

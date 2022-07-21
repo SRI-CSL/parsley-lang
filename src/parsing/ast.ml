@@ -174,7 +174,7 @@ type ('a, 'b, 'm) stmt_desc =
   | S_assign of ('a, 'b, 'm) expr * ('a, 'b, 'm) expr
   | S_let    of ('a, 'b, 'm) pattern * ('a, 'b, 'm) expr * ('a, 'b, 'm) stmt list
   | S_case   of ('a, 'b, 'm) expr * (('a, 'b, 'm) pattern * ('a, 'b, 'm) stmt list) list
-  | S_print  of ('a, 'b, 'm) expr
+  | S_print  of bool (* data: true -> ascii | false -> hex *) * ('a, 'b, 'm) expr
 
 and ('a, 'b, 'm) stmt =
   {stmt:     ('a, 'b, 'm) stmt_desc;

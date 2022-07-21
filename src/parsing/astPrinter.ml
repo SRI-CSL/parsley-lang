@@ -541,8 +541,9 @@ and print_stmt auxp s =
         print_clauses auxp clauses;
         pp_close_box ();
         pp_string ")"
-    | S_print e ->
-        pp_string "$print(";
+    | S_print (as_ascii, e) ->
+        pp_string (Printf.sprintf "$print%s("
+                     (if as_ascii then "t" else ""));
         print_expr auxp e;
         pp_string ")"
 

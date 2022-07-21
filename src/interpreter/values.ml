@@ -179,7 +179,7 @@ let field_of_bitvector (v: bool list) (h: int) (l: int) : bool list =
            else acc, idx + 1
          ) ([], 0) (List.rev v))
 
-let string_of_value (v: value) : string =
+let string_of_value (as_ascii: bool) (v: value) : string =
   let rec pr d v =
     let mk_fill d = String.make (2*d + 3) ' ' in
     let mk_sep c  = Printf.sprintf "%s\n %s" c (mk_fill d) in
@@ -193,6 +193,17 @@ let string_of_value (v: value) : string =
     let to_hex c  = if   c < 16
                     then Printf.sprintf "0%x" c
                     else Printf.sprintf "%x"  c in
+    let pr_hex l = String.concat ""
+                     (List.map (function
+                          | V_char c -> to_hex (Char.code c)
+                          | _        -> assert false
+                        ) l) in
+    let pr_str l = String.of_seq
+                     (List.to_seq
+                        (List.map (function
+                             | V_char c -> c
+                             | _        -> assert false
+                           ) l)) in
     match v with
       | V_unit            -> "()"
       | V_bool b          -> if b then "true" else "false"
@@ -212,13 +223,9 @@ let string_of_value (v: value) : string =
                                 | Some v -> Printf.sprintf "option::Some(%s)"
                                               (pr (d + 1) v))
       | V_list vs
-           when List.for_all is_byte vs (* print data bytes in hex *)
+           when List.for_all is_byte vs
                           -> Printf.sprintf "%s"
-                               (String.concat ""
-                                  (List.map (function
-                                       | V_char c -> to_hex (Char.code c)
-                                       | _        -> assert false
-                                     ) vs))
+                               (if as_ascii then pr_str vs else pr_hex vs)
       | V_list vs         -> Printf.sprintf "%s[%s]" (mk_fill d)
                                (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
       | V_tuple vs        -> Printf.sprintf "(%s)"

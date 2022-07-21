@@ -31,13 +31,14 @@ let check copts ckopts sopts spec_file : unit =
   Options.process_ckopts ckopts;
   Check.check_spec copts.co_verbose ckopts sopts spec_file
 
-let execute copts sopts loop start spec_file data_file : unit =
+let execute copts sopts xopts loop start spec_file data_file : unit =
   Options.process_copts copts;
   let verbose = copts.co_verbose in
   let ckopts = Options.default_ckopts in
   let spec = Check.ir_of_spec verbose ckopts sopts spec_file in
   let m = Parsing.AstUtils.modname_of_file spec_file in
-  Execute.execute verbose loop m start spec data_file
+  Execute.execute verbose xopts.exe_show_data_as_ascii
+    loop m start spec data_file
 
 (* TODO: help command *)
 
@@ -121,6 +122,15 @@ let spec : string Term.t =
   let doc  = "The file containing the input Parsley specification." in
   Arg.(required & (pos 0 (some non_dir_file) None & info [] ~doc ~docv))
 
+let mk_exopts exe_show_data_as_ascii : exe_opts =
+  {exe_show_data_as_ascii}
+
+let exopts_t : exe_opts Term.t =
+  let show_data_as_ascii =
+    let doc = "Interpret byte data as (ascii) strings." in
+    Arg.(value & flag & info ["show-data-as-ascii"] ~doc) in
+  Term.(const mk_exopts $ show_data_as_ascii)
+
 let data : string Term.t =
   let docv = "data_file" in
   let doc  = "The file with input data in the specified format." in
@@ -151,7 +161,7 @@ let check_cmd : unit Cmd.t =
 let execute_cmd : unit Cmd.t =
   let doc  = "parse the given data using the given specification" in
   let info = Cmd.info "execute" ~doc in
-  Cmd.v info Term.(const execute $ copts_t $ sopts_t $ loop $ start $ spec $ data)
+  Cmd.v info Term.(const execute $ copts_t $ sopts_t $ exopts_t $ loop $ start $ spec $ data)
 
 (* top-level command *)
 let main_cmd : unit Cmd.t =

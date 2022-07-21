@@ -43,6 +43,7 @@
         "$align",    ALIGN;
         "$bitfield", USE_BITFIELD;
         "$print",    PRINT;
+        "$print_t",  PRINTT;
       ];
     tbl
 

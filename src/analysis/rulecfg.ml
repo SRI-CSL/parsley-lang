@@ -644,7 +644,7 @@ let rec add_stmt (ctx: ctx) (s: (typ, varid, mod_qual) stmt) : ctx =
             ) ([], closed) cls in
         let c = end_block b lbls in
         bound, c :: closed, cb
-    | S_print e ->
+    | S_print (_, e) ->
         let b = add_expr bound b e in
         bound, closed, b
 

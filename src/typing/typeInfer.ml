@@ -1649,10 +1649,10 @@ let rec infer_stmt tenv venv s =
             ce ^ conj ccl,
             (wce @^ wconj wcl,
              make_stmt (S_case (e', clauses'))))
-    | S_print e ->
+    | S_print (b, e) ->
         exists_aux (fun t' ->
             let ce, (wce, e') = infer_expr tenv venv e t' in
-            ce, (wce, make_stmt (S_print e')))
+            ce, (wce, make_stmt (S_print (b, e'))))
 
 let infer_action tenv venv act t =
   (* [t] can only bind the last expression if any of the sequence,

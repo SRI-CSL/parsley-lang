@@ -473,8 +473,8 @@ let do_tests print_ir gen_ir exe_ir =
   let fail_match ir v v' =
     incr fails;
     Printf.eprintf " failed, incorrect result.\n%!";
-    Printf.eprintf "expected:\n   %s\n%!" (Values.string_of_value v);
-    Printf.eprintf "got:     \n   %s\n%!" (Values.string_of_value v');
+    Printf.eprintf "expected:\n   %s\n%!" (Values.string_of_value true v);
+    Printf.eprintf "got:     \n   %s\n%!" (Values.string_of_value true v');
     print_ir ir in
   let fail_except ir e =
     incr fails;

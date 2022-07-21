@@ -211,7 +211,11 @@ bodies of `case` discriminators.
 To aid debugging using the interpreter, an additional statement form
 is the *print statement*, whose syntax is `$print(e)` where `e` is any
 expression.  When this statement is executed in the interpreter, the
-value that `e` evaluates to is printed to the standard error.
+value that `e` evaluates to is printed to the standard error.  A
+sequence of bytes in the value is interpreted as binary data and
+printed in hex.  However, in some cases, sequences of bytes could
+contain ASCII characters and hence may need to be printed as strings;
+this use case is served by `$print_t(e)`.
 
 ==== Combinators
 

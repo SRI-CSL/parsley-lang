@@ -284,6 +284,7 @@ and print_stmt s =
         print_av av;
         pp_string (string_of_occurrence occ);
         print_stmt b
-    | AS_print av ->
-        pp_string "$print ";
+    | AS_print (as_ascii, av) ->
+        pp_string (Printf.sprintf "$print_%s "
+                     (if as_ascii then "ascii" else "hex"));
         print_av av

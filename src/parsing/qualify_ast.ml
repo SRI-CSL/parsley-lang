@@ -333,8 +333,8 @@ let rec convert_stmt ctx lm s =
                       (p, ss)
                     ) cls in
         wrap (S_case (e, cls))
-    | S_print e ->
-        wrap (S_print (convert_exp ctx lm e))
+    | S_print (b, e) ->
+        wrap (S_print (b, convert_exp ctx lm e))
 
 let convert_act ctx lm a =
   let ss, e = a.action_stmts in
