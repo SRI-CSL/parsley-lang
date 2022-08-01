@@ -37,6 +37,8 @@ open Parseerror
 
 %token<Ast.num_t> LT GT LTEQ GTEQ
 %token<Ast.num_t> MUL PLUS MINUS MOD DIV
+%token<Ast.num_t> LSHFT RSHFT ASHFT
+%token<Ast.num_t> IB_NOT IB_AND IB_OR IB_XOR
 
 %token<Ast.literal> LITERAL
 %token<Ast.ident>   ID
@@ -54,11 +56,13 @@ open Parseerror
 %nonassoc IN
 %right EXCLAIM
 %left  LAND LOR
+%left  IB_AND IB_OR IB_XOR
 %left  LT GT LTEQ GTEQ EQ NEQ CONSTR_MATCH
 %left  BAR
 %left  BACKSLASH
 %right AT
 %right COLONCOLON
+%left  LSHFT RSHFT ASHFT
 %left  PLUS MINUS PLUS_S POS NEG
 %left  MUL MOD DIV QUESTION STAR
 %left  BAR_B
@@ -449,6 +453,8 @@ expr:
   { make_expr (E_unop (Uminus n, e)) $startpos $endpos }
 | TILDE e=expr %prec UMINUS
   { make_expr (E_unop (Neg_b, e)) $startpos $endpos }
+| n=IB_NOT e=expr %prec UMINUS
+  { make_expr (E_unop (Inot n, e)) $startpos $endpos }
 | EXCLAIM e=expr
   { make_expr (E_unop (Not, e)) $startpos $endpos }
 | LBRACE r=rec_exp_fields RBRACE
@@ -477,6 +483,18 @@ expr:
   { make_expr (E_binop (Mod n, l, r)) $startpos $endpos }
 | l=expr n=DIV r=expr
   { make_expr (E_binop (Div n, l, r)) $startpos $endpos }
+| l=expr n=IB_AND r=expr
+  { make_expr (E_binop (Iand n, l, r)) $startpos $endpos }
+| l=expr n=IB_OR r=expr
+  { make_expr (E_binop (Ior n, l, r)) $startpos $endpos }
+| l=expr n=IB_XOR r=expr
+  { make_expr (E_binop (Ixor n, l, r)) $startpos $endpos }
+| l=expr n=LSHFT r=expr
+  { make_expr (E_binop (Lshft n, l, r)) $startpos $endpos }
+| l=expr n=RSHFT r=expr
+  { make_expr (E_binop (Rshft n, l, r)) $startpos $endpos }
+| l=expr n=ASHFT r=expr
+  { make_expr (E_binop (Ashft n, l, r)) $startpos $endpos }
 | l=expr n=LT r=expr
   { make_expr (E_binop (Lt n, l, r)) $startpos $endpos }
 | l=expr n=GT r=expr

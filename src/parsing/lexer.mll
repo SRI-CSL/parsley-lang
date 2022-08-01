@@ -104,6 +104,13 @@ rule token = parse
 | ">_i"    { GT    (S_signed, NW_size) }
 | "<=_i"   { LTEQ  (S_signed, NW_size) }
 | ">=_i"   { GTEQ  (S_signed, NW_size) }
+| "~_i"    { IB_NOT(S_signed, NW_size) }
+| "&_i"    { IB_AND(S_signed, NW_size) }
+| "|_i"    { IB_OR (S_signed, NW_size) }
+| "^_i"    { IB_XOR(S_signed, NW_size) }
+| "<<_i"   { LSHFT (S_signed, NW_size) }
+| ">>_i"   { RSHFT (S_signed, NW_size) }
+| ">>_ai"  { ASHFT (S_signed, NW_size) }
 
 | "+_i8"   { PLUS  (S_signed, NW_8) }
 | "-_i8"   { MINUS (S_signed, NW_8) }
@@ -114,6 +121,13 @@ rule token = parse
 | ">_i8"   { GT    (S_signed, NW_8) }
 | "<=_i8"  { LTEQ  (S_signed, NW_8) }
 | ">=_i8"  { GTEQ  (S_signed, NW_8) }
+| "~_i8"   { IB_NOT(S_signed, NW_8) }
+| "&_i8"   { IB_AND(S_signed, NW_8) }
+| "|_i8"   { IB_OR (S_signed, NW_8) }
+| "^_i8"   { IB_XOR(S_signed, NW_8) }
+| "<<_i8"  { LSHFT (S_signed, NW_8) }
+| ">>_i8"  { RSHFT (S_signed, NW_8) }
+| ">>_ai8" { ASHFT (S_signed, NW_8) }
 
 | "+_i16"  { PLUS  (S_signed, NW_16) }
 | "-_i16"  { MINUS (S_signed, NW_16) }
@@ -124,6 +138,13 @@ rule token = parse
 | ">_i16"  { GT    (S_signed, NW_16) }
 | "<=_i16" { LTEQ  (S_signed, NW_16) }
 | ">=_i16" { GTEQ  (S_signed, NW_16) }
+| "~_i16"  { IB_NOT(S_signed, NW_16) }
+| "&_i16"  { IB_AND(S_signed, NW_16) }
+| "|_i16"  { IB_OR (S_signed, NW_16) }
+| "^_i16"  { IB_XOR(S_signed, NW_16) }
+| "<<_i16" { LSHFT (S_signed, NW_16) }
+| ">>_i16" { RSHFT (S_signed, NW_16) }
+| ">>_ai16"{ ASHFT (S_signed, NW_16) }
 
 | "+_i32"  { PLUS  (S_signed, NW_32) }
 | "-_i32"  { MINUS (S_signed, NW_32) }
@@ -134,6 +155,13 @@ rule token = parse
 | ">_i32"  { GT    (S_signed, NW_32) }
 | "<=_i32" { LTEQ  (S_signed, NW_32) }
 | ">=_i32" { GTEQ  (S_signed, NW_32) }
+| "~_i32"  { IB_NOT(S_signed, NW_32) }
+| "&_i32"  { IB_AND(S_signed, NW_32) }
+| "|_i32"  { IB_OR (S_signed, NW_32) }
+| "^_i32"  { IB_XOR(S_signed, NW_32) }
+| "<<_i32" { LSHFT (S_signed, NW_32) }
+| ">>_i32" { RSHFT (S_signed, NW_32) }
+| ">>_ai32"{ ASHFT (S_signed, NW_32) }
 
 | "+_i64"  { PLUS  (S_signed, NW_64) }
 | "-_i64"  { MINUS (S_signed, NW_64) }
@@ -144,6 +172,13 @@ rule token = parse
 | ">_i64"  { GT    (S_signed, NW_64) }
 | "<=_i64" { LTEQ  (S_signed, NW_64) }
 | ">=_i64" { GTEQ  (S_signed, NW_64) }
+| "~_i64"  { IB_NOT(S_signed, NW_64) }
+| "&_i64"  { IB_AND(S_signed, NW_64) }
+| "|_i64"  { IB_OR (S_signed, NW_64) }
+| "^_i64"  { IB_XOR(S_signed, NW_64) }
+| "<<_i64" { LSHFT (S_signed, NW_64) }
+| ">>_i64" { RSHFT (S_signed, NW_64) }
+| ">>_ai64"{ ASHFT (S_signed, NW_64) }
 
 | "+_u"    { PLUS  (S_unsigned, NW_size) }
 | "-_u"    { MINUS (S_unsigned, NW_size) }
@@ -154,6 +189,13 @@ rule token = parse
 | ">_u"    { GT    (S_unsigned, NW_size) }
 | "<=_u"   { LTEQ  (S_unsigned, NW_size) }
 | ">=_u"   { GTEQ  (S_unsigned, NW_size) }
+| "~_u"    { IB_NOT(S_unsigned, NW_size) }
+| "&_u"    { IB_AND(S_unsigned, NW_size) }
+| "|_u"    { IB_OR (S_unsigned, NW_size) }
+| "^_u"    { IB_XOR(S_unsigned, NW_size) }
+| "<<_u"   { LSHFT (S_unsigned, NW_size) }
+| ">>_u"   { RSHFT (S_unsigned, NW_size) }
+| ">>_au"  { ASHFT (S_unsigned, NW_size) }
 
 | "+_u8"   { PLUS  (S_unsigned, NW_8) }
 | "-_u8"   { MINUS (S_unsigned, NW_8) }
@@ -164,6 +206,13 @@ rule token = parse
 | ">_u8"   { GT    (S_unsigned, NW_8) }
 | "<=_u8"  { LTEQ  (S_unsigned, NW_8) }
 | ">=_u8"  { GTEQ  (S_unsigned, NW_8) }
+| "~_u8"   { IB_NOT(S_unsigned, NW_8) }
+| "&_u8"   { IB_AND(S_unsigned, NW_8) }
+| "|_u8"   { IB_OR (S_unsigned, NW_8) }
+| "^_u8"   { IB_XOR(S_unsigned, NW_8) }
+| "<<_u8"  { LSHFT (S_unsigned, NW_8) }
+| ">>_u8"  { RSHFT (S_unsigned, NW_8) }
+| ">>_au8" { ASHFT (S_unsigned, NW_8) }
 
 | "+_u16"  { PLUS  (S_unsigned, NW_16) }
 | "-_u16"  { MINUS (S_unsigned, NW_16) }
@@ -174,6 +223,13 @@ rule token = parse
 | ">_u16"  { GT    (S_unsigned, NW_16) }
 | "<=_u16" { LTEQ  (S_unsigned, NW_16) }
 | ">=_u16" { GTEQ  (S_unsigned, NW_16) }
+| "~_u16"  { IB_NOT(S_unsigned, NW_16) }
+| "&_u16"  { IB_AND(S_unsigned, NW_16) }
+| "|_u16"  { IB_OR (S_unsigned, NW_16) }
+| "^_u16"  { IB_XOR(S_unsigned, NW_16) }
+| "<<_u16" { LSHFT (S_unsigned, NW_16) }
+| ">>_u16" { RSHFT (S_unsigned, NW_16) }
+| ">>_au16"{ ASHFT (S_unsigned, NW_16) }
 
 | "+_u32"  { PLUS  (S_unsigned, NW_32) }
 | "-_u32"  { MINUS (S_unsigned, NW_32) }
@@ -184,6 +240,13 @@ rule token = parse
 | ">_u32"  { GT    (S_unsigned, NW_32) }
 | "<=_u32" { LTEQ  (S_unsigned, NW_32) }
 | ">=_u32" { GTEQ  (S_unsigned, NW_32) }
+| "~_u32"  { IB_NOT(S_unsigned, NW_32) }
+| "&_u32"  { IB_AND(S_unsigned, NW_32) }
+| "|_u32"  { IB_OR (S_unsigned, NW_32) }
+| "^_u32"  { IB_XOR(S_unsigned, NW_32) }
+| "<<_u32" { LSHFT (S_unsigned, NW_32) }
+| ">>_u32" { RSHFT (S_unsigned, NW_32) }
+| ">>_au32"{ ASHFT (S_unsigned, NW_32) }
 
 | "+_u64"  { PLUS  (S_unsigned, NW_64) }
 | "-_u64"  { MINUS (S_unsigned, NW_64) }
@@ -194,6 +257,13 @@ rule token = parse
 | ">_u64"  { GT    (S_unsigned, NW_64) }
 | "<=_u64" { LTEQ  (S_unsigned, NW_64) }
 | ">=_u64" { GTEQ  (S_unsigned, NW_64) }
+| "~_u64"  { IB_NOT(S_unsigned, NW_64) }
+| "&_u64"  { IB_AND(S_unsigned, NW_64) }
+| "|_u64"  { IB_OR (S_unsigned, NW_64) }
+| "^_u64"  { IB_XOR(S_unsigned, NW_64) }
+| "<<_u64" { LSHFT (S_unsigned, NW_64) }
+| ">>_u64" { RSHFT (S_unsigned, NW_64) }
+| ">>_au64"{ ASHFT (S_unsigned, NW_64) }
 
 | "//" { eol_comment lexbuf }
 

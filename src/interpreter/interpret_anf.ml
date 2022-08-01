@@ -177,6 +177,7 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
         let v = val_of_av s ae' in
         (match op with
            | Uminus t -> Builtins.int_uminus t loc v
+           | Inot t   -> Builtins.int_not t loc v
            | Not      -> Builtins.bool_not loc v
            | Neg_b    -> Builtins.bitvector_negate loc v)
     | AE_binop (op, ae', ae'') ->
@@ -194,6 +195,12 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
             | Mult t  -> Builtins.int_mul t
             | Mod t   -> Builtins.int_mod t
             | Div t   -> Builtins.int_div t
+            | Iand t  -> Builtins.int_and t
+            | Ior t   -> Builtins.int_or t
+            | Ixor t  -> Builtins.int_xor t
+            | Lshft t -> Builtins.int_lshft t
+            | Rshft t -> Builtins.int_rshft t
+            | Ashft t -> Builtins.int_ashft t
             | Land    -> Builtins.bool_and
             | Lor     -> Builtins.bool_or
             | Or_b    -> Builtins.bv_or

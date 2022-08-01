@@ -52,6 +52,7 @@ let rec print_list sep printer = function
 
 let str_of_unop = function
   | Uminus n -> "-_" ^ str_of_num_t n
+  | Inot n   -> "~_" ^ str_of_num_t n
   | Not      -> "!"
   | Neg_b    -> "~"
 
@@ -65,6 +66,12 @@ let str_of_binop = function
   | Mult n  -> "*_"  ^ str_of_num_t n
   | Mod n   -> "%_"  ^ str_of_num_t n
   | Div n   -> "/_"  ^ str_of_num_t n
+  | Iand n  -> "&_"  ^ str_of_num_t n
+  | Ior  n  -> "|_"  ^ str_of_num_t n
+  | Ixor n  -> "^_"  ^ str_of_num_t n
+  | Lshft n -> "<<_"  ^ str_of_num_t n
+  | Rshft n -> ">>_"  ^ str_of_num_t n
+  | Ashft n -> ">>_a" ^ str_of_num_t n
   | Plus_s  -> "+_s"
   | Eq      -> "="
   | Neq     -> "!="

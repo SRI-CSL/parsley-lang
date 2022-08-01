@@ -215,6 +215,15 @@ let builtin_types, builtin_ops, builtin_values,
       (Ast.VName "<=_i", [], arrow_type isize_t (arrow_type isize_t bool_t));
       (Ast.VName ">=_i", [], arrow_type isize_t (arrow_type isize_t bool_t));
 
+      (Ast.VName "~_i",  [], arrow_type isize_t isize_t);
+      (Ast.VName "&_i",  [], arrow_type isize_t (arrow_type isize_t isize_t));
+      (Ast.VName "|_i",  [], arrow_type isize_t (arrow_type isize_t isize_t));
+      (Ast.VName "^_i",  [], arrow_type isize_t (arrow_type isize_t isize_t));
+
+      (Ast.VName "<<_i",  [], arrow_type isize_t (arrow_type u8_t isize_t));
+      (Ast.VName ">>_i",  [], arrow_type isize_t (arrow_type u8_t isize_t));
+      (Ast.VName ">>_ai", [], arrow_type isize_t (arrow_type u8_t isize_t));
+
       (Ast.VName "+_i8",  [], arrow_type i8_t (arrow_type i8_t i8_t));
       (Ast.VName "-_i8",  [], arrow_type i8_t (arrow_type i8_t i8_t));
       (Ast.VName "*_i8",  [], arrow_type i8_t (arrow_type i8_t i8_t));
@@ -225,6 +234,15 @@ let builtin_types, builtin_ops, builtin_values,
       (Ast.VName ">_i8",  [], arrow_type i8_t (arrow_type i8_t bool_t));
       (Ast.VName "<=_i8", [], arrow_type i8_t (arrow_type i8_t bool_t));
       (Ast.VName ">=_i8", [], arrow_type i8_t (arrow_type i8_t bool_t));
+
+      (Ast.VName "~_i8",  [], arrow_type i8_t i8_t);
+      (Ast.VName "&_i8",  [], arrow_type i8_t (arrow_type i8_t i8_t));
+      (Ast.VName "|_i8",  [], arrow_type i8_t (arrow_type i8_t i8_t));
+      (Ast.VName "^_i8",  [], arrow_type i8_t (arrow_type i8_t i8_t));
+
+      (Ast.VName "<<_i8",  [], arrow_type i8_t (arrow_type u8_t i8_t));
+      (Ast.VName ">>_i8",  [], arrow_type i8_t (arrow_type u8_t i8_t));
+      (Ast.VName ">>_ai8", [], arrow_type i8_t (arrow_type u8_t i8_t));
 
       (Ast.VName "+_i16",  [], arrow_type i16_t (arrow_type i16_t i16_t));
       (Ast.VName "-_i16",  [], arrow_type i16_t (arrow_type i16_t i16_t));
@@ -237,6 +255,15 @@ let builtin_types, builtin_ops, builtin_values,
       (Ast.VName "<=_i16", [], arrow_type i16_t (arrow_type i16_t bool_t));
       (Ast.VName ">=_i16", [], arrow_type i16_t (arrow_type i16_t bool_t));
 
+      (Ast.VName "~_i16",  [], arrow_type i16_t i16_t);
+      (Ast.VName "&_i16",  [], arrow_type i16_t (arrow_type i16_t i16_t));
+      (Ast.VName "|_i16",  [], arrow_type i16_t (arrow_type i16_t i16_t));
+      (Ast.VName "^_i16",  [], arrow_type i16_t (arrow_type i16_t i16_t));
+
+      (Ast.VName "<<_i16", [], arrow_type i16_t (arrow_type u8_t i16_t));
+      (Ast.VName ">>_i16", [], arrow_type i16_t (arrow_type u8_t i16_t));
+      (Ast.VName ">>_ai16",[], arrow_type i16_t (arrow_type u8_t i16_t));
+
       (Ast.VName "+_i32",  [], arrow_type i32_t (arrow_type i32_t i32_t));
       (Ast.VName "-_i32",  [], arrow_type i32_t (arrow_type i32_t i32_t));
       (Ast.VName "*_i32",  [], arrow_type i32_t (arrow_type i32_t i32_t));
@@ -247,6 +274,15 @@ let builtin_types, builtin_ops, builtin_values,
       (Ast.VName ">_i32",  [], arrow_type i32_t (arrow_type i32_t bool_t));
       (Ast.VName "<=_i32", [], arrow_type i32_t (arrow_type i32_t bool_t));
       (Ast.VName ">=_i32", [], arrow_type i32_t (arrow_type i32_t bool_t));
+
+      (Ast.VName "~_i32",  [], arrow_type i32_t i32_t);
+      (Ast.VName "&_i32",  [], arrow_type i32_t (arrow_type i32_t i32_t));
+      (Ast.VName "|_i32",  [], arrow_type i32_t (arrow_type i32_t i32_t));
+      (Ast.VName "^_i32",  [], arrow_type i32_t (arrow_type i32_t i32_t));
+
+      (Ast.VName "<<_i32", [], arrow_type i32_t (arrow_type u8_t i32_t));
+      (Ast.VName ">>_i32", [], arrow_type i32_t (arrow_type u8_t i32_t));
+      (Ast.VName ">>_ai32",[], arrow_type i32_t (arrow_type u8_t i32_t));
 
       (Ast.VName "+_i64",  [], arrow_type i64_t (arrow_type i64_t i64_t));
       (Ast.VName "-_i64",  [], arrow_type i64_t (arrow_type i64_t i64_t));
@@ -259,6 +295,15 @@ let builtin_types, builtin_ops, builtin_values,
       (Ast.VName "<=_i64", [], arrow_type i64_t (arrow_type i64_t bool_t));
       (Ast.VName ">=_i64", [], arrow_type i64_t (arrow_type i64_t bool_t));
 
+      (Ast.VName "~_i64",  [], arrow_type i64_t i64_t);
+      (Ast.VName "&_i64",  [], arrow_type i64_t (arrow_type i64_t i64_t));
+      (Ast.VName "|_i64",  [], arrow_type i64_t (arrow_type i64_t i64_t));
+      (Ast.VName "^_i64",  [], arrow_type i64_t (arrow_type i64_t i64_t));
+
+      (Ast.VName "<<_i64", [], arrow_type i64_t (arrow_type u8_t i64_t));
+      (Ast.VName ">>_i64", [], arrow_type i64_t (arrow_type u8_t i64_t));
+      (Ast.VName ">>_ai64",[], arrow_type i64_t (arrow_type u8_t i64_t));
+
       (Ast.VName "+_u",  [], arrow_type usize_t (arrow_type usize_t usize_t));
       (Ast.VName "-_u",  [], arrow_type usize_t (arrow_type usize_t usize_t));
       (Ast.VName "*_u",  [], arrow_type usize_t (arrow_type usize_t usize_t));
@@ -269,6 +314,15 @@ let builtin_types, builtin_ops, builtin_values,
       (Ast.VName ">_u",  [], arrow_type usize_t (arrow_type usize_t bool_t));
       (Ast.VName "<=_u", [], arrow_type usize_t (arrow_type usize_t bool_t));
       (Ast.VName ">=_u", [], arrow_type usize_t (arrow_type usize_t bool_t));
+
+      (Ast.VName "~_u",  [], arrow_type usize_t usize_t);
+      (Ast.VName "&_u",  [], arrow_type usize_t (arrow_type usize_t usize_t));
+      (Ast.VName "|_u",  [], arrow_type usize_t (arrow_type usize_t usize_t));
+      (Ast.VName "^_u",  [], arrow_type usize_t (arrow_type usize_t usize_t));
+
+      (Ast.VName "<<_u",  [], arrow_type usize_t (arrow_type u8_t usize_t));
+      (Ast.VName ">>_u",  [], arrow_type usize_t (arrow_type u8_t usize_t));
+      (Ast.VName ">>_au", [], arrow_type usize_t (arrow_type u8_t usize_t));
 
       (Ast.VName "+_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
       (Ast.VName "-_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
@@ -281,6 +335,15 @@ let builtin_types, builtin_ops, builtin_values,
       (Ast.VName "<=_u8", [], arrow_type u8_t (arrow_type u8_t bool_t));
       (Ast.VName ">=_u8", [], arrow_type u8_t (arrow_type u8_t bool_t));
 
+      (Ast.VName "~_u8",  [], arrow_type u8_t u8_t);
+      (Ast.VName "&_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
+      (Ast.VName "|_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
+      (Ast.VName "^_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
+
+      (Ast.VName "<<_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
+      (Ast.VName ">>_u8",  [], arrow_type u8_t (arrow_type u8_t u8_t));
+      (Ast.VName ">>_au8", [], arrow_type u8_t (arrow_type u8_t u8_t));
+
       (Ast.VName "+_u16",  [], arrow_type u16_t (arrow_type u16_t u16_t));
       (Ast.VName "-_u16",  [], arrow_type u16_t (arrow_type u16_t u16_t));
       (Ast.VName "*_u16",  [], arrow_type u16_t (arrow_type u16_t u16_t));
@@ -291,6 +354,15 @@ let builtin_types, builtin_ops, builtin_values,
       (Ast.VName ">_u16",  [], arrow_type u16_t (arrow_type u16_t bool_t));
       (Ast.VName "<=_u16", [], arrow_type u16_t (arrow_type u16_t bool_t));
       (Ast.VName ">=_u16", [], arrow_type u16_t (arrow_type u16_t bool_t));
+
+      (Ast.VName "~_u16",  [], arrow_type u16_t u16_t);
+      (Ast.VName "&_u16",  [], arrow_type u16_t (arrow_type u16_t u16_t));
+      (Ast.VName "|_u16",  [], arrow_type u16_t (arrow_type u16_t u16_t));
+      (Ast.VName "^_u16",  [], arrow_type u16_t (arrow_type u16_t u16_t));
+
+      (Ast.VName "<<_u16", [], arrow_type u16_t (arrow_type u8_t u16_t));
+      (Ast.VName ">>_u16", [], arrow_type u16_t (arrow_type u8_t u16_t));
+      (Ast.VName ">>_au16",[], arrow_type u16_t (arrow_type u8_t u16_t));
 
       (Ast.VName "+_u32",  [], arrow_type u32_t (arrow_type u32_t u32_t));
       (Ast.VName "-_u32",  [], arrow_type u32_t (arrow_type u32_t u32_t));
@@ -303,6 +375,15 @@ let builtin_types, builtin_ops, builtin_values,
       (Ast.VName "<=_u32", [], arrow_type u32_t (arrow_type u32_t bool_t));
       (Ast.VName ">=_u32", [], arrow_type u32_t (arrow_type u32_t bool_t));
 
+      (Ast.VName "~_u32",  [], arrow_type u32_t u32_t);
+      (Ast.VName "&_u32",  [], arrow_type u32_t (arrow_type u32_t u32_t));
+      (Ast.VName "|_u32",  [], arrow_type u32_t (arrow_type u32_t u32_t));
+      (Ast.VName "^_u32",  [], arrow_type u32_t (arrow_type u32_t u32_t));
+
+      (Ast.VName "<<_u32", [], arrow_type u32_t (arrow_type u8_t u32_t));
+      (Ast.VName ">>_u32", [], arrow_type u32_t (arrow_type u8_t u32_t));
+      (Ast.VName ">>_au32",[], arrow_type u32_t (arrow_type u8_t u32_t));
+
       (Ast.VName "+_u64",  [], arrow_type u64_t (arrow_type u64_t u64_t));
       (Ast.VName "-_u64",  [], arrow_type u64_t (arrow_type u64_t u64_t));
       (Ast.VName "*_u64",  [], arrow_type u64_t (arrow_type u64_t u64_t));
@@ -313,6 +394,15 @@ let builtin_types, builtin_ops, builtin_values,
       (Ast.VName ">_u64",  [], arrow_type u64_t (arrow_type u64_t bool_t));
       (Ast.VName "<=_u64", [], arrow_type u64_t (arrow_type u64_t bool_t));
       (Ast.VName ">=_u64", [], arrow_type u64_t (arrow_type u64_t bool_t));
+
+      (Ast.VName "~_u64",  [], arrow_type u64_t u64_t);
+      (Ast.VName "&_u64",  [], arrow_type u64_t (arrow_type u64_t u64_t));
+      (Ast.VName "|_u64",  [], arrow_type u64_t (arrow_type u64_t u64_t));
+      (Ast.VName "^_u64",  [], arrow_type u64_t (arrow_type u64_t u64_t));
+
+      (Ast.VName "<<_u64", [], arrow_type u64_t (arrow_type u8_t u64_t));
+      (Ast.VName ">>_u64", [], arrow_type u64_t (arrow_type u8_t u64_t));
+      (Ast.VName ">>_au64",[], arrow_type u64_t (arrow_type u8_t u64_t));
 
       (Ast.VName "&&", [], arrow_type bool_t (arrow_type bool_t bool_t));
       (Ast.VName "||", [], arrow_type bool_t (arrow_type bool_t bool_t));
@@ -1160,6 +1250,7 @@ let str_of_num (s, w) =
 
 let unop_const_name = function
   | Ast.Uminus n -> "1-_" ^ str_of_num n
+  | Ast.Inot n   -> "~_"  ^ str_of_num n
   | Ast.Not      -> "!"
   | Ast.Neg_b    -> "~"
 
@@ -1173,6 +1264,13 @@ let binop_const_name = function
   | Ast.Gt n    -> ">_"  ^ str_of_num n
   | Ast.Lteq n  -> "<=_" ^ str_of_num n
   | Ast.Gteq n  -> ">=_" ^ str_of_num n
+
+  | Ast.Iand n  -> "&_"   ^ str_of_num n
+  | Ast.Ior n   -> "|_"   ^ str_of_num n
+  | Ast.Ixor n  -> "^_"   ^ str_of_num n
+  | Ast.Lshft n -> "<<_"  ^ str_of_num n
+  | Ast.Rshft n -> ">>_"  ^ str_of_num n
+  | Ast.Ashft n -> ">>_a" ^ str_of_num n
 
   | Ast.Or_b    -> "|_b"
   | Ast.And_b   -> "&_b"

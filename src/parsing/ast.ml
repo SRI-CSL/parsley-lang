@@ -118,6 +118,8 @@ and 'm gen_type_rep =
 type binop =
   | Lt of num_t   | Gt of num_t    | Lteq of num_t | Gteq of num_t
   | Plus of num_t | Minus of num_t | Mult of num_t | Div of num_t | Mod of num_t
+  | Lshft of num_t | Rshft of num_t | Ashft of num_t
+  | Iand of num_t | Ior of num_t | Ixor of num_t
   | Eq | Neq
   | Land | Lor
   | Or_b | And_b
@@ -125,7 +127,7 @@ type binop =
   | Cons | Index
 
 type unop =
-  | Uminus of num_t | Not | Neg_b
+  | Uminus of num_t | Inot of num_t | Not | Neg_b
 
 type primitive_literal =
   | PL_unit

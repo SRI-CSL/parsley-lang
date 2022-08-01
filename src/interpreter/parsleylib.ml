@@ -22,14 +22,6 @@ open Values
 open Runtime_exceptions
 open Internal_errors
 
-let get_width ((_, w): Ast.num_t) : int =
-  match w with
-    | Ast.NW_8    -> 8
-    | Ast.NW_16   -> 16
-    | Ast.NW_32   -> 32
-    | Ast.NW_64   -> 64
-    | Ast.NW_size -> 64
-
 (* Please ensure that the modules and functions below follow the order
    in typeAlgebra.ml.  The modules use the 'P' prefix to avoid
    colliding with any OCaml libraries with the same name. *)
@@ -131,7 +123,7 @@ module PInt = struct
           (* This assumes big-endian; i.e. leading byte is most
              significant.  FIXME: should we parameterize by
              endianness? *)
-          let max_bytes = (get_width tm) / 8 in
+          let max_bytes = (Builtins.get_width tm) / 8 in
           (* Allow conversion from byte-vectors of shorter lengths
              since they cannot overflow. *)
           if   max_bytes <= List.length cs
@@ -361,7 +353,7 @@ module PBits = struct
       | V_bitvector [] ->
           fault lc (Invalid_argument (fn, "0-length bitvector"))
       | V_bitvector bs ->
-          let width = get_width t in
+          let width = Builtins.get_width t in
           let i, _ =
             List.fold_left (fun (i, cnt) b ->
                 if   cnt >= width

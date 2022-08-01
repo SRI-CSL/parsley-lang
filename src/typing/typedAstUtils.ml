@@ -138,6 +138,12 @@ let rec const_fold: 't 'v 'm. ('t, 'v, 'm) expr -> ('t, 'v, 'm) expr =
                 then let err = TExc.Invalid_integer_value (i, n) in
                      raise (TExc.Error (e.expr_loc, err)));
                {e with expr = E_literal (PL_int (-i, n))}
+           | Inot _, E_literal (PL_int (i, n)) ->
+               let i = Int.lognot i in
+               (if   not (AstUtils.check_int_literal n i)
+                then let err = TExc.Invalid_integer_value (i, n) in
+                     raise (TExc.Error (e.expr_loc, err)));
+               {e with expr = E_literal (PL_int (-i, n))}
            | Not, E_literal (PL_bool b) ->
                {e with expr = E_literal (PL_bool (not b))}
            | _ ->
@@ -194,6 +200,48 @@ let rec const_fold: 't 'v 'm. ('t, 'v, 'm) expr -> ('t, 'v, 'm) expr =
            | Div on,  E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
                 when on = ln && ln = rn ->
                let v = l / r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Iand on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = Int.logand l r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Ior on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = Int.logor l r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Ixor on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = Int.logxor l r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Lshft on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && rn = Ast.u8_t ->
+               let v = Int.shift_left l r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Rshft on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && rn = Ast.u8_t ->
+               let v = Int.shift_right_logical l r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Ashft on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && rn = Ast.u8_t ->
+               let v = Int.shift_right l r in
                if   not (AstUtils.check_int_literal on v)
                then let err = TExc.Invalid_integer_literal (v, on) in
                     raise (TExc.Error (e.expr_loc, err))

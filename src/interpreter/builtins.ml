@@ -23,6 +23,23 @@ open Internal_errors
 
 (* utilities *)
 
+let get_width ((_, w): Ast.num_t) : int =
+  match w with
+    | Ast.NW_8    -> 8
+    | Ast.NW_16   -> 16
+    | Ast.NW_32   -> 32
+    | Ast.NW_64   -> 64
+    | Ast.NW_size -> 64
+
+
+let shift_mask ((_, w): Ast.num_t) : Int64.t =
+  match w with
+    | Ast.NW_8    -> 7L
+    | Ast.NW_16   -> 15L
+    | Ast.NW_32   -> 31L
+    | Ast.NW_64   -> 63L
+    | Ast.NW_size -> 63L
+
 (* This repeats the logic of AstUtils.check_int_literal, except that
    it computes over runtime values instead of source literals.
 
@@ -80,6 +97,13 @@ let int_uminus t lc (v: value) : value =
     | V_int (ti, i) when t = ti -> V_int (t, wrap_int_bounds t (Int64.neg i))
     | _ -> internal_error lc (Type_error ("uminus", 1, vtype_of v, T_int t))
 
+let int_not t lc (v: value) : value =
+  let op = AstPrinter.str_of_binop (Ast.Lshft t) in
+  match v with
+    | V_int (ti, i)
+         when t = ti   -> V_int (t, wrap_int_bounds t (Int64.lognot i))
+    | _                -> internal_error lc (Type_error (op, 1, vtype_of v, T_int t))
+
 let bool_not lc (v: value) : value =
   match v with
     | V_bool b -> V_bool (not b)
@@ -133,6 +157,73 @@ let int_div t lc (l: value) (r: value) : value =
     | V_int (lt, _), _
          when t = lt   -> internal_error lc (Type_error ("/", 2, vtype_of r, T_int t))
     | _, _             -> internal_error lc (Type_error ("/", 1, vtype_of l, T_int t))
+
+
+let int_and t lc (l: value) (r: value) : value =
+  let op = AstPrinter.str_of_binop (Ast.Lshft t) in
+  match l, r with
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt  -> V_int (lt, wrap_int_bounds lt (Int64.logand l r))
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error (op, 2, vtype_of r, T_int t))
+    | _, _             -> internal_error lc (Type_error (op, 1, vtype_of l, T_int t))
+
+let int_or t lc (l: value) (r: value) : value =
+  let op = AstPrinter.str_of_binop (Ast.Lshft t) in
+  match l, r with
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt  -> V_int (lt, wrap_int_bounds lt (Int64.logor l r))
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error (op, 2, vtype_of r, T_int t))
+    | _, _             -> internal_error lc (Type_error (op, 1, vtype_of l, T_int t))
+
+let int_xor t lc (l: value) (r: value) : value =
+  let op = AstPrinter.str_of_binop (Ast.Lshft t) in
+  match l, r with
+    | V_int (lt, l), V_int (rt, r)
+         when t = lt && lt = rt  -> V_int (lt, wrap_int_bounds lt (Int64.logxor l r))
+    | V_int (lt, _), _
+         when t = lt   -> internal_error lc (Type_error (op, 2, vtype_of r, T_int t))
+    | _, _             -> internal_error lc (Type_error (op, 1, vtype_of l, T_int t))
+
+let int_lshft t lc (l: value) (s: value) : value =
+  let op = AstPrinter.str_of_binop (Ast.Lshft t) in
+  match l, s with
+    | V_int (lt, l), V_int (st, s)
+         when t = lt && st = Ast.u8_t ->
+        (* mask shift value to be within range of type *)
+        let s = Int64.to_int (Int64.logand (shift_mask t) s) in
+        V_int (lt, wrap_int_bounds lt (Int64.shift_left l s))
+    | V_int (lt, _), _
+         when t = lt -> internal_error lc (Type_error (op, 2, vtype_of s, T_int Ast.u8_t))
+    | _, _           -> internal_error lc (Type_error (op, 1, vtype_of s, T_int t))
+
+
+let int_rshft t lc (l: value) (s: value) : value =
+  let op = AstPrinter.str_of_binop (Ast.Rshft t) in
+  match l, s with
+    | V_int (lt, l), V_int (st, s)
+         when t = lt && st = Ast.u8_t ->
+        (* mask shift value to be within range of type *)
+        let s = Int64.to_int (Int64.logand (shift_mask t) s) in
+        V_int (lt, wrap_int_bounds lt (Int64.shift_right_logical l s))
+    | V_int (lt, _), _
+         when t = lt -> internal_error lc (Type_error (op, 2, vtype_of s, T_int Ast.u8_t))
+    | _, _           -> internal_error lc (Type_error (op, 1, vtype_of s, T_int t))
+
+
+let int_ashft t lc (l: value) (s: value) : value =
+  let op = AstPrinter.str_of_binop (Ast.Ashft t) in
+  match l, s with
+    | V_int (lt, l), V_int (st, s)
+         when t = lt && st = Ast.u8_t ->
+        (* mask shift value to be within range of type *)
+        let s = Int64.to_int (Int64.logand (shift_mask t) s) in
+        V_int (lt, wrap_int_bounds lt (Int64.shift_right l s))
+    | V_int (lt, _), _
+         when t = lt -> internal_error lc (Type_error (op, 2, vtype_of s, T_int Ast.u8_t))
+    | _, _           -> internal_error lc (Type_error (op, 1, vtype_of s, T_int t))
+
 
 let less_than t lc (l: value) (r: value) : value =
   match l, r with

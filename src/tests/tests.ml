@@ -32,6 +32,30 @@ let tests = [
                          A a {i: u8} := { a.i := u8_underflow(0u8, 1u8) }
                        }", "A",
      "", V_record ["i", V_int (Ast.u8_t, 255L)]);
+    ("i8_lshft_overflow", "fun i8_overflow(l: i8, r: u8) -> i8 =
+                       { l <<_i8 r }
+                       format {
+                         A a {i: i8} := { a.i := i8_overflow(127i8, 9u8) }
+                       }", "A",
+     "", V_record ["i", V_int (Ast.i8_t, -2L)]);
+    ("i8_lor_operator", "fun i8_operator(l: i8, r: i8) -> i8 =
+                       { l |_i8 r }
+                       format {
+                         A a {i: i8} := { a.i := i8_operator(127i8, -128i8) }
+                       }", "A",
+     "", V_record ["i", V_int (Ast.i8_t, -1L)]);
+    ("i8_xor_operator", "fun i8_operator(l: i8, r: i8) -> i8 =
+                       { l ^_i8 r }
+                       format {
+                         A a {i: i8} := { a.i := i8_operator(127i8, -1i8) }
+                       }", "A",
+     "", V_record ["i", V_int (Ast.i8_t, -128L)]);
+    ("i8_and_operator", "fun i8_operator(l: i8, r: i8) -> i8 =
+                       { l &_i8 r }
+                       format {
+                         A a {i: i8} := { a.i := i8_operator(127i8, -1i8) }
+                       }", "A",
+     "", V_record ["i", V_int (Ast.i8_t, 127L)]);
     ("trivial", "format { A := (# [\"A\"] #) }",  "A",
      "A", V_list [V_char 'A']);
     ("exact",   "format { A := (# [\"AB\"] #) }", "A",

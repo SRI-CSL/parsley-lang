@@ -48,9 +48,21 @@ operands and result type.  `<int_type>` can be either `i8`, `u8`,
 | `bitvector<'n> -> bitvector<'n>`
 | Bitwise complement
 
+| `~_<int_type>`
+| `<int_type> -> <int_type>`
+| Unary integer bitwise complement
+
 | `+_<int_type>`, `-_<int_type>`, `*_<int_type>`, `/_<int_type>`
 | `<int_type> -> <int_type> -> <int_type>`
 | Binary integer arithmetic operators
+
+| `&_<int_type>`, `|_<int_type>`, `^_<int_type>`
+| `<int_type> -> <int_type> -> <int_type>`
+| Binary integer bitwise operators
+
+| `<<_<int_type>`, `>>_<int_type>`, `>>_a<int_type>`
+| `<int_type> -> u8 -> <int_type>`
+| Binary integer bitwise shift operators
 
 | `<_<int_type>`, `<=_<int_type>`, `>_<int_type>`, `>=_<int_type>`
 | `<int_type> -> <int_type> -> bool`
