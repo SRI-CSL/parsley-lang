@@ -1,13 +1,20 @@
 Version 0.2.0
 -------------
 
-. The implementation of module system.
+. A module system for composing specifications.
 
 . The keyword `include` replaced `use` and has the same file-inclusion
   semantics.
 
 . `.` was removed as an indicator for the wildcard in regular
   expressions; `#` remains now as the only symbol for a wildcard.
+
+. Replacement of the `int` type with a numeric tower, comprising the
+  `{iu}{8,16,32,64,size}` types, their type-specific arithmetic and
+  bit-manipulation operators, and conversions between them.
+
+. Addition of a `$print_t` primitive to print textual or string-valued
+  data.
 
 Version 0.1.0
 -------------
