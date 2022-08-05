@@ -96,7 +96,7 @@ val empty_environment: environment
 (** [fold_type_info] folds over the environment focusing on type's
     information. *)
 val fold_type_info:
-  ('a -> (Ast.full_tname * type_info) -> 'a) -> 'a -> environment -> 'a
+  (Ast.full_tname -> type_info -> 'a -> 'a) -> 'a -> environment -> 'a
 
 (** Add a set of type variables into the environment, associating a
     name to each. *)

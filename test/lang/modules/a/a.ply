@@ -1,0 +1,29 @@
+// A base grammar.
+
+type my_list('a) =
+ | Null
+ | Cons of 'a * my_list<'a>
+
+fun cons <'a> (e : 'a, l : my_list<'a>) -> my_list<'a> = {
+  (case l of
+   | my_list::Null()     -> my_list::Cons(e, my_list::Null())
+   | my_list::Cons(_, _) -> my_list::Cons(e, l))
+}
+
+recfun len <'a> (l : my_list<'a>) -> usize = {
+  (case l of
+   | my_list::Null() -> 0u
+   | my_list::Cons(_, t) -> len(t)
+  )
+}
+
+type blist =
+ {vec: my_list<byte>,
+  len: usize}
+
+format {
+  ByteList bl {blist} :=
+    b=Byte l=ByteList { bl.vec := cons(b, l.vec);           bl.len := 1u +_u l.len }
+  ; b=Byte            { bl.vec := cons(b, my_list::Null()); bl.len := 1u }
+  ; $epsilon          { bl.vec := my_list::Null();          bl.len := 0u }
+}

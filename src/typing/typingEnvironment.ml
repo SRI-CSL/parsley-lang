@@ -97,6 +97,11 @@ type non_term_type = non_term_inh_type * non_term_syn_type
 
 (* Module type information indexed by fully-qualified names. *)
 
+(* type names *)
+module TNameMap = Map.Make(struct
+                      type t = full_tname
+                      let compare = AstUtils.qual_compare
+                    end)
 (* data constructors *)
 module DNameMap = Map.Make(struct
                       type t = full_dname
@@ -112,17 +117,22 @@ module VNameMap = Map.Make(struct
                       type t = full_vname
                       let compare = AstUtils.qual_compare
                     end)
+(* non-terminals *)
+module NNameMap = Map.Make(struct
+                      type t = full_nname
+                      let compare = AstUtils.qual_compare
+                    end)
 
 (* type signature of a value *)
 type val_info = MultiEquation.variable list * MultiEquation.crterm
 
 (** [environment] denotes typing information associated to identifiers. *)
 type environment =
-  {type_abbrev:        (full_tname, Location.t * type_abbrev) CoreEnv.t;
-   type_info:          (full_tname, type_info) CoreEnv.t;
-   data_constructor:   (full_dname, data_constructor) CoreEnv.t;
-   record_constructor: (full_tname, record_constructor) CoreEnv.t;
-   field_destructor:   (full_lname, field_destructor) CoreEnv.t;
+  {type_abbrev:        (Location.t * type_abbrev) TNameMap.t;
+   type_info:          type_info TNameMap.t;
+   data_constructor:   data_constructor DNameMap.t;
+   record_constructor: record_constructor TNameMap.t;
+   field_destructor:   field_destructor LNameMap.t;
 
    (* map constructors and destructors to their owning ADT *)
    datacon_adts: (full_tname * Location.t) DNameMap.t;
@@ -132,49 +142,49 @@ type environment =
    values:       (val_info * Location.t) VNameMap.t;
 
    (* non-terminal types *)
-   non_terms:    (full_nname, (non_term_type * Location.t)) CoreEnv.t;
+   non_terms:    (non_term_type * Location.t) NNameMap.t;
 
    (* current module *)
    cur_module:   string}
 
 let empty_environment =
-  {type_abbrev        = CoreEnv.empty;
-   type_info          = CoreEnv.empty;
-   data_constructor   = CoreEnv.empty;
-   record_constructor = CoreEnv.empty;
-   field_destructor   = CoreEnv.empty;
+  {type_abbrev        = TNameMap.empty;
+   type_info          = TNameMap.empty;
+   data_constructor   = DNameMap.empty;
+   record_constructor = TNameMap.empty;
+   field_destructor   = LNameMap.empty;
 
    datacon_adts = DNameMap.empty;
    field_adts   = LNameMap.empty;
    values       = VNameMap.empty;
 
-   non_terms    = CoreEnv.empty;
+   non_terms    = NNameMap.empty;
 
    cur_module   = ""}
 
 let add_type_variable env t (k, v) =
   assert (MultiEquation.((UnionFind.find v).kind) != Constant);
   {env with
-    type_info = CoreEnv.add env.type_info t (k, v, ref None)}
+    type_info = TNameMap.add t (k, v, ref None) env.type_info}
 
 let add_type_variables var_env env =
   let folder = fun env (x, ((_, v, _) as k)) ->
     assert (MultiEquation.((UnionFind.find v).kind) != Constant);
-    CoreEnv.add env x k in
+    TNameMap.add x k env in
   {env with
     type_info = List.fold_left folder env.type_info var_env}
 
 let add_type_abbrev env pos t x =
-  match CoreEnv.lookup_opt env.type_abbrev t with
+  match TNameMap.find_opt t env.type_abbrev with
     | None ->
-        {env with type_abbrev = CoreEnv.add env.type_abbrev t (pos, x)}
+        {env with type_abbrev = TNameMap.add t (pos, x) env.type_abbrev}
     | Some _ ->
         raise (Error (pos, DuplicateTypeDefinition t))
 
 let add_type_constructor env pos t x =
-  match CoreEnv.lookup_opt env.type_info t with
+  match TNameMap.find_opt t env.type_info with
     | None ->
-        {env with type_info = CoreEnv.add env.type_info t x}
+        {env with type_info = TNameMap.add t x env.type_info}
     | Some _ ->
         raise (Error (pos, DuplicateTypeDefinition t))
 
@@ -183,13 +193,13 @@ let add_data_constructor env loc ((m,_) as adt) dc x =
   match DNameMap.find_opt mdc env.datacon_adts with
     | None ->
         {env with
-          data_constructor = CoreEnv.add env.data_constructor mdc x;
+          data_constructor = DNameMap.add mdc x env.data_constructor;
           datacon_adts     = DNameMap.add mdc (adt, loc) env.datacon_adts}
     | Some (adt, loc') ->
         raise (Error (loc, DuplicateDataConstructor (mdc, adt, loc')))
 
 let add_record_constructor env adt x =
-  {env with record_constructor = CoreEnv.add env.record_constructor adt x}
+  {env with record_constructor = TNameMap.add adt x env.record_constructor}
 
 let add_field_destructor env loc ((m,_) as adt) ((m',_) as mfd) f =
   (if   AstUtils.mod_compare m m' != 0
@@ -197,7 +207,7 @@ let add_field_destructor env loc ((m,_) as adt) ((m',_) as mfd) f =
   match LNameMap.find_opt mfd env.field_adts with
     | None ->
         {env with
-          field_destructor = CoreEnv.add env.field_destructor mfd f;
+          field_destructor = LNameMap.add mfd f env.field_destructor;
           field_adts       = LNameMap.add mfd (adt, loc) env.field_adts}
     | Some (adt, loc') ->
         raise (Error (loc, DuplicateRecordField (mfd, adt, loc')))
@@ -214,27 +224,27 @@ let crterm_of_non_term_type = function
   | NTT_record (v, _) -> CoreAlgebra.TVariable v
 
 let add_non_terminal env loc nt x =
-  match CoreEnv.lookup_opt env.non_terms nt with
+  match NNameMap.find_opt nt env.non_terms with
     | None ->
-        {env with non_terms = CoreEnv.add env.non_terms nt (x, loc)}
+        {env with non_terms = NNameMap.add nt (x, loc) env.non_terms}
     | Some (_, ploc) ->
         raise (Error (loc, DuplicateNonTerminal (nt, ploc)))
 
 let lookup_non_term env nt =
-  match CoreEnv.lookup_opt env.non_terms nt with
+  match NNameMap.find_opt nt env.non_terms with
     | None -> None
     | Some ((inh, syn), _) ->
         Some (inh, crterm_of_non_term_type syn, syn)
 
 let lookup_non_term_type env nt =
-  match CoreEnv.lookup_opt env.non_terms nt with
+  match NNameMap.find_opt nt env.non_terms with
     | None -> None
     | Some ((_, syn), _) -> Some (crterm_of_non_term_type syn)
 
 (** [lookup_typcon ?pos env t] retrieves typing information about
     the type constructor [t]. *)
 let lookup_typcon ?pos env t =
-  match CoreEnv.lookup_opt env.type_info t with
+  match TNameMap.find_opt t env.type_info with
     | Some ((_, v, _) as x)
          when MultiEquation.((UnionFind.find v).kind) = Constant ->
         x
@@ -244,7 +254,7 @@ let lookup_typcon ?pos env t =
 (** [find_typcon env t] looks for typing information related to
     the type constructor [t] in [env]. *)
 let find_typcon env t =
-  match CoreEnv.lookup_opt env.type_info t with
+  match TNameMap.find_opt t env.type_info with
     | Some ((_, v, _) as x)
          when MultiEquation.((UnionFind.find v).kind) = Constant ->
         Some x
@@ -254,7 +264,7 @@ let find_typcon env t =
 (** [lookup_type_variable env v] looks for typing information related to
     the type variable [v] in [env]. *)
 let lookup_type_variable ?pos env k =
-  match CoreEnv.lookup_opt env.type_info k with
+  match TNameMap.find_opt k env.type_info with
     | Some (_, v, _) ->
         CoreAlgebra.TVariable v
     | None ->
@@ -270,7 +280,7 @@ let lookup_value pos env vid =
 let as_kind_env env =
   let env = ref env in
   let read id loc =
-    match CoreEnv.lookup_opt (!env).type_info id with
+    match TNameMap.find_opt id (!env).type_info with
       | Some (k, _, _) ->
           k
       | None ->
@@ -281,7 +291,7 @@ let as_kind_env env =
   (update : full_tname -> KindInferencer.t -> unit)
 
 let fold_type_info f init env =
-  CoreEnv.fold_left f init env.type_info
+  TNameMap.fold f env.type_info init
 
 (* Some accessors. *)
 
@@ -296,21 +306,21 @@ let as_fun tenv name =
 (** [lookup_adt env t] gives access to the typing information for the
     type with name [t]. *)
 let lookup_adt env t =
-  match CoreEnv.lookup_opt env.type_info t with
+  match TNameMap.find_opt t env.type_info with
     | Some (_, _, adt_ref) -> !adt_ref
     | None                 -> None
 
 (** [lookup_type_abbreviation env t] returns the type abbreviation for [t]
     if present in the environment *)
 let lookup_type_abbrev env t =
-  match CoreEnv.lookup_opt env.type_abbrev t with
+  match TNameMap.find_opt t env.type_abbrev with
     | Some (_, te) -> Some te
     | None         -> None
 
 (** [is_{defined,variant,record}_type env t] check whether the type
     with name [t] is defined in [env] and is of the appropriate type. *)
 let is_defined_type env t =
-  match CoreEnv.lookup_opt env.type_info t with
+  match TNameMap.find_opt t env.type_info with
     | Some _ -> true
     | None   -> false
 
@@ -332,21 +342,21 @@ let get_record_info env t =
 (** [lookup_datacon env k] looks for typing information related to
     the fully qualified data constructor [k] in [env]. *)
 let lookup_datacon env pos k =
-  match CoreEnv.lookup_opt env.data_constructor k with
+  match DNameMap.find_opt k env.data_constructor with
     | Some x -> x
     | None   -> raise (Error (pos, UnboundDataConstructor k))
 
 (** [lookup_field_destructor env f] looks for typing information
     for the destructor of the record field [f] in [env]. *)
 let lookup_field_destructor env pos f =
-  match CoreEnv.lookup_opt env.field_destructor f with
+  match LNameMap.find_opt f env.field_destructor with
     | Some x -> x
     | None   -> raise (Error (pos, UnboundRecordField f))
 
 (** [lookup_record_constructor env adt] looks for typing information
     for the constructor of the record [adt] in [env]. *)
 let lookup_record_constructor env pos adt =
-  match CoreEnv.lookup_opt env.record_constructor adt with
+  match TNameMap.find_opt adt env.record_constructor with
     | Some x -> x
     | None   -> raise (Error (pos, UnboundRecord adt))
 

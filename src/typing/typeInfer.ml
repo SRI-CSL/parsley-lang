@@ -2457,7 +2457,7 @@ let init_env () =
 
   (* Extract the variables bound to the type constructors. *)
   let vs =
-    fold_type_info (fun vs (_n, (_, v, _)) -> v :: vs) [] init_tenv in
+    fold_type_info (fun _n (_, v, _) vs -> v :: vs) [] init_tenv in
 
   (* The initial environment is implemented as a constraint context. *)
   init_tenv,

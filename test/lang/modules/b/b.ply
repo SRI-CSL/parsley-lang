@@ -1,0 +1,17 @@
+// An importing grammar
+// This needs to be compiled with -I a:
+// ./parsleyc.exe check -I test/lang/modules/a test/lang/modules/b/b.ply
+
+import A  // found using the -I switch above
+
+type hdr =
+  {hdr:  A.my_list<byte>,  // external type
+   llen: usize,            // provided length
+   hlen: usize}            // computed length
+
+format {
+  Header h {hdr} :=
+    bl=A.ByteList  { h.hdr  := bl.(A.vec);
+                     h.hlen := A.len(bl.(A.vec));
+                     h.llen := bl.(A.len) }
+}

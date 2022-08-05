@@ -74,6 +74,10 @@ open Parseerror
 %left  DOT
 
 %{
+type type_args =
+  | TA_args of raw_mod gen_type_expr list
+  | TA_int  of int * Lexing.position * Lexing.position
+
 let parse_error e loc =
   raise (Error (e, loc))
 
@@ -121,6 +125,38 @@ let make_bitint n b e =
 let make_type_expr t b e =
   {type_expr     = t;
    type_expr_loc = Location.mk_loc b e}
+
+let make_type c args s e =
+  match c, args with
+    | (None,   id), None ->
+        AstUtils.make_raw_tname_id id
+    | (Some m, id), None ->
+        AstUtils.make_raw_mod_tname_id m id
+    | (None,   id), Some (TA_args l) ->
+        let c = AstUtils.make_raw_tname_id id in
+        make_type_expr (TE_tapp (c, l)) s e
+    | (Some m, id), Some (TA_args l) ->
+        let c = AstUtils.make_raw_mod_tname_id m id in
+        make_type_expr (TE_tapp (c, l)) s e
+    | (None, id),   Some (TA_int (i, si, ei)) ->
+        let tc = Location.value id in
+        let li = Location.mk_loc si ei in
+        if   tc <> "bitvector"
+        then let err = Invalid_bitvector_constructor tc in
+             parse_error err (Location.loc id)
+        else if i <= 0
+        then let err = Nonpositive_bitvector_width i in
+             parse_error err li
+        else let n = string_of_int i in
+             let n = Location.mk_loc_val n li in
+             let n = AstUtils.make_raw_tname_id n in
+             let t = AstUtils.make_raw_tname_id id in
+             register_bitwidth i;
+             make_type_expr (TE_tapp (t, [n])) s e
+    | (Some _, id), Some (TA_int _) ->
+        let tc = Location.value id in
+        let err = Invalid_bitvector_constructor tc in
+        parse_error err (Location.loc id)
 
 let make_unit_type b e =
   let loc = Location.mk_loc b e in
@@ -290,37 +326,31 @@ raw_int:
 | LPAREN i=raw_int RPAREN
   { i }
 
+type_id:
+| i=ident
+  { (None, i) }
+| m=UID DOT i=ident
+  { (Some m, i) }
+
+type_args:
+| LANGLE l=separated_list(COMMA, type_expr) RANGLE
+  { TA_args l }
+| LANGLE i=raw_int RANGLE
+  { TA_int (i, $startpos(i), $endpos(i)) }
+
 type_expr:
 | tv=TVAR
   { AstUtils.make_tvar tv }
-| i=ident
-  { AstUtils.make_raw_type_app_id i [] (Location.mk_loc $startpos $endpos) }
 | LPAREN l=separated_list(COMMA, type_expr) RPAREN
-  { if List.length l = 0
+  { if   List.length l = 0
     then make_unit_type $startpos $endpos
     else if List.length l = 1
     then List.nth l 0
     else make_tuple_type l }
 | LBRACK t=type_expr RBRACK
   { make_list_type t $startpos $endpos }
-| d=def LANGLE i=raw_int RANGLE
-  { let tc = Location.value d in
-    let li = Location.mk_loc $startpos(i) $endpos(i) in
-    if   tc <> "bitvector"
-    then let err = Invalid_bitvector_constructor tc in
-         parse_error err (Location.loc d)
-    else if i <= 0
-    then let err = Nonpositive_bitvector_width i in
-         parse_error err li
-    else let n = string_of_int i in
-         let n = Location.mk_loc_val n li in
-         let n = AstUtils.make_raw_tname_id n in
-         let t = AstUtils.make_raw_tname_id d in
-         register_bitwidth i;
-         make_type_expr (TE_tapp (t, [n])) $startpos $endpos }
-| d=def LANGLE l=separated_list(COMMA, type_expr) RANGLE
-  { let c = AstUtils.make_raw_tname_id d in
-    make_type_expr (TE_tapp (c, l)) $startpos $endpos }
+| tc=type_id args=option(type_args)
+  { make_type tc args $startpos $endpos }
 
 variant:
 | i=UID

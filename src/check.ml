@@ -29,10 +29,8 @@ let parse_spec ckopts sopts spec_file =
   spec
 
 let show_types tenv env wc =
-  (* TODO: extend to a type reconstructor, i.e. map a solved
-     constraint variable back to the source type info. *)
   TypingEnvironment.fold_type_info
-    (fun _ ((m, Ast.TName n), (_k, v, _adt)) ->
+    (fun (m, Ast.TName n) (_k, v, _adt) _ ->
       Printf.printf "type %s = %s\n"
         ((AstUtils.mk_modprefix m) ^ n)
         (TypeEnvPrinter.print_variable true v)

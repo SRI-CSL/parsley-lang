@@ -118,6 +118,11 @@ let make_raw_tname_id (id: ident) : raw_type_expr =
   {type_expr     = TE_tname (Modul None, id);
    type_expr_loc = loc}
 
+let make_raw_mod_tname_id (m: modident) (id: ident) : raw_type_expr =
+  let loc = Location.extent (Location.loc m) (Location.loc id) in
+  {type_expr     = TE_tname (Modul (Some m), id);
+   type_expr_loc = loc}
+
 let make_tname_id (m: mname) (id: ident) : type_expr =
   let loc = Location.loc id in
   {type_expr     = TE_tname (m, id);
@@ -132,6 +137,12 @@ let make_raw_type_app (name: string) (args: raw_type_expr list) loc
 let make_raw_type_app_id (id: ident) (args: raw_type_expr list) loc
     : raw_type_expr =
   let c = make_raw_tname_id id in
+  {type_expr     = TE_tapp (c, args);
+   type_expr_loc = loc}
+
+let make_raw_type_app_mod_id (m: modident) (id: ident) (args: raw_type_expr list) loc
+    : raw_type_expr =
+  let c = make_raw_mod_tname_id m id in
   {type_expr     = TE_tapp (c, args);
    type_expr_loc = loc}
 
