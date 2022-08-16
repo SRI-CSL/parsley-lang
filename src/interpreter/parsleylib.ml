@@ -262,7 +262,7 @@ module PBits = struct
                 else let i = Int64.shift_left i 1 in
                      let b = if b then Int64.one else Int64.zero in
                      Int64.logor i b, cnt + 1
-              ) (Int64.zero, 0) (List.rev bs) in
+              ) (Int64.zero, 0) bs in
           V_int i
       | _ ->
           internal_error lc (Type_error ("Bits.to_uint", 1, vtype_of v, T_bitvector))
@@ -282,7 +282,7 @@ module PBits = struct
                 else let i = Int64.shift_left i 1 in
                      let b = if b then Int64.one else Int64.zero in
                      Int64.logor i b, cnt + 1
-              ) (Int64.zero, 0) (List.rev bs) in
+              ) (Int64.zero, 0) bs in
           V_int (if s then Int64.neg i else i)
 
       | _ ->
