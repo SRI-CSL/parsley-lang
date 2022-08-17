@@ -455,6 +455,23 @@ let tests = [
      "SB", "jnktgabc", V_record ["sb", V_list [V_char 't'; V_char 'g'; V_char 'a'; V_char 'b'; V_char 'c'];
                                  "off1", V_int (Ast.usize_t, 7L);
                                  "off2", V_int (Ast.usize_t, 3L)]);
+    ("bv_int_conv", "format { Bits b {v1: u8, v2: u8, v3: u32} :=
+                                 v1=BitVector<3>
+                                 v2=BitVector<5>
+                                 v3=BitVector<24>
+                                 { b.v1 := Bits.to_u8(v1);
+                                   b.v2 := Bits.to_u8(v2);
+                                   b.v3 := Bits.to_u32(v3) }}",
+     "Bits", "\x11\x00\x01\x02", V_record ["v1", V_int (Ast.u8_t, 0L);
+                                           "v2", V_int (Ast.u8_t, 0x11L);
+                                           "v3", V_int (Ast.u32_t,0x0102L)]);
+    ("bv_int_conv_endian", "format { Bits b {v1: u16, v2: u32} :=
+                              v1=BitVector<16>
+                              v2=BitVector<24>
+                              { b.v1 := Bits.to_u16_endian(endian::Big(), v1);
+                                b.v2 := Bits.to_u32_endian(endian::Little(), v2) }}",
+     "Bits", "\x01\x02\x00\x01\x02", V_record ["v1", V_int (Ast.u16_t, 0x0102L);
+                                               "v2", V_int (Ast.u32_t, 0x20100L)]);
   ]
 
 let do_tests print_ir gen_ir exe_ir =

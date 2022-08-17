@@ -93,16 +93,6 @@ let digit lc (vu: view) : val_result =
 let digit_s lc (vu: view) : val_result =
   general_byte lc vu "DigitS" digit_pred true
 
-(* internal helpers for binary integer parsing *)
-
-type endian =
-  | E_little
-  | E_big
-
-type signed =
-  | S_unsigned
-  | S_signed
-
 let int_of_byte lc (vu: view) (nt: string) : (int * view) match_result =
   let buf  = vu.vu_buf in
   let ofs  = vu.vu_ofs in

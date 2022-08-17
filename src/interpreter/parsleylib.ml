@@ -18,9 +18,21 @@
 (* The standard library for Parsley *)
 
 open Parsing
+open Ir
 open Values
 open Runtime_exceptions
 open Internal_errors
+
+let endian_of (v: value) : endian option =
+  match v with
+    | V_constr (_, l) when List.length l > 0 ->
+        None
+    | V_constr ((Anf.M_stdlib, t, c), _) when t = "endian" && c = "Big" ->
+        Some E_big
+    | V_constr ((Anf.M_stdlib, t, c), _) when t = "endian" && c = "Little" ->
+        Some E_little
+    | _ ->
+        None
 
 (* Please ensure that the modules and functions below follow the order
    in typeAlgebra.ml.  The modules use the 'P' prefix to avoid
@@ -345,6 +357,35 @@ module PString = struct
           internal_error lc (Type_error ("String.of_literal", 1, vtype_of v, T_string))
 end
 
+(* assumes big-endian byte order *)
+let bits_to_int lc fn (t: Ast.num_t) (bs: bool list) : Int64.t =
+  let width = Builtins.get_width t in
+  let i, _ =
+    List.fold_left (fun (i, cnt) b ->
+        if   cnt >= width
+        then fault lc (Overflow fn)
+        else let i = Int64.shift_left i 1 in
+             let b = if b then 1L else 0L in
+             Int64.logor i b, cnt + 1
+      ) (0L, 0) bs in
+  Builtins.wrap_int_bounds t i
+
+let make_big_endian (bs: bool list) : bool list =
+  let bytes, bits, _ =
+    List.fold_left (fun (bytes, bits, bit_ofs) b ->
+        let bits = b :: bits in
+        if   bit_ofs = 7
+        then let byte = List.rev bits in
+             (byte @ bytes), [], 0
+        else bytes, bits, bit_ofs + 1
+      ) ([], [], 0) bs in
+  List.rev bits @ bytes
+
+let bits_by_endian (e: endian) (bs: bool list) : bool list =
+  match e with
+    | E_big -> bs
+    | E_little -> make_big_endian bs
+
 module PBits = struct
   (* TODO: safe version of this conversion *)
   let to_int t lc (v: value) : value =
@@ -353,19 +394,27 @@ module PBits = struct
       | V_bitvector [] ->
           fault lc (Invalid_argument (fn, "0-length bitvector"))
       | V_bitvector bs ->
-          let width = Builtins.get_width t in
-          let i, _ =
-            List.fold_left (fun (i, cnt) b ->
-                if   cnt >= width
-                then fault lc (Overflow fn)
-                else let i = Int64.shift_left i 1 in
-                     let b = if b then 1L else 0L in
-                     Int64.logor i b, cnt + 1
-              ) (0L, 0) bs in
-          let i = Builtins.wrap_int_bounds t i in
+          let i = bits_to_int lc fn t bs in
           V_int (t, i)
       | _ ->
           internal_error lc (Type_error (fn, 1, vtype_of v, T_bitvector))
+
+  let to_int_endian t lc (e: value) (v: value) : value =
+    let fn = "Bits.to_" ^ Ast.str_of_num_t t ^ "_endian" in
+    let e = match endian_of e with
+        | Some e ->
+            e
+        | None ->
+            internal_error lc (Type_error (fn, 1, vtype_of e, T_adt "endian")) in
+    match v with
+      | V_bitvector [] ->
+          fault lc (Invalid_argument (fn, "0-length bitvector"))
+      | V_bitvector bs ->
+          let bs = bits_by_endian e bs in
+          let i = bits_to_int lc fn t bs in
+          V_int (t, i)
+      | _ ->
+          internal_error lc (Type_error (fn, 2, vtype_of v, T_bitvector))
 
   let to_bool lc (v: value) : value =
     match v with
@@ -820,8 +869,6 @@ let mk_dtable () : dtable =
       ("String", "of_bytes_unsafe"),  PString.of_bytes_unsafe;
       ("String", "of_literal"),       PString.of_literal;
 
-      ("Bits", "to_isize"),           PBits.to_int Ast.isize_t;
-      ("Bits", "to_usize"),           PBits.to_int Ast.usize_t;
       ("Bits", "to_i8"),              PBits.to_int Ast.i8_t;
       ("Bits", "to_u8"),              PBits.to_int Ast.u8_t;
       ("Bits", "to_i16"),             PBits.to_int Ast.i16_t;
@@ -830,6 +877,8 @@ let mk_dtable () : dtable =
       ("Bits", "to_u32"),             PBits.to_int Ast.u32_t;
       ("Bits", "to_i64"),             PBits.to_int Ast.i64_t;
       ("Bits", "to_u64"),             PBits.to_int Ast.u64_t;
+      ("Bits", "to_isize"),           PBits.to_int Ast.isize_t;
+      ("Bits", "to_usize"),           PBits.to_int Ast.usize_t;
 
       ("Bits", "to_bool"),            PBits.to_bool;
       ("Bits", "of_bool"),            PBits.of_bool;
@@ -839,6 +888,15 @@ let mk_dtable () : dtable =
       ("Bits", "zeros"),              PBits.zeros;
     ] in
   let arg2s = [
+      ("Bits", "to_i16_endian"),      PBits.to_int_endian Ast.i16_t;
+      ("Bits", "to_u16_endian"),      PBits.to_int_endian Ast.u16_t;
+      ("Bits", "to_i32_endian"),      PBits.to_int_endian Ast.i32_t;
+      ("Bits", "to_u32_endian"),      PBits.to_int_endian Ast.u32_t;
+      ("Bits", "to_i64_endian"),      PBits.to_int_endian Ast.i64_t;
+      ("Bits", "to_u64_endian"),      PBits.to_int_endian Ast.u64_t;
+      ("Bits", "to_isize_endian"),    PBits.to_int_endian Ast.isize_t;
+      ("Bits", "to_usize_endian"),    PBits.to_int_endian Ast.usize_t;
+
       ("List", "cons"),               PList.cons;
       ("List", "concat"),             PList.concat;
       ("List", "index"),              PList.index;

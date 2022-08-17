@@ -290,9 +290,9 @@ or underflow their type. That is, `0u8 -_u 1u8` evaluates to `255u`,
 and `127_i8 +_i8 1_i8` to `-128_i8`.
 
 Integer types are also equipped with bitwise logical operators: unary
-bitwise _negation_ (`~_`), and binary bitwise _and_ (`&_`), _or_
-(`|_`) and _xor_ (`^_`); and with bitwise shift operators: _left
-shift_ (`<<_`), _logical right shift_ (`>>_`), and _arithmetic right
+bitwise _negation_ (`+~_+`), and binary bitwise _and_ (`+&_+`), _or_
+(`+|_+`) and _xor_ (`+^_+`); and with bitwise shift operators: _left
+shift_ (`+<<_+`), _logical right shift_ (`+>>_+`), and _arithmetic right
 shift_ (`>>_a`).  These operators are also suffixed with their operand
 type.  The shift value for the shift operators has type `u8`, and the
 value is masked to ensure that the shift cannot be more than the

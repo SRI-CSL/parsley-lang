@@ -160,7 +160,11 @@ throws an exception if conversion fails
 
 | `to_<int_type>`
 | `bitvector<'n> -> <int_type>`
-| integer value of a bitvector
+| integer value of a bitvector (Bytes are in big-endian order; i.e. the last or rightmost eight bits in the bitvector form the least-significant byte.)
+
+| `to_<int_type>_endian`
+| `endian -> bitvector<'n> -> <int_type>`
+| integer value of a bitvector with bytes in specified endianness (This is equivalent to `to_<int_type>` when endian is specified as `endian::Big()`.  When endian is `endian::Little()`, the first or leftmost eight bits form the least-significant byte.)
 
 | `to_bool`
 | `bit -> bool`

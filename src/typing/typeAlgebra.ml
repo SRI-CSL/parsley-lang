@@ -1030,6 +1030,33 @@ let builtin_types, builtin_ops, builtin_values,
             arrow_type (bitvector_type (gen_tvar "a")) i64_t);
            (Ast.VName "to_u64", [ TName "a" ],
             arrow_type (bitvector_type (gen_tvar "a")) u64_t);
+
+           (* with endianness.  TODO: safe versions *)
+           (Ast.VName "to_i16_endian", [ TName "a" ],
+            arrow_type endian_t
+              (arrow_type (bitvector_type (gen_tvar "a")) i16_t));
+           (Ast.VName "to_u16_endian", [ TName "a" ],
+            arrow_type endian_t
+              (arrow_type (bitvector_type (gen_tvar "a")) u16_t));
+           (Ast.VName "to_i32_endian", [ TName "a" ],
+            arrow_type endian_t
+              (arrow_type (bitvector_type (gen_tvar "a")) i32_t));
+           (Ast.VName "to_u32_endian", [ TName "a" ],
+            arrow_type endian_t
+              (arrow_type (bitvector_type (gen_tvar "a")) u32_t));
+           (Ast.VName "to_i64_endian", [ TName "a" ],
+            arrow_type endian_t
+              (arrow_type (bitvector_type (gen_tvar "a")) i64_t));
+           (Ast.VName "to_u64_endian", [ TName "a" ],
+            arrow_type endian_t
+              (arrow_type (bitvector_type (gen_tvar "a")) u64_t));
+           (Ast.VName "to_isize_endian", [ TName "a" ],
+            arrow_type endian_t
+              (arrow_type (bitvector_type (gen_tvar "a")) isize_t));
+           (Ast.VName "to_usize_endian", [ TName "a" ],
+            arrow_type endian_t
+              (arrow_type (bitvector_type (gen_tvar "a")) usize_t));
+
            (Ast.VName "to_bool", [], arrow_type bit_t bool_t);
            (Ast.VName "of_bool", [], arrow_type bool_t bit_t);
            (Ast.VName "to_bit", [],

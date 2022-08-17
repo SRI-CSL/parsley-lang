@@ -48,6 +48,16 @@ type view =
    vu_ofs:    int;     (* cursor, i.e. index for next read *)
    vu_end:    int}
 
+(* internal types for bitvectors and binary integers *)
+
+type signed =
+  | S_unsigned
+  | S_signed
+
+type endian =
+  | E_little
+  | E_big
+
 (* the values of the expression language.  sets and maps have an
    inefficient representation since the Set and Map functors in
    OCaml's stdlib give predicative types, and those in `value` are

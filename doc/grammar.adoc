@@ -626,6 +626,46 @@ next 9 bits converted into a bitfield `bf` and stored in attribute
 If `$bitfield(bf)` matches `0b100000011` above, `f.top` will be `0b10`
 and `f.bot` will be `0b0000011`.
 
+==== Endianness
+
+Endianness concerns arise when using bitvectors that are longer than 8
+bits or that straddle byte boundaries.  The bytes containing the bits
+being parsed are traversed in a left-to-right manner, i.e. in the
+direction of increasing byte offset into the parse buffer.  This
+implies that the bytes in a long bitvector appear in a big-endian
+order.  This needs to be accounted for when converting bitvectors into
+integers.
+
+For example, if the non-terminal `Bits` below is used to parse the
+four bytes `0x11000102`, the values of `b.v1`, `b.v2` and `b.v3`
+will be `0_u8`, `17_u8` and `258_u32` respectively.
+
+....
+  format {
+    Bits b {v1: u8, v2: u8, v3: u32} :=
+      v1=BitVector<3> v2=BitVector<5> v3=BitVector<24> // matches 4-bytes
+      { b.v1 := Bits.to_u8(v1);
+        b.v2 := Bits.to_u8(v2);
+        b.v3 := Bits.to_u32(v3) }
+....
+
+The `Bits` module contains integer conversion routines that take an
+endianness specification, such as `to_u16_endian`,
+`to_i32_endian`, etc.  The first or leftmost eight bits in a
+little-endian bitvector are considered to form the least-significant
+byte, whereas for a big-endian bitvector, the last or rightmost eight
+bits are considered to form the least-significant byte.
+
+A little-endian conversion of the 24-bit `v3` can be computed using
+`Bits.to_u32_endian`, resulting in `b.v3` taking the value `131328_u32`.
+
+....
+        b.v3 := Bits.to_u32_endian(endian::Little(), v3)
+....
+
+As the example above shows, the default integer conversion of a
+parsed bitvector treats the bytes within it in big-endian order.
+
 == Annotations
 
 Parsley provides an annotation scheme that can be used to provide
