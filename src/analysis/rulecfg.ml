@@ -999,6 +999,10 @@ let build_init_bindings (init_venv: VEnv.t) (tspec: (typ, varid) spec_module) =
             List.fold_left (fun e f ->
                 References.add (mk_elem f.fun_defn_ident) e
               ) init r.recfuns
+        | Decl_foreign fs ->
+            List.fold_left (fun e f ->
+                References.add (mk_elem f.ffi_decl_ident) e
+              ) init fs
     ) init tspec.decls
 
 (* To build a complete list of all the nested field references of an
@@ -1181,7 +1185,8 @@ let check_spec init_envs (tenv: TE.environment) (tspec: (typ, varid) spec_module
   let init = build_init_bindings init_venv tspec in
   List.iter (fun d ->
       match d with
-        | Decl_types _ | Decl_fun _ | Decl_recfuns _ | Decl_const _ -> ()
+        | Decl_types _ | Decl_const _
+        | Decl_fun _   | Decl_recfuns _ | Decl_foreign _ -> ()
         | Decl_format f ->
             List.iter (fun fd ->
                 check_non_term tenv init fd.format_decl

@@ -24,21 +24,21 @@ let version = "0.2.0"
 
 let test copts : unit =
   Options.process_copts copts;
-  Tests.do_tests copts.co_verbose Test.gen_ir Test.exe_ir
+  Test.run_tests copts.co_verbose Test.gen_ir Test.exe_ir
 
 let check copts ckopts sopts spec_file : unit =
   Options.process_copts copts;
   Options.process_ckopts ckopts;
   Check.check_spec copts.co_verbose ckopts sopts spec_file
 
-let execute copts sopts xopts loop start spec_file data_file : unit =
+let execute copts sopts xopts load_externals loop start spec_file data_file : unit =
   Options.process_copts copts;
   let verbose = copts.co_verbose in
   let ckopts = Options.default_ckopts in
   let spec = Check.ir_of_spec verbose ckopts sopts spec_file in
   let m = Parsing.AstUtils.modname_of_file spec_file in
   Execute.execute verbose xopts.exe_show_data_as_ascii
-    loop m start spec data_file
+    load_externals loop m start spec data_file
 
 (* TODO: help command *)
 
@@ -141,6 +141,11 @@ let start : string Term.t =
   let doc  = "The start (or entry) non-terminal for the parse." in
   Arg.(required & (opt (some string) None & info ["s"; "start"] ~doc ~docv))
 
+let load_externals : bool Term.t =
+  let doc =
+    "Load foreign function implementations." in
+  Arg.(value & flag & info ["f"; "with-foreign"] ~doc)
+
 let loop : bool Term.t =
   let doc =
     "Parse the data as repeated instances of the given format." in
@@ -161,7 +166,8 @@ let check_cmd : unit Cmd.t =
 let execute_cmd : unit Cmd.t =
   let doc  = "parse the given data using the given specification" in
   let info = Cmd.info "execute" ~doc in
-  Cmd.v info Term.(const execute $ copts_t $ sopts_t $ exopts_t $ loop $ start $ spec $ data)
+  Cmd.v info Term.(const execute $ copts_t $ sopts_t $ exopts_t
+                   $ load_externals $ loop $ start $ spec $ data)
 
 (* top-level command *)
 let main_cmd : unit Cmd.t =

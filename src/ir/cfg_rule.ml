@@ -1262,7 +1262,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
      nt_used_vars = new_vars;
      nt_loc       = ntd.non_term_loc} in
   (* Add it to the grammar ToC. *)
-  let toc = FormatGToC.add (m, nt_name) nte ctx.ctx_gtoc in
+  let toc = ValueMap.add (m, nt_name) nte ctx.ctx_gtoc in
   {ctx with ctx_gtoc     = toc;
             ctx_failcont = orig_failcont}
 

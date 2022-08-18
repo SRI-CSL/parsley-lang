@@ -144,7 +144,7 @@ type call_frame =
 
 and state =
   {(* static state *)
-   st_spec_toc:     Cfg.nt_entry Cfg.FormatGToC.t;
+   st_spec_toc:     Cfg.nt_entry Cfg.ValueMap.t;
    st_spec_ir:      Cfg.closed Cfg.LabelMap.t;
    (* static state only for debugging *)
    st_ir_tenv:      TypingEnvironment.environment;
@@ -174,7 +174,7 @@ let get_block lc (s: state) (l: Cfg.label) : Cfg.closed =
 
 let get_ntentry (s: state) ((m, nt): Anf.modul * Ast.ident) : Cfg.nt_entry =
   let ntn = Location.value nt in
-  match Cfg.FormatGToC.find_opt (m, ntn) s.st_spec_toc with
+  match Cfg.ValueMap.find_opt (m, ntn) s.st_spec_toc with
     | None ->
         let err = Internal_errors.No_nonterm_entry nt in
         internal_error (Location.loc nt) err
@@ -184,4 +184,4 @@ let get_ntentry (s: state) ((m, nt): Anf.modul * Ast.ident) : Cfg.nt_entry =
 (* An error in looking up the entry non-terminal is not an internal
    error. *)
 let get_init_ntentry (s: state) (nt: Anf.modul * string) : Cfg.nt_entry option =
-  Cfg.FormatGToC.find_opt nt s.st_spec_toc
+  Cfg.ValueMap.find_opt nt s.st_spec_toc

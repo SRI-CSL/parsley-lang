@@ -647,6 +647,7 @@ will be `0_u8`, `17_u8` and `258_u32` respectively.
       { b.v1 := Bits.to_u8(v1);
         b.v2 := Bits.to_u8(v2);
         b.v3 := Bits.to_u32(v3) }
+  }
 ....
 
 The `Bits` module contains integer conversion routines that take an

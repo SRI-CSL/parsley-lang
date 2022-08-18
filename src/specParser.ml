@@ -97,6 +97,8 @@ let rec flatten ((decls, imps) as accum) includes pending =
                flatten (PDecl_fun f :: decls, imps) includes rest
            | PDecl_recfuns r ->
                flatten (PDecl_recfuns r :: decls, imps) includes rest
+           | PDecl_foreign fs ->
+               flatten (PDecl_foreign fs :: decls, imps) includes rest
            | PDecl_format f ->
                flatten (PDecl_format f :: decls, imps) includes rest
            | PDecl_include i ->

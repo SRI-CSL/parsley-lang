@@ -22,6 +22,14 @@ open Ir
 open Values
 open Runtime_exceptions
 open Internal_errors
+open Fi
+
+(* common helpers *)
+
+let cond lc (v: value) : bool =
+  match v with
+    | V_bool b -> b
+    | _ -> internal_error lc (Type_error ("cond", 1, vtype_of v, T_bool))
 
 let endian_of (v: value) : endian option =
   match v with
@@ -74,6 +82,37 @@ module PByte = struct
           V_int (t, Int64.of_int (Char.code c))
       | _ ->
           internal_error lc (Type_error (fn, 1, vtype_of v, T_char))
+
+  module Byte : PARSLEY_MOD = struct
+    let name = "Byte"
+
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "of_i8",              of_int_checked Ast.i8_t;
+        "of_u8",              of_int_checked Ast.u8_t;
+        "of_i16",             of_int_checked Ast.i16_t;
+        "of_u16",             of_int_checked Ast.u16_t;
+        "of_i32",             of_int_checked Ast.i32_t;
+        "of_u32",             of_int_checked Ast.u32_t;
+        "of_i64",             of_int_checked Ast.i64_t;
+        "of_u64",             of_int_checked Ast.u64_t;
+        "of_isize",           of_int_checked Ast.isize_t;
+        "of_usize",           of_int_checked Ast.usize_t;
+
+        "of_i8_wrapped",      of_int_wrapped Ast.i8_t;
+        "of_u8_wrapped",      of_int_wrapped Ast.u8_t;
+        "of_i16_wrapped",     of_int_wrapped Ast.i16_t;
+        "of_u16_wrapped",     of_int_wrapped Ast.u16_t;
+        "of_i32_wrapped",     of_int_wrapped Ast.i32_t;
+        "of_u32_wrapped",     of_int_wrapped Ast.u32_t;
+        "of_i64_wrapped",     of_int_wrapped Ast.i64_t;
+        "of_u64_wrapped",     of_int_wrapped Ast.u64_t;
+        "of_isize_wrapped",   of_int_wrapped Ast.isize_t;
+        "of_usize_wrapped",   of_int_wrapped Ast.usize_t;
+      ]
+    let arg2_funcs = []
+    let arg3_funcs = []
+  end
 end
 
 (* This module implements all the various stdlib modules for the
@@ -188,6 +227,297 @@ module PInt = struct
                     else None)
       | _ ->
           internal_error lc (Type_error (fn, 1, vtype_of v, T_int ta))
+
+  module I8 : PARSLEY_MOD = struct
+    let name = "I8"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "of_byte",              of_byte   Ast.i8_t;
+        "of_string",            of_string Ast.i8_t;
+        "of_string_unsafe",     of_string_unsafe Ast.i8_t;
+
+        "of_i16",               of_int Ast.i8_t Ast.i16_t;
+        "of_i32",               of_int Ast.i8_t Ast.i32_t;
+        "of_i64",               of_int Ast.i8_t Ast.i64_t;
+        "of_isize",             of_int Ast.i8_t Ast.isize_t;
+        "of_u8",                of_int Ast.i8_t Ast.u8_t;
+        "of_u16",               of_int Ast.i8_t Ast.u16_t;
+        "of_u32",               of_int Ast.i8_t Ast.u32_t;
+        "of_u64",               of_int Ast.i8_t Ast.u64_t;
+        "of_usize",             of_int Ast.i8_t Ast.usize_t;
+
+        "of_i16_wrapped",       of_int_wrapped Ast.i8_t Ast.i16_t;
+        "of_i32_wrapped",       of_int_wrapped Ast.i8_t Ast.i32_t;
+        "of_i64_wrapped",       of_int_wrapped Ast.i8_t Ast.i64_t;
+        "of_isize_wrapped",     of_int_wrapped Ast.i8_t Ast.isize_t;
+        "of_u8_wrapped",        of_int_wrapped Ast.i8_t Ast.u8_t;
+        "of_u16_wrapped",       of_int_wrapped Ast.i8_t Ast.u16_t;
+        "of_u32_wrapped",       of_int_wrapped Ast.i8_t Ast.u32_t;
+        "of_u64_wrapped",       of_int_wrapped Ast.i8_t Ast.u64_t;
+        "of_usize_wrapped",     of_int_wrapped Ast.i8_t Ast.usize_t;
+      ]
+    let arg2_funcs = []
+    let arg3_funcs = []
+  end
+  module U8 : PARSLEY_MOD = struct
+    let name = "U8"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "of_byte",              of_byte   Ast.u8_t;
+        "of_string",            of_string Ast.u8_t;
+        "of_string_unsafe",     of_string_unsafe Ast.u8_t;
+
+        "of_i8",                of_int Ast.u8_t Ast.i8_t;
+        "of_i16",               of_int Ast.u8_t Ast.i16_t;
+        "of_i32",               of_int Ast.u8_t Ast.i32_t;
+        "of_i64",               of_int Ast.u8_t Ast.i64_t;
+        "of_isize",             of_int Ast.u8_t Ast.isize_t;
+        "of_u16",               of_int Ast.u8_t Ast.u16_t;
+        "of_u32",               of_int Ast.u8_t Ast.u32_t;
+        "of_u64",               of_int Ast.u8_t Ast.u64_t;
+        "of_usize",             of_int Ast.u8_t Ast.usize_t;
+
+        "of_i8_wrapped",        of_int_wrapped Ast.u8_t Ast.i8_t;
+        "of_i16_wrapped",       of_int_wrapped Ast.u8_t Ast.i16_t;
+        "of_i32_wrapped",       of_int_wrapped Ast.u8_t Ast.i32_t;
+        "of_i64_wrapped",       of_int_wrapped Ast.u8_t Ast.i64_t;
+        "of_isize_wrapped",     of_int_wrapped Ast.u8_t Ast.isize_t;
+        "of_u16_wrapped",       of_int_wrapped Ast.u8_t Ast.u16_t;
+        "of_u32_wrapped",       of_int_wrapped Ast.u8_t Ast.u32_t;
+        "of_u64_wrapped",       of_int_wrapped Ast.u8_t Ast.u64_t;
+        "of_usize_wrapped",     of_int_wrapped Ast.u8_t Ast.usize_t;
+      ]
+    let arg2_funcs = []
+    let arg3_funcs = []
+  end
+  module I16 : PARSLEY_MOD = struct
+    let name = "I16"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "of_byte",             of_byte   Ast.i16_t;
+        "of_string",           of_string Ast.i16_t;
+        "of_bytes",            of_bytes  Ast.i16_t;
+        "of_string_unsafe",    of_string_unsafe Ast.i16_t;
+        "of_bytes_unsafe",     of_bytes_unsafe  Ast.i16_t;
+
+        "of_i8",               of_int_wrapped Ast.i16_t Ast.i8_t;
+        "of_i32",              of_int Ast.i16_t Ast.i32_t;
+        "of_i64",              of_int Ast.i16_t Ast.i64_t;
+        "of_isize",            of_int Ast.i16_t Ast.isize_t;
+        "of_u8",               of_int_wrapped Ast.i16_t Ast.u8_t;
+        "of_u16",              of_int Ast.i16_t Ast.u16_t;
+        "of_u32",              of_int Ast.i16_t Ast.u32_t;
+        "of_u64",              of_int Ast.i16_t Ast.u64_t;
+        "of_usize",            of_int Ast.i16_t Ast.usize_t;
+
+        "of_i32_wrapped",      of_int_wrapped Ast.i16_t Ast.i32_t;
+        "of_i64_wrapped",      of_int_wrapped Ast.i16_t Ast.i64_t;
+        "of_isize_wrapped",    of_int_wrapped Ast.i16_t Ast.isize_t;
+        "of_u16_wrapped",      of_int_wrapped Ast.i16_t Ast.u16_t;
+        "of_u32_wrapped",      of_int_wrapped Ast.i16_t Ast.u32_t;
+        "of_u64_wrapped",      of_int_wrapped Ast.i16_t Ast.u64_t;
+        "of_usize_wrapped",    of_int_wrapped Ast.i16_t Ast.usize_t;
+      ]
+    let arg2_funcs = []
+    let arg3_funcs = []
+  end
+  module U16 : PARSLEY_MOD = struct
+    let name = "U16"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "of_byte",             of_byte   Ast.u16_t;
+        "of_string",           of_string Ast.u16_t;
+        "of_bytes",            of_bytes  Ast.u16_t;
+        "of_string_unsafe",    of_string_unsafe Ast.u16_t;
+        "of_bytes_unsafe",     of_bytes_unsafe  Ast.u16_t;
+
+        "of_i8",               of_int Ast.u16_t Ast.i8_t;
+        "of_i16",              of_int Ast.u16_t Ast.i16_t;
+        "of_i32",              of_int Ast.u16_t Ast.i32_t;
+        "of_i64",              of_int Ast.u16_t Ast.i64_t;
+        "of_isize",            of_int Ast.u16_t Ast.isize_t;
+        "of_u8",               of_int_wrapped Ast.u16_t Ast.u8_t;
+        "of_u32",              of_int Ast.u16_t Ast.u32_t;
+        "of_u64",              of_int Ast.u16_t Ast.u64_t;
+        "of_usize",            of_int Ast.u16_t Ast.usize_t;
+
+        "of_i8_wrapped",       of_int_wrapped Ast.u16_t Ast.i8_t;
+        "of_i16_wrapped",      of_int_wrapped Ast.u16_t Ast.i16_t;
+        "of_i32_wrapped",      of_int_wrapped Ast.u16_t Ast.i32_t;
+        "of_i64_wrapped",      of_int_wrapped Ast.u16_t Ast.i64_t;
+        "of_isize_wrapped",    of_int_wrapped Ast.u16_t Ast.isize_t;
+        "of_u32_wrapped",      of_int_wrapped Ast.u16_t Ast.u32_t;
+        "of_u64_wrapped",      of_int_wrapped Ast.u16_t Ast.u64_t;
+        "of_usize_wrapped",    of_int_wrapped Ast.u16_t Ast.usize_t;
+      ]
+    let arg2_funcs = []
+    let arg3_funcs = []
+  end
+  module I32 : PARSLEY_MOD = struct
+    let name = "I32"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "of_byte",             of_byte   Ast.i32_t;
+        "of_string",           of_string Ast.i32_t;
+        "of_bytes",            of_bytes  Ast.i32_t;
+        "of_string_unsafe",    of_string_unsafe Ast.i32_t;
+        "of_bytes_unsafe",     of_bytes_unsafe  Ast.i32_t;
+
+        "of_i8",               of_int_wrapped Ast.i32_t Ast.i8_t;
+        "of_i16",              of_int_wrapped Ast.i32_t Ast.i16_t;
+        "of_i64",              of_int Ast.i32_t Ast.i64_t;
+        "of_isize",            of_int Ast.i32_t Ast.isize_t;
+        "of_u8",               of_int_wrapped Ast.i32_t Ast.u8_t;
+        "of_u16",              of_int_wrapped Ast.i32_t Ast.u16_t;
+        "of_u32",              of_int Ast.i32_t Ast.u32_t;
+        "of_u64",              of_int Ast.i32_t Ast.u64_t;
+        "of_usize",            of_int Ast.i32_t Ast.usize_t;
+
+        "of_i64_wrapped",      of_int_wrapped Ast.i32_t Ast.i64_t;
+        "of_isize_wrapped",    of_int_wrapped Ast.i32_t Ast.isize_t;
+        "of_u32_wrapped",      of_int_wrapped Ast.i32_t Ast.u32_t;
+        "of_u64_wrapped",      of_int_wrapped Ast.i32_t Ast.u64_t;
+        "of_usize_wrapped",    of_int_wrapped Ast.i32_t Ast.usize_t;
+      ]
+    let arg2_funcs = []
+    let arg3_funcs = []
+  end
+  module U32 : PARSLEY_MOD = struct
+    let name = "U32"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "of_byte",             of_byte   Ast.u32_t;
+        "of_string",           of_string Ast.u32_t;
+        "of_bytes",            of_bytes  Ast.u32_t;
+        "of_string_unsafe",    of_string_unsafe Ast.u32_t;
+        "of_bytes_unsafe",     of_bytes_unsafe  Ast.u32_t;
+
+        "of_i8",               of_int Ast.u32_t Ast.i8_t;
+        "of_i16",              of_int Ast.u32_t Ast.i16_t;
+        "of_i32",              of_int Ast.u32_t Ast.i32_t;
+        "of_i64",              of_int Ast.u32_t Ast.i64_t;
+        "of_isize",            of_int Ast.u32_t Ast.isize_t;
+        "of_u8",               of_int_wrapped Ast.u32_t Ast.u8_t;
+        "of_u16",              of_int_wrapped Ast.u32_t Ast.u16_t;
+        "of_u64",              of_int Ast.u32_t Ast.u64_t;
+        "of_usize",            of_int Ast.u32_t Ast.usize_t;
+
+        "of_i8_wrapped",       of_int_wrapped Ast.u32_t Ast.i8_t;
+        "of_i16_wrapped",      of_int_wrapped Ast.u32_t Ast.i16_t;
+        "of_i32_wrapped",      of_int_wrapped Ast.u32_t Ast.i32_t;
+        "of_i64_wrapped",      of_int_wrapped Ast.u32_t Ast.i64_t;
+        "of_isize_wrapped",    of_int_wrapped Ast.u32_t Ast.isize_t;
+        "of_u64_wrapped",      of_int_wrapped Ast.u32_t Ast.u64_t;
+        "of_usize_wrapped",    of_int_wrapped Ast.u32_t Ast.usize_t;
+      ]
+    let arg2_funcs = []
+    let arg3_funcs = []
+  end
+  module I64 : PARSLEY_MOD = struct
+    let name = "I64"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "of_byte",             of_byte   Ast.i64_t;
+        "of_string",           of_string Ast.i64_t;
+        "of_bytes",            of_bytes  Ast.i64_t;
+        "of_string_unsafe",    of_string_unsafe Ast.i64_t;
+        "of_bytes_unsafe",     of_bytes_unsafe  Ast.i64_t;
+
+        "of_i8",               of_int_wrapped Ast.i64_t Ast.i8_t;
+        "of_i16",              of_int_wrapped Ast.i64_t Ast.i16_t;
+        "of_i32",              of_int_wrapped Ast.i64_t Ast.i32_t;
+        "of_isize",            of_int Ast.i64_t Ast.isize_t;
+        "of_u8",               of_int_wrapped Ast.i64_t Ast.u8_t;
+        "of_u16",              of_int_wrapped Ast.i64_t Ast.u16_t;
+        "of_u32",              of_int_wrapped Ast.i64_t Ast.u32_t;
+        "of_u64",              of_int Ast.i64_t Ast.u64_t;
+        "of_usize",            of_int Ast.i64_t Ast.usize_t;
+
+        "of_isize_wrapped",    of_int_wrapped Ast.i64_t Ast.isize_t;
+        "of_u64_wrapped",      of_int_wrapped Ast.i64_t Ast.u64_t;
+        "of_usize_wrapped",    of_int_wrapped Ast.i64_t Ast.usize_t;
+      ]
+    let arg2_funcs = []
+    let arg3_funcs = []
+  end
+  module U64 : PARSLEY_MOD = struct
+    let name = "U64"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "of_byte",             of_byte   Ast.u64_t;
+        "of_string",           of_string Ast.u64_t;
+        "of_bytes",            of_bytes  Ast.u64_t;
+        "of_string_unsafe",    of_string_unsafe Ast.u64_t;
+        "of_bytes_unsafe",     of_bytes_unsafe  Ast.u64_t;
+
+        "of_i8",               of_int Ast.u64_t Ast.i8_t;
+        "of_i16",              of_int Ast.u64_t Ast.i16_t;
+        "of_i32",              of_int Ast.u64_t Ast.i32_t;
+        "of_i64",              of_int Ast.u64_t Ast.i64_t;
+        "of_isize",            of_int Ast.u64_t Ast.isize_t;
+        "of_u8",               of_int_wrapped Ast.u64_t Ast.u8_t;
+        "of_u16",              of_int_wrapped Ast.u64_t Ast.u16_t;
+        "of_u32",              of_int_wrapped Ast.u64_t Ast.u32_t;
+
+        "of_i8_wrapped",       of_int_wrapped Ast.u64_t Ast.i8_t;
+        "of_i16_wrapped",      of_int_wrapped Ast.u64_t Ast.i16_t;
+        "of_i32_wrapped",      of_int_wrapped Ast.u64_t Ast.i32_t;
+        "of_i64_wrapped",      of_int_wrapped Ast.u64_t Ast.i64_t;
+        "of_isize_wrapped",    of_int_wrapped Ast.u64_t Ast.isize_t;
+      ]
+    let arg2_funcs = []
+    let arg3_funcs = []
+  end
+  module Isize : PARSLEY_MOD = struct
+    let name = "Isize"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "of_byte",           of_byte   Ast.isize_t;
+        "of_string",         of_string Ast.isize_t;
+        "of_bytes",          of_bytes  Ast.isize_t;
+        "of_string_unsafe",  of_string_unsafe Ast.isize_t;
+        "of_bytes_unsafe",   of_bytes_unsafe  Ast.isize_t;
+
+        "of_i8",             of_int_wrapped Ast.isize_t Ast.i8_t;
+        "of_i16",            of_int_wrapped Ast.isize_t Ast.i16_t;
+        "of_i32",            of_int_wrapped Ast.isize_t Ast.i32_t;
+        "of_u8",             of_int_wrapped Ast.isize_t Ast.u8_t;
+        "of_u16",            of_int_wrapped Ast.isize_t Ast.u16_t;
+        "of_u32",            of_int_wrapped Ast.isize_t Ast.u32_t;
+        "of_u64",            of_int Ast.isize_t Ast.u64_t;
+        "of_usize",          of_int Ast.isize_t Ast.usize_t;
+        "of_u64_wrapped",    of_int_wrapped Ast.isize_t Ast.u64_t;
+        "of_usize_wrapped",  of_int_wrapped Ast.isize_t Ast.usize_t;
+      ]
+    let arg2_funcs = []
+    let arg3_funcs = []
+  end
+  module Usize : PARSLEY_MOD = struct
+    let name = "Usize"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "of_byte",           of_byte   Ast.usize_t;
+        "of_string",         of_string Ast.usize_t;
+        "of_bytes",          of_bytes  Ast.usize_t;
+        "of_string_unsafe",  of_string_unsafe Ast.usize_t;
+        "of_bytes_unsafe",   of_bytes_unsafe  Ast.usize_t;
+
+        "of_i8",             of_int Ast.usize_t Ast.i8_t;
+        "of_i16",            of_int Ast.usize_t Ast.i16_t;
+        "of_i32",            of_int Ast.usize_t Ast.i32_t;
+        "of_i64",            of_int Ast.usize_t Ast.i64_t;
+        "of_u8",             of_int_wrapped Ast.usize_t Ast.u8_t;
+        "of_u16",            of_int_wrapped Ast.usize_t Ast.u16_t;
+        "of_u32",            of_int_wrapped Ast.usize_t Ast.u32_t;
+
+        "of_i8_wrapped",     of_int_wrapped Ast.usize_t Ast.i8_t;
+        "of_i16_wrapped",    of_int_wrapped Ast.usize_t Ast.i16_t;
+        "of_i32_wrapped",    of_int_wrapped Ast.usize_t Ast.i32_t;
+        "of_i64_wrapped",    of_int_wrapped Ast.usize_t Ast.i64_t;
+      ]
+    let arg2_funcs = []
+    let arg3_funcs = []
+  end
 end
 
 module PList = struct
@@ -281,6 +611,27 @@ module PList = struct
 
   (* Higher order functions (e.g. `map` and `map2`) are implemented
      via macro-like code-generation. *)
+
+  module List : PARSLEY_MOD = struct
+    let name = "List"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "head",               head;
+        "tail",               tail;
+        "length",             length;
+        "flatten",            flatten;
+        "rev",                rev;
+      ]
+    let arg2_funcs = [
+        "cons",               cons;
+        "concat",             concat;
+        "index",              index;
+        "index_unsafe",       index_unsafe;
+        "repl",               repl;
+      ]
+    let arg3_funcs = []
+  end
+
 end
 
 module PString = struct
@@ -355,6 +706,24 @@ module PString = struct
           V_string s
       | None ->
           internal_error lc (Type_error ("String.of_literal", 1, vtype_of v, T_string))
+
+  module String : PARSLEY_MOD = struct
+    let name = "String"
+    let arg0_funcs = [
+        "empty",            empty;
+      ]
+    let arg1_funcs = [
+        "to_bytes",         to_bytes;
+        "of_bytes",         of_bytes;
+        "of_bytes_unsafe",  of_bytes_unsafe;
+        "of_literal",       of_literal;
+      ]
+    let arg2_funcs = [
+        "concat",           concat;
+      ]
+    let arg3_funcs = []
+  end
+
 end
 
 (* assumes big-endian byte order *)
@@ -460,6 +829,41 @@ module PBits = struct
           mk_bv lc "Bits.zeros" i false
       | _ ->
           internal_error lc (Type_error ("Bits.zeros", 1, vtype_of v, T_int Ast.usize_t))
+
+  module Bits : PARSLEY_MOD = struct
+    let name = "Bits"
+    let arg0_funcs = []
+    let arg1_funcs = [
+        "to_i8",              to_int Ast.i8_t;
+        "to_u8",              to_int Ast.u8_t;
+        "to_i16",             to_int Ast.i16_t;
+        "to_u16",             to_int Ast.u16_t;
+        "to_i32",             to_int Ast.i32_t;
+        "to_u32",             to_int Ast.u32_t;
+        "to_i64",             to_int Ast.i64_t;
+        "to_u64",             to_int Ast.u64_t;
+        "to_isize",           to_int Ast.isize_t;
+        "to_usize",           to_int Ast.usize_t;
+
+        "to_bool",            to_bool;
+        "of_bool",            of_bool;
+        "to_bit",             to_bit;
+        "of_bit",             of_bit;
+        "ones",               ones;
+        "zeros",              zeros;
+      ]
+    let arg2_funcs = [
+        "to_i16_endian",      to_int_endian Ast.i16_t;
+        "to_u16_endian",      to_int_endian Ast.u16_t;
+        "to_i32_endian",      to_int_endian Ast.i32_t;
+        "to_u32_endian",      to_int_endian Ast.u32_t;
+        "to_i64_endian",      to_int_endian Ast.i64_t;
+        "to_u64_endian",      to_int_endian Ast.u64_t;
+        "to_isize_endian",    to_int_endian Ast.isize_t;
+        "to_usize_endian",    to_int_endian Ast.usize_t;
+      ]
+    let arg3_funcs = []
+  end
 end
 
 module VSet = Set.Make(struct type t = value
@@ -502,6 +906,19 @@ module PSet = struct
           V_bool (VSet.mem e set)
       | _ ->
           internal_error lc (Type_error ("Set.mem", 1, vtype_of v, T_set T_empty))
+
+  module Set : PARSLEY_MOD = struct
+    let name = "Set"
+    let arg0_funcs = [
+        "empty",               empty;
+      ]
+    let arg1_funcs = []
+    let arg2_funcs = [
+        "add",                 add;
+        "mem",                 mem;
+      ]
+    let arg3_funcs = []
+  end
 end
 
 module VMap = Map.Make(struct type t = value
@@ -585,375 +1002,40 @@ module PMap = struct
           v
       | _ ->
           assert false
+
+  module Map : PARSLEY_MOD = struct
+    let name = "Map"
+    let arg0_funcs = [
+        "empty",               empty;
+      ]
+    let arg1_funcs = []
+    let arg2_funcs = [
+        "mem",                 mem;
+        "find",                find;
+        "find_unsafe",         find_unsafe;
+      ]
+    let arg3_funcs = [
+        "add",                 add;
+      ]
+  end
 end
 
-module DTable = Map.Make (struct type t = string * string
-                                 let compare = compare
-                          end)
-type arg0 = Location.t -> value
-type arg1 = Location.t -> value -> value
-type arg2 = Location.t -> value -> value -> value
-type arg3 = Location.t -> value -> value -> value -> value
-
-module StringSet = Set.Make(String)
-
-type dtable =
-  {dt_mods: StringSet.t;
-   dt_0arg: arg0 DTable.t;
-   dt_1arg: arg1 DTable.t;
-   dt_2arg: arg2 DTable.t;
-   dt_3arg: arg3 DTable.t}
-
-let collect_mods acc l =
-  List.fold_left (fun acc ((m, _), _) ->
-      StringSet.add m acc
-    ) acc l
-
-let mk_dtable () : dtable =
-  let arg0s = [
-      ("String", "empty"),            PString.empty;
-      ("Set", "empty"),               PSet.empty;
-      ("Map", "empty"),               PMap.empty;
-    ] in
-  let arg1s = [
-      ("Byte", "of_i8"),              PByte.of_int_checked Ast.i8_t;
-      ("Byte", "of_u8"),              PByte.of_int_checked Ast.u8_t;
-      ("Byte", "of_i16"),             PByte.of_int_checked Ast.i16_t;
-      ("Byte", "of_u16"),             PByte.of_int_checked Ast.u16_t;
-      ("Byte", "of_i32"),             PByte.of_int_checked Ast.i32_t;
-      ("Byte", "of_u32"),             PByte.of_int_checked Ast.u32_t;
-      ("Byte", "of_i64"),             PByte.of_int_checked Ast.i64_t;
-      ("Byte", "of_u64"),             PByte.of_int_checked Ast.u64_t;
-      ("Byte", "of_isize"),           PByte.of_int_checked Ast.isize_t;
-      ("Byte", "of_usize"),           PByte.of_int_checked Ast.usize_t;
-
-      ("Byte", "of_i8_wrapped"),      PByte.of_int_wrapped Ast.i8_t;
-      ("Byte", "of_u8_wrapped"),      PByte.of_int_wrapped Ast.u8_t;
-      ("Byte", "of_i16_wrapped"),     PByte.of_int_wrapped Ast.i16_t;
-      ("Byte", "of_u16_wrapped"),     PByte.of_int_wrapped Ast.u16_t;
-      ("Byte", "of_i32_wrapped"),     PByte.of_int_wrapped Ast.i32_t;
-      ("Byte", "of_u32_wrapped"),     PByte.of_int_wrapped Ast.u32_t;
-      ("Byte", "of_i64_wrapped"),     PByte.of_int_wrapped Ast.i64_t;
-      ("Byte", "of_u64_wrapped"),     PByte.of_int_wrapped Ast.u64_t;
-      ("Byte", "of_isize_wrapped"),   PByte.of_int_wrapped Ast.isize_t;
-      ("Byte", "of_usize_wrapped"),   PByte.of_int_wrapped Ast.usize_t;
-
-      ("I8", "of_byte"),              PInt.of_byte   Ast.i8_t;
-      ("I8", "of_string"),            PInt.of_string Ast.i8_t;
-      ("I8", "of_string_unsafe"),     PInt.of_string_unsafe Ast.i8_t;
-
-      ("I8", "of_i16"),               PInt.of_int Ast.i8_t Ast.i16_t;
-      ("I8", "of_i32"),               PInt.of_int Ast.i8_t Ast.i32_t;
-      ("I8", "of_i64"),               PInt.of_int Ast.i8_t Ast.i64_t;
-      ("I8", "of_isize"),             PInt.of_int Ast.i8_t Ast.isize_t;
-      ("I8", "of_u8"),                PInt.of_int Ast.i8_t Ast.u8_t;
-      ("I8", "of_u16"),               PInt.of_int Ast.i8_t Ast.u16_t;
-      ("I8", "of_u32"),               PInt.of_int Ast.i8_t Ast.u32_t;
-      ("I8", "of_u64"),               PInt.of_int Ast.i8_t Ast.u64_t;
-      ("I8", "of_usize"),             PInt.of_int Ast.i8_t Ast.usize_t;
-
-      ("I8", "of_i16_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.i16_t;
-      ("I8", "of_i32_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.i32_t;
-      ("I8", "of_i64_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.i64_t;
-      ("I8", "of_isize_wrapped"),     PInt.of_int_wrapped Ast.i8_t Ast.isize_t;
-      ("I8", "of_u8_wrapped"),        PInt.of_int_wrapped Ast.i8_t Ast.u8_t;
-      ("I8", "of_u16_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.u16_t;
-      ("I8", "of_u32_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.u32_t;
-      ("I8", "of_u64_wrapped"),       PInt.of_int_wrapped Ast.i8_t Ast.u64_t;
-      ("I8", "of_usize_wrapped"),     PInt.of_int_wrapped Ast.i8_t Ast.usize_t;
-
-      ("U8", "of_byte"),              PInt.of_byte   Ast.u8_t;
-      ("U8", "of_string"),            PInt.of_string Ast.u8_t;
-      ("U8", "of_string_unsafe"),     PInt.of_string_unsafe Ast.u8_t;
-
-      ("U8", "of_i8"),                PInt.of_int Ast.u8_t Ast.i8_t;
-      ("U8", "of_i16"),               PInt.of_int Ast.u8_t Ast.i16_t;
-      ("U8", "of_i32"),               PInt.of_int Ast.u8_t Ast.i32_t;
-      ("U8", "of_i64"),               PInt.of_int Ast.u8_t Ast.i64_t;
-      ("U8", "of_isize"),             PInt.of_int Ast.u8_t Ast.isize_t;
-      ("U8", "of_u16"),               PInt.of_int Ast.u8_t Ast.u16_t;
-      ("U8", "of_u32"),               PInt.of_int Ast.u8_t Ast.u32_t;
-      ("U8", "of_u64"),               PInt.of_int Ast.u8_t Ast.u64_t;
-      ("U8", "of_usize"),             PInt.of_int Ast.u8_t Ast.usize_t;
-
-      ("U8", "of_i8_wrapped"),        PInt.of_int_wrapped Ast.u8_t Ast.i8_t;
-      ("U8", "of_i16_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.i16_t;
-      ("U8", "of_i32_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.i32_t;
-      ("U8", "of_i64_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.i64_t;
-      ("U8", "of_isize_wrapped"),     PInt.of_int_wrapped Ast.u8_t Ast.isize_t;
-      ("U8", "of_u16_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.u16_t;
-      ("U8", "of_u32_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.u32_t;
-      ("U8", "of_u64_wrapped"),       PInt.of_int_wrapped Ast.u8_t Ast.u64_t;
-      ("U8", "of_usize_wrapped"),     PInt.of_int_wrapped Ast.u8_t Ast.usize_t;
-
-      ("I16", "of_byte"),             PInt.of_byte   Ast.i16_t;
-      ("I16", "of_string"),           PInt.of_string Ast.i16_t;
-      ("I16", "of_bytes"),            PInt.of_bytes  Ast.i16_t;
-      ("I16", "of_string_unsafe"),    PInt.of_string_unsafe Ast.i16_t;
-      ("I16", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.i16_t;
-
-      ("I16", "of_i8"),               PInt.of_int_wrapped Ast.i16_t Ast.i8_t;
-      ("I16", "of_i32"),              PInt.of_int Ast.i16_t Ast.i32_t;
-      ("I16", "of_i64"),              PInt.of_int Ast.i16_t Ast.i64_t;
-      ("I16", "of_isize"),            PInt.of_int Ast.i16_t Ast.isize_t;
-      ("I16", "of_u8"),               PInt.of_int_wrapped Ast.i16_t Ast.u8_t;
-      ("I16", "of_u16"),              PInt.of_int Ast.i16_t Ast.u16_t;
-      ("I16", "of_u32"),              PInt.of_int Ast.i16_t Ast.u32_t;
-      ("I16", "of_u64"),              PInt.of_int Ast.i16_t Ast.u64_t;
-      ("I16", "of_usize"),            PInt.of_int Ast.i16_t Ast.usize_t;
-
-      ("I16", "of_i32_wrapped"),      PInt.of_int_wrapped Ast.i16_t Ast.i32_t;
-      ("I16", "of_i64_wrapped"),      PInt.of_int_wrapped Ast.i16_t Ast.i64_t;
-      ("I16", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.i16_t Ast.isize_t;
-      ("I16", "of_u16_wrapped"),      PInt.of_int_wrapped Ast.i16_t Ast.u16_t;
-      ("I16", "of_u32_wrapped"),      PInt.of_int_wrapped Ast.i16_t Ast.u32_t;
-      ("I16", "of_u64_wrapped"),      PInt.of_int_wrapped Ast.i16_t Ast.u64_t;
-      ("I16", "of_usize_wrapped"),    PInt.of_int_wrapped Ast.i16_t Ast.usize_t;
-
-      ("U16", "of_byte"),             PInt.of_byte   Ast.u16_t;
-      ("U16", "of_string"),           PInt.of_string Ast.u16_t;
-      ("U16", "of_bytes"),            PInt.of_bytes  Ast.u16_t;
-      ("U16", "of_string_unsafe"),    PInt.of_string_unsafe Ast.u16_t;
-      ("U16", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.u16_t;
-
-      ("U16", "of_i8"),               PInt.of_int Ast.u16_t Ast.i8_t;
-      ("U16", "of_i16"),              PInt.of_int Ast.u16_t Ast.i16_t;
-      ("U16", "of_i32"),              PInt.of_int Ast.u16_t Ast.i32_t;
-      ("U16", "of_i64"),              PInt.of_int Ast.u16_t Ast.i64_t;
-      ("U16", "of_isize"),            PInt.of_int Ast.u16_t Ast.isize_t;
-      ("U16", "of_u8"),               PInt.of_int_wrapped Ast.u16_t Ast.u8_t;
-      ("U16", "of_u32"),              PInt.of_int Ast.u16_t Ast.u32_t;
-      ("U16", "of_u64"),              PInt.of_int Ast.u16_t Ast.u64_t;
-      ("U16", "of_usize"),            PInt.of_int Ast.u16_t Ast.usize_t;
-
-      ("U16", "of_i8_wrapped"),       PInt.of_int_wrapped Ast.u16_t Ast.i8_t;
-      ("U16", "of_i16_wrapped"),      PInt.of_int_wrapped Ast.u16_t Ast.i16_t;
-      ("U16", "of_i32_wrapped"),      PInt.of_int_wrapped Ast.u16_t Ast.i32_t;
-      ("U16", "of_i64_wrapped"),      PInt.of_int_wrapped Ast.u16_t Ast.i64_t;
-      ("U16", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.u16_t Ast.isize_t;
-      ("U16", "of_u32_wrapped"),      PInt.of_int_wrapped Ast.u16_t Ast.u32_t;
-      ("U16", "of_u64_wrapped"),      PInt.of_int_wrapped Ast.u16_t Ast.u64_t;
-      ("U16", "of_usize_wrapped"),    PInt.of_int_wrapped Ast.u16_t Ast.usize_t;
-
-      ("I32", "of_byte"),             PInt.of_byte   Ast.i32_t;
-      ("I32", "of_string"),           PInt.of_string Ast.i32_t;
-      ("I32", "of_bytes"),            PInt.of_bytes  Ast.i32_t;
-      ("I32", "of_string_unsafe"),    PInt.of_string_unsafe Ast.i32_t;
-      ("I32", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.i32_t;
-
-      ("I32", "of_i8"),               PInt.of_int_wrapped Ast.i32_t Ast.i8_t;
-      ("I32", "of_i16"),              PInt.of_int_wrapped Ast.i32_t Ast.i16_t;
-      ("I32", "of_i64"),              PInt.of_int Ast.i32_t Ast.i64_t;
-      ("I32", "of_isize"),            PInt.of_int Ast.i32_t Ast.isize_t;
-      ("I32", "of_u8"),               PInt.of_int_wrapped Ast.i32_t Ast.u8_t;
-      ("I32", "of_u16"),              PInt.of_int_wrapped Ast.i32_t Ast.u16_t;
-      ("I32", "of_u32"),              PInt.of_int Ast.i32_t Ast.u32_t;
-      ("I32", "of_u64"),              PInt.of_int Ast.i32_t Ast.u64_t;
-      ("I32", "of_usize"),            PInt.of_int Ast.i32_t Ast.usize_t;
-
-      ("I32", "of_i64_wrapped"),      PInt.of_int_wrapped Ast.i32_t Ast.i64_t;
-      ("I32", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.i32_t Ast.isize_t;
-      ("I32", "of_u32_wrapped"),      PInt.of_int_wrapped Ast.i32_t Ast.u32_t;
-      ("I32", "of_u64_wrapped"),      PInt.of_int_wrapped Ast.i32_t Ast.u64_t;
-      ("I32", "of_usize_wrapped"),    PInt.of_int_wrapped Ast.i32_t Ast.usize_t;
-
-      ("U32", "of_byte"),             PInt.of_byte   Ast.u32_t;
-      ("U32", "of_string"),           PInt.of_string Ast.u32_t;
-      ("U32", "of_bytes"),            PInt.of_bytes  Ast.u32_t;
-      ("U32", "of_string_unsafe"),    PInt.of_string_unsafe Ast.u32_t;
-      ("U32", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.u32_t;
-
-      ("U32", "of_i8"),               PInt.of_int Ast.u32_t Ast.i8_t;
-      ("U32", "of_i16"),              PInt.of_int Ast.u32_t Ast.i16_t;
-      ("U32", "of_i32"),              PInt.of_int Ast.u32_t Ast.i32_t;
-      ("U32", "of_i64"),              PInt.of_int Ast.u32_t Ast.i64_t;
-      ("U32", "of_isize"),            PInt.of_int Ast.u32_t Ast.isize_t;
-      ("U32", "of_u8"),               PInt.of_int_wrapped Ast.u32_t Ast.u8_t;
-      ("U32", "of_u16"),              PInt.of_int_wrapped Ast.u32_t Ast.u16_t;
-      ("U32", "of_u64"),              PInt.of_int Ast.u32_t Ast.u64_t;
-      ("U32", "of_usize"),            PInt.of_int Ast.u32_t Ast.usize_t;
-
-      ("U32", "of_i8_wrapped"),       PInt.of_int_wrapped Ast.u32_t Ast.i8_t;
-      ("U32", "of_i16_wrapped"),      PInt.of_int_wrapped Ast.u32_t Ast.i16_t;
-      ("U32", "of_i32_wrapped"),      PInt.of_int_wrapped Ast.u32_t Ast.i32_t;
-      ("U32", "of_i64_wrapped"),      PInt.of_int_wrapped Ast.u32_t Ast.i64_t;
-      ("U32", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.u32_t Ast.isize_t;
-      ("U32", "of_u64_wrapped"),      PInt.of_int_wrapped Ast.u32_t Ast.u64_t;
-      ("U32", "of_usize_wrapped"),    PInt.of_int_wrapped Ast.u32_t Ast.usize_t;
-
-      ("I64", "of_byte"),             PInt.of_byte   Ast.i64_t;
-      ("I64", "of_string"),           PInt.of_string Ast.i64_t;
-      ("I64", "of_bytes"),            PInt.of_bytes  Ast.i64_t;
-      ("I64", "of_string_unsafe"),    PInt.of_string_unsafe Ast.i64_t;
-      ("I64", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.i64_t;
-
-      ("I64", "of_i8"),               PInt.of_int_wrapped Ast.i64_t Ast.i8_t;
-      ("I64", "of_i16"),              PInt.of_int_wrapped Ast.i64_t Ast.i16_t;
-      ("I64", "of_i32"),              PInt.of_int_wrapped Ast.i64_t Ast.i32_t;
-      ("I64", "of_isize"),            PInt.of_int Ast.i64_t Ast.isize_t;
-      ("I64", "of_u8"),               PInt.of_int_wrapped Ast.i64_t Ast.u8_t;
-      ("I64", "of_u16"),              PInt.of_int_wrapped Ast.i64_t Ast.u16_t;
-      ("I64", "of_u32"),              PInt.of_int_wrapped Ast.i64_t Ast.u32_t;
-      ("I64", "of_u64"),              PInt.of_int Ast.i64_t Ast.u64_t;
-      ("I64", "of_usize"),            PInt.of_int Ast.i64_t Ast.usize_t;
-
-      ("I64", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.i64_t Ast.isize_t;
-      ("I64", "of_u64_wrapped"),      PInt.of_int_wrapped Ast.i64_t Ast.u64_t;
-      ("I64", "of_usize_wrapped"),    PInt.of_int_wrapped Ast.i64_t Ast.usize_t;
-
-      ("Isize", "of_byte"),           PInt.of_byte   Ast.isize_t;
-      ("Isize", "of_string"),         PInt.of_string Ast.isize_t;
-      ("Isize", "of_bytes"),          PInt.of_bytes  Ast.isize_t;
-      ("Isize", "of_string_unsafe"),  PInt.of_string_unsafe Ast.isize_t;
-      ("Isize", "of_bytes_unsafe"),   PInt.of_bytes_unsafe  Ast.isize_t;
-
-      ("Isize", "of_i8"),             PInt.of_int_wrapped Ast.isize_t Ast.i8_t;
-      ("Isize", "of_i16"),            PInt.of_int_wrapped Ast.isize_t Ast.i16_t;
-      ("Isize", "of_i32"),            PInt.of_int_wrapped Ast.isize_t Ast.i32_t;
-      ("Isize", "of_u8"),             PInt.of_int_wrapped Ast.isize_t Ast.u8_t;
-      ("Isize", "of_u16"),            PInt.of_int_wrapped Ast.isize_t Ast.u16_t;
-      ("Isize", "of_u32"),            PInt.of_int_wrapped Ast.isize_t Ast.u32_t;
-      ("Isize", "of_u64"),            PInt.of_int Ast.isize_t Ast.u64_t;
-      ("Isize", "of_usize"),          PInt.of_int Ast.isize_t Ast.usize_t;
-      ("Isize", "of_u64_wrapped"),    PInt.of_int_wrapped Ast.isize_t Ast.u64_t;
-      ("Isize", "of_usize_wrapped"),  PInt.of_int_wrapped Ast.isize_t Ast.usize_t;
-
-      ("U64", "of_byte"),             PInt.of_byte   Ast.u64_t;
-      ("U64", "of_string"),           PInt.of_string Ast.u64_t;
-      ("U64", "of_bytes"),            PInt.of_bytes  Ast.u64_t;
-      ("U64", "of_string_unsafe"),    PInt.of_string_unsafe Ast.u64_t;
-      ("U64", "of_bytes_unsafe"),     PInt.of_bytes_unsafe  Ast.u64_t;
-
-      ("U64", "of_i8"),               PInt.of_int Ast.u64_t Ast.i8_t;
-      ("U64", "of_i16"),              PInt.of_int Ast.u64_t Ast.i16_t;
-      ("U64", "of_i32"),              PInt.of_int Ast.u64_t Ast.i32_t;
-      ("U64", "of_i64"),              PInt.of_int Ast.u64_t Ast.i64_t;
-      ("U64", "of_isize"),            PInt.of_int Ast.u64_t Ast.isize_t;
-      ("U64", "of_u8"),               PInt.of_int_wrapped Ast.u64_t Ast.u8_t;
-      ("U64", "of_u16"),              PInt.of_int_wrapped Ast.u64_t Ast.u16_t;
-      ("U64", "of_u32"),              PInt.of_int_wrapped Ast.u64_t Ast.u32_t;
-
-      ("U64", "of_i8_wrapped"),       PInt.of_int_wrapped Ast.u64_t Ast.i8_t;
-      ("U64", "of_i16_wrapped"),      PInt.of_int_wrapped Ast.u64_t Ast.i16_t;
-      ("U64", "of_i32_wrapped"),      PInt.of_int_wrapped Ast.u64_t Ast.i32_t;
-      ("U64", "of_i64_wrapped"),      PInt.of_int_wrapped Ast.u64_t Ast.i64_t;
-      ("U64", "of_isize_wrapped"),    PInt.of_int_wrapped Ast.u64_t Ast.isize_t;
-
-      ("Usize", "of_byte"),           PInt.of_byte   Ast.usize_t;
-      ("Usize", "of_string"),         PInt.of_string Ast.usize_t;
-      ("Usize", "of_bytes"),          PInt.of_bytes  Ast.usize_t;
-      ("Usize", "of_string_unsafe"),  PInt.of_string_unsafe Ast.usize_t;
-      ("Usize", "of_bytes_unsafe"),   PInt.of_bytes_unsafe  Ast.usize_t;
-
-      ("Usize", "of_i8"),             PInt.of_int Ast.usize_t Ast.i8_t;
-      ("Usize", "of_i16"),            PInt.of_int Ast.usize_t Ast.i16_t;
-      ("Usize", "of_i32"),            PInt.of_int Ast.usize_t Ast.i32_t;
-      ("Usize", "of_i64"),            PInt.of_int Ast.usize_t Ast.i64_t;
-      ("Usize", "of_u8"),             PInt.of_int_wrapped Ast.usize_t Ast.u8_t;
-      ("Usize", "of_u16"),            PInt.of_int_wrapped Ast.usize_t Ast.u16_t;
-      ("Usize", "of_u32"),            PInt.of_int_wrapped Ast.usize_t Ast.u32_t;
-
-      ("Usize", "of_i8_wrapped"),     PInt.of_int_wrapped Ast.usize_t Ast.i8_t;
-      ("Usize", "of_i16_wrapped"),    PInt.of_int_wrapped Ast.usize_t Ast.i16_t;
-      ("Usize", "of_i32_wrapped"),    PInt.of_int_wrapped Ast.usize_t Ast.i32_t;
-      ("Usize", "of_i64_wrapped"),    PInt.of_int_wrapped Ast.usize_t Ast.i64_t;
-
-      ("List", "head"),               PList.head;
-      ("List", "tail"),               PList.tail;
-      ("List", "length"),             PList.length;
-      ("List", "flatten"),            PList.flatten;
-      ("List", "rev"),                PList.rev;
-
-      ("String", "to_bytes"),         PString.to_bytes;
-      ("String", "of_bytes"),         PString.of_bytes;
-      ("String", "of_bytes_unsafe"),  PString.of_bytes_unsafe;
-      ("String", "of_literal"),       PString.of_literal;
-
-      ("Bits", "to_i8"),              PBits.to_int Ast.i8_t;
-      ("Bits", "to_u8"),              PBits.to_int Ast.u8_t;
-      ("Bits", "to_i16"),             PBits.to_int Ast.i16_t;
-      ("Bits", "to_u16"),             PBits.to_int Ast.u16_t;
-      ("Bits", "to_i32"),             PBits.to_int Ast.i32_t;
-      ("Bits", "to_u32"),             PBits.to_int Ast.u32_t;
-      ("Bits", "to_i64"),             PBits.to_int Ast.i64_t;
-      ("Bits", "to_u64"),             PBits.to_int Ast.u64_t;
-      ("Bits", "to_isize"),           PBits.to_int Ast.isize_t;
-      ("Bits", "to_usize"),           PBits.to_int Ast.usize_t;
-
-      ("Bits", "to_bool"),            PBits.to_bool;
-      ("Bits", "of_bool"),            PBits.of_bool;
-      ("Bits", "to_bit"),             PBits.to_bit;
-      ("Bits", "of_bit"),             PBits.of_bit;
-      ("Bits", "ones"),               PBits.ones;
-      ("Bits", "zeros"),              PBits.zeros;
-    ] in
-  let arg2s = [
-      ("Bits", "to_i16_endian"),      PBits.to_int_endian Ast.i16_t;
-      ("Bits", "to_u16_endian"),      PBits.to_int_endian Ast.u16_t;
-      ("Bits", "to_i32_endian"),      PBits.to_int_endian Ast.i32_t;
-      ("Bits", "to_u32_endian"),      PBits.to_int_endian Ast.u32_t;
-      ("Bits", "to_i64_endian"),      PBits.to_int_endian Ast.i64_t;
-      ("Bits", "to_u64_endian"),      PBits.to_int_endian Ast.u64_t;
-      ("Bits", "to_isize_endian"),    PBits.to_int_endian Ast.isize_t;
-      ("Bits", "to_usize_endian"),    PBits.to_int_endian Ast.usize_t;
-
-      ("List", "cons"),               PList.cons;
-      ("List", "concat"),             PList.concat;
-      ("List", "index"),              PList.index;
-      ("List", "index_unsafe"),       PList.index_unsafe;
-      ("List", "repl"),               PList.repl;
-      ("String", "concat"),           PString.concat;
-      ("Set", "add"),                 PSet.add;
-      ("Set", "mem"),                 PSet.mem;
-      ("Map", "mem"),                 PMap.mem;
-      ("Map", "find"),                PMap.find;
-      ("Map", "find_unsafe"),         PMap.find_unsafe;
-    ] in
-  let arg3s = [
-      ("Map", "add"),                 PMap.add;
-    ] in
-  let mods = collect_mods StringSet.empty arg0s in
-  let mods = collect_mods mods arg1s in
-  let mods = collect_mods mods arg2s in
-  let mods = collect_mods mods arg3s in
-  {dt_mods = mods;
-   dt_0arg = DTable.of_seq (List.to_seq arg0s);
-   dt_1arg = DTable.of_seq (List.to_seq arg1s);
-   dt_2arg = DTable.of_seq (List.to_seq arg2s);
-   dt_3arg = DTable.of_seq (List.to_seq arg3s)}
-
-let dtable: dtable = mk_dtable ()
-
-let is_stdlib_mod (m: string) : bool =
-  StringSet.mem m dtable.dt_mods
-
-let dispatch_stdlib lc (m: string) (f: string) (vs: value list)
-    : value =
-  let nvs = List.length vs in
-  let key = m, f in
-  if   nvs = 0 && DTable.mem key dtable.dt_0arg
-  then let fn = DTable.find key dtable.dt_0arg in
-       fn lc
-  else if nvs = 1 && DTable.mem key dtable.dt_1arg
-  then let fn = DTable.find key dtable.dt_1arg in
-       let a0 = List.nth vs 0 in
-       fn lc a0
-  else if nvs = 2 && DTable.mem key dtable.dt_2arg
-  then let fn = DTable.find key dtable.dt_2arg in
-       let a0 = List.nth vs 0 in
-       let a1 = List.nth vs 1 in
-       fn lc a0 a1
-  else if nvs = 3 && DTable.mem key dtable.dt_3arg
-  then let fn = DTable.find key dtable.dt_3arg in
-       let a0 = List.nth vs 0 in
-       let a1 = List.nth vs 1 in
-       let a2 = List.nth vs 2 in
-       fn lc a0 a1 a2
-  else let err = Internal_errors.Unknown_stdlib (m, f, nvs) in
-       internal_error lc err
-
-(* internal helpers *)
-let cond lc (v: value) : bool =
-  match v with
-    | V_bool b -> b
-    | _ -> internal_error lc (Type_error ("cond", 1, vtype_of v, T_bool))
+(* stdlib modules *)
+let stdlib_mods : (module PARSLEY_MOD) list = [
+    (module PByte.Byte);
+    (module PInt.I8);
+    (module PInt.U8);
+    (module PInt.I16);
+    (module PInt.U16);
+    (module PInt.I32);
+    (module PInt.U32);
+    (module PInt.I64);
+    (module PInt.U64);
+    (module PInt.Isize);
+    (module PInt.Usize);
+    (module PList.List);
+    (module PString.String);
+    (module PBits.Bits);
+    (module PSet.Set);
+    (module PMap.Map);
+  ]

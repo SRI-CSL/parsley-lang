@@ -579,9 +579,31 @@ let convert_fun ctx fd =
    fun_defn_loc       = fd.fun_defn_loc;
    fun_defn_aux       = fd.fun_defn_aux}
 
+let convert_ffi ctx fd =
+  let lm = AstUtils.infer_mod fd.ffi_decl_mod in
+  (* bind params in local vars *)
+  let ctx, ps = List.fold_left (fun (ctx, acc) (v, t, x) ->
+                    let vn   = var_name v in
+                    let locs = StringSet.add vn ctx.ctx_locals in
+                    let ctx  = {ctx with ctx_locals = locs} in
+                    let t    = convert_type_expr ctx lm t in
+                    ctx, (v, t, x) :: acc
+                  ) (ctx, []) fd.ffi_decl_params in
+  let res = convert_type_expr ctx lm fd.ffi_decl_res_type in
+  {ffi_decl_ident     = fd.ffi_decl_ident;
+   ffi_decl_params    = List.rev ps;
+   ffi_decl_res_type  = res;
+   ffi_decl_langs     = fd.ffi_decl_langs;
+   ffi_decl_mod       = fd.ffi_decl_mod;
+   ffi_decl_loc       = fd.ffi_decl_loc;
+   ffi_decl_aux       = fd.ffi_decl_aux}
+
 let convert_recfuns ctx rfd =
   {recfuns     = List.map (convert_fun ctx) rfd.recfuns;
    recfuns_loc = rfd.recfuns_loc}
+
+let convert_ffis ctx ffis =
+  List.map (convert_ffi ctx) ffis
 
 let convert_const ctx c =
   let lm = AstUtils.infer_mod c.const_defn_mod in
@@ -639,6 +661,9 @@ let rec convert ctx acc pds =
                convert ctx (d :: acc) rest
            | PDecl_recfuns fs ->
                let d = Decl_recfuns (convert_recfuns ctx fs) in
+               convert ctx (d :: acc) rest
+           | PDecl_foreign fs ->
+               let d = Decl_foreign (convert_ffis ctx fs) in
                convert ctx (d :: acc) rest
            | PDecl_format f ->
                let d = Decl_format (convert_format ctx f) in

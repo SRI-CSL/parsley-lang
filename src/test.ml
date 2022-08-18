@@ -107,5 +107,6 @@ let exe_ir (test: string) (ir: ir) (entry: string) (data: string)
           (Printf.sprintf "%s\n" (Runtime_exceptions.error_msg e))
           (Printexc.get_backtrace ())
 
-let do_tests () =
-  Tests.do_tests false gen_ir exe_ir
+let run_tests verbose gen_ir exe_ir =
+  Interpret.init_runtime true;
+  Tests.do_tests verbose gen_ir exe_ir

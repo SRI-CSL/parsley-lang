@@ -1200,6 +1200,8 @@ let expand_spec (spec: (unit, unit) spec_module)
         match d with
           | Decl_types _ ->
               ctx, d :: ds
+          | Decl_foreign _ ->
+              ctx, d :: ds
           | Decl_const c ->
               let ctx = {ctx with ctx_cur_mod = c.const_defn_mod} in
               let ctx, c = expand_const ctx c in

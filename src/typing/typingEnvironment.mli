@@ -126,10 +126,10 @@ val add_non_terminal:
   environment -> Location.t -> Ast.full_nname -> non_term_type -> environment
 
 (** Add a expression module value binding for [mname.vname] with type
-    [forall a1 .. an . tau] into the environment. *)
+    [forall a1 .. an . tau] and foreign flag into the environment. *)
 val add_value:
   environment -> Location.t -> Ast.full_vname ->
-  (MultiEquation.variable list * MultiEquation.crterm) -> environment
+  (MultiEquation.variable list * MultiEquation.crterm) -> bool -> environment
 
 (** [is_regular_datacon_scheme env adt_name vs ty] checks that forall vs.ty is
     a valid scheme for a data constructor; that is to say, following the
@@ -188,10 +188,10 @@ val lookup_field_adt:
 val lookup_type_variable:
   ?pos:Location.t -> environment -> Ast.full_tname -> MultiEquation.crterm
 
-(** Looks up the type for a module component. *)
+(** Looks up the type for a module component, and whether it is foreign. *)
 val lookup_value:
   Location.t -> environment -> Ast.full_vname
-  -> (MultiEquation.variable list * MultiEquation.crterm)
+  -> (MultiEquation.variable list * MultiEquation.crterm) * bool
 
 (** [lookup_non_term env nt] looks up the type information for a
     non-terminal [nt] in [env], if any. *)

@@ -49,6 +49,8 @@ module VEnv : sig
 
   (* update current module *)
   val in_module: t -> string -> t
+  (* retrieve current module *)
+  val cur_module: t -> string
 
   val add:       t -> unit var -> varid var * t
   val extend:    t -> string -> varid var -> t
@@ -67,6 +69,7 @@ end = struct
   let empty = CoreEnv.empty, ""
 
   let in_module (env, _) m = (env, m)
+  let cur_module (_, m) = m
 
   let add (env, m) v =
     incr binding;
@@ -669,10 +672,26 @@ let intern_expanded_type tenv typ =
   let typ  = TypedAstUtils.expand_type_abbrevs tenv typ in
   TypeConv.intern tenv typ
 
-(** name of the module-qualified value in the typing constraint *)
+(* name of the module-qualified value in the typing constraint *)
 let constr_name_mod_value (m: mname) v =
   Printf.sprintf "%s%s"
     (AstUtils.mk_modprefix m) (var_name v)
+
+(* Foreign functions are inaccessible outside their defining module. *)
+let check_accessible loc tenv (m, v) cur_m =
+  let _, foreign = lookup_value loc tenv (m, v) in
+  let is_accessible = if   not foreign
+                      then true
+                      else match m with
+                             | Modul Mod_stdlib ->
+                                 (* stdlib values should never be foreign *)
+                                 assert false
+                             | Modul (Mod_inferred m) ->
+                                 m = cur_m
+                             | Modul (Mod_explicit m) ->
+                                 Location.value m = cur_m in
+  if   not is_accessible
+  then raise (Error (loc, UnknownModItem (m, v)))
 
 (** [infer_expr tenv venv e t] generates a constraint that guarantees that
     [e] has type [t] in the typing environment [tenv]. *)
@@ -961,11 +980,16 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
         let mid = Modul (Mod_explicit m) in
         let vid = Location.value i in
         let v = AstUtils.make_var i in
-        let _ = lookup_value loc tenv (mid, VName vid) in
+        check_accessible loc tenv (mid, VName vid) (VEnv.cur_module venv);
         let id = constr_name_mod_value mid v in
         (SName id <? t) loc,
         (WC_true,
          mk_auxexpr (E_mod_member (m, i)))
+
+(* wrappers for add_value *)
+let add_value, add_foreign =
+  (fun tenv loc vid typ -> add_value tenv loc vid typ false),
+  (fun tenv loc vid typ -> add_value tenv loc vid typ true)
 
 (* [infer_const_defn tenv venv ctxt cd] examines the const definition [fd]
    and constraint context [ctxt] in the type environment [tenv] and
@@ -1271,6 +1295,102 @@ let infer_recfun_defns tenv venv ctxt r =
   wc,
   {r with recfuns = fds'}
 
+(* [infer_ffi_decl tenv venv ctxt fd] examines the foreign function
+   declaration [fd] and constraint context [ctxt] in the type
+   environment [tenv] and value environment [venv] and generates an
+   updated constraint context for [ctxt] and a type signature for
+   [fd]. *)
+let infer_ffi_decl tenv venv ctxt fd =
+  let loc = Location.loc fd.ffi_decl_ident
+  and fdn = var_name fd.ffi_decl_ident
+  and m  = infer_mod fd.ffi_decl_mod in
+
+  (* Introduce a type variable for the function signature. *)
+  let fv = variable Flexible () in
+  let ftyp = CoreAlgebra.TVariable fv in
+  (* Value type in the typing environment. *)
+  let vtyp = [], ftyp in
+
+  (* Prevent duplicate definitions.  The functional sublanguage is
+     processed before the grammar sublanguage; as a result, functions
+     have global scope in the grammar sublanguage as opposed to
+     lexical scope.  This creates a problem with duplicate function
+     definitions: only the last definition of 'f' will be used at all
+     calls to 'f', even though an earlier definition of 'f' may be in
+     lexical scope at a call.  This can result in very confusing error
+     messages.  Address this problem by forbidding duplicate
+     definitions. *)
+  (match VEnv.lookup venv fd.ffi_decl_ident with
+     | None   -> ()
+     | Some v -> let loc' = Location.loc v in
+                 raise (Error (loc, DuplicateFunctionDefinition (fdn, loc'))));
+
+  (* Adapt `infer_fun_defn`: non-recursive defn. *)
+  let fdn', _venv' = VEnv.add venv fd.ffi_decl_ident in
+  let tenv', venv', ids =
+    tenv, venv, StringMap.empty in
+
+  (* First construct the function signature and the argument bindings. *)
+  let irestyp = intern_expanded_type tenv' fd.ffi_decl_res_type in
+  let _, params', _, argbinders, signature =
+    if   List.length fd.ffi_decl_params = 0
+    then (* functions without args have a signature of unit -> result_type *)
+         let unit = typcon_variable tenv' (std_type "unit") in
+         let signature = TypeConv.arrow tenv' unit irestyp in
+         ids, [], venv', empty_fragment, signature
+    else List.fold_left (fun (acu_ids, params', venv', bindings, signature)
+                             (pid, typ, _) ->
+             let pn, ploc = var_name pid, Location.loc pid in
+             let acu_ids =
+               match StringMap.find_opt pn acu_ids with
+                 | Some repid ->
+                     let pid = ident_of_var pid in
+                     let loc = Location.loc pid in
+                     raise (Error (loc, RepeatedFunctionParameter (pid, repid)))
+                 | None ->
+                     StringMap.add pn (ident_of_var pid) acu_ids in
+             let pid', venv' = VEnv.add venv' pid in
+             let ityp = intern_expanded_type tenv' typ in
+             let v = variable Flexible () in
+             acu_ids,
+             (pid', typ, ityp) :: params',
+             venv',
+             {gamma = StringMap.add pn (CoreAlgebra.TVariable v, ploc)
+                        bindings.gamma;
+              tconstraint = (CoreAlgebra.TVariable v =?= ityp) ploc
+                            ^ bindings.tconstraint;
+              vars = v :: bindings.vars},
+             TypeConv.arrow tenv' ityp signature)
+           (ids, [], venv', empty_fragment, irestyp)
+           (List.rev fd.ffi_decl_params) in
+
+  (* Adapt `infer_fun_defn`: non-recursive function. *)
+  let gamma = argbinders.gamma in
+  let arg_schm = Scheme (fd.ffi_decl_loc, [], argbinders.vars,
+                         argbinders.tconstraint,
+                         gamma) in
+
+  (* Construct the constrained binding for the function definition
+     itself. *)
+  let scheme =
+    let def_c = CLet ([arg_schm],
+                      (ftyp =?= signature) loc) in
+    let bind = constr_name_mod_value m fd.ffi_decl_ident in
+    let env = StringMap.singleton bind (ftyp, loc) in
+    Scheme (fd.ffi_decl_loc, [], [fv], def_c, env) in
+
+  (* Enter foreign value into the typing environment. *)
+  add_foreign tenv loc (m, VName fdn) vtyp,
+  (* Generate the constraint context. *)
+  (fun c -> ctxt (CLet ([scheme], c))),
+  (* The annotated function contains the function signature. *)
+  {ffi_decl_ident     = fdn';
+   ffi_decl_params    = params';
+   ffi_decl_res_type  = fd.ffi_decl_res_type;
+   ffi_decl_langs     = fd.ffi_decl_langs;
+   ffi_decl_mod       = fd.ffi_decl_mod;
+   ffi_decl_loc       = fd.ffi_decl_loc;
+   ffi_decl_aux       = signature}
 
 (** [guess_nt_rhs_type tenv ntd] tries to guess a type for the
     right-hand side of the definition of [ntd]. This is done
@@ -2557,6 +2677,17 @@ let infer_spec tenv venv spec =
                               VEnv.extend venv (var_name fid) fid
                             ) venv r'.recfuns in
               tenv, c, wc @^ wc', Decl_recfuns r' :: decls, venv'
+          | Decl_foreign fs ->
+              let tenv, venv', c, fs' =
+                List.fold_left (fun (tenv, venv, c, fs') f ->
+                    let venv = VEnv.in_module venv f.ffi_decl_mod in
+                    let tenv, c, f' = infer_ffi_decl tenv venv c f in
+                    (* bind the function name *)
+                    let fid = f'.ffi_decl_ident in
+                    let venv' = VEnv.extend venv (var_name fid) fid in
+                    tenv, venv', c, f' :: fs'
+                  ) (tenv, venv, ctxt, []) fs in
+              tenv, c, wc, Decl_foreign (List.rev fs') :: decls, venv'
           | Decl_format f ->
               let tenv, ctxt =
                 List.fold_left (fun (te, c) fd ->

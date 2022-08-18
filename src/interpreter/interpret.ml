@@ -19,11 +19,78 @@ open Parsing
 open Ir
 open State
 open Values
+open Runtime_exceptions
+
+let init_runtime _ =
+  (* Initialize standard dispatch table. *)
+  Dispatch.initialize_dispatch Parsleylib.stdlib_mods
+
+(* Each function declared to be external should have a corresponding
+   loaded external implementation.
+
+   For now, resolution is only done for the OCaml interpreter;
+   i.e. for FFI decls specifying "ocaml" as a language.  The
+   resolution uses the number of arguments in the signature, but does
+   not check the types involved.  *)
+
+let resolve_foreign (ffs: Cfg.ffi_decl Cfg.ValueMap.t) =
+  (* Create lookup table of externals. *)
+  let etable = Dispatch.create_dtable () in
+  Dispatch.update_dtable etable Externals.ext_mods;
+  (* For each foreign function, look up the corresponding declared
+     OCaml implementation.  If found, register it in the dispatch
+     table linked to the name it will be invoked by. *)
+  Cfg.ValueMap.iter (fun (m, fn) fd ->
+      let loc = Ast.(fd.ffi_decl_loc) in
+      let mn = (match m with
+                  | Anf.M_name mn -> mn
+                  | Anf.M_stdlib  -> assert false) in
+      let nargs = List.length Ast.(fd.ffi_decl_params) in
+      assert (fn = Ast.var_name Ast.(fd.ffi_decl_ident));
+      (* Get the name of the external implementation, if any. *)
+      let em, ef =
+        match AstUtils.ocaml_binding Ast.(fd.ffi_decl_langs) with
+          | None ->
+              let err = No_foreign_impl_decl (mn, fn, nargs) in
+              fault loc err
+          | Some (m, f) ->
+              m, f in
+      (* Look up the implementing function in our externals table. *)
+      let throw_not_found () =
+        let err = No_foreign_impl_found (mn, fn, nargs) in
+        fault loc err in
+      match nargs with
+        | 0 -> (match Dispatch.find_impl_arg0 etable em ef with
+                  | None ->
+                      throw_not_found ()
+                  | Some impl ->
+                      Dispatch.register_impl_arg0 mn fn impl)
+        | 1 -> (match Dispatch.find_impl_arg1 etable em ef with
+                  | None ->
+                      throw_not_found ()
+                  | Some impl ->
+                      Dispatch.register_impl_arg1 mn fn impl)
+        | 2 -> (match Dispatch.find_impl_arg2 etable em ef with
+                  | None ->
+                      throw_not_found ()
+                  | Some impl ->
+                      Dispatch.register_impl_arg2 mn fn impl)
+        | 3 -> (match Dispatch.find_impl_arg3 etable em ef with
+                  | None ->
+                      throw_not_found ()
+                  | Some impl ->
+                      Dispatch.register_impl_arg3 mn fn impl)
+        | _ -> throw_not_found ()
+    ) ffs
 
 (* Returns the entry block for the given non-terminal along with the
    interpreter state that is initialized by executing the static block. *)
-let init (spec: Cfg.spec_ir) (entry_nt: Anf.modul * string) (view: view)
-  : state * Cfg.closed =
+let init load_externals (spec: Cfg.spec_ir) (entry_nt: Anf.modul * string) (view: view)
+    : state * Cfg.closed =
+  (* Resolve externals in FFI. *)
+  if   load_externals
+  then resolve_foreign Cfg.(spec.ir_foreigns);
+  (* Initialize state. *)
   let venv  = VEnv.empty in
   let fenv  = FEnv.empty in
   let mvenv = MVEnv.empty in
@@ -107,11 +174,13 @@ let run_loop ((s: state), (b: Cfg.closed))
           List.rev acc, error_info s in
   loop [] s
 
-let once_on_file spec entry f =
-  run_once (init spec entry (Viewlib.from_file f))
+let once_on_file load_externals spec entry f =
+  init_runtime load_externals;
+  run_once (init load_externals spec entry (Viewlib.from_file f))
 
-let loop_on_file spec entry f =
-  run_loop (init spec entry (Viewlib.from_file f))
+let loop_on_file load_externals spec entry f =
+  init_runtime load_externals;
+  run_loop (init load_externals spec entry (Viewlib.from_file f))
 
 let once_on_test_string test spec entry s =
-  run_once (init spec entry (Viewlib.from_string test s))
+  run_once (init true spec entry (Viewlib.from_string test s))

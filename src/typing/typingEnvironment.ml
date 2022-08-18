@@ -112,7 +112,7 @@ module LNameMap = Map.Make(struct
                       type t = full_lname
                       let compare = AstUtils.qual_compare
                     end)
-(* predefined stdlib values (functions and constants) *)
+(* values (functions and constants) *)
 module VNameMap = Map.Make(struct
                       type t = full_vname
                       let compare = AstUtils.qual_compare
@@ -123,8 +123,10 @@ module NNameMap = Map.Make(struct
                       let compare = AstUtils.qual_compare
                     end)
 
-(* type signature of a value *)
-type val_info = MultiEquation.variable list * MultiEquation.crterm
+(* type signature of a value, and if it is foreign *)
+type val_info =
+  {val_type:    MultiEquation.variable list * MultiEquation.crterm;
+   val_foreign: bool}
 
 (** [environment] denotes typing information associated to identifiers. *)
 type environment =
@@ -212,10 +214,11 @@ let add_field_destructor env loc ((m,_) as adt) ((m',_) as mfd) f =
     | Some (adt, loc') ->
         raise (Error (loc, DuplicateRecordField (mfd, adt, loc')))
 
-let add_value env loc vid t =
+let add_value env loc vid val_type val_foreign =
+  let v = {val_type; val_foreign} in
   let values =
     match VNameMap.find_opt vid env.values with
-      | None        -> VNameMap.add vid (t, loc) env.values
+      | None        -> VNameMap.add vid (v, loc) env.values
       | Some (_, l) -> raise (Error (loc, DuplicateModItem (vid, l))) in
   {env with values}
 
@@ -273,7 +276,7 @@ let lookup_type_variable ?pos env k =
 let lookup_value pos env vid =
   match VNameMap.find_opt vid env.values with
     | None        -> raise (Error (pos, UnknownModItem vid))
-    | Some (t, _) -> t
+    | Some (t, _) -> t.val_type, t.val_foreign
 
 (* The kind inferencer wants a view on the environment that
    concerns only the kinds. *)

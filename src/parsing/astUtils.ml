@@ -240,3 +240,44 @@ let check_int_literal ((s, w): num_t) (i: int) =
     | S_signed, NW_64
     | S_signed, NW_size ->
         true
+
+(* language binding specs *)
+let parse_ocaml_binding (s: string): (string * string) option =
+  (* simple minded identifier checks:
+     - exactly one `.' in `s`, splitting module and component
+   *)
+  let ss = String.split_on_char '.' s in
+  if   List.length ss != 2
+  then None
+  else Some (List.nth ss 0, List.nth ss 1)
+
+let valid_ocaml_binding (s: string) : bool =
+  None != parse_ocaml_binding s
+
+let is_ocaml_tag s =
+  String.lowercase_ascii s = "ocaml"
+
+(* for now, only check ocaml bindings *)
+let is_valid_binding (lb: ident * literal) : bool =
+  let l, b = lb in
+  if   is_ocaml_tag (Location.value l)
+  then valid_ocaml_binding (Location.value b)
+  else true
+
+let ocaml_binding (bs: (ident * literal) list)
+    : (string * string) option =
+  List.fold_left (fun ob (l, b) ->
+      if   ob = None
+      then if   is_ocaml_tag (Location.value l)
+           then parse_ocaml_binding (Location.value b)
+           else None
+      else ob
+    ) None bs
+
+let check_lang_bindings ls =
+  List.iter (fun lb ->
+      let _, b = lb in
+      if   not (is_valid_binding lb)
+      then let err = Parseerror.InvalidBinding b in
+           raise (Parseerror.Error (err, Location.loc b))
+    ) ls

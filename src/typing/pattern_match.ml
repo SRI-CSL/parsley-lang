@@ -425,7 +425,7 @@ let check_patterns tenv (spec: (MultiEquation.crterm, TypeInfer.varid) Ast.spec_
       (check_pattern tenv)
       (snd (extract_expr_pats ctx f.fun_defn_body)) in
   List.iter (function
-      | Decl_types _ | Decl_const _ ->
+      | Decl_types _ | Decl_const _ | Decl_foreign _ ->
           ()
       | Decl_fun f ->
           check_fun f

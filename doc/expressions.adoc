@@ -544,3 +544,35 @@ named `isize` in `gram.ply` will continue to refer to the type `isize`
 from the Parsley standard library.  The handling of name conflicts in
 other definitions, such as constants, functions, and non-terminals, is
 similar.
+
+== Foreign functions
+
+Parsley has experimental support for the declaration of foreign
+functions, i.e. functions that are defined outside Parsley, but called
+from Parsley expressions.  These functions are declared from a
+`foreign` block, for example:
+
+....
+
+foreign {
+  {"C"="sha256sum", "OCaml"="SHA.checksum_256"} sha256sum(buf: [byte]) -> [byte];
+  {"C"="sha512sum", "OCaml"="SHA.checksum_512"} sha512sum(buf: [byte]) -> [byte]
+}
+....
+
+This declares externally defined functions `sha256sum` and `sha512sum`
+that can be called from Parsley along with their type signatures.  The
+names for their external definitions for different languages can be
+specified.  OCaml is currently the only supported language.
+
+Foreign functions can only be used from within the grammar module in
+which they are declared.  They are considered an internal
+implementation detail of their host grammar module, and unlike normal
+Parsley functions, their names are not visible to external grammar
+modules.
+
+The current implementation requires modifying the sources of the
+compiler.  An example of the interface is shown in the file
+`test/lang/ffi.ply`.  The interpreter will need to be invoked with the
+`--with-foreign` flag to ensure that externally implemented functions
+are registered.

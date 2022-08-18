@@ -19,6 +19,7 @@ open Parsing
 open Ir
 open Values
 open State
+open Dispatch
 open Parsleylib
 open Viewlib
 open Runtime_exceptions
@@ -83,8 +84,8 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
         let m, c = Location.value m, Location.value c in
         if      m = "View"
         then    dispatch_viewlib av.av_loc m c s []
-        else if is_stdlib_mod m
-        then    dispatch_stdlib  av.av_loc m c []
+        else if is_lib_mod m
+        then    dispatch_lib  av.av_loc m c []
         else    MVEnv.lookup s.st_mvenv (m, c) av.av_loc
 
 (* match helper, used for aexps and astmts *)
@@ -239,8 +240,8 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
         let mn = Location.value m in
         if      mn = "View"
         then    dispatch_viewlib fv.fv_loc mn fn s vs
-        else if is_stdlib_mod mn
-        then    dispatch_stdlib  fv.fv_loc mn fn   vs
+        else if is_lib_mod mn
+        then    dispatch_lib fv.fv_loc mn fn   vs
         else    let ps, bd = MFEnv.lookup s.st_mfenv (mn, fn) fv.fv_loc in
                 do_apply s fn (ps, vs) bd fv.fv_loc
     | AE_letpat (p, (av, occ), bd) ->

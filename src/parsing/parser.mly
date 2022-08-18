@@ -21,7 +21,8 @@ open Parseerror
 %}
 
 %token EOF
-%token FORMAT TYPE BITFIELD AND FUN RECFUN INCLUDE IMPORT OF CASE LET IN CONST
+%token FORMAT TYPE BITFIELD AND FUN RECFUN INCLUDE IMPORT OF CASE LET
+%token IN CONST FOREIGN
 %token PRINT PRINTT
 %token DECO
 %token EPSILON PAD ALIGN USE_BITFIELD
@@ -263,6 +264,16 @@ let make_deco t v a b e =
 let make_format decls b e =
   {format_decls = decls;
    format_loc   = Location.mk_loc b e}
+
+let make_ffi_decl f p r ls b e =
+  AstUtils.check_lang_bindings ls;
+  {ffi_decl_ident    = f;
+   ffi_decl_params   = p;
+   ffi_decl_res_type = r;
+   ffi_decl_langs    = ls;
+   ffi_decl_mod      = get_cur_module ();
+   ffi_decl_loc      = Location.mk_loc b e;
+   ffi_decl_aux      = ()}
 
 (* Type expressions with syntactic support, such as tuples and lists,
    need support in the parser. *)
@@ -854,6 +865,15 @@ recfun_decl:
     LPAREN p=param_decls RPAREN ARROW r=type_expr EQ LBRACE e=expr RBRACE
   { make_fun_defn (make_var f) true tvs p r e $startpos $endpos }
 
+ffispec:
+| l=ident EQ f=LITERAL
+  { (l, f) }
+
+ffifun:
+| LBRACE ls=separated_nonempty_list(COMMA, ffispec) RBRACE
+  f=ident LPAREN p=param_decls RPAREN ARROW r=type_expr
+  { make_ffi_decl (make_var f) p r ls $startpos $endpos }
+
 pre_decl:
 | INCLUDE m=def
   { PDecl_include [m] }
@@ -873,7 +893,8 @@ pre_decl:
   { PDecl_recfuns (make_recfuns fs $startpos $endpos) }
 | FORMAT LBRACE d=separated_list(SEMISEMI, format_decl) RBRACE
   { PDecl_format (make_format d $startpos $endpos) }
-
+| FOREIGN LBRACE fs=separated_nonempty_list(SEMICOLON, ffifun) RBRACE
+  { PDecl_foreign fs }
 toplevel:
 | pre_decls=list(pre_decl) EOF
   { { pre_decls } }

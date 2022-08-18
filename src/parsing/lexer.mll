@@ -37,6 +37,7 @@
         "let",       LET;
         "in",        IN;
         "const",     CONST;
+        "foreign",   FOREIGN;
 
         "$epsilon",  EPSILON;
         "$pad",      PAD;

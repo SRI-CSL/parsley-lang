@@ -306,6 +306,15 @@ type ('a, 'b, 'm) rec_funs_defn =
   {recfuns:     ('a, 'b, 'm) fun_defn list; (* mutually recursive *)
    recfuns_loc: Location.t}
 
+type ('a, 'b, 'm) ffi_decl =
+  {ffi_decl_ident:    'b var;
+   ffi_decl_params:   ('b var * 'm gen_type_expr * 'a) list;
+   ffi_decl_res_type: 'm gen_type_expr;
+   ffi_decl_langs:    (ident * literal) list;
+   ffi_decl_mod:      string;
+   ffi_decl_loc:      Location.t;
+   ffi_decl_aux:      'a}
+
 type ('a, 'b, 'm) const_defn =
   {const_defn_ident: 'b var;
    const_defn_type:  'm gen_type_expr;
@@ -343,6 +352,7 @@ type ('a, 'b) pre_decl =
   | PDecl_const   of ('a, 'b, raw_mod) const_defn
   | PDecl_fun     of ('a, 'b, raw_mod) fun_defn
   | PDecl_recfuns of ('a, 'b, raw_mod) rec_funs_defn
+  | PDecl_foreign of ('a, 'b, raw_mod) ffi_decl list
   | PDecl_format  of ('a, 'b, raw_mod) format
 
 type ('a, 'b) pre_spec_module =
@@ -358,6 +368,7 @@ type ('a, 'b) top_decl =
   | Decl_const   of ('a, 'b, mod_qual) const_defn
   | Decl_fun     of ('a, 'b, mod_qual) fun_defn
   | Decl_recfuns of ('a, 'b, mod_qual) rec_funs_defn
+  | Decl_foreign of ('a, 'b, mod_qual) ffi_decl list
   | Decl_format  of ('a, 'b, mod_qual) format
 
 type ('a, 'b) spec_module =

@@ -414,6 +414,21 @@ let print_fun_defn prefix auxp fd =
   pp_string "}";
   pp_close_box ()
 
+let print_ffi_decl auxp fd =
+  pp_string (var_name fd.ffi_decl_ident);
+  pp_string "(";
+  print_list ", " (print_param_decl auxp) fd.ffi_decl_params;
+  pp_string ")";
+  pp_string " -> ";
+  print_type_expr auxp fd.ffi_decl_res_type;
+  pp_string " = foreign {";
+  print_list ", " (fun (l, f) ->
+      pp_string (Printf.sprintf "%s=%s"
+                   (Location.value l) (Location.value f))
+    ) fd.ffi_decl_langs;
+  pp_string "}";
+  pp_newline ()
+
 let print_recfun_defns auxp fds =
   pp_open_box  0;
   let first = ref true in
@@ -421,7 +436,13 @@ let print_recfun_defns auxp fds =
       let prefix = if !first then "recfun " else "and " in
       print_fun_defn prefix auxp fd;
       first := false
-    ) fds
+    ) fds;
+  pp_close_box ()
+
+let print_ffi_decls auxp fds =
+  pp_open_box 0;
+  List.iter (fun fd -> print_ffi_decl auxp fd) fds;
+  pp_close_box ()
 
 let print_attributes auxp at op cl =
   match at with
@@ -807,6 +828,8 @@ let print_pre_decl auxp d =
         print_fun_defn "fun " auxp fd
     | PDecl_recfuns rd ->
         print_recfun_defns auxp rd.recfuns
+    | PDecl_foreign fds ->
+        print_ffi_decls auxp fds
     | PDecl_format f ->
         print_format auxp f
 
@@ -820,6 +843,8 @@ let print_decl auxp d =
         print_fun_defn "fun " auxp fd
     | Decl_recfuns rd ->
         print_recfun_defns auxp rd.recfuns
+    | Decl_foreign fds ->
+        print_ffi_decls auxp fds
     | Decl_format f ->
         print_format auxp f
 

@@ -229,7 +229,7 @@ let print_gtoc toc =
   Seq.iter (fun (_, e) ->
       pp_string (string_of_nt_entry e);
       pp_newline ()
-    ) (FormatGToC.to_seq toc);
+    ) (ValueMap.to_seq toc);
   pp_close_box ()
 
 let print_ir_blocks blocks =

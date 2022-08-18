@@ -49,6 +49,8 @@ module Internal_errors = struct
     | Unknown_attribute of string * string
     | Invalid_constructor_value of constr * int
     | No_block_for_label of Label.label
+    | Duplicate_module of string
+    | Duplicate_mod_item of string * string * int
 
   let error_msg =
     let pr_occ = Ir.Anf_printer.string_of_occurrence in
@@ -123,6 +125,12 @@ module Internal_errors = struct
     | No_block_for_label l ->
         Printf.sprintf "Internal Error: no block found for label `%s'."
           (Label.to_string l)
+    | Duplicate_module m ->
+        Printf.sprintf "Internal Error: module `%s' is already registered."
+          m
+    | Duplicate_mod_item (m, f, n) ->
+        Printf.sprintf "Internal Error: duplicate %d-argument item `%s' in module `%s'."
+          n m f
 end
 
 type error =
@@ -133,6 +141,9 @@ type error =
   | Invalid_argument of string * string
   | Overflow of string
   | View_bound of string * string
+  | No_foreign_impl_decl of string * string * int
+  | No_foreign_impl_found of string * string * int
+  | Unsupported_foreign_nargs of string * string * int
   | Internal of Internal_errors.error
 
 exception Runtime_exception of Location.t * error
@@ -160,5 +171,14 @@ let error_msg = function
       Printf.sprintf "Operation '%s' overflowed." op
   | View_bound (op, m) ->
       Printf.sprintf "View operation '%s' went out of bounds: %s." op m
+  | No_foreign_impl_decl (m, f, n) ->
+      Printf.sprintf "No OCaml implementation declared for foreign function %s.%s (taking %d arguments)."
+        m f n
+  | No_foreign_impl_found (m, f, n) ->
+      Printf.sprintf "No OCaml implementation found for foreign function %s.%s (taking %d arguments)."
+        m f n
+  | Unsupported_foreign_nargs (m, f, n) ->
+      Printf.sprintf "%d arguments not supported for foreign function %s.%s."
+        n m f
   | Internal e ->
       Internal_errors.error_msg e

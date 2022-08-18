@@ -82,7 +82,7 @@ let analyze (spec: spec_ir) : info =
         else s
       ) blocks (LabelMap.empty, LabelMap.empty) in
   let info_entries =
-    FormatGToC.fold (fun nt ent m ->
+    ValueMap.fold (fun nt ent m ->
         let entry = ent.nt_entry in
         LabelMap.add entry nt m
       ) spec.ir_gtoc LabelMap.empty in
@@ -264,7 +264,7 @@ let validate (spec: spec_ir) (optimized: bool) (debug: bool) : unit =
   then assert (LabelMap.cardinal info.info_jmp_blks = 0);
   (* Construct the set of known virtual labels. *)
   let _, dyn_labels =
-    FormatGToC.fold (fun nt ent (em, dls) ->
+    ValueMap.fold (fun nt ent (em, dls) ->
         (* The continuations should be virtual. *)
         assert (is_virtual ent.nt_succcont);
         assert (is_virtual ent.nt_failcont);

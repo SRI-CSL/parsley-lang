@@ -25,6 +25,7 @@ type parse_error =
   | Nonpositive_bitvector_width of int
   | Missing_bitvector_width
   | Invalid_bitvector_syntax
+  | InvalidBinding of Ast.literal
 
 exception Error of parse_error * Location.t
 
@@ -48,3 +49,6 @@ let error_msg = function
       Printf.sprintf "BitVector requires an explicit bit-width."
   | Invalid_bitvector_syntax ->
       Printf.sprintf "Incorrect syntax for BitVector use."
+  | InvalidBinding b ->
+      Printf.sprintf "`%s' cannot be parsed as a valid binding identifier."
+        (Location.value b)

@@ -1,7 +1,10 @@
-Version 0.2.0
--------------
+Version 0.2.0 (in-progress)
+---------------------------
 
 - A module system for composing specifications.
+
+- An experimental external or 'foreign' function interface for the
+  interpreter that enables calls into OCaml code from Parsley.
 
 - The keyword `include` replaced `use` and has the same file-inclusion
   semantics.

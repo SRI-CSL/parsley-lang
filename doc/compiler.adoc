@@ -65,6 +65,10 @@ Parsley specifications, the `-I` option should be used to specify the
 directories in which those specifications can be found, once per
 directory.
 
+If custom functions are implemented in OCaml via the experimental
+foreign function interface, the `--with-foreign` (or `-f) option will
+need to be specified to the interpreter.
+
 Additional command line options can be specified to each of these
 modes of the compiler.  A list of these options can be examined using
 the `--help` option.

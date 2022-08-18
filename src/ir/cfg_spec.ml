@@ -45,7 +45,7 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
   (* Initialize the context with a dummy failure label. *)
   let init_failcont = fresh_virtual () in
   let ctx = {ctx_tenv       = tenv;
-             ctx_gtoc       = FormatGToC.empty;
+             ctx_gtoc       = ValueMap.empty;
              ctx_ir         = LabelMap.empty;
              ctx_venv       = venv;
              ctx_failcont   = init_failcont;
@@ -73,11 +73,11 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
     Cfg_rule.add_gnode fb nd afb.aexp_typ loc in
 
   (* Process the spec in lexical order. *)
-  let ctx, _, sts =
-    List.fold_left (fun (ctx, tvenv, sts) d ->
+  let ctx, _, sts, foreigns =
+    List.fold_left (fun (ctx, tvenv, sts, foreigns) d ->
         match d with
           | Ast.Decl_types _ ->
-              ctx, tvenv, sts
+              ctx, tvenv, sts, foreigns
           | Ast.Decl_const c ->
               (* populate the consts block *)
               let c', venv =
@@ -92,7 +92,7 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
               let vn = Location.mk_loc_val (fst v') loc in
               let nd = N_assign_mod_var (mn, vn, ae) in
               let sts = Cfg_rule.add_gnode sts nd ae.aexp_typ loc in
-              {ctx with ctx_venv = venv}, tvenv, sts
+              {ctx with ctx_venv = venv}, tvenv, sts, foreigns
           | Ast.Decl_fun f ->
               (* populate the funcs block *)
               let af, venv =
@@ -100,7 +100,7 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
               if   print_anf
               then Anf_printer.print_fun af;
               let sts = add_fun sts af in
-              {ctx with ctx_venv = venv}, tvenv, sts
+              {ctx with ctx_venv = venv}, tvenv, sts, foreigns
           | Ast.Decl_recfuns r ->
               (* populate the funcs block *)
               let afs, venv = Anf_exp.normalize_recfuns ctx.ctx_tenv
@@ -108,19 +108,30 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
               if   print_anf
               then List.iter Anf_printer.print_fun afs;
               let sts = List.fold_left add_fun sts afs in
-              {ctx with ctx_venv = venv}, tvenv, sts
+              {ctx with ctx_venv = venv}, tvenv, sts, foreigns
+          | Ast.Decl_foreign fs ->
+              let foreigns = List.fold_left (fun fs f ->
+                                 let m = Anf.M_name Ast.(f.ffi_decl_mod) in
+                                 let v = Ast.var_name Ast.(f.ffi_decl_ident) in
+                                 assert (not (ValueMap.mem (m, v) foreigns));
+                                 ValueMap.add (m, v) f fs
+                               ) foreigns fs in
+              ctx, tvenv, sts, foreigns
           | Ast.Decl_format f ->
               (* generate the CFG blocks for the non-terminals *)
-              List.fold_left (fun (ctx, tvenv, sts) (fd: format_decl) ->
-                  let ntd = fd.format_decl in
-                  let ctx, tvenv = Cfg_rule.lower_ntd ctx tvenv ntd in
-                  ctx, tvenv, sts
-                ) (ctx, tvenv, sts) f.format_decls
-      ) (ctx, init_venv, sts) spec.decls in
+              let ctx, tvenv, sts =
+                List.fold_left (fun (ctx, tvenv, sts) (fd: format_decl) ->
+                    let ntd = fd.format_decl in
+                    let ctx, tvenv = Cfg_rule.lower_ntd ctx tvenv ntd in
+                    ctx, tvenv, sts
+                  ) (ctx, tvenv, sts) f.format_decls in
+              ctx, tvenv, sts, foreigns
+      ) (ctx, init_venv, sts, ValueMap.empty) spec.decls in
   let spec =
     {ir_gtoc          = ctx.ctx_gtoc;
      ir_blocks        = ctx.ctx_ir;
      ir_statics       = sts;
+     ir_foreigns      = foreigns;
      ir_init_failcont = init_failcont;
      ir_tenv          = ctx.ctx_tenv;
      ir_venv          = ctx.ctx_venv} in

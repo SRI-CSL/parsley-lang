@@ -27,6 +27,7 @@ type rule_elem      = (typ, TypeInfer.varid, Ast.mod_qual) Ast.rule_elem
 type rule           = (typ, TypeInfer.varid, Ast.mod_qual) Ast.rule
 type non_term_defn  = (typ, TypeInfer.varid, Ast.mod_qual) Ast.non_term_defn
 type format_decl    = (typ, TypeInfer.varid, Ast.mod_qual) Ast.format_decl
+type ffi_decl       = (typ, TypeInfer.varid, Ast.mod_qual) Ast.ffi_decl
 
 (* source-level spec *)
 type format         = (typ, TypeInfer.varid, Ast.mod_qual) Ast.format
@@ -393,12 +394,9 @@ type nt_entry =
    (* the location this non-term was defined *)
    nt_loc:       Location.t}
 
-(* The 'grammar table-of-contents' maps each non-terminal name to its
-   nt_entry.  It is only a ToC and not complete since it does not
-   contain the actual CFGs. *)
-module FormatGToC = Map.Make(struct type t = modul * string
-                                    let compare = compare
-                             end)
+module ValueMap = Map.Make(struct type t = modul * string
+                                  let compare = compare
+                           end)
 
 module LabelOrdSet = struct type t = Label.label
                             let compare = compare
@@ -410,9 +408,10 @@ module LabelMap = Map.Make(LabelOrdSet)
 
 (* The IR for the entire specification. *)
 type spec_ir =
-  {ir_gtoc:          nt_entry FormatGToC.t;
+  {ir_gtoc:          nt_entry ValueMap.t; (* indexed by non-terminal name *)
    ir_blocks:        closed LabelMap.t;
    ir_statics:       opened; (* constants and functions *)
+   ir_foreigns:      ffi_decl ValueMap.t;
    ir_init_failcont: label;  (* should always be virtual *)
    (* debugging state for the interpreter *)
    ir_tenv:          TypingEnvironment.environment;
@@ -423,7 +422,7 @@ type context =
   {(* the typing environment *)
    ctx_tenv:     TypingEnvironment.environment;
    (* this will stay static during the construction of the IR *)
-   ctx_gtoc:     nt_entry FormatGToC.t;
+   ctx_gtoc:     nt_entry ValueMap.t;
    (* this will be updated during the construction with completed
       blocks *)
    ctx_ir:       closed LabelMap.t;
