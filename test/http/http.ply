@@ -25,6 +25,7 @@ format {
     !"\n"! | !"\r\n"! // line break
     pld = Payload
     {
+        // $print(method_string);
         hreq.h.method_string := method_string;
         hreq.h.version := v;
         hreq.h.path := p;
