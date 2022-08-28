@@ -1,0 +1,3 @@
+(library
+  (name fuzzer)
+  (libraries parsing typing ir unix))

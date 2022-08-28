@@ -1,6 +1,6 @@
 (executable
  (name parsleyc)
- (libraries parsing typing analysis ir interpreter tests yojson cmdliner)
+ (libraries fuzzer parsing typing analysis ir interpreter tests yojson cmdliner)
  (link_deps parsing/parseErrorMessages.check)
  (preprocess (pps ppx_deriving_yojson))
 )

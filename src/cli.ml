@@ -38,6 +38,14 @@ let execute copts loop start spec_file data_file : unit =
   let spec = Check.ir_of_spec verbose ckopts spec_file in
   Execute.execute verbose loop start spec data_file
 
+(* grammar synthesis*)
+let fuzz copts loop start spec_file data_file : unit =
+  Options.process_copts copts;
+  let verbose = copts.co_verbose in
+  let ckopts = Options.default_ckopts in
+  let spec = Check.ir_of_spec verbose ckopts spec_file in
+  Fuzz.fuzz verbose loop start spec data_file
+
 (* TODO: help command *)
 
 (* CLI arguments *)
@@ -133,6 +141,11 @@ let check_cmd : unit Cmd.t =
   let info = Cmd.info "check" ~doc in
   Cmd.v info Term.(const check $ copts_t $ ckopts_t $ spec)
 
+let fuzz_cmd : unit Cmd.t =
+  let doc  = "parse the given data using the given specification" in
+  let info = Cmd.info "fuzz" ~doc in
+  Cmd.v info Term.(const fuzz $ copts_t $ loop $ start $ spec $ data)
+
 let execute_cmd : unit Cmd.t =
   let doc  = "parse the given data using the given specification" in
   let info = Cmd.info "execute" ~doc in
@@ -143,7 +156,7 @@ let main_cmd : unit Cmd.t =
   let doc  = "the Parsley compiler" in
   let prog = Filename.basename Sys.argv.(0) in
   let info = Cmd.info prog ~version:version ~doc in
-  Cmd.group info [check_cmd; execute_cmd; test_cmd]
+  Cmd.group info [check_cmd; execute_cmd; fuzz_cmd; test_cmd;]
 
 let run () =
   exit (Cmd.eval main_cmd)
