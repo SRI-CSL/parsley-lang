@@ -1,0 +1,30 @@
+// Contributed by Chris Miller and team @ LMCO
+
+include header
+
+type mav_heartbeat = {
+    hb_cmode: u32,
+    hb_type: u8,
+    hb_autopilot: u8,
+    hb_bmode: u8,
+    hb_sstatus: u8,
+    hb_mversion: u8
+}
+
+format {
+    MAV_HEARTBEAT heartbeat {mav_heartbeat} :=
+        cmode = UInt32<endian=endian::Big()>
+        _type = UInt8
+        autopilot = UInt8
+        bmode = UInt8
+        sstatus = UInt8
+        mversion = UInt8
+        {
+            heartbeat.hb_cmode := cmode;
+            heartbeat.hb_type := _type;
+            heartbeat.hb_autopilot := autopilot;
+            heartbeat.hb_bmode := bmode;
+            heartbeat.hb_sstatus := sstatus;
+            heartbeat.hb_mversion := mversion
+        }
+}

@@ -1,0 +1,21 @@
+// Contributed by Chris Miller and team @ LMCO
+
+include header
+
+type mav_set_mode = {
+    sm_cmode: u32,
+    sm_tsys: u8,
+    sm_bmode: u8
+}
+
+format {
+    MAV_SET_MODE set_mode {mav_set_mode} :=
+        cmode = UInt32<endian=endian::Big()>
+        tsys = UInt8
+        bmode = UInt8
+        {
+            set_mode.sm_cmode := cmode;
+            set_mode.sm_tsys := tsys;
+            set_mode.sm_bmode := bmode
+        }
+}

@@ -1,0 +1,27 @@
+// Contributed by Chris Miller and team @ LMCO
+
+include header
+include heartbeat
+include setmode
+include mission_current
+include mission_count
+
+type mav_message = {
+    header: mav_header
+}
+
+format {
+
+    MAV_MESSAGE message {mav_message} :=
+        header = MavlinkHeader
+        {
+            message.header := header;
+            $print(header)
+        }
+
+        ([header.msgid =  0u32] [header.length = 9u8] MAV_HEARTBEAT) |
+        ([header.msgid = 11u32] [header.length = 6u8] MAV_SET_MODE) |
+        ([header.msgid = 44u32] [header.length = 5u8] MAV_MISSION_COUNT) |
+        ([header.msgid = 42u32] [header.length = 2u8] MAV_MISSION_CURRENT)
+
+}

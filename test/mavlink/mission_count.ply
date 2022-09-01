@@ -1,0 +1,24 @@
+// Contributed by Chris Miller and team @ LMCO
+
+include header
+
+type mav_mission_count = {
+    mc_count: u16,
+    mc_tsys: u8,
+    mc_tcomp: u8,
+    mc_mtype: u8
+}
+
+format {
+    MAV_MISSION_COUNT mission_count {mav_mission_count} :=
+        count = UInt16<endian=endian::Big()>
+        tsys = UInt8
+        tcomp = UInt8
+        mtype = UInt8
+        {
+            mission_count.mc_count := count;
+            mission_count.mc_tsys := tsys;
+            mission_count.mc_tcomp := tcomp;
+            mission_count.mc_mtype := mtype
+        }
+}

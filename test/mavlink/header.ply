@@ -1,0 +1,36 @@
+// Contributed by Chris Miller and team @ LMCO
+
+type mav_header = {
+    magic: u8,
+    length: u8,
+    icomp: u8,
+    comp: u8,
+    seq: u8,
+    sysid: u8,
+    compid: u8,
+    msgid: u32
+}
+
+format {
+    MavlinkHeader header {mav_header} :=
+        magic = UInt8
+        [magic = 253u8 || magic = 254u8]
+        length = UInt8
+        icomp = UInt8
+        comp = UInt8
+        seq = UInt8
+        sysid = UInt8
+        compid = UInt8
+        tmp_msg = BitVector<24>
+        {
+            header.magic := magic;
+            header.length := length;
+            header.icomp := icomp;
+            header.comp := comp;
+            header.seq := seq;
+            header.sysid := sysid;
+            header.compid := compid;
+            header.msgid := Bits.to_u32_endian(endian::Little(), tmp_msg);
+            $print(header.msgid)
+        }
+}
