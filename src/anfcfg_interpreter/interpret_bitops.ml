@@ -17,7 +17,7 @@
 
 (* bit and bit-vector parsing *)
 
-open Ir
+open Anfcfg
 open Values
 open State
 open Runtime_exceptions

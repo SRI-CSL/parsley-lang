@@ -18,7 +18,7 @@
 (* The standard library for Parsley *)
 
 open Parsing
-open Ir
+open Anfcfg
 open Values
 open Runtime_exceptions
 open Internal_errors

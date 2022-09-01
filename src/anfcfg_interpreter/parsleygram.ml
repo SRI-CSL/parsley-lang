@@ -206,9 +206,9 @@ let impl_int64 lc (vu: view) (e: endian) : val_result =
 
 let get_int_endian lc nt (s, v) : endian =
   match s, v with
-    | "endian", V_constr ((Ir.Anf.M_stdlib, "endian", "Big"), []) ->
+    | "endian", V_constr ((Anfcfg.Anf.M_stdlib, "endian", "Big"), []) ->
         E_big
-    | "endian", V_constr ((Ir.Anf.M_stdlib, "endian", "Little"), []) ->
+    | "endian", V_constr ((Anfcfg.Anf.M_stdlib, "endian", "Little"), []) ->
         E_little
     | "endian", V_constr (c, args) ->
         let nargs = List.length args in

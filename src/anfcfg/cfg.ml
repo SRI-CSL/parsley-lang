@@ -242,7 +242,7 @@ module Node = struct
 
   (* The `node` type mainly consists of nodes that perform actual
      parsing actions or evaluate constraints or conditions, and hence
-     which can branch (and hence 'exit' the IR block) due to the
+     which can branch (and hence 'exit' the CFG block) due to the
      action either succeeding or failing, and nodes that are purely
      for control-flow between blocks such as jumps, calls and returns.
 
@@ -378,7 +378,7 @@ type closed = (Block.c, Block.c, unit) B.block
 
 module StringMap = Map.Make(String)
 
-(* The entry describing a non-terminal in the IR.  The CFG itself is
+(* The entry describing a non-terminal in the CFG.  The CFG itself is
  * stored separately, since this entry is needed for each non-terminal
  * before their CFGs can be constructed. *)
 type nt_entry =
@@ -410,26 +410,26 @@ module ValueMap = Map.Make(struct type t = modul * string
    indexed by their entry label. *)
 module LabelMap = Map.Make(LabelOrdSet)
 
-(* The IR for the entire specification. *)
-type spec_ir =
-  {ir_gtoc:          nt_entry ValueMap.t; (* indexed by non-terminal name *)
-   ir_blocks:        closed LabelMap.t;
-   ir_statics:       opened; (* constants and functions *)
-   ir_foreigns:      ffi_decl ValueMap.t;
-   ir_init_failcont: label;  (* should always be virtual *)
+(* The CFG for the entire specification. *)
+type spec_cfg =
+  {cfg_gtoc:          nt_entry ValueMap.t; (* indexed by non-terminal name *)
+   cfg_blocks:        closed LabelMap.t;
+   cfg_statics:       opened; (* constants and functions *)
+   cfg_foreigns:      ffi_decl ValueMap.t;
+   cfg_init_failcont: label;  (* should always be virtual *)
    (* debugging state for the interpreter *)
-   ir_tenv:          TypingEnvironment.environment;
-   ir_venv:          VEnv.t}
+   cfg_tenv:          TypingEnvironment.environment;
+   cfg_venv:          VEnv.t}
 
-(* The context for IR generation. *)
+(* The context for CFG generation. *)
 type context =
   {(* the typing environment *)
    ctx_tenv:     TypingEnvironment.environment;
-   (* this will stay static during the construction of the IR *)
+   (* this will stay static during the construction of the CFG *)
    ctx_gtoc:     nt_entry ValueMap.t;
    (* this will be updated during the construction with completed
       blocks *)
-   ctx_ir:       closed LabelMap.t;
+   ctx_cfg:      closed LabelMap.t;
    (* the current variable environment *)
    ctx_venv:     VEnv.t;
    (* the current failure continuation *)
@@ -450,7 +450,7 @@ let error_msg = function
   | Unbound_return_expr ->
       "The return expression in this action block is not used."
   | Unsupported_construct s ->
-      Printf.sprintf "IR generation for `%s' is currently unsupported." s
+      Printf.sprintf "CFG generation for `%s' is currently unsupported." s
   | Nonterm_variable_required ntd ->
       Printf.sprintf "Non-terminal `%s' requires a variable to indicate the matched value."
         (Location.value ntd)

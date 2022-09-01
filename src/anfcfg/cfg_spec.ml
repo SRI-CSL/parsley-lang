@@ -46,7 +46,7 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
   let init_failcont = fresh_virtual () in
   let ctx = {ctx_tenv       = tenv;
              ctx_gtoc       = ValueMap.empty;
-             ctx_ir         = LabelMap.empty;
+             ctx_cfg        = LabelMap.empty;
              ctx_venv       = venv;
              ctx_failcont   = init_failcont;
              ctx_re_env     = re_env;
@@ -128,18 +128,18 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
               ctx, tvenv, sts, foreigns
       ) (ctx, init_venv, sts, ValueMap.empty) spec.decls in
   let spec =
-    {ir_gtoc          = ctx.ctx_gtoc;
-     ir_blocks        = ctx.ctx_ir;
-     ir_statics       = sts;
-     ir_foreigns      = foreigns;
-     ir_init_failcont = init_failcont;
-     ir_tenv          = ctx.ctx_tenv;
-     ir_venv          = ctx.ctx_venv} in
+    {cfg_gtoc          = ctx.ctx_gtoc;
+     cfg_blocks        = ctx.ctx_cfg;
+     cfg_statics       = sts;
+     cfg_foreigns      = foreigns;
+     cfg_init_failcont = init_failcont;
+     cfg_tenv          = ctx.ctx_tenv;
+     cfg_venv          = ctx.ctx_venv} in
 
   (* Check consistency of the IR. *)
   if   debug
   then (Printf.printf "%! Original spec:\n%!";
-        Ir_printer.print_spec spec);
+        Cfg_printer.print_spec spec);
   Cfg_optimize.validate spec false debug;
 
   (* Optimize the IR, and then connect back-pointers in the CFG. *)
@@ -149,7 +149,7 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
   (* Check consistency of optimized IR. *)
   if   debug
   then (Printf.printf "%! Optimized spec:\n%!";
-        Ir_printer.print_spec opt_spec);
+        Cfg_printer.print_spec opt_spec);
   Cfg_optimize.validate opt_spec true debug;
 
   (* Return the optimized spec. *)

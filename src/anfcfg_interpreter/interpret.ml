@@ -16,7 +16,7 @@
 (**************************************************************************)
 
 open Parsing
-open Ir
+open Anfcfg
 open State
 open Values
 open Runtime_exceptions
@@ -85,20 +85,20 @@ let resolve_foreign (ffs: Cfg.ffi_decl Cfg.ValueMap.t) =
 
 (* Returns the entry block for the given non-terminal along with the
    interpreter state that is initialized by executing the static block. *)
-let init load_externals (spec: Cfg.spec_ir) (entry_nt: Anf.modul * string) (view: view)
+let init load_externals (spec: Cfg.spec_cfg) (entry_nt: Anf.modul * string) (view: view)
     : state * Cfg.closed =
   (* Resolve externals in FFI. *)
   if   load_externals
-  then resolve_foreign Cfg.(spec.ir_foreigns);
+  then resolve_foreign Cfg.(spec.cfg_foreigns);
   (* Initialize state. *)
   let venv  = VEnv.empty in
   let fenv  = FEnv.empty in
   let mvenv = MVEnv.empty in
   let mfenv = MFEnv.empty in
-  let s = {st_spec_toc     = Cfg.(spec.ir_gtoc);
-           st_spec_ir      = Cfg.(spec.ir_blocks);
-           st_ir_tenv      = Cfg.(spec.ir_tenv);
-           st_ir_venv      = Cfg.(spec.ir_venv);
+  let s = {st_spec_toc     = Cfg.(spec.cfg_gtoc);
+           st_spec_cfg     = Cfg.(spec.cfg_blocks);
+           st_cfg_tenv     = Cfg.(spec.cfg_tenv);
+           st_cfg_venv     = Cfg.(spec.cfg_venv);
            st_mode         = Mode_normal;
            st_venv         = venv;
            st_fenv         = fenv;
@@ -108,7 +108,7 @@ let init load_externals (spec: Cfg.spec_ir) (entry_nt: Anf.modul * string) (view
            st_cur_view     = view;
            st_ctrl_stk     = []} in
   (* Initialize from the statics block. *)
-  let s = Interpret_cfg.do_opened_block s Cfg.(spec.ir_statics) in
+  let s = Interpret_cfg.do_opened_block s Cfg.(spec.cfg_statics) in
   (* Look up the entry non-terminal. *)
   let ent = match get_init_ntentry s entry_nt with
       | Some b -> b

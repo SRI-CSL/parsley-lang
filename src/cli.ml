@@ -24,7 +24,7 @@ let version = "0.2.0"
 
 let test copts : unit =
   Options.process_copts copts;
-  Test.run_tests copts.co_verbose Test.gen_ir Test.exe_ir
+  Test.run_tests copts.co_verbose Test.gen_cfg Test.exe_cfg
 
 let check copts ckopts sopts spec_file : unit =
   Options.process_copts copts;
@@ -35,7 +35,7 @@ let execute copts sopts xopts load_externals loop start spec_file data_file : un
   Options.process_copts copts;
   let verbose = copts.co_verbose in
   let ckopts = Options.default_ckopts in
-  let spec = Check.ir_of_spec verbose ckopts sopts spec_file in
+  let spec = Check.cfg_of_spec verbose ckopts sopts spec_file in
   let m = Parsing.AstUtils.modname_of_file spec_file in
   Execute.execute verbose xopts.exe_show_data_as_ascii
     load_externals loop m start spec data_file

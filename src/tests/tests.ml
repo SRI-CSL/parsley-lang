@@ -16,7 +16,7 @@
 (**************************************************************************)
 
 open Parsing
-open Interpreter
+open Anfcfg_interpreter
 open Values
 
 let tests = [
@@ -474,45 +474,45 @@ let tests = [
                                                "v2", V_int (Ast.u32_t, 0x20100L)]);
   ]
 
-let do_tests print_ir gen_ir exe_ir =
+let do_tests print_cfg gen_cfg exe_cfg =
   let fails = ref 0 in
   let succs = ref 0 in
-  let print_ir ir =
-    if   print_ir
-    then Ir.Ir_printer.print_spec ir in
+  let print_cfg cfg =
+    if   print_cfg
+    then Anfcfg.Cfg_printer.print_spec cfg in
   let fail reason =
     incr fails;
     Printf.eprintf " failed, %s.\n%!" reason in
-  let fail_ir ir reason =
+  let fail_cfg cfg reason =
     incr fails;
     Printf.eprintf " failed, %s.\n%!" reason;
-    print_ir ir in
-  let fail_match ir v v' =
+    print_cfg cfg in
+  let fail_match cfg v v' =
     incr fails;
     Printf.eprintf " failed, incorrect result.\n%!";
     Printf.eprintf "expected:\n   %s\n%!" (Values.string_of_value true v);
     Printf.eprintf "got:     \n   %s\n%!" (Values.string_of_value true v');
-    print_ir ir in
-  let fail_except ir e =
+    print_cfg cfg in
+  let fail_except cfg e =
     incr fails;
     Printf.eprintf " failed with exception: %s\n%!"
       (Runtime_exceptions.Internal_errors.error_msg e);
-    print_ir ir in
+    print_cfg cfg in
   let succ () =
     incr succs;
     Printf.eprintf " passed.\n%!" in
   List.iter (fun (test, spec, entry, data, v) ->
       Printf.eprintf "Running test '%s' ...%!" test;
-      let ir = gen_ir test spec in
-      match ir with
-        | None    -> fail "no IR generated"
-        | Some ir -> (let lc = Parsing.Location.ghost_loc in
-                      match exe_ir test ir entry data with
-                        | None    -> fail_ir ir "no value returned"
-                        | Some v' -> match Builtins.eq lc "=" v v' with
-                                       | Ok true  -> succ ()
-                                       | Ok false -> fail_match ir v v'
-                                       | Error e  -> fail_except ir e)
+      let cfg = gen_cfg test spec in
+      match cfg with
+        | None     -> fail "no IR generated"
+        | Some cfg -> (let lc = Parsing.Location.ghost_loc in
+                       match exe_cfg test cfg entry data with
+                         | None    -> fail_cfg cfg "no value returned"
+                         | Some v' -> match Builtins.eq lc "=" v v' with
+                                        | Ok true  -> succ ()
+                                        | Ok false -> fail_match cfg v v'
+                                        | Error e  -> fail_except cfg e)
 
     ) tests;
   Printf.printf "Tests: %d failed out of %d.\n%!" !fails (!fails + !succs)

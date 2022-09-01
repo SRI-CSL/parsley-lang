@@ -56,8 +56,8 @@ type info =
    info_rev_map:  LabelSet.t LabelMap.t;
    info_jmp_blks: closed LabelMap.t}
 
-let analyze (spec: spec_ir) : info =
-  let blocks = spec.ir_blocks in
+let analyze (spec: spec_cfg) : info =
+  let blocks = spec.cfg_blocks in
   let info_rev_map, info_jmp_blks =
     LabelMap.fold (fun l b (m, s) ->
         assert (l = B.entry_label b);
@@ -84,7 +84,7 @@ let analyze (spec: spec_ir) : info =
     ValueMap.fold (fun nt ent m ->
         let entry = ent.nt_entry in
         LabelMap.add entry nt m
-      ) spec.ir_gtoc LabelMap.empty in
+      ) spec.cfg_gtoc LabelMap.empty in
   {info_entries;
    info_rev_map;
    info_jmp_blks}
@@ -216,18 +216,18 @@ let optimize_blocks (info: info) (blocks: closed LabelMap.t) :
            LabelMap.add l b m
     ) blocks LabelMap.empty
 
-let optimize (spec: spec_ir) (debug: bool) : spec_ir =
+let optimize (spec: spec_cfg) (debug: bool) : spec_cfg =
   let info = analyze spec in
-  let blocks = spec.ir_blocks in
+  let blocks = spec.cfg_blocks in
   (* Entries in the reverse map cannot exceed the total number of
      blocks.  This assertion can catch erroneous entries for virtual
      labels. *)
   assert (LabelMap.cardinal info.info_rev_map <= LabelMap.cardinal blocks);
-  let ir_blocks = optimize_blocks info blocks in
+  let cfg_blocks = optimize_blocks info blocks in
   if   debug
   then Printf.printf "Optimized (removed) %d trivial jump blocks.\n"
-         ((LabelMap.cardinal blocks) - (LabelMap.cardinal ir_blocks));
-  {spec with ir_blocks}
+         ((LabelMap.cardinal blocks) - (LabelMap.cardinal cfg_blocks));
+  {spec with cfg_blocks}
 
 (* Back-pointer insertion pass.
 
@@ -257,7 +257,7 @@ let predecessors (b: closed) : LabelSet.t =
     | Node.N_label (_, _, s) -> s
     | _                      -> assert false
 
-let connect_predecessors (spec: spec_ir) : spec_ir =
+let connect_predecessors (spec: spec_cfg) : spec_cfg =
   let info = analyze spec in
   let blocks = LabelMap.fold (fun l b m ->
                    let b =
@@ -274,8 +274,8 @@ let connect_predecessors (spec: spec_ir) : spec_ir =
                                | _ -> assert false in
                            B.join_head e t in
                    LabelMap.add l b m
-                 ) spec.ir_blocks LabelMap.empty in
-  {spec with ir_blocks = blocks}
+                 ) spec.cfg_blocks LabelMap.empty in
+  {spec with cfg_blocks = blocks}
 
 (* A routine to do some sanity checks on the IR for a spec.  It checks
    for the following:
@@ -304,7 +304,7 @@ let connect_predecessors (spec: spec_ir) : spec_ir =
      should be no unused (or 'garbage') blocks.
  *)
 
-let validate (spec: spec_ir) (optimized: bool) (debug: bool) : unit =
+let validate (spec: spec_cfg) (optimized: bool) (debug: bool) : unit =
   let info = analyze spec in
   (* An optimized IR should not contain jump blocks. *)
   if   optimized
@@ -324,7 +324,7 @@ let validate (spec: spec_ir) (optimized: bool) (debug: bool) : unit =
         let entry = ent.nt_entry in
         assert (not (LabelMap.mem entry em));
         (* The entry block should be defined. *)
-        assert (LabelMap.mem entry spec.ir_blocks);
+        assert (LabelMap.mem entry spec.cfg_blocks);
         (* It should have been found by the analysis. *)
         assert (LabelMap.find entry info.info_entries = nt);
         (* Update info. *)
@@ -332,7 +332,7 @@ let validate (spec: spec_ir) (optimized: bool) (debug: bool) : unit =
         let dls = LabelSet.add ls dls in
         let dls = LabelSet.add lf dls in
         em, dls
-      ) spec.ir_gtoc (LabelMap.empty, LabelSet.empty) in
+      ) spec.cfg_gtoc (LabelMap.empty, LabelSet.empty) in
   let have_garbage = ref false in
   (* Per-block invariants. *)
   LabelMap.iter (fun l b ->
@@ -360,22 +360,22 @@ let validate (spec: spec_ir) (optimized: bool) (debug: bool) : unit =
          property holds. *)
       List.iter (fun s ->
           let is_known_virtual  = LabelSet.mem s dyn_labels in
-          let is_defined_static = LabelMap.mem s spec.ir_blocks in
+          let is_defined_static = LabelMap.mem s spec.cfg_blocks in
           assert (is_known_virtual || is_defined_static);
           assert (not (is_known_virtual && is_defined_static));
           (* Check predecessor completeness when optimized *)
           if   is_defined_static && optimized
-          then let b' = LabelMap.find s spec.ir_blocks in
+          then let b' = LabelMap.find s spec.cfg_blocks in
                assert (LabelSet.mem l (predecessors b'))
         ) (B.successors b);
       (* Check predecessor soundness when optimized *)
       if   optimized
       then LabelSet.iter (fun p ->
-               match LabelMap.find_opt p spec.ir_blocks with
+               match LabelMap.find_opt p spec.cfg_blocks with
                  | None    -> assert false
                  | Some b' -> assert (List.mem l (B.successors b'))
              ) (predecessors b)
-    ) spec.ir_blocks;
+    ) spec.cfg_blocks;
   (* It is possible for unoptimized IR to have garbage (i.e. unused)
      blocks. For e.g., 'pure' non-terminals with only action elements
      and no parsing actions can generated unused cleanup blocks.

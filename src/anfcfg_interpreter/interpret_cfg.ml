@@ -16,7 +16,7 @@
 (**************************************************************************)
 
 open Parsing
-open Ir
+open Anfcfg
 open Values
 open State
 open Parsleygram
@@ -64,7 +64,7 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
                  | Some bf -> V_bitfield (bf, bits) in
              let env = VEnv.assign s.st_venv v vl in
              {s with st_venv = env}
-        else let m = Ir_printer.string_of_mbb pred in
+        else let m = Cfg_printer.string_of_mbb pred in
              let err = Internal_errors.Bitsbound_check m in
              internal_error loc err
     | N_push_view ->
@@ -210,7 +210,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
     | Cfg.Node.N_collect_checked_bits (loc, v, (mbb, pat), lsc, lf) ->
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
-        then let m   = Ir_printer.string_of_mbb mbb in
+        then let m   = Cfg_printer.string_of_mbb mbb in
              let err = Internal_errors.Bitsbound_check m in
              internal_error loc err
         else if match_padding bits pat
@@ -222,7 +222,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
     | Cfg.Node.N_check_bits (loc, (mbb, pat), lsc, lf) ->
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
-        then let m   = Ir_printer.string_of_mbb mbb in
+        then let m   = Cfg_printer.string_of_mbb mbb in
              let err = Internal_errors.Bitsbound_check m in
              internal_error loc err
         else if match_padding bits pat
@@ -245,7 +245,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
         do_jump loc s (if b then lsc else lf)
     | Cfg.Node.N_exec_dfa (dfa, v, lsc, lf) ->
         assert (s.st_mode = Mode_normal);
-        let loc = Ir.Dfa.DFA.loc dfa in
+        let loc = Dfa.DFA.loc dfa in
         let run = Interpret_dfa.run dfa s.st_cur_view in
         (match run with
            | None ->

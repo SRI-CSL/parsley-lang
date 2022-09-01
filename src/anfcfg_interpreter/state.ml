@@ -19,7 +19,7 @@
 
 open Parsing
 open Typing
-open Ir
+open Anfcfg
 open Runtime_exceptions
 open Internal_errors
 
@@ -145,10 +145,10 @@ type call_frame =
 and state =
   {(* static state *)
    st_spec_toc:     Cfg.nt_entry Cfg.ValueMap.t;
-   st_spec_ir:      Cfg.closed Cfg.LabelMap.t;
+   st_spec_cfg:     Cfg.closed Cfg.LabelMap.t;
    (* static state only for debugging *)
-   st_ir_tenv:      TypingEnvironment.environment;
-   st_ir_venv:      Anf.VEnv.t;
+   st_cfg_tenv:     TypingEnvironment.environment;
+   st_cfg_venv:     Anf.VEnv.t;
    (* dynamic state *)
    st_mode:         mode;
    st_venv:         VEnv.t;
@@ -165,7 +165,7 @@ let get_block lc (s: state) (l: Cfg.label) : Cfg.closed =
   (* We should only be given static labels. *)
   assert (Cfg.is_static l);
   let l = Cfg.raw_label_of l in
-  match Cfg.LabelMap.find_opt l s.st_spec_ir with
+  match Cfg.LabelMap.find_opt l s.st_spec_cfg with
     | Some b ->
         b
     | None ->

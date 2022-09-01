@@ -102,11 +102,11 @@ let close_with_jump ctx b loc l =
            then Node.N_return (loc, l)
            else Node.N_jump   (loc, l) in
   let b = B.join_tail b nd in
-  {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
+  {ctx with ctx_cfg = LabelMap.add (B.entry_label b) b ctx.ctx_cfg}
 
 let close_block ctx b nd =
   let b = B.join_tail b nd in
-  {ctx with ctx_ir = LabelMap.add (B.entry_label b) b ctx.ctx_ir}
+  {ctx with ctx_cfg = LabelMap.add (B.entry_label b) b ctx.ctx_cfg}
 
 (* Returns the labels to use for failure continuations for a set of
    ordered choices.  Each choice fails to the next one, except for the

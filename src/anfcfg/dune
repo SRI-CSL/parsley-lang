@@ -1,4 +1,4 @@
 (library
-  (name ir)
+  (name anfcfg)
   (libraries parsing typing flow)
 )

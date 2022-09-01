@@ -507,7 +507,7 @@ let constr_match lc (l: value) (c: constr) : value =
         internal_error lc (Type_error ("~~", 1, vtype_of l, T_adt_constr (c, [])))
 
 (* subterm extraction *)
-let subterm lc (v: value) (o: Ir.Anf.occurrence) : value =
+let subterm lc (v: value) (o: Anfcfg.Anf.occurrence) : value =
   let rec walk v so =
     match v, so with
       | _, [] ->
@@ -524,7 +524,7 @@ let subterm lc (v: value) (o: Ir.Anf.occurrence) : value =
           if   1 <= idx && idx <= arity
           then let v' = List.nth vs (idx - 1) in
                walk v' tl
-          else let tc  = Ir.Anf.M_stdlib, "*", "_Tuple" in
+          else let tc  = Anfcfg.Anf.M_stdlib, "*", "_Tuple" in
                let err = Bad_subterm_index (tc, idx, o) in
                internal_error lc err
       (* user-defined constructions *)

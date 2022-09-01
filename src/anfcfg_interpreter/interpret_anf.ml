@@ -16,7 +16,7 @@
 (**************************************************************************)
 
 open Parsing
-open Ir
+open Anfcfg
 open Values
 open State
 open Dispatch
@@ -90,7 +90,7 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
 
 (* match helper, used for aexps and astmts *)
 
-let stdlib = Ir.Anf.M_stdlib
+let stdlib = Anf.M_stdlib
 
 let matcher loc vr vl cases =
   let rec do_cases cases =

@@ -1,4 +1,0 @@
-(library
-  (name interpreter)
-  (libraries parsing typing ir unix)
-)

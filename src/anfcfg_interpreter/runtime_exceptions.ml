@@ -18,7 +18,7 @@
 open Parsing
 open Values
 open Flow
-open Ir
+open Anfcfg
 
 module Internal_errors = struct
   (* These errors indicate internal bugs. *)
@@ -38,8 +38,8 @@ module Internal_errors = struct
     | Function_arity of string * int * int
     | Unknown_stdlib of string * string * int
     | Unknown_std_nonterm of string * int
-    | Bad_subterm_path of Ir.Anf.occurrence * Ir.Anf.occurrence
-    | Bad_subterm_index of constr * int * Ir.Anf.occurrence
+    | Bad_subterm_path of Anf.occurrence * Anf.occurrence
+    | Bad_subterm_index of constr * int * Anf.occurrence
     | Pattern_match_failure of Anf.var
     | View_stack_underflow
     | Bitsbound_check of string
@@ -53,7 +53,7 @@ module Internal_errors = struct
     | Duplicate_mod_item of string * string * int
 
   let error_msg =
-    let pr_occ = Ir.Anf_printer.string_of_occurrence in
+    let pr_occ = Anf_printer.string_of_occurrence in
     function
     | Type_error (op, arg, r, e) ->
         Printf.sprintf "Internal Error: invalid type for '%s': found %s for argument %d, expected %s."

@@ -16,8 +16,8 @@
 (**************************************************************************)
 
 open Parsing
-open Ir
-open Interpreter
+open Anfcfg
+open Anfcfg_interpreter
 
 let interpret load_externals spec nt f loop data_as_ascii =
   let fmt_pos (o, e) =
@@ -63,6 +63,6 @@ let interpret load_externals spec nt f loop data_as_ascii =
 
 let execute _verbose (data_as_ascii: bool) (load_externals: bool)
       (loop: bool) (m: string) (start: string)
-      (spec: Cfg.spec_ir) (data: string) =
+      (spec: Cfg.spec_cfg) (data: string) =
   let m = Anf.M_name m in
   interpret load_externals spec (m, start) data loop data_as_ascii

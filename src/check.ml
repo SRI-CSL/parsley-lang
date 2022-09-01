@@ -19,7 +19,7 @@ open Parsing
 open Typing
 open Flow
 open Analysis
-open Ir
+open Anfcfg
 open Options
 
 let parse_spec ckopts sopts spec_file =
@@ -82,7 +82,7 @@ let type_check ckopts spec =
         Errors.handle_exception
           (Printexc.get_backtrace ()) l (Rulecfg.error_msg e)
 
-let mk_ir ckopts init_envs tenv (spec: Cfg.spec_module) : Cfg.spec_ir =
+let mk_cfg ckopts init_envs tenv (spec: Cfg.spec_module) : Cfg.spec_cfg =
   try  Cfg_spec.lower_spec init_envs tenv spec ckopts.co_show_anf
   with
     | Anf.Error (l, e) ->
@@ -92,16 +92,16 @@ let mk_ir ckopts init_envs tenv (spec: Cfg.spec_module) : Cfg.spec_ir =
     | Cfg.Error (l, e) ->
         Errors.handle_exception (Printexc.get_backtrace ()) l (Cfg.error_msg e)
 
-let ir_of_ast _verbose ckopts ast : Cfg.spec_ir =
+let cfg_of_ast _verbose ckopts ast : Cfg.spec_cfg =
   let init_envs, tenv, tspec = type_check ckopts ast in
-  let ir = mk_ir ckopts init_envs tenv tspec in
+  let cfg = mk_cfg ckopts init_envs tenv tspec in
   if   ckopts.co_show_cfg
-  then Ir_printer.print_spec ir;
-  ir
+  then Cfg_printer.print_spec cfg;
+  cfg
 
-let ir_of_spec verbose ckopts sopts spec_file : Cfg.spec_ir =
+let cfg_of_spec verbose ckopts sopts spec_file : Cfg.spec_cfg =
   let ast = parse_spec ckopts sopts spec_file in
-  ir_of_ast verbose ckopts ast
+  cfg_of_ast verbose ckopts ast
 
 let check_spec verbose ckopts sopts spec_file : unit =
-  ignore (ir_of_spec verbose ckopts sopts spec_file)
+  ignore (cfg_of_spec verbose ckopts sopts spec_file)

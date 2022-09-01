@@ -232,7 +232,7 @@ let print_gtoc toc =
     ) (ValueMap.to_seq toc);
   pp_close_box ()
 
-let print_ir_blocks blocks =
+let print_blocks blocks =
   pp_string "Blocks:"; pp_newline ();
   Seq.iter (fun (l, b) ->
       pp_open_vbox 2;
@@ -248,17 +248,17 @@ let print_statics blocks =
   print_opened blocks;
   pp_newline ()
 
-let print_spec ir =
+let print_spec cfg =
   pp_newline ();
   pp_open_vbox 0;
-  print_gtoc ir.ir_gtoc;
+  print_gtoc cfg.cfg_gtoc;
   pp_newline ();
-  print_ir_blocks ir.ir_blocks;
+  print_blocks cfg.cfg_blocks;
   pp_newline ();
-  print_statics ir.ir_statics;
+  print_statics cfg.cfg_statics;
   pp_newline ();
   pp_string (Printf.sprintf "InitFailCont: %s"
-               (string_of_label ir.ir_init_failcont));
+               (string_of_label cfg.cfg_init_failcont));
   pp_newline ();
   pp_close_box ();
   pp_flush ()

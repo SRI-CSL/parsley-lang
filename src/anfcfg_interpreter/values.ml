@@ -63,7 +63,7 @@ type endian =
    OCaml's stdlib give predicative types, and those in `value` are
    impredicative. *)
 type bitfield_info = Typing.TypingEnvironment.bitfield_info
-type constr = Ir.Anf.constr
+type constr = Anfcfg.Anf.constr
 type value =
   | V_unit
   | V_bool of bool
@@ -108,8 +108,8 @@ type vtype =
   | T_set of vtype
   | T_map of vtype * vtype
 
-let mod_prefix    = Ir.Anf.mod_prefix
-let str_of_constr = Ir.Anf.string_of_constr
+let mod_prefix    = Anfcfg.Anf.mod_prefix
+let str_of_constr = Anfcfg.Anf.string_of_constr
 
 let rec string_of_vtype (t: vtype) : string =
   let string_of_field (f, ft) =
