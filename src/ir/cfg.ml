@@ -202,9 +202,11 @@ let mk_gnode n t l =
 
    The entry node of a block is always static.  *)
 
+type raw_label = Label.label
+
 type label =
-  | L_static  of Label.label
-  | L_virtual of Label.label
+  | L_static  of raw_label
+  | L_virtual of raw_label
 
 let fresh_static () =
   L_static (Label.fresh_label ())
@@ -229,6 +231,11 @@ let string_of_label l =
     | L_static  l -> Printf.sprintf "S%s" (Label.to_string l)
     | L_virtual l -> Printf.sprintf "V%s" (Label.to_string l)
 
+module LabelOrdSet = struct type t = raw_label
+                            let compare = compare
+                     end
+module LabelSet = Set.Make(LabelOrdSet)
+
 (* The node structure of the CFG *)
 
 module Node = struct
@@ -250,8 +257,9 @@ module Node = struct
      control-flow.  *)
 
   type ('e, 'x, 'v) node =
-    (* block entry node, denoted by an implicitly static label *)
-    | N_label: Location.t * Label.label -> (Block.c, Block.o, unit) node
+    (* block entry node, denoted by an implicitly static label, and
+       containing back-pointers to its calling blocks *)
+    | N_label: Location.t * Label.label * LabelSet.t -> (Block.c, Block.o, unit) node
 
     (* non-control-flow or 'linear' nodes *)
     | N_gnode: gnode -> (Block.o, Block.o, unit) node
@@ -336,7 +344,7 @@ module Node = struct
 
   let entry_label (type x v) (n: (Block.c, x, v) node) =
     match n with
-      | N_label (_, l) -> l
+      | N_label (_, l, _) -> l
       (* this should not be needed *)
       | _ -> assert false
 
@@ -397,10 +405,6 @@ type nt_entry =
 module ValueMap = Map.Make(struct type t = modul * string
                                   let compare = compare
                            end)
-
-module LabelOrdSet = struct type t = Label.label
-                            let compare = compare
-                     end
 
 (* This is the complete set of CFG blocks in the specification,
    indexed by their entry label. *)

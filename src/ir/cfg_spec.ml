@@ -55,7 +55,7 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
   (* Create a block for evaluating the statics, i.e. constants and
      function definitions.  Its label will be the start label for the
      spec. *)
-  let _, sts = Cfg_rule.new_block gl () in
+  let _, sts = Cfg_rule.new_block gl in
 
   (* Add a function to the function block. *)
   let add_fun fb af =
@@ -142,8 +142,9 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
         Ir_printer.print_spec spec);
   Cfg_optimize.validate spec false debug;
 
-  (* Optimize the IR. *)
+  (* Optimize the IR, and then connect back-pointers in the CFG. *)
   let opt_spec = Cfg_optimize.optimize spec debug in
+  let opt_spec = Cfg_optimize.connect_predecessors opt_spec in
 
   (* Check consistency of optimized IR. *)
   if   debug

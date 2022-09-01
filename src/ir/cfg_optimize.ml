@@ -34,12 +34,11 @@ module LabelMap = Map.Make(LabelOrdSet)
    jump blocks are trivial.
  *)
 
-(* Trivial jump blocks consist of a single jump or return node. *)
+(* Trivial jump blocks consist of a single jump node. *)
 let is_jmp_block (b: closed) : bool =
   let _, b = B.split_head b in
   let b, x = B.split_tail b in
   let exit_is_jmp = match x with
-      | Node.N_return _
       | Node.N_jump _ -> true
       | _             -> false in
   let is_trivial = match B.to_list b with
@@ -230,6 +229,54 @@ let optimize (spec: spec_ir) (debug: bool) : spec_ir =
          ((LabelMap.cardinal blocks) - (LabelMap.cardinal ir_blocks));
   {spec with ir_blocks}
 
+(* Back-pointer insertion pass.
+
+   It is fragile and complex to keep and update back-pointers to
+   predecessor blocks during CFG construction and optimization.  So
+   each block is created with an empty set of predecessor blocks.  For
+   simplicity, the back-pointers are created after the CFG is fully
+   constructed and optimized.
+
+   After this pass, the CFG should satisfy:
+
+   . soundness: for each back-label `l` in the entry node of any block
+     `b`, if `l` points to a block `b'`, then `b'` has an exit node
+     containing `l` as a successor.
+
+   . completeness: for each `l` label in the exit node of a block `b`,
+     if `l` points to a block `b'`, then `l` should be a back-label of
+     the entry node of `b'`.
+
+   The block existence check is required, since virtual labels
+   appearing in exit nodes do not point to blocks.
+ *)
+
+let predecessors (b: closed) : LabelSet.t =
+  let e, _ = B.split_head b in
+  match e with
+    | Node.N_label (_, _, s) -> s
+    | _                      -> assert false
+
+let connect_predecessors (spec: spec_ir) : spec_ir =
+  let info = analyze spec in
+  let blocks = LabelMap.fold (fun l b m ->
+                   let b =
+                     match LabelMap.find_opt l info.info_rev_map with
+                       | None    -> b
+                       | Some ps ->
+                           (* Fix up predecessors in the entry node. *)
+                           let e, t = B.split_head b in
+                           let e = match e with
+                               | Node.N_label (loc, l', s) ->
+                                   assert (l = l');
+                                   assert (LabelSet.is_empty s);
+                                   Node.N_label (loc, l, ps)
+                               | _ -> assert false in
+                           B.join_head e t in
+                   LabelMap.add l b m
+                 ) spec.ir_blocks LabelMap.empty in
+  {spec with ir_blocks = blocks}
+
 (* A routine to do some sanity checks on the IR for a spec.  It checks
    for the following:
 
@@ -311,12 +358,23 @@ let validate (spec: spec_ir) (optimized: bool) (debug: bool) : unit =
          is static or virtual, we can check that one of these
          properties holds, but we can't tell whether the right
          property holds. *)
-      let succs = B.successors b in
-      List.iter (fun l ->
-          let is_known_virtual  = LabelSet.mem l dyn_labels in
-          let is_defined_static = LabelMap.mem l spec.ir_blocks in
-          assert (is_known_virtual || is_defined_static)
-        ) succs;
+      List.iter (fun s ->
+          let is_known_virtual  = LabelSet.mem s dyn_labels in
+          let is_defined_static = LabelMap.mem s spec.ir_blocks in
+          assert (is_known_virtual || is_defined_static);
+          assert (not (is_known_virtual && is_defined_static));
+          (* Check predecessor completeness when optimized *)
+          if   is_defined_static && optimized
+          then let b' = LabelMap.find s spec.ir_blocks in
+               assert (LabelSet.mem l (predecessors b'))
+        ) (B.successors b);
+      (* Check predecessor soundness when optimized *)
+      if   optimized
+      then LabelSet.iter (fun p ->
+               match LabelMap.find_opt p spec.ir_blocks with
+                 | None    -> assert false
+                 | Some b' -> assert (List.mem l (B.successors b'))
+             ) (predecessors b)
     ) spec.ir_blocks;
   (* It is possible for unoptimized IR to have garbage (i.e. unused)
      blocks. For e.g., 'pure' non-terminals with only action elements

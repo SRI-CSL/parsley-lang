@@ -122,7 +122,7 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
     | Ast.Scan_backward -> "bw" in
   let open Node in
   match n with
-    | N_label (_, l) ->
+    | N_label (_, l, _) ->
         pp_string (Printf.sprintf "L: %s" (Label.to_string l))
     | N_gnode g ->
         print_gnode g

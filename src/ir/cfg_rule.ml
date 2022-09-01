@@ -75,12 +75,16 @@ let constr_av t c args typ loc =
 
 (* block manipulation utilities *)
 
+(* New blocks are created with empty source blocks; that information
+   is patched in after optimization.  This is for simplicity; the
+   book-keeping required for keeping accurate source blocks during CFG
+   construction is complex and fragile. *)
 let new_labeled_block loc (l: label) : opened =
   assert (is_static l);
-  let h = Node.N_label (loc, raw_label_of l) in
+  let h = Node.N_label (loc, raw_label_of l, LabelSet.empty) in
   B.join_head h B.empty
 
-let new_block loc () : label * opened =
+let new_block loc : label * opened =
   let l = fresh_static () in
   l, new_labeled_block loc l
 
@@ -270,8 +274,8 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let bits = Location.value bits in
         (* labels for the success continuation and failure
            trampoline (to exit bitmode) *)
-        let lsc, bsc = new_block loc () in
-        let lf,  bf  = new_block loc () in
+        let lsc, bsc = new_block loc in
+        let lf,  bf  = new_block loc in
         let nd = Node.N_bits (loc, bits, lsc, lf) in
         let ctx = close_block ctx b nd in
         (* failure trampoline *)
@@ -287,8 +291,8 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let bits = Location.value bits in
         (* labels for the success continuation and failure
            trampoline (to exit bitmode) *)
-        let lsc, bsc = new_block loc () in
-        let lf,  bf  = new_block loc () in
+        let lsc, bsc = new_block loc in
+        let lf,  bf  = new_block loc in
         let nd = Node.N_align (loc, bits, lsc, lf) in
         let ctx = close_block ctx b nd in
         (* failure trampoline *)
@@ -308,8 +312,8 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let b = prepare_cursor ctx b ret loc in
         (* labels for the success continuation and failure
            trampoline (to exit bitmode) *)
-        let lsc, bsc = new_block loc () in
-        let lf,  bf  = new_block loc () in
+        let lsc, bsc = new_block loc in
+        let lf,  bf  = new_block loc in
         let nd = Node.N_bits (loc, bfi.bf_length, lsc, lf) in
         let ctx = close_block ctx b nd in
         (* failure trampoline *)
@@ -327,8 +331,8 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let bits = Location.value bits in
         (* labels for the success continuation and failure
            trampoline (to exit bitmode) *)
-        let ls, bs = new_block loc () in
-        let lf, bf = new_block loc () in
+        let ls, bs = new_block loc in
+        let lf, bf = new_block loc in
         let nd = Node.N_pad (loc, bits, ls, lf) in
         let ctx = close_block ctx b nd in
         (* failure trampoline *)
@@ -337,7 +341,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let pred = MB_below bits, pat in
         let lf = ctx.ctx_failcont in
         (* make a new block for the success continuation *)
-        let lsc, bsc = new_block loc () in
+        let lsc, bsc = new_block loc in
         let nd =
           match ret with
             | Some v ->
@@ -527,7 +531,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
                 v, venv, nd in
         let b = add_gnode b nd typ loc in
         (* make a new block for the success continuation *)
-        let lsc, bsc = new_block loc () in
+        let lsc, bsc = new_block loc in
         (* close the current block and update the ir *)
         let nd = Node.N_constraint (loc, cvar, lsc, ctx.ctx_failcont) in
         let ctx = close_block ctx b nd in
@@ -1227,7 +1231,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
         (StringMap.add ia (v, typ) attrs), venv
       ) (StringMap.empty, venv) ntd.non_term_inh_attrs in
   (* Create the entry block. *)
-  let lent, b = new_block loc () in
+  let lent, b = new_block loc in
   (* Create the virtual success and failure conts. *)
   let lsd = fresh_virtual () in
   let lfd = fresh_virtual () in
