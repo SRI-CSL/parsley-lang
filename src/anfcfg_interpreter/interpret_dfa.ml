@@ -42,7 +42,7 @@ let run (dfa: DFA.t) (v: view) : (value * view) option =
        first if possible before trying to accept. *)
     if   ofs >= vend
     then try_accept s ofs bytes
-    else let c = buf.{ofs} in
+    else let c = buf_at buf ofs in
          match DFA.next dfa (s, c) with
            | None   -> try_accept s ofs bytes
            | Some s -> loop s (ofs + 1) (c :: bytes) in
@@ -55,7 +55,7 @@ let extract_bytes buf start len : value list =
   let rec loop acc idx =
     if   idx < start
     then acc
-    else let acc = V_char buf.{idx} :: acc in
+    else let acc = V_char (buf_at buf idx) :: acc in
          loop acc (idx - 1) in
   loop [] (start + len - 1)
 
@@ -69,7 +69,7 @@ let scan_forward (v: view) (tag: string) : (value * view) option =
     assert (v.vu_ofs <= base);
     assert (base + tlen <= v.vu_end);
     let rec loop idx =
-      if   tag.[idx] = buf.{base + idx}
+      if   tag.[idx] = buf_at buf (base + idx)
       then let idx = idx + 1 in
            if   idx >= tlen
            then true
@@ -109,7 +109,7 @@ let scan_backward (v: view) (tag: string) : (value * view) option =
     assert (v.vu_start <= base);
     assert (base + tlen - 1 <= v.vu_ofs);
     let rec loop idx =
-      if   tag.[idx] = buf.{base + idx}
+      if   tag.[idx] = buf_at buf (base + idx)
       then let idx = idx + 1 in
            if   idx >= tlen
            then true

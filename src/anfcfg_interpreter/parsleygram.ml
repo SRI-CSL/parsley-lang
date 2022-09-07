@@ -36,7 +36,7 @@ let general_byte lc (vu: view) (nt: string) (pred: char -> bool) (to_list: bool)
   if   ofs >= vend
   then let err = View_bound (nt, "end bound exceeded") in
        R_err (lc, err)
-  else let c  = buf.{ofs} in
+  else let c  = buf_at buf ofs in
        if   pred c
        then let vu = {vu with vu_ofs = ofs + 1} in
             let v = V_char c in
@@ -100,7 +100,7 @@ let int_of_byte lc (vu: view) (nt: string) : (int * view) match_result =
   if   ofs >= vend
   then let err = View_bound (nt, "end bound exceeded") in
        R_err (lc, err)
-  else let i = Char.code buf.{ofs} in
+  else let i = Char.code (buf_at buf ofs) in
        let vu = {vu with vu_ofs = ofs + 1} in
        R_ok (i, vu)
 

@@ -112,7 +112,7 @@ let match_bits _lc _op (s: state) n : (state, state) result =
          assert (n' >= 0);
          if   n' = 0
          then (byte_ofs, bit_ofs), acc
-         else let c = buf.{byte_ofs} in
+         else let c = buf_at buf byte_ofs in
               let nbits = min n' (8 - bit_ofs) in
               let bits  = byte_to_nbits c bit_ofs nbits in
               let acc   = bits @ acc in

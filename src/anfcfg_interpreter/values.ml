@@ -20,20 +20,60 @@ type source =
   | Src_file of string (* unmodified data from file *)
   | Src_transform      (* transformed by user program *)
 
-(* internal representation of a buffer *)
-module ViewBuf = struct
+(* API for the internal representation of a static buffer *)
+module type VIEW_BUF =
+  sig
+    type t
+
+    val at: t -> int -> char
+    val size: t -> int
+  end
+
+(* buffer with a non-extensible mmap-ed backing store *)
+module MmapBuf = struct
   type t =
     (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+
+  let at (b: t) (idx: int) : char =
+    b.{idx}
 
   let size (b: t) : int =
     Bigarray.Array1.size_in_bytes b
 end
 
+(* buffer with an extensible byte-sequence backing store *)
+module BytesBuf = struct
+  type t = bytes
+
+  let at (b: t) (idx: int) : char =
+    Bytes.get b idx
+
+  let size (b: t) : int =
+    Bytes.length b
+
+  let extend (b: t) (suf: t) : t =
+    Bytes.cat b suf
+end
+
+(* wrapper to perform dispatch based on underlying representation *)
+type buf =
+  | Buf_mmap of MmapBuf.t
+  | Buf_bytes of BytesBuf.t
+
+let buf_at (b: buf) (i: int) : char =
+  match b with
+    | Buf_mmap b  -> MmapBuf.at b i
+    | Buf_bytes b -> BytesBuf.at b i
+
+let buf_size (b: buf) : int =
+  match b with
+    | Buf_mmap b  -> MmapBuf.size b
+    | Buf_bytes b -> BytesBuf.size b
+
 (* a view is a subrange of a buffer, currently represented by a
    possibly shared fixed-length byte sequence. *)
-
 type view =
-  {vu_buf:    ViewBuf.t;
+  {vu_buf:    buf;
    vu_source: source;
    vu_id:     Int64.t; (* unique identifier per view *)
 

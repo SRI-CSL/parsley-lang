@@ -55,7 +55,7 @@ module PView = struct
           else begin
               assert (0 <= v.vu_start && v.vu_start <= v.vu_ofs);
               assert (v.vu_ofs <= v.vu_end);
-              assert (v.vu_end <= ViewBuf.size v.vu_buf);
+              assert (v.vu_end <= buf_size v.vu_buf);
               let o, l = Int64.to_int o, Int64.to_int l in
               if   v.vu_ofs + o + l > v.vu_end
               then fault lc (View_bound ("View.restrict", "end bound exceeded"))
@@ -80,7 +80,7 @@ module PView = struct
           else begin
               assert (0 <= v.vu_start && v.vu_start <= v.vu_ofs);
               assert (v.vu_ofs <= v.vu_end);
-              assert (v.vu_end <= ViewBuf.size v.vu_buf);
+              assert (v.vu_end <= buf_size v.vu_buf);
               let o = Int64.to_int o in
               if   v.vu_ofs + o >= v.vu_end
               then fault lc (View_bound ("View.restrict_from", "end bound exceeded"))
@@ -203,9 +203,10 @@ let from_file filename : view =
   let buf  = Bigarray.array1_of_genarray buf in
   let id   = PView.next_id () in
   let size = (Unix.fstat fd).Unix.st_size in
+  let mbuf = Buf_mmap buf in
   (* Ensure size from Unix is consistent with Bigarray. *)
-  assert (size = ViewBuf.size buf);
-  {vu_buf    = buf;
+  assert (size = buf_size mbuf);
+  {vu_buf    = mbuf;
    (* TODO: use (Unix.realpath filename) once OCaml 4.13 is more
       commonly installed *)
    vu_source = Src_file filename;
@@ -219,9 +220,10 @@ let from_string (name: string) (data: string) : view =
               (Array.of_seq (String.to_seq data)) in
   let id   = PView.next_id () in
   let size = String.length data in
+  let mbuf = Buf_mmap buf in
   (* Ensure size from Unix is consistent with Bigarray. *)
-  assert (size = ViewBuf.size buf);
-  {vu_buf    = buf;
+  assert (size = buf_size mbuf);
+  {vu_buf    = mbuf;
    vu_source = Src_file name;
    vu_id     = id;
    vu_start  = 0;
