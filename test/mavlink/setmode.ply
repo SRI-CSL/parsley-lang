@@ -16,6 +16,9 @@ format {
         {
             set_mode.sm_cmode := cmode;
             set_mode.sm_tsys := tsys;
-            set_mode.sm_bmode := bmode
+            set_mode.sm_bmode := bmode;
+            // increment counter (indexed by msgid) and print current counter
+            let c = incr_counter(11i) in
+            $print(c)
         }
 }

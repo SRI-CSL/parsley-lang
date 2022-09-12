@@ -19,6 +19,9 @@ format {
             mission_count.mc_count := count;
             mission_count.mc_tsys := tsys;
             mission_count.mc_tcomp := tcomp;
-            mission_count.mc_mtype := mtype
+            mission_count.mc_mtype := mtype;
+            // increment counter (indexed by msgid) and print current counter
+            let c = incr_counter(44i) in
+            $print(c)
         }
 }

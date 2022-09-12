@@ -25,6 +25,9 @@ format {
             heartbeat.hb_autopilot := autopilot;
             heartbeat.hb_bmode := bmode;
             heartbeat.hb_sstatus := sstatus;
-            heartbeat.hb_mversion := mversion
+            heartbeat.hb_mversion := mversion;
+            // increment counter (indexed by msgid) and print current counter
+            let c = incr_counter(0i) in
+            $print(c)
         }
 }

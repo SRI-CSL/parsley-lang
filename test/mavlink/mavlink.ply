@@ -1,5 +1,12 @@
 // Contributed by Chris Miller and team @ LMCO
 
+foreign {
+  {ocaml="Counters.get_counter"}     get_counter(k: isize) -> option<isize>;
+  {ocaml="Counters.reset_counter"} reset_counter(k: isize) -> option<isize>;
+  {ocaml="Counters.incr_counter"}   incr_counter(k: isize) -> option<isize>;
+  {ocaml="Counters.decr_counter"}   decr_counter(k: isize) -> option<isize>
+}
+
 include header
 include heartbeat
 include setmode
@@ -23,5 +30,4 @@ format {
         ([header.msgid = 11u32] [header.length = 6u8] MAV_SET_MODE) |
         ([header.msgid = 44u32] [header.length = 5u8] MAV_MISSION_COUNT) |
         ([header.msgid = 42u32] [header.length = 2u8] MAV_MISSION_CURRENT)
-
 }

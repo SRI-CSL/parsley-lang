@@ -10,6 +10,9 @@ format {
     MAV_MISSION_CURRENT mission_current {mav_mission_current} :=
         mseq = UInt16<endian=endian::Big()>
         {
-            mission_current.mc_mseq := mseq
+            mission_current.mc_mseq := mseq;
+            // increment counter (indexed by msgid) and print current counter
+            let c = incr_counter(42i) in
+            $print(c)
         }
 }
