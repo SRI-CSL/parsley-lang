@@ -210,8 +210,12 @@ let add_import_dir d =
 (* This maps a import module name to a top-level spec-file. *)
 let resolve_module_file (mod_name: ident) : string =
   (* Module names are capitalized, but their origin source-files may
-     or may not have capitalization.  To avoid confusion, raise an
-     error if both versions are present. *)
+     or may not have capitalization.  To avoid confusion, we should
+     raise an error if both versions are present.
+
+     However, filesystems like MacOSX are case insensitive, so disable
+     this check.  Leave the code in place in case we can incorporate a
+     clean way of detecting case-insensitive file systems. *)
   let cap_name = String.capitalize_ascii (Location.value mod_name) in
   let low_name = String.uncapitalize_ascii cap_name in
   let in_dir d name =
@@ -225,7 +229,7 @@ let resolve_module_file (mod_name: ident) : string =
   let choose_cap d =
     let have_cap, cap_path = in_dir d cap_name in
     let have_low, low_path = in_dir d low_name in
-    if      have_cap && have_low
+    if      have_cap && have_low && false
     then    let err = Cap_conflict (mod_name, cap_path, low_path) in
             raise (Build_error (Location.loc mod_name, err))
     else if have_cap
