@@ -20,11 +20,22 @@ type mav_message = {
 format {
 
     MAV_MESSAGE message {mav_message} :=
+        // Ensure we have enough bytes for a header, since we need to
+        // know the embedded length field to make further progress.
+        %[require_remaining(View.get_current(), 10u)]%
         header = MavlinkHeader
         {
             message.header := header;
             $print(header)
         }
+
+        // Ensure header.length is within reasonable bounds, since an
+        // attacker-controlled length could cause a DoS.
+        [header.length <=_u8 255_u8]
+
+        // Ensure we have the rest of the message in the buffer before
+        // parsing it.
+        %[require_remaining(View.get_current(), Usize.of_u8(header.length))]%
 
         ([header.msgid =  0u32] [header.length = 9u8] MAV_HEARTBEAT) |
         ([header.msgid = 11u32] [header.length = 6u8] MAV_SET_MODE) |

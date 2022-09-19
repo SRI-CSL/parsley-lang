@@ -15,21 +15,20 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* the source of the data in a view *)
+(* The source of the data in a view. *)
 type source =
   | Src_file of string (* unmodified data from file *)
   | Src_transform      (* transformed by user program *)
 
-(* API for the internal representation of a static buffer *)
-module type VIEW_BUF =
-  sig
+(* API for the internal representation of a static buffer. *)
+module type VIEW_BUF = sig
     type t
 
     val at: t -> int -> char
     val size: t -> int
   end
 
-(* buffer with a non-extensible mmap-ed backing store *)
+(* Buffer with a non-extensible mmap-ed backing buffer. *)
 module MmapBuf = struct
   type t =
     (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
@@ -41,7 +40,7 @@ module MmapBuf = struct
     Bigarray.Array1.size_in_bytes b
 end
 
-(* buffer with an extensible byte-sequence backing store *)
+(* Buffer with an extensible byte-sequence backing buffer. *)
 module BytesBuf = struct
   type t = bytes
 
@@ -55,7 +54,7 @@ module BytesBuf = struct
     Bytes.cat b suf
 end
 
-(* wrapper to perform dispatch based on underlying representation *)
+(* Wrapper to perform dispatch based on underlying representation. *)
 type buf =
   | Buf_mmap of MmapBuf.t
   | Buf_bytes of BytesBuf.t
@@ -70,25 +69,46 @@ let buf_size (b: buf) : int =
     | Buf_mmap b  -> MmapBuf.size b
     | Buf_bytes b -> BytesBuf.size b
 
-(* a view is a subrange of a buffer, currently represented by a
-   possibly shared fixed-length byte sequence. *)
-type view =
-  {vu_buf:    buf;
-   vu_source: source;
-   vu_id:     Int64.t; (* unique identifier per view *)
+let buf_is_refillable = function
+  | Buf_mmap _  -> false  (* just re-mmap the full file? *)
+  | Buf_bytes _ -> true
 
-   (* all locations below are absolute indices into vu_buf.
+let buf_refill (b: buf) (bytes: bytes) : buf =
+  match b with
+    | Buf_mmap _  -> assert false
+    | Buf_bytes b -> Buf_bytes (BytesBuf.extend b bytes)
+
+(* A view is a subrange of a buffer, currently represented by a
+   possibly shared fixed-length byte sequence.  It is of two kinds:
+   . closed: cannot be extended at the end
+   . open:   can be extended by adding data to the end of the view
+ *)
+type view_kind =
+  | VK_open
+  | VK_closed
+
+type view =
+  {vu_buf:         buf ref;
+   vu_source:      source;
+   vu_id:          Int64.t; (* unique identifier per view *)
+   vu_kind:        view_kind;
+   (* All locations below are absolute indices into vu_buf.
       The following invariants are maintained:
       . vu_end is 1 past the last valid read index for the buffer
       . 0 <= vu_start <= vu_ofs <= vu_end
       . it is legal for vu_ofs = vu_end; however, it is illegal to use
-        that offset for a read.
-    *)
-   vu_start:  int;
-   vu_ofs:    int;     (* cursor, i.e. index for next read *)
-   vu_end:    int}
+        that offset for a read. *)
+   vu_start:       int;
+   vu_ofs:         int;     (* cursor, i.e. index for next read *)
+   mutable vu_end: int}     (* allow lazy dynamic extensions *)
 
-(* internal types for bitvectors and binary integers *)
+(* Extend the span of a view at the end if possible. *)
+let extend_view v : unit =
+  match v.vu_kind with
+    | VK_closed -> ()
+    | VK_open   -> v.vu_end <- buf_size !(v.vu_buf)
+
+(* Internal types for bitvectors and binary integers. *)
 
 type signed =
   | S_unsigned
@@ -98,7 +118,7 @@ type endian =
   | E_little
   | E_big
 
-(* the values of the expression language.  sets and maps have an
+(* The values of the expression language.  Sets and maps have an
    inefficient representation since the Set and Map functors in
    OCaml's stdlib give predicative types, and those in `value` are
    impredicative. *)
@@ -126,7 +146,7 @@ type value =
 
 let empty_record = V_record []
 
-(* a type to describe the runtime type of the value *)
+(* A type to describe the runtime type of the value. *)
 type vtype =
   | T_empty  (* used for empty options, lists, sets and maps *)
   | T_unit
@@ -190,7 +210,7 @@ let rec string_of_vtype (t: vtype) : string =
                                     (string_of_vtype tk)
                                     (string_of_vtype tv)
 
-(* the runtime type of a value *)
+(* The runtime type of a value. *)
 let rec vtype_of (v: value) : vtype =
   let ftype_of (f, fv) = f, vtype_of fv in
   match v with

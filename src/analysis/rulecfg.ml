@@ -734,6 +734,9 @@ let rec add_rule_elem
     | RE_constraint e
     | RE_set_view e ->
         pack (add_expr env b e)
+    (* Suspensions behave like constraints. *)
+    | RE_suspend_resume (_, args) ->
+        pack (List.fold_left (fun b e -> add_expr env b e) b args)
     | RE_action {action_stmts = ss, oe; _}->
         let env, closed, b = List.fold_left add_stmt ctx ss in
         let b = match oe with

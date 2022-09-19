@@ -22,6 +22,11 @@ Version 0.2.0 (in-progress)
 - Additions to the `Bits` module of the standard library to account
   for endianness when converting bitvectors to integers.
 
+- Addition of _dynamic assertions_ (enclosed within `%[` and `]%`
+  syntactic markers) which are constraints that, when not satisfied,
+  suspend parsing and return control to the application so that the
+  application can attempt to dynamically satisfy the constraint.
+
 Version 0.1.0
 -------------
 

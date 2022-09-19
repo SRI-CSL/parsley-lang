@@ -333,6 +333,7 @@ let rec guess_is_regexp_elem rle =
     | RE_seq_flat rles -> List.for_all guess_is_regexp_elem rles
 
     | RE_constraint _
+    | RE_suspend_resume _
     | RE_named _
     | RE_action _
     | RE_non_term _
@@ -387,6 +388,7 @@ let rec is_regexp_elem tenv modul rle =
     | RE_named _
     | RE_action _
     | RE_constraint _
+    | RE_suspend_resume _
     | RE_bitvector _
     | RE_bitfield _
     | RE_align _

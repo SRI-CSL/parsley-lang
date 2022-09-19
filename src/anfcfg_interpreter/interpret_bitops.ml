@@ -29,8 +29,10 @@ let init_bitwise (v: view) : bitwise =
 
 let enter_bitmode lc (s: state) : state =
   assert (s.st_mode = Mode_normal);
-  (* cursor should be at valid offset *)
+  (* extend view before parsing *)
   let v = s.st_cur_view in
+  extend_view v;
+  (* cursor should be at valid offset *)
   if   v.vu_ofs >= v.vu_end
   then fault lc (View_bound ("start_bitwise", "end bound exceeded"))
   else let bw = init_bitwise v in
@@ -107,7 +109,7 @@ let match_bits _lc _op (s: state) n : (state, state) result =
   if   not (valid_bit_bounds v bw n)
   then Error s
   else (* extract n' bits from specified byte and bit offsets *)
-       let buf = v.vu_buf in
+       let buf = !(v.vu_buf) in
        let rec loop (byte_ofs, bit_ofs) n' acc =
          assert (n' >= 0);
          if   n' = 0

@@ -144,6 +144,10 @@ type error =
   | No_foreign_impl_decl of string * string * int
   | No_foreign_impl_found of string * string * int
   | Unsupported_foreign_nargs of string * string * int
+  | Buffer_creation_failure of string
+  | Refill_not_on_root_view of int
+  | Refill_no_handler
+  | Refill_failed of int (* needed *) * int (* filled *)
   | Internal of Internal_errors.error
 
 exception Runtime_exception of Location.t * error
@@ -180,5 +184,15 @@ let error_msg = function
   | Unsupported_foreign_nargs (m, f, n) ->
       Printf.sprintf "%d arguments not supported for foreign function %s.%s."
         n m f
+  | Buffer_creation_failure nm ->
+      Printf.sprintf "Unable to create parse buffer for `%s'." nm
+  | Refill_not_on_root_view i ->
+      Printf.sprintf "The `require_remaining` assertion (for %d bytes) requires a root view."
+        i
+  | Refill_no_handler ->
+      Printf.sprintf "Parse buffer needs refill, but no refill handler was specified."
+  | Refill_failed (need, got) ->
+      Printf.sprintf "Refill of parse buffer failed: %d bytes needed, %d refilled."
+        need got
   | Internal e ->
       Internal_errors.error_msg e

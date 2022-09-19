@@ -269,6 +269,8 @@ rule token = parse
 
 | "//" { eol_comment lexbuf }
 
+| "%[" { LSRCO }  (* Suspend-Resume COnstraint *)
+| "]%" { RSRCO }
 | "#[" { DECO }
 | "(#" { SYN_BEGIN }
 | "#)" { SYN_END }

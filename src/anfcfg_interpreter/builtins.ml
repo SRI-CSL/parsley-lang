@@ -539,3 +539,15 @@ let subterm lc (v: value) (o: Anfcfg.Anf.occurrence) : value =
            let err = Bad_subterm_path (so, o) in
            internal_error lc err in
   walk v o
+
+(* value converters *)
+
+let view_of lc (v: value) : view =
+  match v with
+    | V_view v -> v
+    | _        -> internal_error lc (Type_error ("view_of", 1, vtype_of v, T_view))
+
+let int_of lc (v: value) (t: Parsing.Ast.num_t) : Int64.t =
+  match v with
+    | V_int (vt, i) when vt = t -> i
+    | _ -> internal_error lc (Type_error ("int_of", 1, vtype_of v, T_int t))

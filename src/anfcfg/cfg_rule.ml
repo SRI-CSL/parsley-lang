@@ -822,6 +822,41 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
     | RE_epsilon ->
         ctx, b
 
+    (* suspend/resume elements *)
+
+    | RE_suspend_resume (n, args)
+         when Location.value n = "require_remaining"
+              && List.length args = 2 ->
+        let vu = List.nth args 0 in
+        let e  = List.nth args 1 in
+        let ctx, b = exit_bitmode ctx b loc in
+        (* compute the suspension condition *)
+        let ae, venv =
+          Anf_exp.normalize_exp ctx.ctx_tenv ctx.ctx_venv e in
+        let ve, venv = fresh_var venv e.expr_aux e.expr_loc in
+        let nd = N_assign (ve, ae) in
+        let b = add_gnode b nd e.expr_aux e.expr_loc in
+        let avu, venv =
+          Anf_exp.normalize_exp ctx.ctx_tenv venv vu in
+        let vvu, venv = fresh_var venv vu.expr_aux vu.expr_loc in
+        let nd = N_assign (vvu, avu) in
+        let b = add_gnode b nd vu.expr_aux vu.expr_loc in
+        (* A resume site needs to occur at the start of a block in the
+           current design, so close this block and start a new one. *)
+        let lr = fresh_static () in
+        let ctx = close_with_jump {ctx with ctx_venv = venv} b loc lr in
+        (* Start a new block with the resume label *)
+        let b = new_labeled_block loc lr in
+        (* Start a new block for the continuation *)
+        let ln, bn = new_block loc in
+        let nd = Node.N_require_remaining (vvu, ve, lr, ln) in
+        let ctx = close_block ctx b nd in
+        ctx, bn
+
+    | RE_suspend_resume _ ->
+        (* Other cases should have been forbidden by the type-checker. *)
+        assert false
+
     (* view control *)
 
     | RE_set_view e ->

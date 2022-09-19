@@ -136,9 +136,22 @@ let do_linear_node (s: state) (n: Cfg.Node.linear_node)
    successful execution is the value of the match, along with the
    final state (which contains the final view with its offset).  On
    failure, the last stuck state is returned for diagnostics.
+
+   The execution can also pause or suspend with a particular
+   `Cfg_paused` result, containing a `pause_reason` that can be
+   handled at the top-level by an application-provided pause handler.
+   The `Cfg_paused` block contains the label of the block at which the
+   suspended execution can resume.  The requirement here is that the
+   CFG nodes triggering the suspension, and at which the execution
+   must resume, are always at the beginning of the labeled block.
  *)
 
-type parse_result = (value, state) result * state
+type cfg_result =
+  | Cfg_paused of Location.t * pause_reason * Cfg.label
+  | Cfg_ok of value
+  | Cfg_error of state
+
+type parse_result = cfg_result * state
 
 let rec do_jump lc (s: state) (l: Cfg.label) : parse_result =
   assert (Cfg.is_static l);
@@ -174,7 +187,7 @@ and do_return _lc (s': state) (l: Cfg.label) : parse_result =
                | None ->
                    (* Return to the top-level *)
                    assert (stk = []);
-                   Ok vl, s
+                   Cfg_ok vl, s
         else if l = cf.cf_nt_failcont
         then let s = cf.cf_call_state in
              (* The view should not be modified by the call (except
@@ -190,7 +203,7 @@ and do_return _lc (s': state) (l: Cfg.label) : parse_result =
                | None ->
                    (* Return to the top-level, passing the failing state. *)
                    assert (stk = []);
-                   Error s', s
+                   Cfg_error s', s
         else assert false (* Unrecognized label. *)
 
 and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
@@ -245,6 +258,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
         do_jump loc s (if b then lsc else lf)
     | Cfg.Node.N_exec_dfa (dfa, v, lsc, lf) ->
         assert (s.st_mode = Mode_normal);
+        (* extend view before parsing *)
+        extend_view s.st_cur_view;
         let loc = Dfa.DFA.loc dfa in
         let run = Interpret_dfa.run dfa s.st_cur_view in
         (match run with
@@ -259,6 +274,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
                do_jump loc s lsc)
     | Cfg.Node.N_scan (loc, (tag, dir), v, lsc, lf) ->
         assert (s.st_mode = Mode_normal);
+        (* extend view before parsing *)
+        extend_view s.st_cur_view;
         let tag = Location.value tag in
         let run = Interpret_dfa.scan s.st_cur_view tag dir in
         (match run with
@@ -276,6 +293,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
          when m = Anf.M_stdlib
               && is_std_nonterm (Location.value nt) ->
         assert (s.st_mode = Mode_normal);
+        (* Extend view before parsing. *)
+        extend_view s.st_cur_view;
         (* We don't have an nt_entry for stdlib non-terminals, so
            just evaluate the attribute values and dispatch. *)
         let ntn = Location.value nt in
@@ -300,11 +319,10 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
                do_jump loc {s with st_venv = env;
                                    st_cur_view = vu} lsc
            | R_nomatch | R_err _ ->
-               (* These are operationally equivalent but can be used
-                  for debugging. *)
+               (* These two cases are operationally equivalent but can
+                  be used for debugging. *)
                (* Transfer control to the failure continuation. *)
-               do_jump loc s lf
-        )
+               do_jump loc s lf)
     | Cfg.Node.N_call_nonterm (m, nt, params, ret, lsc, lf) ->
         assert (s.st_mode = Mode_normal);
         let ent = get_ntentry s (m, nt) in
@@ -341,6 +359,25 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
         let s'  = {s with st_venv     = env';
                           st_ctrl_stk = cf :: s.st_ctrl_stk} in
         do_closed_block s' b
+
+    (* Suspend/resume. *)
+
+    | Cfg.Node.N_require_remaining (v, e, lr, ln) ->
+        let vu  = VEnv.lookup s.st_venv v.v v.v_loc in
+        let vu  = Builtins.view_of v.v_loc vu in
+        let req = VEnv.lookup s.st_venv e.v e.v_loc in
+        let req = Builtins.int_of e.v_loc req Ast.usize_t in
+        let rem = Viewlib.PView.remaining vu in
+        let need = (Int64.to_int req) - rem in
+        (* Extend view before bounds checks. *)
+        extend_view vu;
+        if   need <= 0
+        then do_jump v.v_loc s ln
+        else if Viewlib.PView.is_root vu
+        then let pr = Paused_require_refill (vu, need) in
+             Cfg_paused (v.v_loc, pr, lr), s
+        else fault v.v_loc (Refill_not_on_root_view need)
+
     | _ ->
         (* this should not be needed *)
         assert false

@@ -998,6 +998,13 @@ let rec expand_rule_elem ctx re
             | [re'] -> re'
             | _     -> {re' with rule_elem = RE_seq re''} in
         ctx, [{re with rule_elem = RE_opt re'}]
+    | RE_suspend_resume (n, args) ->
+        let ctx, args =
+          List.fold_left (fun (ctx, args) e ->
+              let ctx, e = expand_expr ctx e in
+              ctx, e :: args
+            ) (ctx, []) args in
+        ctx, [{re with rule_elem = RE_suspend_resume (n, List.rev args)}]
     | RE_set_view e ->
         let ctx, e = expand_expr ctx e in
         ctx, [{re with rule_elem = RE_set_view e}]

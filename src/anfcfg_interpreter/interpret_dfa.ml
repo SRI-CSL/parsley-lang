@@ -22,7 +22,7 @@ open Anfcfg.Dfa
 open Values
 
 let run (dfa: DFA.t) (v: view) : (value * view) option =
-  let buf   = v.vu_buf in
+  let buf   = !(v.vu_buf) in
   let vend  = v.vu_end in
   let start = v.vu_ofs in
   assert (start <= vend);
@@ -63,7 +63,7 @@ let extract_bytes buf start len : value list =
 let scan_forward (v: view) (tag: string) : (value * view) option =
   let tlen = String.length tag in
   let vlen = v.vu_end - v.vu_ofs in
-  let buf  = v.vu_buf in
+  let buf  = !(v.vu_buf) in
   (* inner loop *)
   let match_tag base =
     assert (v.vu_ofs <= base);
@@ -103,7 +103,7 @@ let scan_forward (v: view) (tag: string) : (value * view) option =
 let scan_backward (v: view) (tag: string) : (value * view) option =
   let tlen = String.length tag in
   let vlen = v.vu_ofs - v.vu_start + 1 in
-  let buf  = v.vu_buf in
+  let buf  = !(v.vu_buf) in
   (* inner loop, matches forwards *)
   let match_tag base =
     assert (v.vu_start <= base);

@@ -478,6 +478,23 @@ Different values of type `view` have independent state.  View values
 created or cloned from originating parent views do not affect the
 parent views when the child views are used in a parsing action.
 
+A *root view* is a distinguished view value which has the widest
+possible span encompassing _all_ the existing data in the parsing
+buffer.  When the parsing engine is initialized for execution on input
+data, it is initialized with such a root view, and is the view within
+which the parsing for the specified starting non-terminal begins.  The
+cursor location is not considered when evaluating the span of a view.
+
+Views are of two kinds, *open* and *closed*.  *Open* views are views
+that can be expanded by extending the endpoint of the view, increasing
+the data spanned by the view.  This can happen when the parse buffer
+underlying a view has data incrementally added to the end of the
+buffer by reading from a network socket or a pipe.  *Closed* views are
+views whose spans are fixed, and cannot be extended.
+
+NOTE: The _open_ and _closed_ aspect applies to the endpoint of the
+view; the start of the view is always fixed, or closed.
+
 === Exceptions
 
 The evaluation of expressions can result in failure; this results in

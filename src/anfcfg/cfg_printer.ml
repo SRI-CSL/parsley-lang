@@ -187,6 +187,12 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (string_of_return ret)
                      (string_of_label s)
                      (string_of_label f))
+    | N_require_remaining (v, e, lr, ln) ->
+        pp_string (Printf.sprintf "require_remaining %s, %s, %s, %s"
+                     (Anf_printer.string_of_var v.v)
+                     (Anf_printer.string_of_var e.v)
+                     (string_of_label lr)
+                     (string_of_label ln))
 
 let print_opened (b: opened) =
   let h, ns = match b with

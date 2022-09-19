@@ -257,14 +257,15 @@ module Node = struct
      control-flow.  *)
 
   type ('e, 'x, 'v) node =
-    (* block entry node, denoted by an implicitly static label, and
-       containing back-pointers to its calling blocks *)
+    (* The unique block entry node, denoted by an implicitly static
+       label, and containing back-pointers to its calling blocks. *)
     | N_label: Location.t * Label.label * LabelSet.t -> (Block.c, Block.o, unit) node
 
-    (* non-control-flow or 'linear' nodes *)
+    (* Non-control-flow or 'linear' nodes *)
     | N_gnode: gnode -> (Block.o, Block.o, unit) node
 
-    (* exit nodes *)
+    (* The nodes below are all the various exit nodes, i.e. the last
+       nodes in a block. *)
 
     (* bit-mode matching *)
 
@@ -338,6 +339,20 @@ module Node = struct
         Anf.modul * Ast.ident * (Ast.ident * var) list * return * label * label
         -> (Block.o, Block.c, unit) node
 
+    (* Suspension constraint (or dynamic assertion): Suspend the
+       parsing machine until the constraint is satisfied.  This
+       requires that the node is the first node to be executed on
+       resuming the parse after a suspension.  In the current design,
+       we cannot resume execution in the middle of a block, so this
+       should be the first node in a block.  If the constraint already
+       holds without a need for pause, it jumps to the continuation
+       block.  Since it is also an exit node, it should be the only
+       node in the block (other than the entry label node). *)
+    | N_require_remaining:
+        var (* view *) * var (* nbytes *)
+        * label (* _current_ block *) * label (* _continuation_ block *)
+        -> (Block.o, Block.c, unit) node
+
   type entry_node  = (Block.c, Block.o, unit) node
   type linear_node = (Block.o, Block.o, unit) node
   type exit_node   = (Block.o, Block.c, unit) node
@@ -363,6 +378,7 @@ module Node = struct
         -> [raw_label_of sc; raw_label_of fl]
       | N_jump (_, l)
       | N_return (_, l)
+      | N_require_remaining (_, _, _, l)
         -> [raw_label_of l]
       (* this should not be needed *)
       | _ -> assert false

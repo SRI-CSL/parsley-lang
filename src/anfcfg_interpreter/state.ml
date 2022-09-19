@@ -185,3 +185,12 @@ let get_ntentry (s: state) ((m, nt): Anf.modul * Ast.ident) : Cfg.nt_entry =
    error. *)
 let get_init_ntentry (s: state) (nt: Anf.modul * string) : Cfg.nt_entry option =
   Cfg.ValueMap.find_opt nt s.st_spec_toc
+
+(* Suspend/resume handling. *)
+
+type pause_reason =
+  (* The backing buffer of the specified `view` needs the specified
+     number of bytes to be appended to the end of the parse buffer.
+     Since the view contains a pointer indirection to the buffer, no
+     variable bindings to the view need to be updated. *)
+  | Paused_require_refill of Values.view * int

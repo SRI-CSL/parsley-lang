@@ -142,45 +142,124 @@ let init load_externals (spec: Cfg.spec_cfg) (entry_nt: Anf.modul * string) (vie
   let b   = get_block loc s (Cfg.L_static ent.nt_entry) in
   s, b
 
-(* returns the `vu_ofs` and `vu_end` of the view in the state. *)
+(* Returns the `vu_ofs` and `vu_end` of the view in the state. *)
 type last_pos = int * int
 let view_info (s: state) : last_pos =
   let v = s.st_cur_view in
   v.vu_ofs, v.vu_end
 
-(* returns the parse call stack *)
+(* Returns the parse call stack. *)
 type parse_stk = Ast.ident list
 let parse_info (s: state) : parse_stk =
   List.map (fun cf -> cf.cf_nt) s.st_ctrl_stk
 
+(* Info for reporting state at the end of parse. *)
 type error_info = last_pos * parse_stk
 let error_info (s: state) : error_info =
   view_info s, parse_info s
 
-let run_once ((s: state), (b: Cfg.closed))
-    : value option * error_info =
-  let r, s = Interpret_cfg.do_closed_block s b in
-  match r with
-    | Ok v     -> Some v, error_info s
-    | Error s' -> None,   error_info s'
+(* The application-Parsley interface (API) is a crucial trust domain
+   crossing that needs to be carefully delineated.  For now, the rough
+   boundary is:  the functions above run on the Parsley side of the
+   API, while the functions below run on the application side. *)
 
-let run_loop ((s: state), (b: Cfg.closed))
+(* Top-level loop over parser.  This will run on the application-side
+   of the API, and hence has access to and can invoke the
+   pause-handler. *)
+let loop_over_pauses (s: state) (b: Cfg.closed)
+      (ph: App_viewlib.pause_handler) : value option * state =
+  let do_refill refiller needed : (bytes, int) result =
+    let rec loop needed bytes =
+      match refiller needed with
+        | Some bs ->
+            let nbs = Bytes.length bs in
+            let bytes = Bytes.cat bytes bs in
+            if   nbs >= needed
+            then Ok bytes
+            else loop (needed - nbs) bytes
+        | None ->
+            (* TODO: should we really drop bytes read so far? *)
+            Error needed in
+    loop needed Bytes.empty in
+  let handled_pause r ph : (unit, error) result =
+    match r, ph with
+      | Paused_require_refill _,
+        {App_viewlib.ph_require_refill = None; _} ->
+          Error Refill_no_handler
+      | Paused_require_refill (vu, _), _
+           when not (buf_is_refillable !(vu.vu_buf)) ->
+          (* This really needs to be handled as an application
+             configuration error. *)
+          assert false
+      | Paused_require_refill (vu, need),
+        {App_viewlib.ph_require_refill = Some refiller; _} ->
+          (match do_refill refiller need with
+             | Error got ->
+                 Error (Refill_failed (need, got))
+             | Ok bytes ->
+                 (* The invariant the refill handler must obey is that
+                    it can only add data to the end of the buffer;
+                    i.e. data already present in the buffer should be
+                    left intact at their original offsets.  This
+                    ensures that all existing views based on this
+                    buffer remain valid after the refill. *)
+                 let buf = buf_refill !(vu.vu_buf) bytes in
+                 vu.vu_buf := buf;
+                 Ok ()) in
+  let rec loop s b =
+    let r, s = Interpret_cfg.do_closed_block s b in
+    match r with
+      | Cfg_ok v              -> Some v, s
+      | Cfg_error s'          -> None,   s'
+      | Cfg_paused (lc, r, l) ->
+          (match handled_pause r ph with
+             | Ok _    -> let b = get_block lc s l in
+                          loop s b
+             | Error e -> fault lc e) in
+  loop s b
+
+(* Execute the CFG from the given starting block for a single result. *)
+let run_once ((s: state), (b: Cfg.closed)) (ph: App_viewlib.pause_handler)
+    : value option * error_info =
+  let vo, s = loop_over_pauses s b ph in
+  vo, error_info s
+
+(* Execute the CFG from the given starting block for as many
+   successful results as possible, restarting at the given block after
+   a success, and stopping at the first failure. *)
+let run_loop ((s: state), (b: Cfg.closed)) (ph: App_viewlib.pause_handler)
     : value list * error_info =
   let rec loop acc s_init =
-    match Interpret_cfg.do_closed_block s_init b with
-      | Ok vl, s ->
-          loop (vl :: acc) {s_init with st_cur_view = s.st_cur_view}
-      | Error s, _ ->
+    match loop_over_pauses s_init b ph with
+      | Some v, s ->
+          loop (v :: acc) {s_init with st_cur_view = s.st_cur_view}
+      | None, s ->
           List.rev acc, error_info s in
   loop [] s
 
+(* Top-level application-side entry points. *)
+
+type input =
+  | Inp_file of string
+  | Inp_stdin of int
+  | Inp_string of string * string
+
+let open_input i =
+  match i with
+    | Inp_file f           -> App_viewlib.from_static_file f
+    | Inp_stdin sz         -> App_viewlib.from_channel "stdin" Stdlib.stdin sz
+    | Inp_string (test, s) -> App_viewlib.from_string test s
+
 let once_on_file load_externals spec entry f =
   init_runtime load_externals;
-  run_once (init load_externals spec entry (Viewlib.from_file f))
+  let v, pause_handler = open_input f in
+  run_once (init load_externals spec entry v) pause_handler
 
 let loop_on_file load_externals spec entry f =
   init_runtime load_externals;
-  run_loop (init load_externals spec entry (Viewlib.from_file f))
+  let v, pause_handler = open_input f in
+  run_loop (init load_externals spec entry v) pause_handler
 
 let once_on_test_string test spec entry s =
-  run_once (init true spec entry (Viewlib.from_string test s))
+  let v, pause_handler = open_input (Inp_string (test, s)) in
+  run_once (init true spec entry v) pause_handler

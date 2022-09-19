@@ -248,6 +248,8 @@ type ('a, 'b, 'm) rule_elem_desc =
   | RE_choice     of ('a, 'b, 'm) rule_elem list
   | RE_star       of ('a, 'b, 'm) rule_elem * ('a, 'b, 'm) expr option
   | RE_opt        of ('a, 'b, 'm) rule_elem
+  (* suspend/resume control flow *)
+  | RE_suspend_resume of ident * ('a, 'b, 'm) expr list
 
   (* view control *)
   | RE_set_view  of ('a, 'b, 'm) expr

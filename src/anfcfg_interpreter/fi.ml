@@ -35,5 +35,3 @@ module type PARSLEY_MOD = sig
   val arg2_funcs: (string * arg2) list
   val arg3_funcs: (string * arg3) list
 end
-
-(* language bindings *)

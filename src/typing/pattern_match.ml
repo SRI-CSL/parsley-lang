@@ -368,11 +368,15 @@ and descend_rule_elem (ctx, acc) re =
         ctx,
         List.fold_left (fun acc (_, _, e) ->
             snd (descend_expr (ctx, acc) e)
-        ) acc ias
+          ) acc ias
     | RE_named (_, re)
     | RE_star (re, None)
     | RE_opt re ->
         ctx, snd (descend_rule_elem (ctx, acc) re)
+    | RE_suspend_resume(_, args) ->
+        List.fold_left (fun (ctx, acc) e ->
+            descend_expr (ctx, acc) e
+          ) (ctx, acc) args
     | RE_seq res | RE_seq_flat res
     | RE_choice res ->
         ctx, snd (List.fold_left descend_rule_elem (ctx, acc) res)

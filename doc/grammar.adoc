@@ -178,6 +178,9 @@ NOTE: It is not very useful to bind a variable to a constraint rule
 element.  Its value will always be true in its scope, since the rule
 elements in its scope will not be executed if it evaluates to false.
 
+Constraints are similar to but differ from *dynamic assertions*,
+described below.
+
 *Actions* are blocks, demarcated by enclosing `{` and `}` markers, within
 which some computation is done.  This computation typically does one
 or more of: assign values to the synthesized attributes of the
@@ -206,7 +209,7 @@ bodies of `case` discriminators.
     }
 ....
 
-===== Printing
+====== Printing
 
 To aid debugging using the interpreter, an additional statement form
 is the *print statement*, whose syntax is `$print(e)` where `e` is any
@@ -216,6 +219,47 @@ sequence of bytes in the value is interpreted as binary data and
 printed in hex.  However, in some cases, sequences of bytes could
 contain ASCII characters and hence may need to be printed as strings;
 this use case is served by `$print_t(e)`.
+
+===== Dynamic assertions
+
+*Dynamic assertions* are like constraints in that they are required to
+be satisfied in order for the parse to continue.  However, a dynamic
+assertion is unlike a constraint in the following ways:
+
+* It is placed within `%[` and `]%` syntactic markers.
+
+* It is not an arbitrary boolean expression; instead, it needs to be
+  one of a set of syntactically restricted expressions, described
+  below.
+
+* If the condition in the assertion does not hold, the execution of
+  the parse is suspended, and control is returned to the application.
+  The application is provided a reason for the suspension, and can
+  decide to change the environment in order to make the assertion true
+  _dynamically_.  The application can return control to the parser in
+  order resume the paused execution.  The parser resumes execution at
+  the point of the pause, after confirming that the asserted condition
+  holds.
+
+Currently, the only supported dynamic assertion is
+`require_remaining`, specified as:
+....
+... := ... %[ require_remaining(v, e) ]% ...
+....
+This asserts that the view in `v` should have at least `e` number of
+bytes beyond the current offset, where `e` is an expression of type
+`usize`.  Note that `v` is _required_ to be an *open* view, i.e. a
+view that can be extended by adding data to the end of the backing
+buffer.  If `v` is such a view, and the condition does not hold,
+control returns to the application, which can append more data to the
+end of the view (e.g. by reading more data from a network socket or a
+pipe) in order to satisfy the condition.  The application can then
+return control to Parsley, which in turn checks the condition and
+resumes the parse immediately after this rule element.
+
+NOTE: If `v` is not an open view, the parse terminates immediately
+with an appropriate error, as this is most likely a bug in the Parsley
+specification.
 
 ==== Combinators
 

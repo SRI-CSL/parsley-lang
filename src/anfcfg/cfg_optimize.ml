@@ -179,6 +179,10 @@ let retarget_exit (map: Label.label LabelMap.t) (nd: Node.exit_node)
         let ls = retarget_label map ls in
         let lf = retarget_label map lf in
         N_call_nonterm (m, nt, ps, r, ls, lf)
+    | N_require_remaining (v, n, lb, lc) ->
+        let lb = retarget_label map lb in
+        let lc = retarget_label map lc in
+        N_require_remaining (v, n, lb, lc)
     (* this should not be needed *)
     | _ ->
         assert false

@@ -477,6 +477,9 @@ let rec convert_rule_elem ctx r =
     | RE_opt r ->
         let _, r = convert_rule_elem ctx r in
         ctx, wrap (RE_opt r)
+    | RE_suspend_resume (n, args) ->
+        let args = List.map (fun e -> convert_exp ctx lm e) args in
+        ctx, wrap (RE_suspend_resume (n, args))
     | RE_set_view e ->
         ctx, wrap (RE_set_view (convert_exp ctx lm e))
     | RE_at_pos (e, r) ->

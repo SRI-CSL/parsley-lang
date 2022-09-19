@@ -24,7 +24,7 @@ open Parseerror
 %token FORMAT TYPE BITFIELD AND FUN RECFUN INCLUDE IMPORT OF CASE LET
 %token IN CONST FOREIGN
 %token PRINT PRINTT
-%token DECO
+%token DECO LSRCO RSRCO
 %token EPSILON PAD ALIGN USE_BITFIELD
 %token SLASH_SF_LBRACK SLASH_SB_LBRACK
 
@@ -755,6 +755,8 @@ rule_elem:
   { make_rule_elem (RE_scan (s, Scan_forward)) $startpos $endpos }
 | SLASH_SB_LBRACK s=LITERAL RBRACK
   { make_rule_elem (RE_scan (s, Scan_backward)) $startpos $endpos }
+| LSRCO i=ident LPAREN l=separated_list(COMMA, expr) RPAREN RSRCO
+  { make_rule_elem (RE_suspend_resume (i, l)) $startpos $endpos }
 
 rule:
 | LPARBAR d=temp_decls RPARBAR l=list(rule_elem)

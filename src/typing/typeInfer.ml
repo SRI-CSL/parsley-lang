@@ -2219,6 +2219,35 @@ let rec infer_rule_elem tenv venv ntd ctx cursor re t ictx
         venv,
         0
 
+    | RE_suspend_resume (n, args)
+         when Location.value n = "require_remaining"
+              && List.length args = 2 ->
+        let v = List.nth args 0 in
+        let e = List.nth args 1 in
+        (* Suspensions can only occur at bit-aligned positions. *)
+        check_aligned cursor 8 re.rule_elem_loc At_begin;
+        let vt = typcon_variable tenv (std_type "view") in
+        let et = typcon_variable tenv (std_type "usize") in
+        let cv, (wv, v') = infer_expr tenv venv v vt in
+        let ce, (we, e') = infer_expr tenv venv e et in
+        (* This behaves like a boolean constraint. *)
+        let bt = typcon_variable tenv (std_type "bool") in
+        let cr = (t =?= bt) re.rule_elem_loc in
+        pack_constraint (conj [cv; ce; cr]),
+        wconj [wv; we],
+        mk_aux_rule_elem (RE_suspend_resume (n, [v'; e'])),
+        venv,
+        0
+
+    | RE_suspend_resume (n, args)
+         when Location.value n = "require_remaining" ->
+        let err = ConstraintArity (Location.value n, 2, List.length args) in
+        raise (Error (Location.loc n, err))
+
+    | RE_suspend_resume (n, _) ->
+        let err = UnknownSuspendResumeConstraint (Location.value n) in
+        raise (Error (Location.loc n, err))
+
     | RE_epsilon ->
         let u = typcon_variable tenv (std_type "unit") in
         let c = (t =?= u) re.rule_elem_loc in

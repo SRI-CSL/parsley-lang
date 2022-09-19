@@ -670,6 +670,10 @@ let rec print_rule_elem auxp rl =
         pp_string "(";
         print_rule_elem auxp r;
         pp_string ")?*"
+    | RE_suspend_resume (c, args) ->
+        pp_string (Printf.sprintf "%%[%s(" (Location.value c));
+        print_list ", " (print_expr auxp) args;
+        pp_string "]%%"
     | RE_set_view (e) ->
         pp_string "@^[";
         print_expr auxp e;

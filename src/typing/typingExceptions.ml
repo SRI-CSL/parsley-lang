@@ -352,10 +352,19 @@ type typing_error =
      number [u] of arguments. *)
   | FunctionCallArity of string * int * int
 
-  (* [IncompatibleArityFunctionArgument [ho hoa f fa ] is raised when
+  (* [IncompatibleArityFunctionArgument ho hoa f fa ] is raised when
    * the arity [fa] of function [f] is incompatible with arity [hoa]
    * expected by higher-order construct [ho]. *)
   | IncompatibleArityFunctionArgument of string * int * string * int
+
+  (* [UnknownSuspendResumeConstraint n] is raised when [n] is not a
+     known type of suspend-resume constraint. *)
+  | UnknownSuspendResumeConstraint of string
+
+  (* [ConstraintArity n exp got] is raised when the number of
+     arguments [exp] expected for constraint [n] does not match the
+     provided number [got]. *)
+  | ConstraintArity of string * int * int
 
 exception Error of Location.t * typing_error
 
@@ -668,3 +677,10 @@ let error_msg = function
       Printf.sprintf
         "The function `%s' takes %d arguments, but %s expects a function argument that takes %d args."
         f fa ho hoa
+
+  | UnknownSuspendResumeConstraint n ->
+      Printf.sprintf "The constraint `%s' is not known." n
+
+  | ConstraintArity (n, exp, got) ->
+      Printf.sprintf "Constraint `%s' expects %d arguments but %d are provided."
+        n exp got

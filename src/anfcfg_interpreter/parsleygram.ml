@@ -30,7 +30,7 @@ type val_result = (value * view) match_result
 
 let general_byte lc (vu: view) (nt: string) (pred: char -> bool) (to_list: bool)
     : val_result =
-  let buf  = vu.vu_buf in
+  let buf  = !(vu.vu_buf) in
   let ofs  = vu.vu_ofs in
   let vend = vu.vu_end in
   if   ofs >= vend
@@ -94,7 +94,7 @@ let digit_s lc (vu: view) : val_result =
   general_byte lc vu "DigitS" digit_pred true
 
 let int_of_byte lc (vu: view) (nt: string) : (int * view) match_result =
-  let buf  = vu.vu_buf in
+  let buf  = !(vu.vu_buf) in
   let ofs  = vu.vu_ofs in
   let vend = vu.vu_end in
   if   ofs >= vend

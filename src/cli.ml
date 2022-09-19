@@ -31,14 +31,15 @@ let check copts ckopts sopts spec_file : unit =
   Options.process_ckopts ckopts;
   Check.check_spec copts.co_verbose ckopts sopts spec_file
 
-let execute copts sopts xopts load_externals loop start spec_file data_file : unit =
+let execute copts sopts xopts load_externals loop start
+      spec_file data_file stdin : unit =
   Options.process_copts copts;
   let verbose = copts.co_verbose in
   let ckopts = Options.default_ckopts in
   let spec = Check.cfg_of_spec verbose ckopts sopts spec_file in
   let m = Parsing.AstUtils.modname_of_file spec_file in
   Execute.execute verbose xopts.exe_show_data_as_ascii
-    load_externals loop m start spec data_file
+    load_externals loop m start spec data_file stdin
 
 (* TODO: help command *)
 
@@ -131,10 +132,14 @@ let exopts_t : exe_opts Term.t =
     Arg.(value & flag & info ["show-data-as-ascii"] ~doc) in
   Term.(const mk_exopts $ show_data_as_ascii)
 
-let data : string Term.t =
+let data : string option Term.t =
   let docv = "data_file" in
   let doc  = "The file with input data in the specified format." in
-  Arg.(required & (pos 1 (some non_dir_file) None & info [] ~doc ~docv))
+  Arg.(value & (pos 1 (some non_dir_file) None & info [] ~doc ~docv))
+
+let stdin : int option Term.t =
+  let doc = "Use standard input as data file, starting with the specified minimum number of bytes." in
+  Arg.(value & (opt (some int) None & info ["p"; "stdin"] ~doc))
 
 let start : string Term.t =
   let docv = "Start" in
@@ -142,13 +147,11 @@ let start : string Term.t =
   Arg.(required & (opt (some string) None & info ["s"; "start"] ~doc ~docv))
 
 let load_externals : bool Term.t =
-  let doc =
-    "Load foreign function implementations." in
+  let doc = "Load foreign function implementations." in
   Arg.(value & flag & info ["f"; "with-foreign"] ~doc)
 
 let loop : bool Term.t =
-  let doc =
-    "Parse the data as repeated instances of the given format." in
+  let doc = "Parse the data as repeated instances of the given format." in
   Arg.(value & flag & info ["l"; "loop"] ~doc)
 
 (* CLI commands *)
@@ -167,7 +170,7 @@ let execute_cmd : unit Cmd.t =
   let doc  = "parse the given data using the given specification" in
   let info = Cmd.info "execute" ~doc in
   Cmd.v info Term.(const execute $ copts_t $ sopts_t $ exopts_t
-                   $ load_externals $ loop $ start $ spec $ data)
+                   $ load_externals $ loop $ start $ spec $ data $ stdin)
 
 (* top-level command *)
 let main_cmd : unit Cmd.t =
