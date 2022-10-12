@@ -1,2 +1,4 @@
 // The main file for NITF where other components will be imported
 // TODO
+
+use image_segment

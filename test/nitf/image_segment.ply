@@ -6,4 +6,7 @@
 // -------------
 // - An Image Segment (IS) supports the standard image type of data, see pg. 5 of NITF spec.
 // - There can be n-Image Data Segments organized as: 
-//   (image_sub-header_1, image_data-field_1), ..., (image_sub-header_n, image_data-field_n)
+//   (image_subheader_1, image_datafield_1), ..., (image_subheader_n, image_datafield_n)
+// - Each individual, standard data segment included in an NITF file, such as an IS or a GS, 
+//   shall be preceded by a subheader corresponding to that data segment.
+// - The NITF File header and various subheaders have two types of fields: required and conditional.
