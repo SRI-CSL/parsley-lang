@@ -1,0 +1,9 @@
+// NITF Image Segment Parsley Definition
+// 
+// SRI International, 2022
+
+// Briland Notes
+// -------------
+// - An Image Segment (IS) supports the standard image type of data, see pg. 5 of NITF spec.
+// - There can be n-Image Data Segments organized as: 
+//   (image_sub-header_1, image_data-field_1), ..., (image_sub-header_n, image_data-field_n)
