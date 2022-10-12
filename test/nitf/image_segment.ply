@@ -10,3 +10,35 @@
 // - Each individual, standard data segment included in an NITF file, such as an IS or a GS, 
 //   shall be preceded by a subheader corresponding to that data segment.
 // - The NITF File header and various subheaders have two types of fields: required and conditional.
+
+type image_subheader = {
+    // image subheader details go here
+    // image subheader presented as a user-defined record type
+}
+
+type image_datafield = {
+    // image datafield information goes here
+}
+
+type image_segment = {
+    img_sh: image_subheader,
+    img_df: image_datafield
+}
+
+type image_segments = {
+    n: int,
+    img_segs = [image_segment]
+}
+
+format {
+    // image segment non-terminal definition
+    ImageSegment im {i: image_segment} :=
+        {
+
+        }
+    
+    ImageSegments ims {s: image_segments} := 
+        {
+            
+        }
+}
