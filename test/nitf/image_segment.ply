@@ -91,6 +91,12 @@ type image_datafield = {
     df_length: int
 }
 
+// The image data mask table is a conditional data structure 
+// included in the image data stream for masked images when so indicated by the IC field value
+type image_datamask = {
+    // todo
+}
+
 type image_segment = {
     img_sh: image_subheader,
     img_df: image_datafield
