@@ -17,3 +17,9 @@ capabilities, allowing each user to select only those portions of data that corr
 
 The NITF file consists of the NITF file header and one or more segment(s). A segment
 consists of a sub-header and data fields as shown on FIGURE 3. An example is provided in Appendix E, TABLE E-11.
+
+## Questions (Briland):
+
+1. What is the best way to express `datetime` fields in Parsley?
+2. What would be the best way to approach to the fields in the image subheader? It seems as `string` would be the best way to represent most of them.
+3. How can we represent `required` and `not required` fields in Parsley?

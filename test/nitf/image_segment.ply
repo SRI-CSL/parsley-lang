@@ -11,13 +11,41 @@
 //   shall be preceded by a subheader corresponding to that data segment.
 // - The NITF File header and various subheaders have two types of fields: required and conditional.
 
+// The data elements in the image subheader fields provide information 
+// about the image source, its identification, and characteristics 
+// needed to display and interpret it properly. The image subheader field definitions 
+// are detailed in TABLE 3. see. pg. 28 - 47
 type image_subheader = {
     // image subheader details go here
     // image subheader presented as a user-defined record type
+
+    // length of image subheader, see Fig. 7, pg. 9
+    sh_length: int,
+    im: string,
+    iid1: string,
+    // todo: Verify with Prashanth as IDATIM is datetime
+    idatim: string,
+    tgtid: string,
+    iid2: string,
+    // image security classification
+    // todo: consider moving this to a separate type
+    isclas: [byte],
+    isclsy: [byte],
+    isctlh: [byte],
+    isrel: [string],
+    isdctp: [byte],
+    isdcdt: string, // another datetime
+    isdcxm: [byte],
+    isdg: [byte],
+    isdgdt: string,
+    iscltx: string,
+    iscatp: [byte],
 }
 
+// todo: length of image segment, see Fig. 7, pg. 9
 type image_datafield = {
     // image datafield information goes here
+    df_length: int
 }
 
 type image_segment = {
@@ -26,7 +54,9 @@ type image_segment = {
 }
 
 type image_segments = {
+    // number of images, see Fig. 7, pg. 9
     n: int,
+    // list of image segments
     img_segs = [image_segment]
 }
 
@@ -39,6 +69,6 @@ format {
     
     ImageSegments ims {s: image_segments} := 
         {
-            
+
         }
 }
