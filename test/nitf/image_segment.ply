@@ -40,6 +40,24 @@ type image_subheader = {
     isdgdt: string,
     iscltx: string,
     iscatp: [byte],
+    iscaut: string, // this and iscltx are user-defined free text
+    iscrsn: [byte],
+    issrdt: string, // date of the source used to derive the classification of the image
+    isctln: int,    // image security control number
+    encryp: [byte], // encryption
+    isorce: string, // image source
+    nrows: int,     // number of significant rows in image
+    ncols: int,     // number of significant columns in image
+    pvtype: [byte], // pixel value type
+    irep: string,   // image representation
+    icat: string,   // image category
+    abpp: int,      // actual bits-per-pixel per band
+    pjust: [byte],  // pixel justification
+    icords: [byte], // image coordinate representation
+    igeolo: [byte], // image geographic location
+    nicom: int,     // number of image comments
+    icomn: string,  // image comment n
+    ic: [byte],     // image compression
 }
 
 // todo: length of image segment, see Fig. 7, pg. 9
