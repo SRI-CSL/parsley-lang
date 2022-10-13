@@ -34,30 +34,55 @@ type image_subheader = {
     isctlh: [byte],
     isrel: [string],
     isdctp: [byte],
-    isdcdt: string, // another datetime
+    isdcdt: string,         // another datetime
     isdcxm: [byte],
     isdg: [byte],
     isdgdt: string,
     iscltx: string,
     iscatp: [byte],
-    iscaut: string, // this and iscltx are user-defined free text
+    iscaut: string,         // this and iscltx are user-defined free text
     iscrsn: [byte],
-    issrdt: string, // date of the source used to derive the classification of the image
-    isctln: int,    // image security control number
-    encryp: [byte], // encryption
-    isorce: string, // image source
-    nrows: int,     // number of significant rows in image
-    ncols: int,     // number of significant columns in image
-    pvtype: [byte], // pixel value type
-    irep: string,   // image representation
-    icat: string,   // image category
-    abpp: int,      // actual bits-per-pixel per band
-    pjust: [byte],  // pixel justification
-    icords: [byte], // image coordinate representation
-    igeolo: [byte], // image geographic location
-    nicom: int,     // number of image comments
-    icomn: string,  // image comment n
-    ic: [byte],     // image compression
+    issrdt: string,         // date of the source used to derive the classification of the image
+    isctln: int,            // image security control number
+    encryp: [byte],         // encryption
+    isorce: string,         // image source
+    nrows: int,             // number of significant rows in image
+    ncols: int,             // number of significant columns in image
+    pvtype: [byte],         // pixel value type
+    irep: string,           // image representation
+    icat: string,           // image category
+    abpp: int,              // actual bits-per-pixel per band
+    pjust: [byte],          // pixel justification
+    icords: [byte],         // image coordinate representation
+    igeolo: [byte],         // image geographic location
+    nicom: int,             // number of image comments
+    icomn: string,          // image comment n
+    ic: [byte],             // image compression
+    comrat: [byte],         // compression rate code
+    nbands: int,            // number of bands
+    xbands: int,            // number of multispectral bands
+    // todo: verify whether these are needed in the subheader of a particular image
+    irepbandn: [byte],      // n-th band representation
+    isubcatn: [byte],       // n-th band subcategory
+    ifcn: [byte],           // n-th band filter condition
+    // more of the above in pg. 42
+    isync: byte,            // image sync code
+    imode: byte,            // image mode
+    nbpr: int,              // number of blocks per row
+    nbpc: int,              // number of blocks per column
+    nppbh: int,             // number of pixels per block horizontal
+    nppbv: int,             // number of pixels per block vertical
+    nbpp: int,              // number of bits per pixel per band
+    idlvl: int,             // image display level, BCS-N positive integer from 001 - 999
+    ialvl: int,             // attachment level, BCS-N positive integer from 000 - 998
+    iloc: [byte],           // image location
+    imag: [byte],           // image magnification
+    udidl: int,             // user-defined image data length, BCS-N positive integer 00000 or 00003 to 99999
+    udofl: int,             // user-defined overflow
+    udid: [byte],           // user-defined image data, DOUBLE-CHECK
+    ixshdl: int,            // image extended subheader data length
+    ixsofl: int,            // image extended subheader overflow
+    ixshd: [byte],          // image extended subheader data, length of (ixshdl - 3), DOUBLE-CHECK
 }
 
 // todo: length of image segment, see Fig. 7, pg. 9
