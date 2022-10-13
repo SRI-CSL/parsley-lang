@@ -1,0 +1,170 @@
+type nitf_packet = {
+    fhdr: [byte],
+    fver: [byte],
+    clevel: [byte],
+    stype: [byte],
+    ostaid: [byte],
+    fdt: [byte],
+    ftitle: [byte],
+    fsclas: [byte],
+    fsclsy: [byte],
+    fscode: [byte],
+    fsctlh: [byte],
+    fsrel: [byte],
+    fsdctp: [byte],
+    fsdcdt: [byte],
+    fsdcxm: [byte],
+    fsdg: [byte],
+    fsdgdt: [byte],
+    fscltx: [byte],
+    fscatp: [byte],
+    fscaut: [byte],
+    fscrsn: [byte],
+    fssrdt: [byte],
+    fsctln: [byte],
+    fscop: [byte],
+    fscpys: [byte],
+    encryp: [byte],
+    fbkgc: [byte],
+    oname: [byte],
+    ophone: [byte],
+    fl: [byte],
+    hl: [byte],
+    numi: [byte]
+}
+
+format {
+    BCS_A := (# ["\x20" .. "\x7E"] #);;
+    ECS_A := (# ["\x20" .. "\x7E"] | ["\xA0" .. "\xFF"] #);;
+    // BCS_N_POS := ;;
+
+    FHDR := (# [ "NITF" ] #);;
+    FVER := (# [ "02.10" ] #);;
+
+    STYPE := (# [ "BF01" ] #);;
+
+    // This field shall contain the identification code or name of the
+    // originating organization, system, station, or product.
+    // It shall not be filled with BCS spaces (0x20). size 10.
+    OSTAID := (# BCS_A ^ 10u #);;
+
+    // BSC-N integer todo
+    // ask format of regex
+    FDT := (#["00".."99"] // CC
+             ["00".."99"] // YY
+             // MM
+             (["0"]["0".."9"]|["1"]["0".."2"])
+             // DD
+             (["0"]["1".."9"] | ["1" .. "2"]["0" .. "9"] | ["3"]["0" .. "1"])
+             // hhmmss
+             (["00".."23"]["00".."59"] ["00" .. "59"])#);;
+
+    FSCLAS := (#["T"|"S"|"C"|"R"|"U"]#);;
+
+    // TOOD: if any other populated with a valid code for the security
+    // classification system used: FSCODE, FSCTLH, FSREL, FSDCTP,
+    FSCLSY := (# ECS_A ^ 2u #);;
+    FSCODE := (# ECS_A ^ 11u #);;
+    FTITLE := (# ECS_A ^ 80u #);;
+    FSCTLH := (# ECS_A ^ 2u #);;
+    FSREL := (# ECS_A ^ 20u #);;
+    FSDCTP := (# ["DD" | "DE" | "GD" | "GE" | "O" | "X" | "\x20\x20"] #);;
+    FSDCDT := (# ECS_A ^ 8u #);;
+    FSDCXM := (# ECS_A ^ 4u #);;
+    FSDG := (# ECS_A ^ 1u #);;
+    FSDGDT := (# ECS_A ^ 8u #);;
+    FSCLTX := (# ECS_A ^ 43u #);;
+    FSCATP := (# ["O" | "D" | "M" | "\x20"] #);;
+    FSCAUT := (# ECS_A ^ 40u #);;
+    FSCRSN := (# ["A" .. "H"] | ["\x20"] #);;
+    FSSRDT := (# ECS_A ^ 8u #);;
+    FSCTLN := (# ECS_A ^ 15u #);;
+    FSCOP := (# ECS_A ^ 5u #);;
+    FSCPYS := (# ECS_A ^ 5u #);;
+    ENCRYP := (# ECS_A ^ 1u #);;
+    FBKGC := (# ECS_A ^ 3u #);;
+    ONAME := (# ECS_A ^ 24u #);;
+    OPHONE := (# ECS_A ^ 18u #);;
+
+    // ask
+    FL := (# ["000000000388" .. "999999999998"] #);;
+    HL := (# ["000388" .. "999999"] #);;
+    NUMI := (# [ "000" .. "999"] #);;
+
+    NITFpacket npkt {n: nitf_packet} :=
+    fhdr = FHDR
+    fhdr = (Byte^4u)
+    fver = FVER
+    fver = (Byte^5u)
+    // BCS-N 0 -99 table 9 + 9A todo
+    clevel = (Byte^2u)
+    stype = STYPE
+    stype = (Byte^4u)
+    ostaid = OSTAID
+    fdt = (Byte^14u)
+    fdt = FDT
+    ftitle = FTITLE
+    fsclas = FSCLAS
+    fsclas = (Byte^01u)
+    fsclsy = FSCLSY
+    fscode = FSCODE
+    fsctlh = FSCTLH
+    fsrel = FSREL
+    fsdctp = FSDCTP
+    fsdcdt = FSDCDT
+    fsdcxm = FSDCXM
+    fsdg   = FSDG
+    fsdgdt  = FSDGDT
+    fscltx = FSCLTX
+    fscatp = FSCATP
+    fscaut = FSCAUT
+    fscrsn = FSCRSN
+    fssrdt = FSSRDT
+    fsctln = FSCTLN
+    fscop  = FSCOP
+    fscpys = FSCPYS
+    encryp = ENCRYP
+    fbkgc  = FBKGC
+    oname  = ONAME
+    ophone = OPHONE
+    fl     = FL
+    hl     = HL
+    numi   = NUMI
+    [ostaid != "          "  ]
+    {
+        npkt.n.fhdr   := fhdr;
+        npkt.n.fver   := fhdr;
+        npkt.n.clevel := clevel;
+        npkt.n.stype  := stype;
+        npkt.n.ostaid := ostaid;
+        npkt.n.fdt    := fdt;
+        npkt.n.ftitle := ftitle;
+        npkt.n.fsclas := fsclas;
+        npkt.n.fsclsy := fsclsy;
+        npkt.n.fscode := fscode;
+        npkt.n.fsctlh := fsctlh;
+        npkt.n.fsrel  := fsrel;
+        npkt.n.fsdctp := fsdctp;
+        npkt.n.fsdcdt := fsdcdt;
+        npkt.n.fsdcxm := fsdcxm;
+        npkt.n.fsdg   := fsdg;
+        npkt.n.fsdgdt := fsdgdt;
+        npkt.n.fscltx := fscltx;
+        npkt.n.fscatp := fscatp;
+        npkt.n.fscaut := fscaut;
+        npkt.n.fscrsn := fscrsn;
+        npkt.n.fssrdt := fssrdt;
+        npkt.n.fsctln := fsctln;
+        npkt.n.fscop  := fscop;
+        npkt.n.fscpys := fscpys;
+        npkt.n.encryp := encryp;
+        npkt.n.fbkgc  := fbkgc;
+        npkt.n.oname  := oname;
+        npkt.n.ophone := ophone;
+        npkt.n.fl     := fl;
+        npkt.n.hl     := hl;
+        npkt.n.numi   := numi
+        // image segments start here
+        // npkt.n.IS :=
+    }
+}
