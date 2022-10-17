@@ -68,10 +68,10 @@ let lower_literal new_pos (l: Ast.literal) : unit re =
   let mk_re r = {re = r; re_aux = ()} in
   let l = Location.value l in
   let len = String.length l in
-  if len = 0
+  if   len = 0
   then mk_re R_empty
   else let rec inner acc idx =
-         if idx = len then acc
+         if   idx = len then acc
          else let c = chars_of_char l.[idx] (new_pos ()) in
               let re = R_seq (acc, mk_re c) in
               inner (mk_re re) (idx + 1) in
@@ -84,7 +84,8 @@ let choices_of_char_range new_pos sc ec : unit re_desc =
   assert (Char.code sc <= Char.code ec);
   let s, e = Char.code sc, Char.code ec in
   let rec folder acc idx =
-    if idx > e then acc
+    if   idx > e
+    then acc
     else folder (CharSet.add (Char.chr idx) acc) (idx + 1) in
   (* the assert above ensures a non-empty set *)
   R_chars (folder CharSet.empty s, new_pos ())
@@ -92,7 +93,8 @@ let choices_of_char_range new_pos sc ec : unit re_desc =
 (* a wildcard re is a choice amongst all possible byte values *)
 let wildcard_re new_pos =
   let rec loop acc n =
-    if n < 0 then acc
+    if   n < 0
+    then acc
     else loop (CharSet.add (Char.chr n) acc) (n - 1) in
   R_chars (loop CharSet.empty 255, new_pos ())
 
@@ -273,10 +275,10 @@ let rec analyse (re: unit re) : meta re =
         mk_re (R_choice (l', r')) m
     | R_seq (l, r) ->
         let l', r' = analyse l, analyse r in
-        let m = {m_firstpos = if nullable l'
+        let m = {m_firstpos = if   nullable l'
                               then PosSet.union (firstpos l') (firstpos r')
                               else firstpos l';
-                 m_lastpos  = if nullable r'
+                 m_lastpos  = if   nullable r'
                               then PosSet.union (lastpos l') (lastpos r')
                               else lastpos r';
                  m_nullable = nullable l' && nullable r'} in
@@ -358,47 +360,45 @@ let build_dfa (renv: re_env) (re: regexp) : dfa =
           let pending = StateSet.remove st pending in
           let marked = StateSet.add st marked in
           let rec loop_chars table pending i =
-            if i = -1 then table, pending
-            else
-              let c = Char.chr i in
-              (* find positions that can be transitioned to on c *)
-              let next =
-                PosSet.fold (fun p next ->
-                    (* check if we can transition from p on c *)
-                    match PosMap.find_opt p pos_map with
-                      | None ->
-                          (* this could only happen at the end position *)
-                          assert (p = end_pos);
-                          next
-                      | Some cs ->
-                          if CharSet.mem c cs
-                          then (* c transitions to any position in follows(p) *)
-                            (match PosMap.find_opt p follows with
-                               | None ->
-                                   (* no transitions at all from p *)
-                                   next
-                               | Some ps ->
-                                   PosSet.union next ps)
-                          else next
-                  ) st PosSet.empty in
-              if PosSet.is_empty next
-              then
-                loop_chars table pending (i - 1)
-              else
-                let pending =
-                  (* update pending if next is a new state *)
-                  if StateSet.mem next marked || StateSet.mem next pending
-                  then pending
-                  else StateSet.add next pending in
-                let table = TTable.add (st, c) next table in
-                loop_chars table pending (i - 1) in
+            if   i = -1
+            then table, pending
+            else let c = Char.chr i in
+                 (* find positions that can be transitioned to on c *)
+                 let next =
+                   PosSet.fold (fun p next ->
+                       (* check if we can transition from p on c *)
+                       match PosMap.find_opt p pos_map with
+                         | None ->
+                             (* this could only happen at the end position *)
+                             assert (p = end_pos);
+                             next
+                         | Some cs ->
+                             if   CharSet.mem c cs
+                             then (* c transitions to any position in follows(p) *)
+                                  (match PosMap.find_opt p follows with
+                                     | None ->
+                                         (* no transitions at all from p *)
+                                         next
+                                     | Some ps ->
+                                         PosSet.union next ps)
+                             else next
+                     ) st PosSet.empty in
+                 if   PosSet.is_empty next
+                 then loop_chars table pending (i - 1)
+                 else let pending =
+                        (* update pending if next is a new state *)
+                        if   StateSet.mem next marked || StateSet.mem next pending
+                        then pending
+                        else StateSet.add next pending in
+                      let table = TTable.add (st, c) next table in
+                      loop_chars table pending (i - 1) in
           (* loop over ascii charset *)
           let table, pending = loop_chars table pending 255 in
           loop_states table pending marked in
   let states, table = loop_states TTable.empty pending marked in
   (* find accepting states *)
   let accept = StateSet.fold (fun st accept ->
-                   if PosSet.mem end_pos st
+                   if   PosSet.mem end_pos st
                    then StateSet.add st accept
                    else accept
                  ) states StateSet.empty in
