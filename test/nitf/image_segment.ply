@@ -22,13 +22,13 @@ type image_subheader = {
     // image subheader presented as a user-defined record type
 
     // length of image subheader, see Fig. 7, pg. 9
-    sh_length: int,
+    // sh_length: int,
     im: [byte],
     iid1: [byte],
     // todo: Verify with Prashanth as IDATIM is datetime
     idatim: [byte],
     tgtid: [byte],
-    iid2: string,
+    iid2: [byte],
     // image security classification
     // todo: consider moving this to a separate type
     isclas: [byte],
@@ -84,7 +84,7 @@ type image_subheader = {
     udid: [byte],           // user-defined image data, DOUBLE-CHECK
     ixshdl: int,            // image extended subheader data length
     ixsofl: int,            // image extended subheader overflow
-    ixshd: [byte],          // image extended subheader data, length of (ixshdl - 3), DOUBLE-CHECK
+    ixshd: [byte]           // image extended subheader data, length of (ixshdl - 3), DOUBLE-CHECK
 }
 
 // todo: length of image segment, see Fig. 7, pg. 9
@@ -108,34 +108,37 @@ type image_segments = {
     // number of images, see Fig. 7, pg. 9
     n: int,
     // list of image segments
-    img_segs = [image_segment]
+    img_segs: [image_segment]
 }
 
 format {
-    // file part type
-    IM := (# [ BCS-A | "IM" ] #);;
+    IM := !"IM"!;;
+    ISCLAS := (#["T"|"S"|"C"|"R"|"U"]#);;
 
     ImageSubheader img_sub {is: image_subheader} := 
-        file_part_type = (IM^2u)
         image_identifier_1 = (BCS_A^10u)
         // to do
         // image_date_time =
         // target_identifier = 
+        image_identifier_2 = (ECS_A^80u) // Required and BCS spaces required for the entire field, ask @Prashanth
+        image_security_classification = (ISCLAS^1u)
         {
-            img_sub.is.im   := file_part_type;
+            // img_sub.is.im   := IM;
             img_sub.is.iid1 := image_identifier_1;
             // img_sub.is.idatim := image_date_time;
             // img_sub.is.tgtid := target_identifier;
+            img_sub.is.iid2 := image_identifier_2;
+            img_sub.is.isclas := image_security_classification
         }
 
-    // image segment non-terminal definition
-    ImageSegment im {i: image_segment} :=
-        {
+    // // image segment non-terminal definition
+    // ImageSegment im {i: image_segment} :=
+    //     {
 
-        }
+    //     }
     
-    ImageSegments ims {s: image_segments} := 
-        {
+    // ImageSegments ims {s: image_segments} := 
+    //     {
 
-        }
+    //     }
 }
