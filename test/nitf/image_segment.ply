@@ -11,6 +11,8 @@
 //   shall be preceded by a subheader corresponding to that data segment.
 // - The NITF File header and various subheaders have two types of fields: required and conditional.
 
+include character_sets
+
 // The data elements in the image subheader fields provide information 
 // about the image source, its identification, and characteristics 
 // needed to display and interpret it properly. The image subheader field definitions 
@@ -32,7 +34,7 @@ type image_subheader = {
     isclas: [byte],
     isclsy: [byte],
     isctlh: [byte],
-    isrel: [string],
+    isrel: [byte],
     isdctp: [byte],
     isdcdt: string,         // another datetime
     isdcxm: [byte],
@@ -49,7 +51,7 @@ type image_subheader = {
     nrows: int,             // number of significant rows in image
     ncols: int,             // number of significant columns in image
     pvtype: [byte],         // pixel value type
-    irep: string,           // image representation
+    irep: [byte],           // image representation
     icat: string,           // image category
     abpp: int,              // actual bits-per-pixel per band
     pjust: [byte],          // pixel justification
