@@ -26,8 +26,8 @@ type image_subheader = {
     im: [byte],
     iid1: [byte],
     // todo: Verify with Prashanth as IDATIM is datetime
-    idatim: string,
-    tgtid: string,
+    idatim: [byte],
+    tgtid: [byte],
     iid2: string,
     // image security classification
     // todo: consider moving this to a separate type
@@ -118,9 +118,14 @@ format {
     ImageSubheader img_sub {is: image_subheader} := 
         file_part_type = (IM^2u)
         image_identifier_1 = (BCS_A^10u)
+        // to do
+        // image_date_time =
+        // target_identifier = 
         {
             img_sub.is.im   := file_part_type;
             img_sub.is.iid1 := image_identifier_1;
+            // img_sub.is.idatim := image_date_time;
+            // img_sub.is.tgtid := target_identifier;
         }
 
     // image segment non-terminal definition
