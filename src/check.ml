@@ -19,14 +19,24 @@ open Parsing
 open Typing
 open Flow
 open Analysis
-open Ir
+open Anfcfg
 open Options
 
-let parse_spec ckopts spec_file =
-  let spec = SpecParser.parse_spec spec_file in
+let parse_spec ckopts sopts spec_file =
+  let spec = SpecParser.build_spec spec_file sopts ckopts.co_show_raw_ast in
   if   ckopts.co_show_parsed_ast
-  then Parsing.AstPrinter.print_parsed_spec spec;
+  then AstPrinter.print_parsed_spec spec;
   spec
+
+let show_types tenv env wc =
+  TypingEnvironment.fold_type_info
+    (fun (m, Ast.TName n) (_k, v, _adt) _ ->
+      Printf.printf "type %s = %s\n"
+        ((AstUtils.mk_modprefix m) ^ n)
+        (TypeEnvPrinter.print_variable true v)
+    ) () tenv;
+  ConstraintSolver.print_env (TypeEnvPrinter.print_variable true) env;
+  TypeConstraintPrinter.print_width_constraint wc
 
 let checker ckopts spec =
   let tracer = if   ckopts.co_trace_solver
@@ -41,10 +51,7 @@ let checker ckopts spec =
   let env = ConstraintSolver.solve ?tracer c in
   ConstraintSolver.check_width_constraints wc;
   if   ckopts.co_show_types
-  then (ConstraintSolver.print_env
-          (TypeEnvPrinter.print_variable true)
-          env;
-        TypeConstraintPrinter.print_width_constraint wc)
+  then show_types tenv env wc
   else ();
   if   ckopts.co_show_typed_ast
   then AstPrinter.print_typed_spec TypeConstraintPrinter.print_crterm spec';
@@ -75,7 +82,7 @@ let type_check ckopts spec =
         Errors.handle_exception
           (Printexc.get_backtrace ()) l (Rulecfg.error_msg e)
 
-let mk_ir ckopts init_envs tenv (spec: Cfg.program) : Cfg.spec_ir =
+let mk_cfg ckopts init_envs tenv (spec: Cfg.spec_module) : Cfg.spec_cfg =
   try  Cfg_spec.lower_spec init_envs tenv spec ckopts.co_show_anf
   with
     | Anf.Error (l, e) ->
@@ -85,16 +92,16 @@ let mk_ir ckopts init_envs tenv (spec: Cfg.program) : Cfg.spec_ir =
     | Cfg.Error (l, e) ->
         Errors.handle_exception (Printexc.get_backtrace ()) l (Cfg.error_msg e)
 
-let ir_of_ast _verbose ckopts ast : Cfg.spec_ir =
+let cfg_of_ast _verbose ckopts ast : Cfg.spec_cfg =
   let init_envs, tenv, tspec = type_check ckopts ast in
-  let ir = mk_ir ckopts init_envs tenv tspec in
+  let cfg = mk_cfg ckopts init_envs tenv tspec in
   if   ckopts.co_show_cfg
-  then Ir_printer.print_spec ir;
-  ir
+  then Cfg_printer.print_spec cfg;
+  cfg
 
-let ir_of_spec verbose ckopts spec_file : Cfg.spec_ir =
-  let ast = parse_spec ckopts spec_file in
-  ir_of_ast verbose ckopts ast
+let cfg_of_spec verbose ckopts sopts spec_file : Cfg.spec_cfg =
+  let ast = parse_spec ckopts sopts spec_file in
+  cfg_of_ast verbose ckopts ast
 
-let check_spec verbose ckopts spec_file : unit =
-  ignore (ir_of_spec verbose ckopts spec_file)
+let check_spec verbose ckopts sopts spec_file : unit =
+  ignore (cfg_of_spec verbose ckopts sopts spec_file)

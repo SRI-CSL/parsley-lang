@@ -16,9 +16,10 @@
 (**************************************************************************)
 
 open Parsing
-open Misc
 open Ast
 open TypingEnvironment
+
+module StringSet = Set.Make(String)
 
 (** Adapted from the algorithm in
     'Warnings for pattern matching', by Luc Maranget.
@@ -31,12 +32,12 @@ let repeat p n =
     else iter (n - 1) (p :: acc) in
   iter n []
 
-let arity tenv typ constr =
+let arity tenv (m: mname) typ constr =
   let arity, _, _ =
     let dcid =
       AstUtils.canonicalize_dcon
         (Location.value typ) (Location.value constr) in
-    lookup_datacon tenv (Location.loc typ) (DName dcid) in
+    lookup_datacon tenv (Location.loc typ) (m, DName dcid) in
   arity
 
 (** [default_mat m] computes the default matrix for a given pattern
@@ -58,8 +59,8 @@ let default_mat m =
 (** [specialize_row_constr tenv (typ, constr) ps] computes the
    specialized version of a pattern row [ps] with respect to the
    constructor [constr] of type [typ]. *)
-let specialize_row_constr tenv (typ, constr) ps =
-  let arity = arity tenv typ constr in
+let specialize_row_constr tenv (m, typ, constr) ps =
+  let arity = arity tenv m typ constr in
   match ps with
     | p :: rest ->
         (match p.pattern with
@@ -67,19 +68,21 @@ let specialize_row_constr tenv (typ, constr) ps =
            | P_var _ ->
                let p' = { p with pattern = P_wildcard } in
                Some ((repeat p' arity) @ rest)
-           | P_variant ((typ', constr'), ps)
-                when Location.value typ' = Location.value typ ->
+           | P_variant ((m', typ', constr'), ps)
+                when    AstUtils.mod_equiv m m'
+                     && Location.value typ = Location.value typ' ->
                if   Location.value constr' = Location.value constr
                then (assert (List.length ps = arity);
                      Some (ps @ rest))
                else None
+           | P_variant ((m', typ', _), _) ->
+               (* Type-check should forbid this. *)
+               assert (AstUtils.mod_equiv m m');
+               assert (Location.value typ' = Location.value typ);
+               assert false
            | P_literal _ ->
                (* Type-check should forbid this. *)
-               assert false
-           | P_variant ((typ', _), _) ->
-               (* Type-check should forbid this assertion failing. *)
-               assert (Location.value typ' == Location.value typ);
-               None)
+               assert false)
     | [] ->
         assert false
 
@@ -119,18 +122,18 @@ let specialize_mat tenv mat p =
         filter (List.map (fun (p, a) ->
                     specialize_row_literal l p, a
                   ) mat)
-    | P_variant ((typ, constr), _) ->
+    | P_variant ((m, typ, constr), _) ->
         filter (List.map (fun (p, a) ->
-                    specialize_row_constr tenv (typ, constr) p, a
+                    specialize_row_constr tenv (m, typ, constr) p, a
                     ) mat)
 
 (** [unused_constructors tenv typ cs] computes the set of unused
     constructors of type [typ] given a list [cs] of used
     constructors. *)
-let unused_constructors tenv typ cs =
+let unused_constructors tenv m typ cs =
   let tn = Location.value typ in
   let adti =
-    match lookup_adt tenv (TName tn) with
+    match lookup_adt tenv (m, (TName tn)) with
       | None -> assert false
       | Some i -> i in
   let dcons = match adti.adt with
@@ -147,8 +150,8 @@ let unused_constructors tenv typ cs =
 (** [check_variant_completeness tenv typ cs] checks whether the list
     [cs] of constructors of type [typ] contains all the constructors
     of the type. *)
-let check_variant_completeness tenv typ cs =
-  StringSet.is_empty (unused_constructors tenv typ cs)
+let check_variant_completeness tenv m typ cs =
+  StringSet.is_empty (unused_constructors tenv m typ cs)
 
 (* helpers for bitvector patterns *)
 
@@ -238,17 +241,20 @@ let is_complete_sig tenv roots =
                    (BVSet.add (bv_to_int bv) BVSet.empty)
                    rest in
                check_bitvector_completeness bvs (List.length bv)
-           | P_variant ((t, c), _) ->
+           | P_variant ((m, t, c), _) ->
+               let check_modules m m' =
+                 assert (AstUtils.mod_compare m m' = 0) in
                let cs =
                  List.fold_left (fun acc p ->
                      match p.pattern with
-                       | P_variant ((t', c'), _) ->
+                       | P_variant ((m', t', c'), _) ->
+                           check_modules m m';
                            assert (Location.value t = Location.value t');
                            c' :: acc
                        | _ ->
                            assert false
                    ) [c] rest in
-               check_variant_completeness tenv t cs
+               check_variant_completeness tenv m t cs
         )
 
 (* extract the first column of a pattern matrix *)
@@ -305,9 +311,10 @@ let roots tenv col =
                        _}, _) :: _
            when l = l' ->
           true
-      | P_variant ((t, c), _), ({pattern = P_variant ((t', c'), _);
-                                 _}, _) :: _
-           when    Location.value t = Location.value t'
+      | P_variant ((m, t, c), _),
+        ({pattern = P_variant ((m', t', c'), _); _}, _) :: _
+           when    AstUtils.mod_equiv m m'
+                && Location.value t = Location.value t'
                 && Location.value c = Location.value c' ->
           true
       | _, _ :: tl ->
@@ -324,6 +331,6 @@ let roots tenv col =
         | P_literal _ ->
             (* literals have arity 0 *)
             add (p, 0) acc
-        | P_variant ((typ, constr), _) ->
-            add (p, arity tenv typ constr) acc
+        | P_variant ((m, typ, constr), _) ->
+            add (p, arity tenv m typ constr) acc
     ) col []

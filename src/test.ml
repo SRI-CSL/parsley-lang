@@ -21,7 +21,8 @@ open Parsing
 open Ast
 open Lexing
 module I = Parser.MenhirInterpreter
-open Interpreter
+open Typing
+open Anfcfg_interpreter
 
 (* Don't use the one from errors.ml since we don't want to exit on
    test failure. *)
@@ -33,6 +34,9 @@ let handle_exception msg bt =
 (* Simplified version of parser from SpecParser to parse
    self-contained specs in a string as opposed to a top-level file. *)
 let parse_spec test s cont =
+  (* set the current module *)
+  cur_module := Some "Test";
+
   let lexbuf = from_string s in
   let lexbuf = {lexbuf with
                  lex_curr_p = {pos_fname = test;
@@ -70,21 +74,31 @@ let parse_spec test s cont =
         handle_exception
           (Printexc.get_backtrace ()) (Parseerror.error_msg e)
 
-type ir = Ir.Cfg.spec_ir
+type cfg = Anfcfg.Cfg.spec_cfg
 
-let gen_ir (test_name: string) (spec: string) : ir option =
+let gen_cfg (test_name: string) (spec: string) : cfg option =
   let includes = SpecParser.StringSet.empty in
   let spec =
     parse_spec test_name spec (fun ast ->
-        let ast = SpecParser.flatten [] includes ast.pre_decls in
-        Some {decls = List.rev ast}
+        let imports = SpecParser.StringMap.empty in
+        let pre_ast, imports =
+          SpecParser.flatten ([], imports) includes ast.pre_decls in
+        let pre_spec = {pre_decls = List.rev pre_ast} in
+        let bltins =
+          Qualify_ast.({bltin_type    = TypeAlgebra.is_builtin_type;
+                        bltin_field   = TypeAlgebra.is_builtin_field;
+                        bltin_value   = TypeAlgebra.is_builtin_value;
+                        bltin_nonterm = TypeAlgebra.is_builtin_nonterm}) in
+        Some (Qualify_ast.convert_spec bltins imports pre_spec)
       ) in
   match spec with
     | None   -> None
-    | Some s -> Some (Check.ir_of_ast false Options.default_ckopts s)
+    | Some s -> Some (Check.cfg_of_ast false Options.default_ckopts s)
 
-let exe_ir (test: string) (ir: ir) (entry: string) (data: string) : Values.value option =
-  try  fst (Interpret.once_on_test_string test ir entry data)
+let exe_cfg (test: string) (cfg: cfg) (entry: string) (data: string)
+    : Values.value option =
+  let entry = Anfcfg.Anf.M_name "Test", entry in
+  try  fst (Interpret.once_on_test_string test cfg entry data)
   with
     | Runtime_exceptions.Runtime_exception (_, e) ->
         (* Catch the backtrace before error_msg has an exception
@@ -93,5 +107,6 @@ let exe_ir (test: string) (ir: ir) (entry: string) (data: string) : Values.value
           (Printf.sprintf "%s\n" (Runtime_exceptions.error_msg e))
           (Printexc.get_backtrace ())
 
-let do_tests () =
-  Tests.do_tests false gen_ir exe_ir
+let run_tests verbose gen_cfg exe_cfg =
+  Interpret.init_runtime true;
+  Tests.do_tests verbose gen_cfg exe_cfg

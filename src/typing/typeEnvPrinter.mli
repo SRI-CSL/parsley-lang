@@ -23,8 +23,28 @@
 (** This module provides a simple pretty-printer for the terms
     maintained by a unifier. *)
 
-(** [reset()] clears [print]'s memoization table. *)
-val reset: unit -> unit
+(** printing syntax for a type or type operator *)
+
+open Parsing
+
+type print_info =
+  MultiEquation.variable     (* type or type operator *)
+  * Ast.full_tname           (* name *)
+  * arg list                 (* syntax for type arguments *)
+  * bool                     (* whether type operator is infix *)
+  * TypeAlgebra.associativity
+  * bool                     (* parentheses for disambiguation *)
+
+and arg =
+  Arg of print_info
+
+type type_info =
+    (MultiEquation.variable * string) list (* forall quantifiers *)
+  * print_info
+
+(** type information *)
+val variable_type_info: bool -> MultiEquation.variable -> type_info
+val term_type_info:     bool -> MultiEquation.crterm   -> type_info
 
 (** [print_* is_type_scheme x] returns a printable
     representation of the object [x]. Consecutive calls to [print_*]
@@ -32,3 +52,6 @@ val reset: unit -> unit
     called in between. *)
 val print_variable: bool -> MultiEquation.variable -> string
 val print_term:     bool -> MultiEquation.crterm   -> string
+
+(** [reset ()] clears the memoization table used to compute the above info. *)
+val reset: unit -> unit

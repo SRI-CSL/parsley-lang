@@ -10,20 +10,19 @@
 // Assigned Numbers RFC: https://tools.ietf.org/html/rfc1700 .
 
 format {
-  UDPPacket udpp {source_port: int, destination_port: int, length: int, 
+  UDPPacket udpp {source_port: u16, destination_port: u16, length: usize,
                   checksum: [byte], data: [byte]} :=
     source_port = UInt16<endian=endian::Big()>
     destination_port = UInt16<endian=endian::Big()>
     length = UInt16<endian=endian::Big()>
-    checksum = (Byte^2) 
-    [length >= 8] // length field must be at least 8, the UDP header length
-    data = (Byte^(length - 8)) // subtract 8 for the UDP header length
+    checksum = (Byte^2u)
+    [length >=_u16 8u16] // length field must be at least 8, the UDP header length
+    data = (Byte^(Usize.of_u16(length) -_u 8u)) // subtract 8 for the UDP header length
     {
       udpp.source_port := source_port;
       udpp.destination_port := destination_port;
-      udpp.length := length;
+      udpp.length := Usize.of_u16(length);
       udpp.checksum := checksum;
       udpp.data := data
     }
 }
-

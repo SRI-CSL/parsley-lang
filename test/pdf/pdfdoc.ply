@@ -1,10 +1,10 @@
 // Top-level document syntax.
 
-use {pdfprim, pdfobj}
+include {pdfprim, pdfobj}
 
-type xr_free     = { xr_next: int }
-type xr_inuse    = { xr_file_ofs: int }
-type xr_instream = { xr_stream_obj: int, xr_obj_index: int }
+type xr_free     = { xr_next: usize }
+type xr_inuse    = { xr_file_ofs: usize }
+type xr_instream = { xr_stream_obj: usize, xr_obj_index: usize }
 
 type xr_status =
   | Free of xr_free
@@ -12,27 +12,27 @@ type xr_status =
   | InStream of xr_instream
 
 type xref_ent =
-  { xr_obj: int,
-    xr_gen: int,
+  { xr_obj: usize,
+    xr_gen: usize,
     xr_status: xr_status }
 
 type xref_ssect =
-  { xss_start: int, xss_count: int, xss_ents: [xref_ent] }
+  { xss_start: usize, xss_count: usize, xss_ents: [xref_ent] }
 
 type xref_sect =
   { xs_sects: [xref_ssect] }
 
 // Construct the views for top-level indirect objects.
-fun inuse_ent_offsets(e: xref_ent) -> [int] = {
+fun inuse_ent_offsets(e: xref_ent) -> [usize] = {
   (case e.xr_status of
    | xr_status::InUse(iu) -> [iu.xr_file_ofs]
    | _ -> []
   )
 }
-fun top_ssect_offsets(ss: xref_ssect) -> [int] = {
+fun top_ssect_offsets(ss: xref_ssect) -> [usize] = {
   List.flatten(List.map(inuse_ent_offsets, ss.xss_ents))
 }
-fun top_sect_offsets(s: xref_sect) -> [int] = {
+fun top_sect_offsets(s: xref_sect) -> [usize] = {
   List.flatten(List.map(top_ssect_offsets, s.xs_sects))
 }
 fun top_views(s: xref_sect, base: view) -> [view] = {
@@ -66,46 +66,46 @@ format {
   ;;
 
   // XRef entries in Xref table
-  XrefEnt e (idx: int) { xref_ent } :=
-    n=(# DigitS ^ 10 #) !" "!
-    g=(# DigitS ^ 5 #) !" "!
-    [ Int.of_bytes_unsafe(g) <= 65535 ]
+  XrefEnt e (idx: usize) { xref_ent } :=
+    n=(# DigitS ^ 10u #) !" "!
+    g=(# DigitS ^ 5u #) !" "!
+    [ Usize.of_bytes_unsafe(g) <=_u 65535u ]
 
     (( !"n"!
-       { let iu = { xr_file_ofs: Int.of_bytes_unsafe(n) } in
+       { let iu = { xr_file_ofs: Usize.of_bytes_unsafe(n) } in
          e.xr_status := xr_status::InUse(iu) } )
      |
      ( !"f"!
-       { let f = { xr_next: Int.of_bytes_unsafe(n) } in
+       { let f = { xr_next: Usize.of_bytes_unsafe(n) } in
          e.xr_status := xr_status::Free(f) }
      ))
 
     ( !" \r"! | !" \n"! | !"\r\n"! )
     { e.xr_obj := idx;
-      e.xr_gen := Int.of_bytes_unsafe(g) }
+      e.xr_gen := Usize.of_bytes_unsafe(g) }
   ;;
 
   XrefSubSect ss { xref_ssect } :=
-  (| i: int := 0 |)                     // temporary used as counter
+  (| i: usize := 0u |)                  // temporary used as counter
   { ss.xss_ents := [] }
 
   start=(# DigitS+ #) !" "!
-  [ Int.of_bytes(start) ~~ option::Some ]
-  { i := Int.of_bytes_unsafe(start) }   // initialize the object counter
+  [ Usize.of_bytes(start) ~~ option::Some ]
+  { i := Usize.of_bytes_unsafe(start) } // initialize the object counter
 
   count=(# DigitS+ #)
-  [ Int.of_bytes(count) ~~ option::Some ]
+  [ Usize.of_bytes(count) ~~ option::Some ]
 
   ( !" \r"! | !" \n"! | !"\r\n"! )      // unclear in the spec
 
   (xe=XrefEnt<idx = i>
    { ss.xss_ents := xe :: ss.xss_ents;
-     i := i + 1 }                       // increment counter for next object
-  ) ^ (Int.of_bytes_unsafe(count))
+     i := i +_u 1u }                    // increment counter for next object
+  ) ^ (Usize.of_bytes_unsafe(count))
 
   { ss.xss_ents  := List.rev(ss.xss_ents);
-    ss.xss_start := Int.of_bytes_unsafe(start);
-    ss.xss_count := Int.of_bytes_unsafe(count) }
+    ss.xss_start := Usize.of_bytes_unsafe(start);
+    ss.xss_count := Usize.of_bytes_unsafe(count) }
   ;;
 
   #[whitespace(Whitespace:allow_empty=true)]
@@ -124,11 +124,11 @@ format {
   ;;
 
   #[whitespace(Whitespace:allow_empty=false)]
-  StartXref s {sxref: int} :=
+  StartXref s {sxref: usize} :=
     !"startxref"!
     n=Integer
-    [ n.i > 0 ]
-    { s.sxref := n.i }
+    [ n.i >_i 0i ]
+    { s.sxref := Usize.of_isize_wrapped(n.i) }
   ;;
 
   EOF {} :=

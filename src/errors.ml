@@ -39,8 +39,10 @@ let handle_exception bt loc msg =
    if   !Options.json_out
    then Printf.fprintf stderr "%s" (Yojson.Safe.to_string (mk_json_errormsg loc msg))
    else (
-      let content = Location.content_of_loc loc in
-      Printf.printf "%s\n" bt;
-      Printf.fprintf stderr "%s%s: %s\n" content (Location.str_of_loc loc) msg;
+     if   Location.is_ghost loc
+     then Printf.fprintf stderr "%s\n" msg
+     else let content = Location.content_of_loc loc in
+          Printf.printf "%s\n" bt;
+          Printf.fprintf stderr "%s%s: %s\n" content (Location.str_of_loc loc) msg;
    );
    exit Cmdliner.Cmd.Exit.some_error

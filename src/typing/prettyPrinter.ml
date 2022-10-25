@@ -24,29 +24,28 @@
 
 type output =
   | Channel of Stdlib.out_channel
-  | Buffer of Buffer.t
+  | Buffer  of Buffer.t
 
-type formatter_output = {
-  out       : string -> int -> int -> unit;
-  flush     : unit -> unit;
-  newline   : unit -> unit;
-  spaces    : int -> unit;
-  with_tags : bool;
-  open_tag  : Format.stag -> unit;
-  close_tag : Format.stag -> unit;
-  margin    : int;
-}
+type formatter_output =
+  {out: string -> int -> int -> unit;
+   flush:     unit -> unit;
+   newline:   unit -> unit;
+   spaces:    int -> unit;
+   with_tags: bool;
+   open_tag:  Format.stag -> unit;
+   close_tag: Format.stag -> unit;
+   margin:    int}
 
 type mode =
-  | Txt of output
+  | Txt       of output
   | Formatter of formatter_output
 
 let output_string output =
   match output with
     | Channel cout -> Stdlib.output_string cout
-    | Buffer b -> Buffer.add_string b
+    | Buffer b     -> Buffer.add_string b
 
 let flush output =
   match output with
     | Channel cout -> Stdlib.flush cout
-    | Buffer _b -> ()
+    | Buffer _b    -> ()

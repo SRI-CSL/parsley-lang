@@ -21,9 +21,10 @@
 (*  and Didier Rémy.                                                      *)
 
 open Parsing
-open Misc
 open MultiEquation
 open CoreAlgebra
+
+module StringMap = Misc.StringMap
 
 (** [sname] is the type of the names that are used to refer to type
     schemes inside constraints. These names are bound by [CLet]
@@ -78,10 +79,10 @@ let rec cposition = function
       Location.ghost_loc
 
   | CConjunction l ->
-      Location.extent (cposition (List.hd l)) (cposition (last l))
+      Location.extent (cposition (List.hd l)) (cposition (Misc.last l))
 
   | CLet (l, _) ->
-      Location.extent (sposition (List.hd l)) (sposition (last l))
+      Location.extent (sposition (List.hd l)) (sposition (Misc.last l))
 
   | CEquation (p, _, _) ->
       p

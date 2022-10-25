@@ -55,10 +55,6 @@ val environment_as_list: environment -> (string * TypeConstraint.variable) list
 val print_env: (TypeConstraint.variable -> string) -> environment -> unit
 
 type solver_error =
-  (* [TypingError] is raised when an inconsistency is detected during
-     constraint solving. *)
-  | TypingError
-
   (* [UnboundIdentifier] is raised when an identifier is undefined in
      a particular context. *)
   | UnboundIdentifier of string

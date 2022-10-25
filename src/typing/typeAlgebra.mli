@@ -32,7 +32,7 @@ open Parsing
     during the constraint generation. Then, an environment is given to
     the algebra in order to retrieve the type variable associated
     to the string representation of the type constructor. *)
-type 'a environment = Ast.tname -> 'a CoreAlgebra.arterm
+type 'a environment = Ast.full_tname -> 'a CoreAlgebra.arterm
 
 (** Head symbols. *)
 type symbol
@@ -50,7 +50,7 @@ type syntax =
 
 (** [as_symbol s] maps the string [s] to a symbol if [s] is a
     valid symbol name. *)
-val as_symbol: Ast.tname -> symbol option
+val as_symbol: Ast.full_tname -> symbol option
 
 (** [associativity s] returns the associativity of [s]. *)
 val associativity: symbol -> associativity
@@ -67,14 +67,18 @@ val infix: symbol -> bool
 type builtin_dataconstructor =
   Ast.dname * Ast.tname list * Ast.type_expr
 
+(** The type of predefined values. *)
+type builtin_value =
+  Ast.vname * Ast.tname list * Ast.type_expr
+
 (** The representation of predefined types. *)
 type builtin_type =
   Ast.tname * (Ast.kind * syntax * builtin_dataconstructor list)
 
 (** The type information for a builtin module. *)
 type builtin_module =
-  {mod_name:   Ast.mname;
-   mod_values: builtin_dataconstructor list}
+  {mod_name:   Ast.mod_qual;
+   mod_values: builtin_value list}
 
 (** The representation of predefined non-terminals, with their
  ** inherited attributes and their types. *)
@@ -123,20 +127,27 @@ val character_classes: (string * char array) list
 
 (** [builtin_consts] is an array of the builtin types. *)
 val builtin_types: builtin_type array
+val is_builtin_type: string -> bool
 
 val mk_builtin_bitwidth: int -> builtin_type
 
-(** [builtin_consts] is an array of the builtin data constructors. *)
-val builtin_consts: builtin_dataconstructor array
+(** [builtin_ops] is an array of the builtin operator symbols. *)
+val builtin_ops: builtin_value array
 
-(** [builtin_vars] is an array of the builtin named values. *)
-val builtin_vars: builtin_dataconstructor array
+(** [builtin_consts] is an array of the builtin expression identifiers . *)
+val builtin_values: builtin_value array
+val is_builtin_value: string -> bool
 
 (** [builtin_modules] is a list of the builtin module values. *)
 val builtin_modules: builtin_module list
+val is_builtin_module: string -> bool
 
 (** [builtin_non_terms] is an array of the builtin non-terminals. *)
 val builtin_non_terms: builtin_non_term array
+val is_builtin_nonterm: string -> bool
+
+(** predicate for builtin fields *)
+val is_builtin_field: string -> bool
 
 (** names of builtin operator constants *)
 val unop_const_name: Ast.unop -> string

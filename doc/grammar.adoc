@@ -41,7 +41,7 @@ within `{` and `}`, and separated by `,`.  The production rules for
 the non-terminal are specified on the right-hand side of a `:=`
 separator.
 ....
- NT {s1: int, s2: bool} := ...
+ NT {s1: i32, s2: bool} := ...
 ....
 A value of such a non-terminal has a record type whose fields
 correspond to these synthesized attributes.  In fact, a record type
@@ -49,7 +49,7 @@ can be used as an abbreviation for the declaration of the synthesized
 attributes.  For example, the declaration of `NT` above is equivalent
 to the one below:
 ....
- type nt = {s1: int, s2: bool}
+ type nt = {s1: i32, s2: bool}
 
  format {
    NT {nt} := ...
@@ -68,7 +68,7 @@ A non-terminal could have *inherited attributes*.  These are specified
 in name-type pairs similar to synthesized attributes, except that they
 are enclosed in `(` and `)` (i.e. in parentheses instead of braces).
 ....
- NTI (i1: bool, i2: int) {is1: int, is2: bool} :=
+ NTI (i1: bool, i2: i32) {is1: i32, is2: bool} :=
 ....
 Inherited attributes, if present, need to be specified before any
 synthesized attributes.  The declaration of inherited attributes
@@ -84,7 +84,7 @@ The non-terminal being defined can be given a short name, which can
 used in the right-hand side of the definition for the assignment of
 the computed values of the synthesized attributes.
 ....
- NT n {s1: int, s2: bool} := ... {n.s1 := ...; n.s2 := ...} ...
+ NT n {s1: i32, s2: bool} := ... {n.s1 := ...; n.s2 := ...} ...
 ....
 Such a name should start with a lowercase letter, and needs to appear
 immediately after the non-terminal name.
@@ -92,7 +92,7 @@ immediately after the non-terminal name.
 Inherited attributes are accessed directly on the right-hand side of
 the definition:
 ....
- NTI n (i1: bool, i2: int) {is1: int, is2: bool} := ... {n.is1 := i2; n.is2 := i1} ...
+ NTI n (i1: bool, i2: i32) {is1: i32, is2: bool} := ... {n.is1 := i2; n.is2 := i1} ...
 ....
 
 === Rules and Rule Elements
@@ -114,7 +114,7 @@ rule.  These are placed within `(|` and `|)` markers before the first
 rule element.  These variables are within scope for each rule element
 in the rule.
 ....
-... := (| s: set<int> := Set.empty, i: int := 0 |) ...
+... := (| s: set<i32> := Set.empty, i: i32 := 0_i32 |) ...
 ....
 
 Each rule element can optionally be named (with an identifier that
@@ -178,6 +178,9 @@ NOTE: It is not very useful to bind a variable to a constraint rule
 element.  Its value will always be true in its scope, since the rule
 elements in its scope will not be executed if it evaluates to false.
 
+Constraints are similar to but differ from *dynamic assertions*,
+described below.
+
 *Actions* are blocks, demarcated by enclosing `{` and `}` markers, within
 which some computation is done.  This computation typically does one
 or more of: assign values to the synthesized attributes of the
@@ -196,22 +199,67 @@ attribute or a temporary.  For convenience, these assignment
 sequences can be placed in the bodies of `let` bindings or the branch
 bodies of `case` discriminators.
 ....
-  Act a {v: int, w: int} :=
+  Act a {v: i32, w: i32} :=
     b=[bool::True()]
     { let c = b in
       (case c of
-      | bool::True()  -> {a.v := 0; a.w := 1}
-      | bool::False() -> {a.v := 1; a.w := 0}
+      | bool::True()  -> {a.v := 0_i32; a.w := 1_i32}
+      | bool::False() -> {a.v := 1_i32; a.w := 0_i32}
       )
     }
 ....
 
-===== Printing
+====== Printing
 
 To aid debugging using the interpreter, an additional statement form
 is the *print statement*, whose syntax is `$print(e)` where `e` is any
 expression.  When this statement is executed in the interpreter, the
-value that `e` evaluates to is printed to the standard error.
+value that `e` evaluates to is printed to the standard error.  A
+sequence of bytes in the value is interpreted as binary data and
+printed in hex.  However, in some cases, sequences of bytes could
+contain ASCII characters and hence may need to be printed as strings;
+this use case is served by `$print_t(e)`.
+
+===== Dynamic assertions
+
+*Dynamic assertions* are like constraints in that they are required to
+be satisfied in order for the parse to continue.  However, a dynamic
+assertion is unlike a constraint in the following ways:
+
+* It is placed within `%[` and `]%` syntactic markers.
+
+* It is not an arbitrary boolean expression; instead, it needs to be
+  one of a set of syntactically restricted expressions, described
+  below.
+
+* If the condition in the assertion does not hold, the execution of
+  the parse is suspended, and control is returned to the application.
+  The application is provided a reason for the suspension, and can
+  decide to change the environment in order to make the assertion true
+  _dynamically_.  The application can return control to the parser in
+  order resume the paused execution.  The parser resumes execution at
+  the point of the pause, after confirming that the asserted condition
+  holds.
+
+Currently, the only supported dynamic assertion is
+`require_remaining`, specified as:
+....
+... := ... %[ require_remaining(v, e) ]% ...
+....
+This asserts that the view in `v` should have at least `e` number of
+bytes beyond the current offset, where `e` is an expression of type
+`usize`.  Note that `v` is _required_ to be an *open* view, i.e. a
+view that can be extended by adding data to the end of the backing
+buffer.  If `v` is such a view, and the condition does not hold,
+control returns to the application, which can append more data to the
+end of the view (e.g. by reading more data from a network socket or a
+pipe) in order to satisfy the condition.  The application can then
+return control to Parsley, which in turn checks the condition and
+resumes the parse immediately after this rule element.
+
+NOTE: If `v` is not an open view, the parse terminates immediately
+with an appropriate error, as this is most likely a bug in the Parsley
+specification.
 
 ==== Combinators
 
@@ -294,21 +342,22 @@ The matching performed by a rule element can be restricted to a `view`
 using the view-mapping combinators.  By default, all parsing is
 performed at the *current cursor* location within an implicit *current
 view*. `View.get_current` returns a copy of this current view, and
-`View.get_current_cursor` provides the (integer) value of the current
-cursor in the current view.  `View.get_base` provides a copy of the
-current view with the cursor location set to the start of the buffer.
-`View.make_current` takes a view and makes it the current view.
+`View.get_current_cursor` provides the integer value (of type `usize`)
+of the current cursor in the current view.  `View.get_base` provides a
+copy of the current view with the cursor location set to the start of
+the buffer.  `View.make_current` takes a view and makes it the current
+view.
 
 The *at-position* combinator `@(p, RE)` operates on an integer
 expression `p` and a rule element `RE`.  This combinator creates a new
 view, say `v`, from the current view, with its cursor pointing at the
-integer offset given by the evaluation of `p`.  The value returned by
-the combinator is the value matched by `RE` in `v`.  Hence, the type
-of this combinator application is the same as the type of `RE`.
-The combinator fails if `RE` fails to match.  After the combinator is
-processed, whether to success or failure, the view `v` created for the
-combinator is discarded, and the current view active before the
-combinator was processed is unmodified and remains current.
+integer offset (of type `usize`) given by the evaluation of `p`.  The
+value returned by the combinator is the value matched by `RE` in `v`.
+Hence, the type of this combinator application is the same as the type
+of `RE`.  The combinator fails if `RE` fails to match.  After the
+combinator is processed, whether to success or failure, the view `v`
+created for the combinator is discarded, and the current view active
+before the combinator was processed is unmodified and remains current.
 
 NOTE: Within the processing of `RE`, a call to `View.get_current` will
 typically return a view derived from `v`.
@@ -331,16 +380,16 @@ if `RE` fails at any view in `views`.
 The side-effects of parsing on the views used in a view-mapping
 combinator are not visible outside the combinator.
 ....
-  T t {i: int, j: int} :=
+  T t {i: usize, j: usize} :=
     Byte
-    v={;; View.restrict(View.get_current(), 0, 4)}
+    v={;; View.restrict(View.get_current(), 0u, 4u)}
     @[v, UInt32<endian::endian::Little()>]
     { t.i := View.get_current(v);
       t.j := View.get_remaining(v) }
 ....
-In the above example, `t.i` and `t.j` will be `0` and `4`
+In the above example, `t.i` and `t.j` will be `0u` and `4u`
 respectively.  If the side-effects had been visible, the values would
-instead be `4` and `0`.
+instead be `4u` and `0u`.
 
 When a map-view combinator is used with a non-terminal with inherited
 attributes, it is often convenient to provide different values for one
@@ -351,10 +400,10 @@ evaluates to a list of values that is of the same length as the number
 of views in the map.  For each view in the map, the corresponding
 value in the list is provided to the inherited attribute.
 ....
-  NT n (i: int, j: int) {n: unit} := ... ;;
+  NT n (i: i32, j: usize) {n: unit} := ... ;;
 
-  T t (vs: [view], is: [int]) {t: unit} :=
-      @#[vs, NT<i <- (is), j = 0>]
+  T t (vs: [view], is: [i32]) {t: unit} :=
+      @#[vs, NT<i <- (is), j = 0u>]
       ...
 ....
 In the fragment above, when `NT` is mapped over the list of views `vs`
@@ -375,11 +424,11 @@ views in the map-view.  In the example above, this internal constraint
 ensures that `vs` and `is` have the same lengths.  That is, the above
 fragment is equivalent to:
 ....
-  NT n (i: int, j: int) {n: unit} := ... ;;
+  NT n (i: i32, j: usize) {n: unit} := ... ;;
 
-  T t (vs: [view], is: [int]) {t: unit} :=
+  T t (vs: [view], is: [i32]) {t: unit} :=
       [List.length(vs) = List.length(is)]
-      @#[vs, NT<i <- (is), j = 0>]
+      @#[vs, NT<i <- (is), j = 0u>]
       ...
 ....
 The insertion of an internal constraint may result in unexpected types
@@ -392,9 +441,9 @@ For example, the below named binding may result in the type of `a`
 being a 3-tuple instead of a 2-tuple, due to the internal list length
 constraint being including in the `a` binding.
 ....
-  T t (vs: [view], is: [int]) {t: unit} :=
+  T t (vs: [view], is: [i32]) {t: unit} :=
       a=(Byte
-         @#[vs, NT<i <- (is), j = 0>]
+         @#[vs, NT<i <- (is), j = 0u>]
         )
       ...
 ....
@@ -403,9 +452,9 @@ should bind the map-view directly.  The naming below will result in
 `a` and `b` getting their expected types, and will not be affected by
 the internal list-length constraint.
 ....
-  T t (vs: [view], is: [int]) {t: unit} :=
+  T t (vs: [view], is: [i32]) {t: unit} :=
       a=Byte
-      b=@#[vs, NT<i <- (is), j = 0>]
+      b=@#[vs, NT<i <- (is), j = 0u>]
       ...
 ....
 ====
@@ -471,11 +520,12 @@ NOTE: There are restrictions on the kinds of arguments taken by these
 operators to ensure that the resulting literal set can be computed and
 matched efficiently.
 
-The *wildcard* regular expression, denoted either by `#` or `.`,
-matches any single byte.  The matched value returned by the wildcard
-will be a single element byte list containing the matched byte.  (Two
-wildcard symbols are provided in the syntax, since the `.` character
-commonly used for this purpose is sometimes hard to see in an editor.)
+The *wildcard* regular expression, denoted `#`, matches any single
+byte.  The matched value returned by the wildcard will be a single
+element byte list containing the matched byte.  (The `#` symbol is
+used instead of the more common `.`, since the `.` character is
+sometimes hard to see in an editor, and it conflicts with the `.`
+notation used in the module system for the grammar sublanguage.)
 
 A *regular expression non-terminal* can be used as a regular
 expression element composable with other regular expressions using the
@@ -620,6 +670,47 @@ next 9 bits converted into a bitfield `bf` and stored in attribute
 If `$bitfield(bf)` matches `0b100000011` above, `f.top` will be `0b10`
 and `f.bot` will be `0b0000011`.
 
+==== Endianness
+
+Endianness concerns arise when using bitvectors that are longer than 8
+bits or that straddle byte boundaries.  The bytes containing the bits
+being parsed are traversed in a left-to-right manner, i.e. in the
+direction of increasing byte offset into the parse buffer.  This
+implies that the bytes in a long bitvector appear in a big-endian
+order.  This needs to be accounted for when converting bitvectors into
+integers.
+
+For example, if the non-terminal `Bits` below is used to parse the
+four bytes `0x11000102`, the values of `b.v1`, `b.v2` and `b.v3`
+will be `0_u8`, `17_u8` and `258_u32` respectively.
+
+....
+  format {
+    Bits b {v1: u8, v2: u8, v3: u32} :=
+      v1=BitVector<3> v2=BitVector<5> v3=BitVector<24> // matches 4-bytes
+      { b.v1 := Bits.to_u8(v1);
+        b.v2 := Bits.to_u8(v2);
+        b.v3 := Bits.to_u32(v3) }
+  }
+....
+
+The `Bits` module contains integer conversion routines that take an
+endianness specification, such as `to_u16_endian`,
+`to_i32_endian`, etc.  The first or leftmost eight bits in a
+little-endian bitvector are considered to form the least-significant
+byte, whereas for a big-endian bitvector, the last or rightmost eight
+bits are considered to form the least-significant byte.
+
+A little-endian conversion of the 24-bit `v3` can be computed using
+`Bits.to_u32_endian`, resulting in `b.v3` taking the value `131328_u32`.
+
+....
+        b.v3 := Bits.to_u32_endian(endian::Little(), v3)
+....
+
+As the example above shows, the default integer conversion of a
+parsed bitvector treats the bytes within it in big-endian order.
+
 == Annotations
 
 Parsley provides an annotation scheme that can be used to provide
@@ -735,3 +826,20 @@ construct dealing with bitvectors.
 NOTE: One can use the `-dd` option to print the rules of a
 non-terminal after whitespace decoration to ensure they align with
 expectations.
+
+== Modules
+
+Parsley supports the use of definitions from one Parsley
+specification, considered as a *module*, within another Parsley
+specification; this is described further in the
+<<expressions.adoc#modules,expression language documentation>>.
+
+As described there, the non-terminal used as a rule element in a
+production rule for a non-terminal definition can refer to a
+non-terminal defined in another module: `M.NT` refers to the
+non-terminal `NT` defined in module `M`.
+
+Unlike non-terminals, Parsley does not support cross-module use of
+definitions for regular expressions and literals.  A specification can
+however refer to regular expressions and literals defined in the
+Parsley standard library.

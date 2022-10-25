@@ -37,31 +37,23 @@ type 'a arterm =
   | TTerm of ('a arterm) term
 
 let iter f = function
-  | App (l, r) ->
-      f l; f r
-  | Var v ->
-      f v
+  | App (l, r) -> f l; f r
+  | Var v      -> f v
 
 let map f = function
-  | App (l, r) ->
-      App (f l, f r)
-  | Var v ->
-      Var (f v)
+  | App (l, r) -> App (f l, f r)
+  | Var v      -> Var (f v)
 
 let fold f term accu =
   match term with
-    | App (l, r) ->
-        f r (f l accu)
-    | Var v ->
-        f v accu
+    | App (l, r) -> f r (f l accu)
+    | Var v      -> f v accu
 
 let fold2 f term term' accu =
   match term, term' with
-    | App (l, r), App (l', r') ->
-        f r r' (f l l' accu)
-    | Var v, Var v' ->
-        f v v' accu
-    | _ -> failwith "fold2"
+    | App (l, r), App (l', r') -> f r r' (f l l' accu)
+    | Var v, Var v'            -> f v v' accu
+    | _                        -> failwith "fold2"
 
 let app t args =
   List.fold_left (fun acu x -> TTerm (App (acu, x))) t args
@@ -71,8 +63,7 @@ let rec change_term_vars c =
 
 and change_arterm_vars c =
   function
-    | TTerm term -> TTerm (change_term_vars c term)
-    | TVariable x -> TVariable (
-        match List.assq_opt x c with
-          | Some y -> y
-          | None -> x)
+    | TTerm term  -> TTerm (change_term_vars c term)
+    | TVariable x -> TVariable (match List.assq_opt x c with
+                                  | Some y -> y
+                                  | None   -> x)

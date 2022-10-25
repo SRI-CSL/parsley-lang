@@ -33,20 +33,12 @@ let lookup_opt env x =
 let filter env f =
   List.fold_left (fun acu (_, x) -> if f x then x :: acu else acu) [] env
 
-let empty =
-  []
-
 let add env x t =
   (x, t) :: env
 
-let concat =
-  ( @ )
+let empty  = []
+let concat = ( @ )
 
-let iter =
-  List.iter
-
-let fold_left =
-  List.fold_left
-
-let map =
-  List.map
+let iter      = List.iter
+let fold_left = List.fold_left
+let map       = List.map

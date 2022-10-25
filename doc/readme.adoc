@@ -14,3 +14,5 @@ The current documentation for Parsley is available below.
 * A <<compiler.adoc#,manual>> for using the compiler.
 
 * A Parsley <<tutorial/overview.adoc#, tutorial>>.
+
+* A <<changes.adoc#,changelog>>.

@@ -36,7 +36,7 @@
     which [v1] and [v2] are already implicitly part of. Then, it
     rewrites the system of equations in a number of ways until an
     inconsistency is found or a standard (satisfiable) form is
-    reached. In the former case, the exception [Inconsistency] is
+    reached. In the former case, the exception [CannotUnify] is
     raised. In the latter case, the function returns normally,
     without returning a result.
 

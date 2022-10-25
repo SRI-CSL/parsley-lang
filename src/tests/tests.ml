@@ -15,10 +15,47 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Interpreter
+open Parsing
+open Anfcfg_interpreter
 open Values
 
 let tests = [
+    ("i8_+_overflow", "fun i8_overflow(l: i8, r: i8) -> i8 =
+                       { l +_i8 r }
+                       format {
+                         A a {i: i8} := { a.i := i8_overflow(127i8, 1i8) }
+                       }", "A",
+     "", V_record ["i", V_int (Ast.i8_t, -128L)]);
+    ("u8_-_underflow", "fun u8_underflow(l: u8, r: u8) -> u8 =
+                       { l -_u8 r }
+                       format {
+                         A a {i: u8} := { a.i := u8_underflow(0u8, 1u8) }
+                       }", "A",
+     "", V_record ["i", V_int (Ast.u8_t, 255L)]);
+    ("i8_lshft_overflow", "fun i8_overflow(l: i8, r: u8) -> i8 =
+                       { l <<_i8 r }
+                       format {
+                         A a {i: i8} := { a.i := i8_overflow(127i8, 9u8) }
+                       }", "A",
+     "", V_record ["i", V_int (Ast.i8_t, -2L)]);
+    ("i8_lor_operator", "fun i8_operator(l: i8, r: i8) -> i8 =
+                       { l |_i8 r }
+                       format {
+                         A a {i: i8} := { a.i := i8_operator(127i8, -128i8) }
+                       }", "A",
+     "", V_record ["i", V_int (Ast.i8_t, -1L)]);
+    ("i8_xor_operator", "fun i8_operator(l: i8, r: i8) -> i8 =
+                       { l ^_i8 r }
+                       format {
+                         A a {i: i8} := { a.i := i8_operator(127i8, -1i8) }
+                       }", "A",
+     "", V_record ["i", V_int (Ast.i8_t, -128L)]);
+    ("i8_and_operator", "fun i8_operator(l: i8, r: i8) -> i8 =
+                       { l &_i8 r }
+                       format {
+                         A a {i: i8} := { a.i := i8_operator(127i8, -1i8) }
+                       }", "A",
+     "", V_record ["i", V_int (Ast.i8_t, 127L)]);
     ("trivial", "format { A := (# [\"A\"] #) }",  "A",
      "A", V_list [V_char 'A']);
     ("exact",   "format { A := (# [\"AB\"] #) }", "A",
@@ -38,16 +75,17 @@ let tests = [
     ("abc2", "format {ABC p {a: [byte]} := u=!\"Helo\"! v=!\"ABC\"! {p.a := List.concat(u,v)}}", "ABC",
      "HeloABC", V_record ["a", V_list [V_char 'H'; V_char 'e'; V_char 'l'; V_char 'o';
                                        V_char 'A'; V_char 'B'; V_char 'C']]);
-    ("sum", "format {Add a {m: int} := x=Byte !\"+\"! y=Byte {a.m := Int.of_byte(x) + Int.of_byte(y)}}",
-     "Add", "5+6", V_record ["m",V_int (Int64.of_int (Char.code '5' + Char.code '6'))]);
-    ("struct", "format {Struct s {x: int, y: [byte]} := x=Byte y=!\"Helo\"! {s.x := Int.of_byte(x); s.y := y}}",
-     "Struct", "ZHelo", V_record ["x", V_int (Int64.of_int (Char.code 'Z'));
+    ("sum", "format {Add a {m: u8} := x=Byte !\"+\"! y=Byte
+                                      {a.m := U8.of_byte(x) +_u8 U8.of_byte(y)}}",
+     "Add", "5+6", V_record ["m",V_int (Ast.u8_t, Int64.of_int (Char.code '5' + Char.code '6'))]);
+    ("struct", "format {Struct s {x: u8, y: [byte]} := x=Byte y=!\"Helo\"! {s.x := U8.of_byte(x); s.y := y}}",
+     "Struct", "ZHelo", V_record ["x", V_int (Ast.u8_t, Int64.of_int (Char.code 'Z'));
                                   "y", V_list [V_char 'H'; V_char 'e'; V_char 'l'; V_char 'o']]);
-    ("depvec", "format {DepVec d {v: [byte]} := c=Byte v=(Byte ^ Int.of_byte(c)) {d.v := v}}",
+    ("depvec", "format {DepVec d {v: [byte]} := c=Byte v=(Byte ^ Usize.of_byte(c)) {d.v := v}}",
      "DepVec", "\003abcd", V_record ["v", V_list [V_char 'a'; V_char 'b'; V_char 'c']]);
     ("constr", "fun more_than_five(b : [byte]) -> bool = {
-                  (case Int.of_bytes(b) of
-                   | option::Some(i) -> i > 5
+                  (case I64.of_bytes(b) of
+                   | option::Some(i) -> i >_i64 5i64
                    | option::None()  -> bool::False())
                 }
                 format {C p {c:[byte]} := i=(# [\"0\" .. \"9\" ]* #)
@@ -57,23 +95,23 @@ let tests = [
     ("recdnt", "type recd = {t: byte}
                 format {NonTerm nt {recd} := c=Byte {nt.t := c}}",
      "NonTerm", "B", V_record ["t", V_char 'B']);
-    ("nrec", "type r = {f1: int, f2: int}
-              format {NR n {n: r} := {n.n.f1 := 1;
-                                      n.n.f2 := 2}}",
-     "NR", "", V_record ["n", V_record ["f1", V_int 1L;
-                                        "f2", V_int 2L]]);
+    ("nrec", "type r = {f1: i8, f2: i8}
+              format {NR n {n: r} := {n.n.f1 := 1i8;
+                                      n.n.f2 := 2i8}}",
+     "NR", "", V_record ["n", V_record ["f1", V_int (Ast.i8_t, 1L);
+                                        "f2", V_int (Ast.i8_t, 2L)]]);
     ("depntvec", "type recd = {t: byte}
                   fun byte_of_recd(r: recd) -> byte = {r.t}
                   format {NonTerm n {recd} := c=Byte {n.t := c};;
                           DepNTVec d {v: [byte]} :=
-                            c=Byte v=(NonTerm ^ Int.of_byte(c))
+                            c=Byte v=(NonTerm ^ Usize.of_byte(c))
                             {d.v := List.map(byte_of_recd, v)}}",
      "DepNTVec", "\002AB", V_record ["v", V_list [V_char 'A'; V_char 'B']]);
     ("ntdepntvec", "type recd = {t: byte}
                     fun byte_of_recd(r: recd) -> byte = {r.t}
                     format {NonTerm n {recd} := c=Byte {n.t := c};;
                             NTDepNTVec d {v: [byte]} :=
-                              c=NonTerm v=(NonTerm ^ Int.of_byte(c.t))
+                              c=NonTerm v=(NonTerm ^ Usize.of_byte(c.t))
                               {d.v := List.map(byte_of_recd, v)}}",
      "NTDepNTVec","\002AB", V_record ["v", V_list [V_char 'A'; V_char 'B']]);
     ("bitvector", "bitfield bf = {top: 8:7, bot: 6:0}
@@ -129,9 +167,9 @@ let tests = [
                         )}",
      "Chk", "B", V_record ["v", V_list[V_char 'F'; V_char 'a'; V_char 'i'; V_char 'l']]);
     ("choicebt", "format {ITS i { b: byte, d: byte } :=
-                           ( (b=Byte [Int.of_byte(b)=0] d=Byte
+                           ( (b=Byte [U8.of_byte(b)=0u8] d=Byte
                               {i.b := b; i.d := d})
-                           | (b=Byte [Int.of_byte(b)=1] d=Byte
+                           | (b=Byte [U8.of_byte(b)=1u8] d=Byte
                               {i.b := b; i.d := d})
                            )}",
      "ITS", "\x01\x02", V_record ["b", V_char '\x01'; "d", V_char '\x02']);
@@ -147,8 +185,8 @@ let tests = [
                                  "p2", V_list[V_char '5'; V_char '0'; V_char '9'; V_char '1']]);
     ("views2a", "format {LetterFill lf {s: [byte], t: [byte]} :=
                              v = {;; View.get_current() }
-                             w = {;; View.restrict(v, 0, 3)}
-                          next = {;; View.restrict_from(v, 3)}
+                             w = {;; View.restrict(v, 0u, 3u)}
+                          next = {;; View.restrict_from(v, 3u)}
                           s=@[w,    (# [\"0\" .. \"5\"]* [\" \"]* #)]
                           {lf.s := s}
                           t=@[next, (# [\"5\" .. \"9\"]* [\" \"]* #)]
@@ -157,8 +195,8 @@ let tests = [
                                        "t", V_list[V_char '5'; V_char '9']]);
     ("views2b", "format {LetterFill lf {s: [byte], t: [byte]} :=
                              v = {;; View.get_current() }
-                             w = {;; View.restrict(v, 0, 3)}
-                          next = {;; View.restrict_from(v, 3)}
+                             w = {;; View.restrict(v, 0u, 3u)}
+                          next = {;; View.restrict_from(v, 3u)}
                           s=@[w,    (# [\"0\" .. \"5\"]* [\" \"]* #)]
                           {lf.s := s}
                           @^[next]
@@ -166,7 +204,7 @@ let tests = [
                           {lf.t := t}}",
      "LetterFill", "01a59b", V_record ["s", V_list[V_char '0'; V_char '1'];
                                        "t", V_list[V_char '5'; V_char '9']]);
-    ("views3", "format {LetterFill lf (o: int, n : int) {s: [byte], t: [byte]} :=
+    ("views3", "format {LetterFill lf (o: usize, n : usize) {s: [byte], t: [byte]} :=
                                v = {;; View.get_current()}
                                w = {;; View.restrict(v, o, n)}
                                next = {;; View.restrict_from(v, n)}
@@ -176,113 +214,119 @@ let tests = [
                                t=(# [\"0\" .. \"9\"]* [\" \"]* #)
                                {lf.t := t};;
                         Letters ls {ls: [byte], lt: [byte]} :=
-                             l=LetterFill<n=3,o=0>
+                             l=LetterFill<n=3u,o=0u>
                              {ls.ls := l.s; ls.lt := l.t}}",
      "Letters", "01a59b",  V_record ["ls", V_list[V_char '0'; V_char '1'];
                                      "lt", V_list[V_char '5'; V_char '9']]);
-     ("offs", "format {OffsetTest ot {a: int, b:int} :=
+    ("offs", "format {OffsetTest ot {a: usize, b:usize} :=
                          a={;; View.get_current_cursor()}
                          !\"AA\"!
                          b={;; View.get_current_cursor()}
                          {ot.a := a; ot.b := b}}",
-     "OffsetTest", "AA", V_record ["a", V_int 0L;
-                                   "b", V_int 2L]);
+     "OffsetTest", "AA", V_record ["a", V_int (Ast.usize_t, 0L);
+                                   "b", V_int (Ast.usize_t, 2L)]);
     ("int", "format {I16LE := Int16<endian=endian::Little()>;;
                      I16BE := Int16<endian=endian::Big()>;;
                      U16LE := UInt16<endian=endian::Little()>;;
                      U16BE := UInt16<endian=endian::Big()>;;
-                     TInt t {i:int, j:int, k:int, l:int, m:int, n:int} :=
+                     TInt t {i:i8, j:u8, k:i16, l:i16, m:u16, n:u16} :=
                         i=Int8 j=UInt8 k=I16LE l=I16BE m=U16LE n=U16BE
                         {t.i := i; t.j := j; t.k := k; t.l := l; t.m := m; t.n := n}}",
      "TInt", "\x80\x80\x01\x80\x01\x80\x01\x80\x01\x80",
-     V_record ["i", V_int 0xffffffffffffff80L; "j", V_int 0x80L; "k", V_int 0xffffffffffff8001L;
-               "l", V_int 0x0180L; "m", V_int 0x8001L; "n", V_int 0x0180L]);
+     V_record ["i", V_int (Ast.i8_t, 0xffffffffffffff80L);
+               "j", V_int (Ast.u8_t, 0x80L);
+               "k", V_int (Ast.i16_t, 0xffffffffffff8001L);
+               "l", V_int (Ast.i16_t, 0x0180L);
+               "m", V_int (Ast.u16_t, 0x8001L);
+               "n", V_int (Ast.u16_t, 0x0180L)]);
     ("uint1", "format {U32LE := UInt32<endian=endian::Little()>;;
                        U32BE := UInt32<endian=endian::Big()>;;
-                       TInt t {i: int, j:int} :=
+                       TInt t {i: u32, j: u32} :=
                           i=U32LE j=U32BE {t.i := i; t.j := j}}",
-     "TInt", "\x00\x01\x02\x80\x00\x01\x02\x80", V_record ["i", V_int 0x80020100L;
-                                                           "j", V_int 0x00010280L]);
+     "TInt", "\x00\x01\x02\x80\x00\x01\x02\x80",
+     V_record ["i", V_int (Ast.u32_t, 0x80020100L);
+               "j", V_int (Ast.u32_t, 0x00010280L)]);
     ("int1", "format {I32LE := Int32<endian=endian::Little()>;;
                       I32BE := Int32<endian=endian::Big()>;;
-                      TInt t {i: int, j:int} :=
+                      TInt t {i: i32, j: i32} :=
                          i=I32LE j=I32BE {t.i := i; t.j := j}}",
-     "TInt", "\x00\x01\x02\x80\x00\x01\x02\x80", V_record ["i", V_int 0xffffffff80020100L;
-                                                           "j", V_int 0x00010280L]);
+     "TInt", "\x00\x01\x02\x80\x00\x01\x02\x80",
+     V_record ["i", V_int (Ast.i32_t, 0xffffffff80020100L);
+               "j", V_int (Ast.i32_t, 0x00010280L)]);
     ("uint2", "format {U64LE := UInt64<endian=endian::Little()>;;
                        U64BE := UInt64<endian=endian::Big()>;;
-                       TInt t {i: int, j:int} :=
+                       TInt t {i: u64, j: u64} :=
                           i=U64LE j=U64BE {t.i := i; t.j := j}}",
      "TInt", "\x00\x01\x02\x80\x00\x01\x02\x40\x00\x01\x02\x80\x00\x01\x02\x80",
-     V_record ["i", V_int 0x4002010080020100L;
-               "j", V_int 0x0001028000010280L]);
+     V_record ["i", V_int (Ast.u64_t, 0x4002010080020100L);
+               "j", V_int (Ast.u64_t, 0x0001028000010280L)]);
     ("int2", "format {I64LE := Int64<endian=endian::Little()>;;
                       I64BE := Int64<endian=endian::Big()>;;
-                      TInt t {i: int, j:int} :=
+                      TInt t {i: i64, j:i64} :=
                          i=I64LE j=I64BE {t.i := i; t.j := j}}",
      "TInt", "\x00\x01\x02\x80\x00\x01\x02\x40\x00\x01\x02\x80\x00\x01\x02\x80",
-     V_record ["i", V_int 0x4002010080020100L;
-               "j", V_int 0x0001028000010280L]);
+     V_record ["i", V_int (Ast.i64_t, 0x4002010080020100L);
+               "j", V_int (Ast.i64_t, 0x0001028000010280L)]);
     ("views1", "format {U32LE := UInt32<endian=endian::Little()>;;
-                        TInt t {i: int} :=
-                           i=@(1, U32LE)
+                        TInt t {i: u32} :=
+                           i=@(1u, U32LE)
                            {t.i := i}}",
-     "TInt", "\000\001\002\003\004\005", V_record ["i", V_int 0x04030201L]);
+     "TInt", "\000\001\002\003\004\005", V_record ["i", V_int (Ast.u32_t, 0x04030201L)]);
     ("views2", "format {U32LE := UInt32<endian=endian::Little()>;;
-                        TInt t {i: int} :=
+                        TInt t {i: u32} :=
                            Byte // affects view
                            v={;; let v = View.get_current() in
-                                 View.restrict(v, 0, 4)}
+                                 View.restrict(v, 0u, 4u)}
                            Byte // does not affect view
                            i=@[v, U32LE]
                            {t.i := i}}",
-     "TInt", "\000\001\002\003\004\005", V_record ["i", V_int 0x04030201L]);
+     "TInt", "\000\001\002\003\004\005", V_record ["i", V_int (Ast.u32_t, 0x04030201L)]);
     ("views3", "fun mk_views() -> [view] = {
                    let v  = View.get_current() in
-                   let v0 = View.restrict(v, 0, 4) in
-                   let v1 = View.restrict(v, 4, 4) in
-                   let v2 = View.restrict(v, 8, 4) in
-                   let v3 = View.restrict(v, 12, 4) in
+                   let v0 = View.restrict(v, 0u, 4u) in
+                   let v1 = View.restrict(v, 4u, 4u) in
+                   let v2 = View.restrict(v, 8u, 4u) in
+                   let v3 = View.restrict(v, 12u, 4u) in
                    [v2; v3; v0; v1]
                 }
                 format {U32BE := UInt32<endian=endian::Big()>;;
-                        TInt t {is: [int]} :=
+                        TInt t {is: [u32]} :=
                            vs={;; mk_views()}
                            is=@#[vs, U32BE]
                            {t.is := is}}",
      "TInt", "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-     V_record ["is", V_list [V_int 0x08090a0bL; V_int 0x0c0d0e0fL;
-                             V_int 0x00010203L; V_int 0x04050607L]]);
+     V_record ["is", V_list [V_int (Ast.u32_t, 0x08090a0bL); V_int (Ast.u32_t, 0x0c0d0e0fL);
+                             V_int (Ast.u32_t, 0x00010203L); V_int (Ast.u32_t, 0x04050607L)]]);
     ("views4", "fun mk_views() -> [view] = {
                    let v  = View.get_current() in
-                   let v0 = View.restrict(v, 0, 4) in
-                   let v1 = View.restrict(v, 4, 4) in
-                   let v2 = View.restrict(v, 8, 4) in
-                   let v3 = View.restrict(v, 12, 4) in
+                   let v0 = View.restrict(v, 0u, 4u) in
+                   let v1 = View.restrict(v, 4u, 4u) in
+                   let v2 = View.restrict(v, 8u, 4u) in
+                   let v3 = View.restrict(v, 12u, 4u) in
                    [v2; v3; v0; v1]
                 }
-                fun mk_args() -> [int] = { [1;2;3;4] }
-                type recd = {v: int, a: int}
+                fun mk_args() -> [isize] = { [1i;2i;3i;4i] }
+                type recd = {v: u32, a: isize}
                 format { U32BE := UInt32<endian=endian::Big()>;;
-                         TInt  t (a: int) {recd} := v=U32BE {t.v := v; t.a := a};;
+                         TInt  t (a: isize) {recd} := v=U32BE {t.v := v; t.a := a};;
                          TInts t {rs: [recd]} :=
                             vs={;; mk_views ()}
                             rs=@#[vs, TInt<a <- (mk_args ())>]
                             {t.rs := rs}}",
      "TInts", "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-     V_record ["rs", V_list [V_record ["a", V_int 0x1L;
-                                       "v", V_int 0x08090a0bL];
-                             V_record ["a", V_int 0x2L;
-                                       "v", V_int 0x0c0d0e0fL];
-                             V_record ["a", V_int 0x3L;
-                                       "v", V_int 0x00010203L];
-                             V_record ["a", V_int 0x4L;
-                                       "v", V_int 0x04050607L]]]);
+     V_record ["rs", V_list [V_record ["a", V_int (Ast.isize_t, 0x1L);
+                                       "v", V_int (Ast.u32_t, 0x08090a0bL)];
+                             V_record ["a", V_int (Ast.isize_t, 0x2L);
+                                       "v", V_int (Ast.u32_t, 0x0c0d0e0fL)];
+                             V_record ["a", V_int (Ast.isize_t, 0x3L);
+                                       "v", V_int (Ast.u32_t, 0x00010203L)];
+                             V_record ["a", V_int (Ast.isize_t, 0x4L);
+                                       "v", V_int (Ast.u32_t, 0x04050607L)]]]);
     ("views5", "format {U32LE := UInt32<endian=endian::Little()>;;
-                        TInt t {i: int, j: int, k: int, l: int, m: int, n: int} :=
+                        TInt t {i: usize, j: usize, k: usize, l: usize, m: usize, n: usize} :=
                            Byte // affects view
                            v={;; let v = View.get_current() in
-                                 View.restrict(v, 0, 4)}
+                                 View.restrict(v, 0u, 4u)}
                            Byte // does not affect view
                            i=@[v, U32LE]
                            {t.i := View.get_current_cursor();
@@ -292,9 +336,10 @@ let tests = [
                             // not affected by @[v, _]
                             t.m := View.get_cursor(v);
                             t.n := View.get_remaining(v)}}",
-     "TInt", "\000\001\002\003\004\005", V_record ["i", V_int 2L; "j", V_int 2L;
-                                                   "k", V_int 4L; "l", V_int 4L;
-                                                   "m", V_int 0L; "n", V_int 4L]);
+     "TInt", "\000\001\002\003\004\005",
+     V_record ["i", V_int (Ast.usize_t, 2L); "j", V_int (Ast.usize_t, 2L);
+               "k", V_int (Ast.usize_t, 4L); "l", V_int (Ast.usize_t, 4L);
+               "m", V_int (Ast.usize_t, 0L); "n", V_int (Ast.usize_t, 4L)]);
     ("rules1", "format {N n {s: [byte]} :=
                         Byte !\"AB\"! {n.s := \"ab\"}
                       ; Byte !\"CD\"! {n.s := \"cd\"}
@@ -314,19 +359,19 @@ let tests = [
                       ;               {n.s := \"de\"}}",
      "N", "FE", V_record ["s", V_list [V_char 'd'; V_char 'e']]);
     ("recfun", "type t = | A | B
-                recfun do_A(t: t) -> int = {
+                recfun do_A(t: t) -> isize = {
                   (case t of
-                  | t::A() -> 1
+                  | t::A() -> 1i
                   | t::B() -> do_B(t)
                   )
                 }
-                and do_B(t: t) -> int = {
+                and do_B(t: t) -> isize = {
                   (case t of
                   | t::A() -> do_A(t)
-                  | t::B() -> 2
+                  | t::B() -> 2i
                   )
                 }
-                type r = {i: int}
+                type r = {i: isize}
                 format {A a {r} :=
                             !\"AA\"! {a.i := do_A(t::A())}
                           ; !\"AB\"! {a.i := do_A(t::B())}
@@ -336,24 +381,26 @@ let tests = [
                         R r {r: [r]} :=
                             r1=A r2=A r3=A r4=A
                             {r.r := [r1; r2; r3; r4]}}",
-     "R", "BBBAABAA", V_record ["r", V_list [V_record ["i", V_int 2L];
-                                             V_record ["i", V_int 1L];
-                                             V_record ["i", V_int 2L];
-                                             V_record ["i", V_int 1L]]]);
+     "R", "BBBAABAA",
+     V_record ["r", V_list [V_record ["i", V_int (Ast.isize_t, 2L)];
+                            V_record ["i", V_int (Ast.isize_t, 1L)];
+                            V_record ["i", V_int (Ast.isize_t, 2L)];
+                            V_record ["i", V_int (Ast.isize_t, 1L)]]]);
     ("map2", "type t = | A | B
-              fun couple (l: t, r: t) -> int = {
+              fun couple (l: t, r: t) -> i8 = {
                  (case (l, r) of
-                 | (t::A(), t::A()) -> 0
-                 | (t::A(), t::B()) -> 1
-                 | (t::B(), t::A()) -> 2
-                 | (t::B(), t::B()) -> 3
+                 | (t::A(), t::A()) -> 0i8
+                 | (t::A(), t::B()) -> 1i8
+                 | (t::B(), t::A()) -> 2i8
+                 | (t::B(), t::B()) -> 3i8
                  )
               }
-              format {A a {i: [int]} := {
+              format {A a {i: [i8]} := {
                          let l = [t::A(); t::B(); t::A(); t::B()] in
                          let r = [t::A(); t::A(); t::B(); t::B()] in
                          a.i := List.map2(couple, l, r) }}",
-     "A", "", V_record ["i", V_list [V_int 0L; V_int 2L; V_int 1L; V_int 3L]]);
+     "A", "", V_record ["i", V_list [V_int (Ast.i8_t, 0L); V_int (Ast.i8_t, 2L);
+                                     V_int (Ast.i8_t, 1L); V_int (Ast.i8_t, 3L)]]);
     ("ws_empty", "format {WS w (allow_empty: bool) {ws: [byte]}:=
                             [allow_empty]
                             ws=(# [\" \" | \"\t\" | \"\r\" | \"\n\"]* #)
@@ -364,9 +411,9 @@ let tests = [
                           ;;
                           A := !\"[\"!;; B := !\"]\"!;; C := !\"+\"!;; D := !\"-\"!;;
                           #[whitespace(WS:allow_empty=true)]
-                          NT n {a: int} :=  A B              {n.a := 1}
-                                        ;  ((A C) | (B D))*  {n.a := 2}}",
-     "NT", "[]", V_record ["a", V_int 1L]);
+                          NT n {a: i8} :=  A B              {n.a := 1i8}
+                                       ;  ((A C) | (B D))*  {n.a := 2i8}}",
+     "NT", "[]", V_record ["a", V_int (Ast.i8_t, 1L)]);
     ("ws_empty", "format {WS w (allow_empty: bool) {ws: [byte]}:=
                             [allow_empty]
                             ws=(# [\" \" | \"\t\" | \"\r\" | \"\n\"]* #)
@@ -377,9 +424,9 @@ let tests = [
                           ;;
                           A := !\"[\"!;; B := !\"]\"!;; C := !\"+\"!;; D := !\"-\"!;;
                           #[whitespace(WS:allow_empty=true)]
-                          NT n {a: int} :=  A B              {n.a := 1}
-                                        ;  ((A C) | (B D))*  {n.a := 2}}",
-     "NT", "[ ]", V_record ["a", V_int 1L]);
+                          NT n {a: i8} :=  A B              {n.a := 1i8}
+                                       ;  ((A C) | (B D))*  {n.a := 2i8}}",
+     "NT", "[ ]", V_record ["a", V_int (Ast.i8_t, 1L)]);
     ("ws_noempty", "format {WS w (allow_empty: bool) {ws: [byte]}:=
                             [allow_empty]
                             ws=(# [\" \" | \"\t\" | \"\r\" | \"\n\"]* #)
@@ -390,15 +437,15 @@ let tests = [
                           ;;
                           A := !\"[\"!;; B := !\"]\"!;; C := !\"+\"!;; D := !\"-\"!;;
                           #[whitespace(WS:allow_empty=false)]
-                          NT n {a: int} :=  A B              {n.a := 1}}",
-     "NT", " [ ] ", V_record ["a", V_int 1L]);
-    ("sf_success", "format {SF s {sf: [byte], pos: int} :=
+                          NT n {a: i8} :=  A B              {n.a := 1i8}}",
+     "NT", " [ ] ", V_record ["a", V_int (Ast.i8_t, 1L)]);
+    ("sf_success", "format {SF s {sf: [byte], pos: usize} :=
                                bs=/sf[\"tg\"]
                               {s.sf  := bs;
                                s.pos := View.get_current_cursor()}}",
      "SF", "jnktgabc", V_record ["sf", V_list [V_char 'j'; V_char 'n'; V_char 'k'; V_char 't'; V_char 'g'];
-                                 "pos", V_int 4L]);
-    ("sb_success", "format {SB s {sb: [byte], off1: int, off2: int} :=
+                                 "pos", V_int (Ast.usize_t, 4L)]);
+    ("sb_success", "format {SB s {sb: [byte], off1: usize, off2: usize} :=
                                /sf[\"abc\"]
                                off1={;; View.get_current_cursor()}
                                bs=/sb[\"tg\"]
@@ -406,49 +453,66 @@ let tests = [
                                s.off1 := off1;
                                s.off2 := View.get_current_cursor()}}",
      "SB", "jnktgabc", V_record ["sb", V_list [V_char 't'; V_char 'g'; V_char 'a'; V_char 'b'; V_char 'c'];
-                                 "off1", V_int 7L;
-                                 "off2", V_int 3L]);
+                                 "off1", V_int (Ast.usize_t, 7L);
+                                 "off2", V_int (Ast.usize_t, 3L)]);
+    ("bv_int_conv", "format { Bits b {v1: u8, v2: u8, v3: u32} :=
+                                 v1=BitVector<3>
+                                 v2=BitVector<5>
+                                 v3=BitVector<24>
+                                 { b.v1 := Bits.to_u8(v1);
+                                   b.v2 := Bits.to_u8(v2);
+                                   b.v3 := Bits.to_u32(v3) }}",
+     "Bits", "\x11\x00\x01\x02", V_record ["v1", V_int (Ast.u8_t, 0L);
+                                           "v2", V_int (Ast.u8_t, 0x11L);
+                                           "v3", V_int (Ast.u32_t,0x0102L)]);
+    ("bv_int_conv_endian", "format { Bits b {v1: u16, v2: u32} :=
+                              v1=BitVector<16>
+                              v2=BitVector<24>
+                              { b.v1 := Bits.to_u16_endian(endian::Big(), v1);
+                                b.v2 := Bits.to_u32_endian(endian::Little(), v2) }}",
+     "Bits", "\x01\x02\x00\x01\x02", V_record ["v1", V_int (Ast.u16_t, 0x0102L);
+                                               "v2", V_int (Ast.u32_t, 0x20100L)]);
   ]
 
-let do_tests print_ir gen_ir exe_ir =
+let do_tests print_cfg gen_cfg exe_cfg =
   let fails = ref 0 in
   let succs = ref 0 in
-  let print_ir ir =
-    if   print_ir
-    then Ir.Ir_printer.print_spec ir in
+  let print_cfg cfg =
+    if   print_cfg
+    then Anfcfg.Cfg_printer.print_spec cfg in
   let fail reason =
     incr fails;
     Printf.eprintf " failed, %s.\n%!" reason in
-  let fail_ir ir reason =
+  let fail_cfg cfg reason =
     incr fails;
     Printf.eprintf " failed, %s.\n%!" reason;
-    print_ir ir in
-  let fail_match ir v v' =
+    print_cfg cfg in
+  let fail_match cfg v v' =
     incr fails;
     Printf.eprintf " failed, incorrect result.\n%!";
-    Printf.eprintf "expected:\n   %s\n%!" (Values.string_of_value v);
-    Printf.eprintf "got:     \n   %s\n%!" (Values.string_of_value v');
-    print_ir ir in
-  let fail_except ir e =
+    Printf.eprintf "expected:\n   %s\n%!" (Values.string_of_value true v);
+    Printf.eprintf "got:     \n   %s\n%!" (Values.string_of_value true v');
+    print_cfg cfg in
+  let fail_except cfg e =
     incr fails;
     Printf.eprintf " failed with exception: %s\n%!"
       (Runtime_exceptions.Internal_errors.error_msg e);
-    print_ir ir in
+    print_cfg cfg in
   let succ () =
     incr succs;
     Printf.eprintf " passed.\n%!" in
   List.iter (fun (test, spec, entry, data, v) ->
       Printf.eprintf "Running test '%s' ...%!" test;
-      let ir = gen_ir test spec in
-      match ir with
-        | None    -> fail "no IR generated"
-        | Some ir -> (let lc = Parsing.Location.ghost_loc in
-                      match exe_ir test ir entry data with
-                        | None    -> fail_ir ir "no value returned"
-                        | Some v' -> match Builtins.eq lc "=" v v' with
-                                       | Ok true  -> succ ()
-                                       | Ok false -> fail_match ir v v'
-                                       | Error e  -> fail_except ir e)
+      let cfg = gen_cfg test spec in
+      match cfg with
+        | None     -> fail "no IR generated"
+        | Some cfg -> (let lc = Parsing.Location.ghost_loc in
+                       match exe_cfg test cfg entry data with
+                         | None    -> fail_cfg cfg "no value returned"
+                         | Some v' -> match Builtins.eq lc "=" v v' with
+                                        | Ok true  -> succ ()
+                                        | Ok false -> fail_match cfg v v'
+                                        | Error e  -> fail_except cfg e)
 
     ) tests;
   Printf.printf "Tests: %d failed out of %d.\n%!" !fails (!fails + !succs)

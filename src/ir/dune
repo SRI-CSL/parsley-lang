@@ -1,4 +1,0 @@
-(library
-  (name ir)
-  (libraries parsing typing flow)
-)

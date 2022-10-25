@@ -24,35 +24,37 @@
 
 open Parsing
 open Ast
-open MultiEquation
 open TypingExceptions
-open Misc
 
 type variable =
   descriptor UnionFind.point
 
 and descriptor =
-  {mutable structure : term option;
-   mutable name      : tname;
-   mutable constant  : bool}
+  {mutable structure: term option;
+   mutable name:      full_tname;
+   mutable constant:  bool}
 
 and term =
   | App of variable * variable
 
 type t = variable
 
-type env = (tname -> Location.t -> t) * (tname -> t -> unit)
+type env = (full_tname -> Location.t -> t) * (full_tname -> t -> unit)
 
 let count = ref 0
 
 let new_name () =
   incr count;
-  TName ("V" ^ string_of_int !count)
+  AstUtils.stdlib, TName ("V" ^ string_of_int !count)
 
-let variable ?(name : tname option) () =
+let variable ?(name : full_tname option) () =
   let constant = (name <> None)
-  and name = match name with None -> new_name () | Some n -> n in
-  UnionFind.fresh {structure = None; name = name; constant = constant}
+  and name = match name with
+      | None   -> new_name ()
+      | Some n -> n in
+  UnionFind.fresh {structure = None;
+                   name      = name;
+                   constant  = constant}
 
 let structure v =
   (UnionFind.find v).structure
@@ -62,28 +64,28 @@ let iter_term f = function
       f t1;
       f t2
 
-let iter f v = iter_term f (unSome (structure v))
+let iter f v = iter_term f (Misc.unSome (structure v))
 
 let lookup id loc tenv = (fst tenv) id loc
 
 let term_handler t =
   UnionFind.fresh
-    {name = TName "";
+    {name      = AstUtils.stdlib, TName "";
      structure = Some t;
-     constant = false}
+     constant  = false}
 
 let binop op x y =
   let w = term_handler (App (op, x)) in
   term_handler (App (w, y))
 
 let star =
-  variable ~name:(TName "@") ()
+  variable ~name:(AstUtils.stdlib, TName "@") ()
 
 let nat =
-  variable ~name:(TName "N") ()
+  variable ~name:(AstUtils.stdlib, TName "N") ()
 
 let arrow =
-  variable ~name:(TName "=>") ()
+  variable ~name:(AstUtils.stdlib, TName "=>") ()
 
 let mkarrow =
   binop arrow
@@ -96,29 +98,33 @@ let rec print_term = function
 
 and print v =
   match (UnionFind.find v).structure with
-    | None -> name v
+    | None   -> print_name v
     | Some t -> print_term t
 
 and name v =
-  match (UnionFind.find v).name with
-    | TName name -> name
+  (UnionFind.find v).name
+
+and print_name v =
+  let m, TName t = name v in
+  (AstUtils.mk_modprefix m) ^ t
 
 let is_constant v = (UnionFind.find v).constant
 
 let assign_point k1 k2 =
   let name, has_name =
-    if is_constant k1 then name k1, true
+    if      is_constant k1 then name k1, true
     else if is_constant k2 then name k2, true
-    else "", false
+    else    (AstUtils.stdlib, TName ""), false
   in
     UnionFind.union k1 k2;
     if has_name then (
-      (UnionFind.find k2).name <- TName name;
+      (UnionFind.find k2).name     <- name;
       (UnionFind.find k2).constant <- true
     )
 
 let assign pos k1 k2 =
-  iter (fun k -> if UnionFind.equivalent k1 k then raise (Error (pos, KindError))) k2;
+  iter (fun k -> if UnionFind.equivalent k1 k
+                 then raise (Error (pos, KindError))) k2;
   assign_point k1 k2
 
 let occur_check v1 v2 =
@@ -159,7 +165,11 @@ let rec unify pos k1 k2 =
 let rec infer env t =
   match t.type_expr with
     | TE_tvar id ->
-        lookup (TName (Location.value id)) (Location.loc id) env
+        let mtid = AstUtils.stdlib, TName (Location.value id) in
+        lookup mtid (Location.loc id) env
+    | TE_tname (m, id) ->
+        let tid = TName (Location.value id) in
+        lookup (m, tid) (Location.loc id) env
 
     | TE_tapp (tc, ts) ->
         let k = variable () in

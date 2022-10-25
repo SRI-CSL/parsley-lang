@@ -9,12 +9,12 @@ fun test_bitvector(b: bitvector<3>) -> (bitvector<3>, bitvector<1>) = {
   (b[[2:0]], b[[2]])
 }
 
-fun test_toint(b: bitvector<3>) -> (int, int) = {
-  (Bits.to_int(b[[2:0]]), Bits.to_int(b[[2]]))
+fun test_toint(b: bitvector<3>) -> (u8, u8) = {
+  (Bits.to_u8(b[[2:0]]), Bits.to_u8(b[[2]]))
 }
 
-fun test_ones(n: int) -> bitvector<3> = {
-  Bits.ones(3)
+fun test_ones(n: usize) -> bitvector<3> = {
+  Bits.ones(3u)
 }
 
 fun test_to_bit(v: bitvector<1>) -> (bool, bitvector<1>) = {

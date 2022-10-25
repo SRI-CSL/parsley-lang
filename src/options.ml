@@ -23,7 +23,8 @@ type common_opts =
    co_verbose: bool}
 
 type check_opts =
-  {co_show_parsed_ast:   bool;
+  {co_show_raw_ast:      bool;
+   co_show_parsed_ast:   bool;
    co_show_after_macros: bool;
    co_trace_solver:      bool;
    co_show_types:        bool;
@@ -34,7 +35,8 @@ type check_opts =
    co_output_json:       bool}
 
 let default_ckopts =
-  {co_show_parsed_ast   = false;
+  {co_show_raw_ast      = false;
+   co_show_parsed_ast   = false;
    co_show_after_macros = false;
    co_trace_solver      = false;
    co_show_types        = false;
@@ -43,6 +45,15 @@ let default_ckopts =
    co_show_cfg          = false;
    co_show_decorated    = [];
    co_output_json       = false}
+
+type spec_opts =
+  {so_import_dirs: string list}
+
+let default_sopts =
+  {so_import_dirs = []}
+
+type exe_opts =
+  {exe_show_data_as_ascii: bool}
 
 let process_copts copts =
   Printexc.record_backtrace copts.co_debug

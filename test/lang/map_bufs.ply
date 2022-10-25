@@ -1,55 +1,43 @@
-recfun map_bufs<'a>(re: parser<'a>, views: [view], acc: ['a])
-         -> parse_result<['a]> = {
-    (case views of
-     | []        -> parse_result::Value([])
-     | v :: tail ->
-          (case parse (re, v) of
-           | parse_result::Value(a) -> map_bufs(re, tail, a :: acc)
-           | parse_result::Error(e) -> parse_result::Error(e)
-          )
-    )
-  }
-
 fun mk_views() -> [view] = {
   let v  = View.get_current() in
-  let v0 = View.restrict(v, 0, 4) in
-  let v1 = View.restrict(v, 4, 4) in
-  let v2 = View.restrict(v, 8, 4) in
-  let v3 = View.restrict(v, 12, 4) in
+  let v0 = View.restrict(v, 0u, 4u) in
+  let v1 = View.restrict(v, 4u, 4u) in
+  let v2 = View.restrict(v, 8u, 4u) in
+  let v3 = View.restrict(v, 12u, 4u) in
   [v2; v3; v0; v1]
 }
 
 format {
   U32LE := UInt32<endian=endian::Little()>;;
-  TInt0 t {i0: int} :=
-    Byte v={;; let v = View.get_current() in View.restrict(v, 0, 4)}
+  TInt0 t {i0: u32} :=
+    Byte v={;; let v = View.get_current() in View.restrict(v, 0u, 4u)}
     i=@[v, U32LE]
     { t.i0 := i };;
-  TInt1 t {i1: int} :=
-    Byte v={;; let v = View.get_current() in View.restrict(v, 0, 4)}
+  TInt1 t {i1: u32} :=
+    Byte v={;; let v = View.get_current() in View.restrict(v, 0u, 4u)}
     i=@[v, U32LE]
     { t.i1 := i };;
-  TInt2 t {is: [int]} :=
+  TInt2 t {is: [u32]} :=
     vs={;; mk_views()}
     is=@#[vs, U32LE]
     { t.is := is } ;;
 
-  NT n (v: view, i: int) {n: unit} :=
+  NT n (v: view, i: i32) {n: unit} :=
     { n.n := () }
   ;;
 
-  NTT n (i: int) {ntt: unit} :=
+  NTT n (i: i32) {ntt: unit} :=
     { n.ntt := () }
   ;;
 
-  T1 t (vs: [view], is: [int]) {t1: unit} :=
+  T1 t (vs: [view], is: [i32]) {t1: unit} :=
      a=(Byte
         @#[vs, NT<v <- (vs), i <- (is)>]
        )
      { t.t1 := () }
   ;;
 
-  T2 t (vs: [view], is: [int]) {t2: unit} :=
+  T2 t (vs: [view], is: [i32]) {t2: unit} :=
      a=Byte
      b=@#[vs, NT<v <- (vs), i <- (is)>]
      { t.t2 := () }

@@ -30,20 +30,20 @@ type t
 
 (** The kind inference engine uses an environment implemented by
     two functions (get, add). *)
-type env = (Ast.tname -> Location.t -> t) * (Ast.tname -> t -> unit)
+type env = (Ast.full_tname -> Location.t -> t) * (Ast.full_tname -> t -> unit)
 
 (** [fresh_kind] returns a fresh kind for a type. *)
 val fresh_kind: unit -> t
 
 (** [infer env typ] infers a kind for [typ]. *)
-val infer: env -> Ast.type_expr -> t
+val infer: env -> Ast.mod_qual Ast.gen_type_expr -> t
 
 (** [intern_kind env kind] internalizes a kind in the user-syntax. *)
 val intern_kind: env -> Ast.kind -> t
 
 (** [check env typ kind ] verifies that [typ] can be given the kind
     [kind]. *)
-val check: env -> Ast.type_expr -> t -> unit
+val check: env -> Ast.mod_qual Ast.gen_type_expr -> t -> unit
 
 (** [star] is the kind of ml values. *)
 val star : t

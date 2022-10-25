@@ -1,0 +1,4 @@
+(library
+  (name anfcfg_interpreter)
+  (libraries parsing typing anfcfg unix)
+)

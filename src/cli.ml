@@ -18,25 +18,28 @@ open Cmdliner
 open Options
 
 (* TODO: needs to be auto-generated *)
-let version = "0.1.0"
+let version = "0.2.0"
 
 (* implementation of top-level commands *)
 
 let test copts : unit =
   Options.process_copts copts;
-  Tests.do_tests copts.co_verbose Test.gen_ir Test.exe_ir
+  Test.run_tests copts.co_verbose Test.gen_cfg Test.exe_cfg
 
-let check copts ckopts spec_file : unit =
+let check copts ckopts sopts spec_file : unit =
   Options.process_copts copts;
   Options.process_ckopts ckopts;
-  Check.check_spec copts.co_verbose ckopts spec_file
+  Check.check_spec copts.co_verbose ckopts sopts spec_file
 
-let execute copts loop start spec_file data_file : unit =
+let execute copts sopts xopts load_externals loop start
+      spec_file data_file stdin : unit =
   Options.process_copts copts;
   let verbose = copts.co_verbose in
   let ckopts = Options.default_ckopts in
-  let spec = Check.ir_of_spec verbose ckopts spec_file in
-  Execute.execute verbose loop start spec data_file
+  let spec = Check.cfg_of_spec verbose ckopts sopts spec_file in
+  let m = Parsing.AstUtils.modname_of_file spec_file in
+  Execute.execute verbose xopts.exe_show_data_as_ascii
+    load_externals loop m start spec data_file stdin
 
 (* TODO: help command *)
 
@@ -54,11 +57,12 @@ let copts_t : common_opts Term.t =
     Arg.(value & flag & info ["v"; "verbose"] ~docs ~doc) in
   Term.(const mk_copts $ debug $ verb)
 
-let mk_ckopts co_trace_solver co_show_parsed_ast co_show_after_macros
-      co_show_types co_show_typed_ast co_show_anf co_show_cfg
-      co_show_decorated co_output_json
+let mk_ckopts co_trace_solver co_show_raw_ast co_show_parsed_ast
+      co_show_after_macros co_show_types co_show_typed_ast co_show_anf
+      co_show_cfg co_show_decorated co_output_json
     : check_opts =
-  {co_show_parsed_ast;
+  {co_show_raw_ast;
+   co_show_parsed_ast;
    co_show_after_macros;
    co_trace_solver;
    co_show_types;
@@ -72,6 +76,9 @@ let ckopts_t : check_opts Term.t =
   let trace_solver =
     let doc = "Trace the type constraint solver." in
     Arg.(value & flag & info ["trace-solver"] ~doc) in
+  let show_raw_ast =
+    let doc = "Show the raw AST of the specification." in
+    Arg.(value & flag & info ["show-raw-ast"] ~doc) in
   let show_parsed_ast =
     let doc = "Show the parsed AST of the specification." in
     Arg.(value & flag & info ["show-parsed-ast"] ~doc) in
@@ -97,28 +104,54 @@ let ckopts_t : check_opts Term.t =
     let docv = "NonTerm" in
     let doc  = "Show the decorated version of the specified non-terminal." in
     Arg.(value & opt_all string [] & info ["show-decorated"] ~doc ~docv) in
-  Term.(const mk_ckopts $ trace_solver $ show_parsed_ast
+  Term.(const mk_ckopts $ trace_solver $ show_raw_ast $ show_parsed_ast
         $ show_after_macros $ show_types $ show_typed_ast
         $ show_anf $ show_cfg $ show_decorated $ output_json)
 
+let mk_sopts so_import_dirs : spec_opts =
+  {so_import_dirs}
+
+let sopts_t : spec_opts Term.t =
+  let import_dir =
+    let docv = "dir" in
+    let doc  = "Import directory." in
+    Arg.(value & opt_all dir [] & info ["I"] ~doc ~docv) in
+  Term.(const mk_sopts $ import_dir)
+
 let spec : string Term.t =
-  let docv = "SPEC_FILE" in
+  let docv = "spec_file" in
   let doc  = "The file containing the input Parsley specification." in
   Arg.(required & (pos 0 (some non_dir_file) None & info [] ~doc ~docv))
 
-let data : string Term.t =
-  let docv = "DATA_FILE" in
+let mk_exopts exe_show_data_as_ascii : exe_opts =
+  {exe_show_data_as_ascii}
+
+let exopts_t : exe_opts Term.t =
+  let show_data_as_ascii =
+    let doc = "Interpret byte data as (ascii) strings." in
+    Arg.(value & flag & info ["show-data-as-ascii"] ~doc) in
+  Term.(const mk_exopts $ show_data_as_ascii)
+
+let data : string option Term.t =
+  let docv = "data_file" in
   let doc  = "The file with input data in the specified format." in
-  Arg.(required & (pos 1 (some non_dir_file) None & info [] ~doc ~docv))
+  Arg.(value & (pos 1 (some non_dir_file) None & info [] ~doc ~docv))
+
+let stdin : int option Term.t =
+  let doc = "Use standard input as data file, starting with the specified minimum number of bytes." in
+  Arg.(value & (opt (some int) None & info ["p"; "stdin"] ~doc))
 
 let start : string Term.t =
-  let docv = "START" in
+  let docv = "Start" in
   let doc  = "The start (or entry) non-terminal for the parse." in
   Arg.(required & (opt (some string) None & info ["s"; "start"] ~doc ~docv))
 
+let load_externals : bool Term.t =
+  let doc = "Load foreign function implementations." in
+  Arg.(value & flag & info ["f"; "with-foreign"] ~doc)
+
 let loop : bool Term.t =
-  let doc =
-    "Parse the data as repeated instances of the given format." in
+  let doc = "Parse the data as repeated instances of the given format." in
   Arg.(value & flag & info ["l"; "loop"] ~doc)
 
 (* CLI commands *)
@@ -131,12 +164,13 @@ let test_cmd : unit Cmd.t =
 let check_cmd : unit Cmd.t =
   let doc  = "parse, type-check and generate IR for a specification" in
   let info = Cmd.info "check" ~doc in
-  Cmd.v info Term.(const check $ copts_t $ ckopts_t $ spec)
+  Cmd.v info Term.(const check $ copts_t $ ckopts_t $ sopts_t $ spec)
 
 let execute_cmd : unit Cmd.t =
   let doc  = "parse the given data using the given specification" in
   let info = Cmd.info "execute" ~doc in
-  Cmd.v info Term.(const execute $ copts_t $ loop $ start $ spec $ data)
+  Cmd.v info Term.(const execute $ copts_t $ sopts_t $ exopts_t
+                   $ load_externals $ loop $ start $ spec $ data $ stdin)
 
 (* top-level command *)
 let main_cmd : unit Cmd.t =

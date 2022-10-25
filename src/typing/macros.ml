@@ -114,6 +114,10 @@
    synthesized function is inserted into the spec right after the
    corresponding function it was synthesized for.  This results in an
    AST that is ready for type-checking.
+
+   Module system considerations: synthesized functions are created in
+   the 'current module', since that is the only module for which we
+   can examine expressions for higher-order calls.
  *)
 
 open Parsing
@@ -176,7 +180,8 @@ type hoi =
    hoi_arglocs:   Location.t list; (* call arguments    *)
    hoi_retloc:    Location.t;      (* location of full invocation *)
    hoi_synthname: string;          (* synthesized function name   *)
-   hoi_synthsig:  fsig}            (* synthesized signature       *)
+   hoi_synthsig:  fsig;            (* synthesized signature       *)
+   hoi_cur_mod:   string}          (* current source module       *)
 
 (* Each invocation site results in a possible function synthesis.  To
    ensure that we don't re-synthesize the same function, we track
@@ -194,7 +199,7 @@ type hoi =
  *)
 
 module SynthCache = Map.Make(String)
-type synth_cache  = (hoi * (unit, unit) fun_defn) SynthCache.t
+type synth_cache  = (hoi * (unit, unit, mod_qual) fun_defn) SynthCache.t
 
 (* utility converters *)
 
@@ -213,6 +218,8 @@ let ident_of_var (v: unit var) : ident =
 
 (* utility constructors *)
 
+let stdlib = AstUtils.stdlib
+
 let mk_texpr t l =
   {type_expr = t;
    type_expr_loc = l}
@@ -220,7 +227,7 @@ let mk_texpr t l =
 let mk_list_of arg =
   let lst =
     let ltv = Location.mk_loc_val "[]" arg.type_expr_loc in
-    mk_texpr (TE_tvar ltv) arg.type_expr_loc in
+    mk_texpr (TE_tname (stdlib, ltv)) arg.type_expr_loc in
   mk_texpr (TE_tapp (lst, [arg])) arg.type_expr_loc
 
 let mk_var s l =
@@ -231,6 +238,11 @@ let mk_expr e l =
    expr_loc = l;
    expr_aux = ()}
 
+let mk_mod_expr (m: string) (f: string) l =
+  let m = Location.mk_loc_val m l in
+  let f = Location.mk_loc_val f l in
+  mk_expr (E_mod_member (m, f)) l
+
 let mk_pat p l =
   {pattern = p;
    pattern_loc = l;
@@ -239,7 +251,7 @@ let mk_pat p l =
 let mk_empty_list loc =
   let t = Location.mk_loc_val "[]" loc in
   let c = Location.mk_loc_val "[]" loc in
-  {expr     = E_constr ((t, c), []);
+  {expr     = E_constr ((stdlib, t, c), []);
    expr_loc = loc;
    expr_aux = ()}
 
@@ -255,12 +267,14 @@ let stringify_fname fn =
 
 let rec stringify_type_expr te =
   match te.type_expr with
-    | TE_tvar tv ->
-        Location.value tv
+    | TE_tvar t ->
+        Location.value t
+    | TE_tname (m, tv) ->
+        Printf.sprintf "%s%s" (AstUtils.mk_modprefix m) (Location.value tv)
     | TE_tapp (c, []) ->
         stringify_type_expr c
-    | TE_tapp ({type_expr = TE_tvar tv; _}, args)
-         when Location.value tv = "[]" ->
+    | TE_tapp ({type_expr = TE_tname (m, tv); _}, args)
+         when m = AstUtils.stdlib && Location.value tv = "[]" ->
         "["
         ^ (String.concat "_" (List.map stringify_type_expr args))
         ^ "]"
@@ -311,26 +325,29 @@ let synth_list_map hoi =
   (* [] *)
   let m = Location.mk_loc_val "[]" lstloc in
   let c = Location.mk_loc_val "[]" lstloc in
-  let empty = mk_pat (P_variant ((m, c), [])) lstloc in
+  let empty = mk_pat (P_variant ((stdlib, m, c), [])) lstloc in
   (* h :: t *)
   let c = Location.mk_loc_val "::" lstloc in
-  let cons = mk_pat (P_variant ((m, c), [h; tl])) lstloc in
+  let cons = mk_pat (P_variant ((stdlib, m, c), [h; tl])) lstloc in
   (* build the recursive call: _list_map_func_(tl, func(h) :: acc) *)
   let h    = mk_expr (E_var hv)  lstloc in
   let tl   = mk_expr (E_var tlv) lstloc in
   let func = match hoi.hoi_fname with
       | None, f ->
-          mk_expr (E_var (var_of_ident f)) (Location.loc f)
+          (* This function needs to be module qualified. *)
+          mk_mod_expr hoi.hoi_cur_mod (Location.value f)
+            (Location.loc f)
       | Some m, f ->
           mk_expr (E_mod_member (m, f))
             (Location.extent (Location.loc m) (Location.loc f)) in
   let acc_arg =
-    mk_expr (E_constr ((m, c),
+    mk_expr (E_constr ((stdlib, m, c),
                        [mk_expr (E_apply (func, [h])) func.expr_loc;
                         acc])) accloc in
   let reccall =
-    let f = mk_var hoi.hoi_synthname func.expr_loc in
-    mk_expr (E_apply ((mk_expr (E_var f) func.expr_loc),
+    let m = Location.mk_loc_val hoi.hoi_cur_mod   func.expr_loc in
+    let f = Location.mk_loc_val hoi.hoi_synthname func.expr_loc in
+    mk_expr (E_apply ((mk_expr (E_mod_member (m, f)) func.expr_loc),
                       [tl; acc_arg]))
       accloc in
   (* case expression *)
@@ -345,6 +362,7 @@ let synth_list_map hoi =
    fun_defn_body      = case;
    fun_defn_recursive = true;
    fun_defn_synth     = true;
+   fun_defn_mod       = hoi.hoi_cur_mod;
    fun_defn_loc       = Location.ghost_loc;
    fun_defn_aux       = ()}
 
@@ -388,20 +406,20 @@ let synth_list_map2 hoi =
   (* ([],[]) *)
   let am = Location.mk_loc_val "[]" asloc in
   let ac = Location.mk_loc_val "[]" asloc in
-  let aempty = mk_pat (P_variant ((am, ac), [])) asloc in
+  let aempty = mk_pat (P_variant ((stdlib, am, ac), [])) asloc in
   let bm = Location.mk_loc_val "[]" bsloc in
   let bc = Location.mk_loc_val "[]" bsloc in
-  let bempty = mk_pat (P_variant ((bm, bc), [])) bsloc in
+  let bempty = mk_pat (P_variant ((stdlib, bm, bc), [])) bsloc in
   let tm = Location.mk_loc_val "*" Location.ghost_loc in
   let tc = Location.mk_loc_val "_Tuple" Location.ghost_loc in
-  let empty = mk_pat (P_variant ((tm, tc), [aempty; bempty]))
+  let empty = mk_pat (P_variant ((stdlib, tm, tc), [aempty; bempty]))
                 Location.ghost_loc in
   (* ah :: at, bh :: bt *)
   let ac = Location.mk_loc_val "::" asloc in
   let bc = Location.mk_loc_val "::" bsloc in
-  let acons = mk_pat (P_variant ((am, ac), [ah; at])) asloc in
-  let bcons = mk_pat (P_variant ((bm, bc), [bh; bt])) bsloc in
-  let full  = mk_pat (P_variant ((tm, tc), [acons; bcons]))
+  let acons = mk_pat (P_variant ((stdlib, am, ac), [ah; at])) asloc in
+  let bcons = mk_pat (P_variant ((stdlib, bm, bc), [bh; bt])) bsloc in
+  let full  = mk_pat (P_variant ((stdlib, tm, tc), [acons; bcons]))
                 Location.ghost_loc in
   (* other cases *)
   let wild  = mk_pat P_wildcard Location.ghost_loc in
@@ -412,7 +430,9 @@ let synth_list_map2 hoi =
   let bt   = mk_expr (E_var btv) bsloc in
   let func = match hoi.hoi_fname with
       | None, f ->
-          mk_expr (E_var (var_of_ident f)) (Location.loc f)
+          (* This function needs to be module qualified. *)
+          mk_mod_expr hoi.hoi_cur_mod (Location.value f)
+            (Location.loc f)
       | Some m, f ->
           mk_expr (E_mod_member (m, f))
             (Location.extent (Location.loc m) (Location.loc f)) in
@@ -420,16 +440,17 @@ let synth_list_map2 hoi =
   let lm = Location.mk_loc_val "[]" lloc in
   let lc = Location.mk_loc_val "::" lloc in
   let acc_arg =
-    mk_expr (E_constr ((lm, lc),
+    mk_expr (E_constr ((stdlib, lm, lc),
                        [mk_expr (E_apply (func, [ah; bh])) func.expr_loc;
                         l])) lloc in
   let reccall =
-    let f = mk_var hoi.hoi_synthname func.expr_loc in
-    mk_expr (E_apply ((mk_expr (E_var f) func.expr_loc),
+    let m = Location.mk_loc_val hoi.hoi_cur_mod   func.expr_loc in
+    let f = Location.mk_loc_val hoi.hoi_synthname func.expr_loc in
+    mk_expr (E_apply ((mk_expr (E_mod_member (m, f)) func.expr_loc),
                       [at; bt; acc_arg]))
       lloc in
   (* case (al, bl) ... *)
-  let discr = mk_expr (E_constr ((tm, tc), [al; bl]))
+  let discr = mk_expr (E_constr ((stdlib, tm, tc), [al; bl]))
                 Location.ghost_loc in
   let case =
     mk_expr (E_case (discr, [empty, lrev_acc;
@@ -443,6 +464,7 @@ let synth_list_map2 hoi =
    fun_defn_body      = case;
    fun_defn_recursive = true;
    fun_defn_synth     = true;
+   fun_defn_mod       = hoi.hoi_cur_mod;
    fun_defn_loc       = Location.ghost_loc;
    fun_defn_aux       = ()}
 
@@ -483,23 +505,27 @@ let synth_list_fold hoi =
   (* [] *)
   let m = Location.mk_loc_val "[]" lloc in
   let c = Location.mk_loc_val "[]" lloc in
-  let empty = mk_pat (P_variant ((m, c), [])) lloc in
+  let empty = mk_pat (P_variant ((stdlib, m, c), [])) lloc in
   (* h :: t *)
   let c = Location.mk_loc_val "::" lloc in
-  let cons = mk_pat (P_variant ((m, c), [hp; tp])) lloc in
+  let cons = mk_pat (P_variant ((stdlib, m, c), [hp; tp])) lloc in
   (* build the recursive call: _list_fold_func_(func(h, acc), t) *)
   let h  = mk_expr (E_var hv) lloc in
   let t  = mk_expr (E_var tv) lloc in
   let func = match hoi.hoi_fname with
       | None, f ->
-          mk_expr (E_var (var_of_ident f)) (Location.loc f)
+          (* This function needs to be module qualified. *)
+          mk_mod_expr hoi.hoi_cur_mod (Location.value f)
+            (Location.loc f)
       | Some m, f ->
           mk_expr (E_mod_member (m, f))
             (Location.extent (Location.loc m) (Location.loc f)) in
   let acc_arg = mk_expr (E_apply (func, [acc; h])) acloc in
+
   let reccall =
-    let f = mk_var hoi.hoi_synthname func.expr_loc in
-    mk_expr (E_apply ((mk_expr (E_var f) func.expr_loc),
+    let m = Location.mk_loc_val hoi.hoi_cur_mod   func.expr_loc in
+    let f = Location.mk_loc_val hoi.hoi_synthname func.expr_loc in
+    mk_expr (E_apply ((mk_expr (E_mod_member (m, f)) func.expr_loc),
                       [acc_arg; t]))
       rloc in
   (* case (lst) ... *)
@@ -514,6 +540,7 @@ let synth_list_fold hoi =
    fun_defn_body      = case;
    fun_defn_recursive = true;
    fun_defn_synth     = true;
+   fun_defn_mod       = hoi.hoi_cur_mod;
    fun_defn_loc       = Location.ghost_loc;
    fun_defn_aux       = ()}
 
@@ -523,45 +550,49 @@ let synth_list_fold hoi =
    replacement call.  The `args` to these functions contain only the
    non-functional arguments from the original invocation. *)
 
-let replace_list_map hoi args : (unit, unit) expr =
+let replace_list_map hoi args : (unit, unit, mod_qual) expr =
   assert (List.length args = 1);
-  let fv = mk_var hoi.hoi_synthname hoi.hoi_retloc in
-  let fn = mk_expr (E_var fv) hoi.hoi_retloc in
+  let m  = Location.mk_loc_val hoi.hoi_cur_mod   hoi.hoi_retloc in
+  let fv = Location.mk_loc_val hoi.hoi_synthname hoi.hoi_retloc in
+  let fn = mk_expr (E_mod_member (m, fv)) hoi.hoi_retloc in
   let args = args @ [mk_empty_list hoi.hoi_retloc] in
   mk_expr (E_apply (fn, args)) hoi.hoi_retloc
 
-let replace_list_map2 hoi args : (unit, unit) expr =
+let replace_list_map2 hoi args : (unit, unit, mod_qual) expr =
   assert (List.length args = 2);
-  let fv = mk_var hoi.hoi_synthname hoi.hoi_retloc in
-  let fn = mk_expr (E_var fv) hoi.hoi_retloc in
+  let m  = Location.mk_loc_val hoi.hoi_cur_mod   hoi.hoi_retloc in
+  let fv = Location.mk_loc_val hoi.hoi_synthname hoi.hoi_retloc in
+  let fn = mk_expr (E_mod_member (m, fv)) hoi.hoi_retloc in
   let args = args @ [mk_empty_list hoi.hoi_retloc] in
   mk_expr (E_apply (fn, args)) hoi.hoi_retloc
 
-let replace_list_fold hoi args : (unit, unit) expr =
+let replace_list_fold hoi args : (unit, unit, mod_qual) expr =
   assert (List.length args = 2);
-  let fv = mk_var hoi.hoi_synthname hoi.hoi_retloc in
-  let fn = mk_expr (E_var fv) hoi.hoi_retloc in
+  let m  = Location.mk_loc_val hoi.hoi_cur_mod   hoi.hoi_retloc in
+  let fv = Location.mk_loc_val hoi.hoi_synthname hoi.hoi_retloc in
+  let fn = mk_expr (E_mod_member (m, fv)) hoi.hoi_retloc in
   mk_expr (E_apply (fn, args)) hoi.hoi_retloc
 
 (** Scan the specification looking for higher-order invocations, and
     expand any invocations found. **)
 
 module StringMap = Map.Make(String)
-module StdlibMap = Map.Make(struct type t = string * string
-                                   let compare = compare
+module StdlibMap = Map.Make(struct type t = mname * string
+                                   let compare = AstUtils.qual_compare
                             end)
 
-type builtin = TypeAlgebra.builtin_dataconstructor
+type builtin = TypeAlgebra.builtin_value
 
 type context =
   {(* user-defined function definitions seen so far *)
-   ctx_fdefs:  (unit, unit) fun_defn StringMap.t;
+   ctx_fdefs:   (unit, unit, mod_qual) fun_defn StringMap.t;
    (* stdlib functions *)
    ctx_stddefs: builtin StdlibMap.t;
    (* increment to synthesized functions *)
-   ctx_synths: (unit, unit) fun_defn list;
+   ctx_synths:  (unit, unit, mod_qual) rec_funs_defn list;
    (* synthesis cache *)
-   ctx_cache: synth_cache}
+   ctx_cache:   synth_cache;
+   ctx_cur_mod: string}
 
 let fsig_of_fun_defn d : fsig =
   (d.fun_defn_tvars,
@@ -579,8 +610,8 @@ let fsig_of_builtin (_, tvars, sg) : fsig =
   (tvs, params, res)
 
 (* the top-level macro-expander *)
-let expand_call ctx ((m, i, l), rl) (args: (unit, unit) expr list)
-    : context * (unit, unit) expr =
+let expand_call ctx ((m, i, l), rl) (args: (unit, unit, mod_qual) expr list)
+    : context * (unit, unit, mod_qual) expr =
   (* The first argument should be the invoked function.  It must be
      either a symbol for a user-defined function, or a function from a
      standard library module; any other expression is illegal. *)
@@ -595,13 +626,23 @@ let expand_call ctx ((m, i, l), rl) (args: (unit, unit) expr list)
              | None ->
                  let err = UnboundIdentifier fn in
                  raise (Error (a.expr_loc, err)))
+      (* functions in the local module *)
+      | E_mod_member (m, f) when Location.value m = ctx.ctx_cur_mod ->
+          let fn = Location.value f in
+          (match StringMap.find_opt fn ctx.ctx_fdefs with
+             | Some fd ->
+                 (None, f), fsig_of_fun_defn fd
+             | None ->
+                 let err = UnboundIdentifier fn in
+                 raise (Error (a.expr_loc, err)))
+      (* functions in external modules *)
       | E_mod_member (m, f) ->
-          let mn, fn = Location.value m, Location.value f in
-          (match StdlibMap.find_opt (mn, fn) ctx.ctx_stddefs with
+          let fn = Location.value f in
+          (match StdlibMap.find_opt (Modul (Mod_explicit m), fn) ctx.ctx_stddefs with
              | Some d ->
                  (Some m, f), fsig_of_builtin d
              | None ->
-                 let err = UnknownModItem (MName mn, DName fn) in
+                 let err = UnknownModItem (Modul (Mod_explicit m), VName fn) in
                  raise (Error (a.expr_loc, err)))
       | _ ->
           let loc = Location.extent (Location.loc m) (Location.loc i) in
@@ -684,13 +725,16 @@ let expand_call ctx ((m, i, l), rl) (args: (unit, unit) expr list)
              hoi_arglocs    = List.map (fun e -> e.expr_loc) args;
              hoi_retloc     = rl;
              hoi_synthsig   = ssig;
-             hoi_synthname  = sname} in
+             hoi_synthname  = sname;
+             hoi_cur_mod    = ctx.ctx_cur_mod} in
   let ctx = if   SynthCache.mem sname ctx.ctx_cache
             then ctx
             else let sf = synther hoi in
+                 let rf = {recfuns     = [sf];
+                           recfuns_loc = sf.fun_defn_loc} in
                  let ctx_cache =
                    SynthCache.add sname (hoi, sf) ctx.ctx_cache in
-                 let ctx_synths = sf :: ctx.ctx_synths in
+                 let ctx_synths = rf :: ctx.ctx_synths in
                  {ctx with ctx_cache; ctx_synths} in
   ctx, replacer hoi args
 
@@ -717,8 +761,8 @@ let rec check_ho_binding def =
     | _ ->
         ()
 
-let rec expand_expr ctx (exp: (unit, unit) expr)
-        : context * (unit, unit) expr =
+let rec expand_expr ctx (exp: (unit, unit, mod_qual) expr)
+        : context * (unit, unit, mod_qual) expr =
   match exp.expr with
     | E_var _ | E_literal _ | E_mod_member _ ->
         ctx, exp
@@ -739,9 +783,9 @@ let rec expand_expr ctx (exp: (unit, unit) expr)
         let ctx, l = expand_expr ctx l in
         let ctx, r = expand_expr ctx r in
         ctx, {exp with expr = E_binop(op, l, r)}
-    | E_recop (t, op, e) ->
+    | E_recop ((m, t, op), e) ->
         let ctx, e = expand_expr ctx e in
-        ctx, {exp with expr = E_recop (t, op, e)}
+        ctx, {exp with expr = E_recop ((m, t, op), e)}
     | E_bitrange (e, f, l) ->
         let ctx, e = expand_expr ctx e in
         ctx, {exp with expr = E_bitrange (e, f, l)}
@@ -784,7 +828,7 @@ let rec expand_expr ctx (exp: (unit, unit) expr)
         let ctx, es = expand_exprs ctx es in
         ctx, {exp with expr = E_apply (f, es)}
 
-and expand_exprs ctx es : context * (unit, unit) expr list =
+and expand_exprs ctx es : context * (unit, unit, mod_qual) expr list =
   let ctx, es =
     List.fold_left (fun (ctx, es) e ->
         let ctx, e = expand_expr ctx e in
@@ -795,7 +839,7 @@ and expand_exprs ctx es : context * (unit, unit) expr list =
 (* traversals over other AST structures to scan and expand all
    embedded expressions *)
 
-let rec expand_stmt ctx s : context * (unit, unit) stmt =
+let rec expand_stmt ctx s : context * (unit, unit, mod_qual) stmt =
   match s.stmt with
     | S_assign (l, r) ->
         let ctx, l = expand_expr ctx l in
@@ -819,11 +863,11 @@ let rec expand_stmt ctx s : context * (unit, unit) stmt =
               ctx, (p, ss) :: bs
             ) (ctx, []) bs in
         ctx, {s with stmt = S_case (e, List.rev bs)}
-    | S_print e ->
+    | S_print (b, e) ->
         let ctx, e = expand_expr ctx e in
-        ctx, {s with stmt = S_print e}
+        ctx, {s with stmt = S_print (b, e)}
 
-and expand_stmts ctx ss : context * (unit, unit) stmt list =
+and expand_stmts ctx ss : context * (unit, unit, mod_qual) stmt list =
   let ctx, ss =
     List.fold_left (fun (ctx, ss) s ->
         let ctx, s = expand_stmt ctx s in
@@ -840,7 +884,7 @@ let expand_action ctx a =
                   ctx, Some e in
   ctx, {a with action_stmts = ss, oe}
 
-let rec expand_regexp ctx re : context * (unit, unit) regexp =
+let rec expand_regexp ctx re : context * (unit, unit, mod_qual) regexp =
   match re.regexp with
     | RX_empty | RX_literals _ | RX_wildcard | RX_type _ ->
         ctx, re
@@ -878,7 +922,7 @@ and expand_regexps ctx res =
    rule-elements from an input rule-element.
  *)
 let rec expand_rule_elem ctx re
-        : context * (unit, unit) rule_elem list =
+        : context * (unit, unit, mod_qual) rule_elem list =
   match re.rule_elem with
     | RE_bitvector _ | RE_align _ | RE_pad _ | RE_bitfield _ | RE_scan _
     | RE_epsilon ->
@@ -886,7 +930,7 @@ let rec expand_rule_elem ctx re
     | RE_regexp r ->
         let ctx, r = expand_regexp ctx r in
         ctx, [{re with rule_elem = RE_regexp r}]
-    | RE_non_term (n, oa) ->
+    | RE_non_term (m, n, oa) ->
         let ctx, oa = match oa with
             | None    ->
                 ctx, None
@@ -897,7 +941,7 @@ let rec expand_rule_elem ctx re
                       ctx, (i, a, e) :: ias
                     ) (ctx, []) ias in
                 ctx, Some (List.rev ias) in
-        ctx, [{re with rule_elem = RE_non_term (n, oa)}]
+        ctx, [{re with rule_elem = RE_non_term (m, n, oa)}]
     | RE_named (n, re') ->
         let ctx, re'' = expand_rule_elem ctx re' in
         (* We expect to see at most two elements from processing re'.
@@ -954,6 +998,13 @@ let rec expand_rule_elem ctx re
             | [re'] -> re'
             | _     -> {re' with rule_elem = RE_seq re''} in
         ctx, [{re with rule_elem = RE_opt re'}]
+    | RE_suspend_resume (n, args) ->
+        let ctx, args =
+          List.fold_left (fun (ctx, args) e ->
+              let ctx, e = expand_expr ctx e in
+              ctx, e :: args
+            ) (ctx, []) args in
+        ctx, [{re with rule_elem = RE_suspend_resume (n, List.rev args)}]
     | RE_set_view e ->
         let ctx, e = expand_expr ctx e in
         ctx, [{re with rule_elem = RE_set_view e}]
@@ -975,20 +1026,20 @@ let rec expand_rule_elem ctx re
         ctx, [{re with rule_elem = RE_at_view (e, re')}]
 
     (* handle the multi-assignment special case first *)
-    | RE_map_views (e, ({rule_elem = RE_non_term (_, Some args); _}
+    | RE_map_views (e, ({rule_elem = RE_non_term (_, _, Some args); _}
                         as re'))
          when List.exists (fun (_, a, _) -> a = A_in) args ->
         let ctx, e = expand_expr ctx e in
         let ctx, re'' = expand_rule_elem ctx re' in
         let re', args = match re'' with
-            | [{rule_elem = RE_non_term (_, Some args); _}
+            | [{rule_elem = RE_non_term (_, _, Some args); _}
                as re'] ->
                 re', args
             | _    ->
                 assert false in
         (* The list constraint needs to be in terms of the expanded
            expressions. *)
-        let c = mk_list_constraint e args re.rule_elem_loc in
+        let c = mk_list_constraint re.rule_elem_mod e args re.rule_elem_loc in
         (* Insert the constraint before the map-view element. *)
         ctx, [c; {re with rule_elem = RE_map_views (e, re')}]
     | RE_map_views (e, re') ->
@@ -1003,7 +1054,7 @@ let rec expand_rule_elem ctx re
         let ctx, res = expand_rule_elems ctx res in
         ctx, [{re with rule_elem = RE_seq_flat res}]
 
-and expand_rule_elems ctx res : context * (unit, unit) rule_elem list =
+and expand_rule_elems ctx res : context * (unit, unit, mod_qual) rule_elem list =
   let ctx, res =
     List.fold_left (fun (ctx, res) re ->
         let ctx, re = expand_rule_elem ctx re in
@@ -1011,7 +1062,7 @@ and expand_rule_elems ctx res : context * (unit, unit) rule_elem list =
       ) (ctx, []) res in
   ctx, List.rev res
 
-and mk_list_constraint e args loc : (unit, unit) rule_elem =
+and mk_list_constraint re_mod e args loc : (unit, unit, mod_qual) rule_elem =
   let m   = Location.mk_loc_val "List"   e.expr_loc in
   let f   = Location.mk_loc_val "length" e.expr_loc in
   let ll  = mk_expr (E_mod_member (m, f)) e.expr_loc in
@@ -1043,9 +1094,10 @@ and mk_list_constraint e args loc : (unit, unit) rule_elem =
             ) hd tl in
   {rule_elem     = RE_constraint ce;
    rule_elem_aux = ();
+   rule_elem_mod = re_mod;
    rule_elem_loc = loc}
 
-let expand_rule ctx r : context * (unit, unit) rule =
+let expand_rule ctx r : context * (unit, unit, mod_qual) rule =
   let ctx, res = expand_rule_elems ctx r.rule_rhs in
   let ctx, tmps =
     List.fold_left (fun (ctx, ts) (v, te, e) ->
@@ -1055,7 +1107,7 @@ let expand_rule ctx r : context * (unit, unit) rule =
   ctx, {r with rule_rhs   = res;
                rule_temps = List.rev tmps}
 
-let expand_rules ctx rs : context * (unit, unit) rule list =
+let expand_rules ctx rs : context * (unit, unit, mod_qual) rule list =
   let ctx, rs =
     List.fold_left (fun (ctx, rs) r ->
         let ctx, r = expand_rule ctx r in
@@ -1078,7 +1130,7 @@ let expand_alt ctx alt =
             ) (ctx, []) ds in
         ctx, ALT_decls (List.rev ds)
 
-let expand_non_term_defn ctx ntd : context * (unit, unit) non_term_defn =
+let expand_non_term_defn ctx ntd : context * (unit, unit, mod_qual) non_term_defn =
   let ctx, alt = expand_alt ctx ntd.non_term_syn_attrs in
   let ctx, rs  = expand_rules ctx ntd.non_term_rules in
   ctx, {ntd with non_term_syn_attrs = alt;
@@ -1086,22 +1138,22 @@ let expand_non_term_defn ctx ntd : context * (unit, unit) non_term_defn =
 
 (* After we scan and expand the function body, register the
    definition in the context *)
-let expand_func ctx f : context * (unit, unit) fun_defn =
+let expand_func ctx f : context * (unit, unit, mod_qual) fun_defn =
   let ctx, b = expand_expr ctx f.fun_defn_body in
   let f = {f with fun_defn_body = b} in
   let fid = fst (Location.value f.fun_defn_ident) in
   let ctx_fdefs = StringMap.add fid f ctx.ctx_fdefs in
   {ctx with ctx_fdefs}, f
 
-let expand_const ctx c : context * (unit, unit) const_defn =
+let expand_const ctx c : context * (unit, unit, mod_qual) const_defn =
   let ctx, e = expand_expr ctx c.const_defn_val in
   ctx, {c with const_defn_val = e}
 
-let expand_format_decl ctx fd : context * (unit, unit) format_decl =
+let expand_format_decl ctx fd : context * (unit, unit, mod_qual) format_decl =
   let ctx, ntd = expand_non_term_defn ctx fd.format_decl in
   ctx, {fd with format_decl = ntd}
 
-let expand_format_decls ctx fds : context * (unit, unit) format_decl list =
+let expand_format_decls ctx fds : context * (unit, unit, mod_qual) format_decl list =
   let ctx, fds =
     List.fold_left (fun (ctx, fds) fd ->
         let ctx, fd = expand_format_decl ctx fd in
@@ -1109,7 +1161,7 @@ let expand_format_decls ctx fds : context * (unit, unit) format_decl list =
       ) (ctx, []) fds in
   ctx, List.rev fds
 
-let expand_format ctx f : context * (unit, unit) format =
+let expand_format ctx f : context * (unit, unit, mod_qual) format =
   let ctx, ds = expand_format_decls ctx f.format_decls in
   ctx, {f with format_decls = ds}
 
@@ -1117,18 +1169,19 @@ let expand_format ctx f : context * (unit, unit) format =
 let init_ctx () =
   let builtins =
     List.fold_left (fun acc m ->
-        let MName mn = TypeAlgebra.(m.mod_name) in
-        List.fold_left (fun acc ((DName dn, _, _) as d) ->
-            StdlibMap.add (mn, dn) d acc
+        let mn = TypeAlgebra.(m.mod_name) in
+        List.fold_left (fun acc ((VName vn, _, _) as v) ->
+            StdlibMap.add (Modul mn, vn) v acc
           ) acc TypeAlgebra.(m.mod_values)
       ) StdlibMap.empty TypeAlgebra.builtin_modules in
   {ctx_fdefs   = StringMap.empty;
    ctx_stddefs = builtins;
    ctx_synths  = [];
-   ctx_cache   = SynthCache.empty}
+   ctx_cache   = SynthCache.empty;
+   ctx_cur_mod = ""}
 
-let expand_spec (spec: (unit, unit) program)
-    : (unit, unit) program =
+let expand_spec (spec: (unit, unit) spec_module)
+    : (unit, unit) spec_module =
   let ctx = init_ctx () in
   let splice ctx d ds =
     (* `ds` is in reverse order, and the synthesized functions
@@ -1137,11 +1190,12 @@ let expand_spec (spec: (unit, unit) program)
        functions appear before the expanded component to ensure
        proper scoping. *)
     let ds =
-      d :: ((List.map (fun f -> Decl_fun f) ctx.ctx_synths) @ ds) in
+      d :: ((List.map (fun f -> Decl_recfuns f) ctx.ctx_synths) @ ds) in
     {ctx with ctx_synths = []}, ds in
   let expand_recfuns ctx r =
     let ctx, efs =
       List.fold_left (fun (ctx, fs) f ->
+          let ctx = {ctx with ctx_cur_mod = f.fun_defn_mod} in
           let ctx, ef = expand_func ctx f in
           ctx, ef :: fs
         ) (ctx, []) r.recfuns in
@@ -1153,12 +1207,16 @@ let expand_spec (spec: (unit, unit) program)
         match d with
           | Decl_types _ ->
               ctx, d :: ds
+          | Decl_foreign _ ->
+              ctx, d :: ds
           | Decl_const c ->
+              let ctx = {ctx with ctx_cur_mod = c.const_defn_mod} in
               let ctx, c = expand_const ctx c in
               splice ctx (Decl_const c) ds
           | Decl_fun f ->
               (* We should never find a synthesized function as input *)
               assert (not f.fun_defn_synth);
+              let ctx = {ctx with ctx_cur_mod = f.fun_defn_mod} in
               let ctx, f = expand_func ctx f in
               splice ctx (Decl_fun f) ds
           | Decl_recfuns r ->

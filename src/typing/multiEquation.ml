@@ -21,12 +21,11 @@
 (*  and Didier Rémy.                                                      *)
 
 open Parsing
-open Misc
 open CoreAlgebra
 
 (** Multi-equations are reachable through variable. *)
 type variable =
-    descriptor UnionFind.point
+  descriptor UnionFind.point
 
 (** A descriptor contains several pieces of information, the most
     important of which is the structure of the multi-equation, or,
@@ -45,13 +44,13 @@ type variable =
     The [mark] field is transient, and may be used by the unifier's
     client for any purpose. *)
 and descriptor =
-  {mutable structure : structure option;
-   mutable rank      : IntRank.t;
-   mutable mark      : Mark.t;
-   mutable kind      : variable_kind;
-   mutable name      : tname option;
-   mutable pos       : Location.t option;
-   mutable var       : variable option}
+  {mutable structure: structure option;
+   mutable rank: IntRank.t;
+   mutable mark: Mark.t;
+   mutable kind: variable_kind;
+   mutable name: tname option;
+   mutable pos:  Location.t option;
+   mutable var:  variable option}
 
 and structure = variable CoreAlgebra.term
 
@@ -64,32 +63,32 @@ and structure = variable CoreAlgebra.term
     or rigid variables. *)
 and variable_kind = Rigid | Flexible | Constant
 
-and tname = Ast.tname
+and tname = Ast.full_tname
 
 type crterm = variable CoreAlgebra.arterm
 
 type pool =
-  {        number      : int; (** The present pool's rank. *)
-   mutable inhabitants : variable list}
+  {        number:      int; (** The present pool's rank. *)
+   mutable inhabitants: variable list}
 
 let is_rigid v =
   let desc = UnionFind.find v in
-    desc.kind = Rigid || desc.kind = Constant
+  desc.kind = Rigid || desc.kind = Constant
 
 let is_flexible v =
   let desc = UnionFind.find v in
-    desc.kind = Flexible
+  desc.kind = Flexible
 
 (** [new_pool pool] returns a new empty pool, whose number is the successor
     of [pool]'s. *)
 let new_pool pool =
-  {number = pool.number + 1;
+  {number      = pool.number + 1;
    inhabitants = []}
 
 (** [init] produces a fresh initial state. It consists of an empty
     environment and a fresh, empty pool. *)
 let init () =
-  {number = IntRank.outermost;
+  {number      = IntRank.outermost;
    inhabitants = []}
 
 (** [register pool v] adds [v] to the pool [pool]. It is assumed that [v]'s
@@ -101,8 +100,8 @@ let register pool v =
     pool's number. It is assumed that it was previously uninitialized. *)
 let introduce pool v =
   let desc = UnionFind.find v in
-    desc.rank <- pool.number;
-    register pool v
+  desc.rank <- pool.number;
+  register pool v
 
   (* TEMPORARY time to perform the occur check on the variables which we
      just ranked [none]. On peut 'eventuellement integrer l'occur check
@@ -134,19 +133,17 @@ let instance pool v =
      it. The field is to be viewed as containing a pointer if and only if
      the descriptor is marked with [m]. *)
 
-  let m =
-    Mark.fresh() in
+  let m = Mark.fresh() in
 
   let setp desc =
     Mark.same desc.mark m
 
   and set desc v =
     desc.mark <- m;
-    desc.var <- Some v
+    desc.var  <- Some v
 
   and get desc =
-    unSome desc.var
-  in
+    Misc.unSome desc.var in
 
   (* If [v] has rank [none], then [copy v] returns a copy of the variable
      [v], and copies its descendants recursively. The copy is registered in
@@ -162,15 +159,14 @@ let instance pool v =
        must check this condition first, since we must not read [desc.rank]
        unless we know that the variable hasn't been copied yet. *)
 
-    if setp desc then
-      get desc
+    if   setp desc
+    then get desc
 
     (* Otherwise, check the variable's rank. If it is other than [none],
        then the variable must not be copied. *)
 
     else if (IntRank.compare desc.rank IntRank.none <> 0 || desc.kind = Constant)
-    then
-      v
+    then v
 
     (* Otherwise, the variable must be copied. We create a new variable,
        update the mapping, then update the new variable's descriptor. Note
@@ -178,28 +174,23 @@ let instance pool v =
        [copy], so as to guarantee termination in the presence of cyclic
        terms. *)
 
-    else
-      let desc' =
-          {structure = None;
-           rank = pool.number;
-           mark = Mark.none;
-           kind = Flexible;
-           name = (match desc.kind with Rigid -> None | _ -> desc.name);
-           pos = None;
-           var = None}
-      in
-      let v' = UnionFind.fresh desc' in
-        register pool v';
-        set desc v';
-        let v' =
-          match desc.structure with
-            | None ->
-                v'
-            | Some term ->
-                desc'.structure <- Some (map copy term);
-                v'
-        in
-          v'
+    else let desc' = {structure = None;
+                      rank = pool.number;
+                      mark = Mark.none;
+                      kind = Flexible;
+                      name = (match desc.kind with Rigid -> None | _ -> desc.name);
+                      pos  = None;
+                      var  = None} in
+         let v' = UnionFind.fresh desc' in
+         register pool v';
+         set desc v';
+         let v' = match desc.structure with
+             | None ->
+                 v'
+             | Some term ->
+                 desc'.structure <- Some (map copy term);
+                 v' in
+         v'
 
   (* If [v] was effectively copied by [copy], then [restore v] returns
      [v] to its original state (that is, restores its rank to [none])
@@ -208,17 +199,14 @@ let instance pool v =
 
   and restore v =
     let desc = UnionFind.find v in
-    if setp desc then begin
-      desc.mark <- Mark.none;
-      desc.rank <- IntRank.none;
-      match desc.structure with
-        | None ->
-            ()
-        | Some term ->
-            iter restore term
-    end
-
-  in
+    if   setp desc
+    then begin
+        desc.mark <- Mark.none;
+        desc.rank <- IntRank.none;
+        match desc.structure with
+          | None      -> ()
+          | Some term -> iter restore term
+      end in
 
   (* We are now ready to take an instance of the type scheme whose
      entry point is [v]. It is simply a matter of copying [v] and
@@ -251,15 +239,15 @@ let rec chop pool = function
            kind = Flexible;
            name = None;
            pos  = None;
-           var = None} in
-        register pool v;
-        v
+           var  = None} in
+      register pool v;
+      v
 
 (** [chopi rank term] chops a term. Any freshly created variables
     receive rank [rank], but are not added to any pool. *)
 let chopi rank term =
   let dummy : pool =
-    {number = rank;
+    {number      = rank;
      inhabitants = []} in
   chop dummy term
 
@@ -271,15 +259,15 @@ let variable kind ?name ?structure ?pos () =
      mark = Mark.none;
      kind = kind;
      name = name;
-     pos = pos;
-     var = None}
+     pos  = pos;
+     var  = None}
 
 let explode t =
   (* use of [chopi] is OK here, as this function is used only during pretty-printing *)
   let v = chopi IntRank.outermost t in
-    match (UnionFind.find v).structure with
-        None -> Var v
-      | Some t -> t
+  match (UnionFind.find v).structure with
+    | None   -> Var v
+    | Some t -> t
 
 let variable_name v =
   (UnionFind.find v).name
@@ -305,19 +293,18 @@ let variable kind ?name ?structure ?pos () =
     match structure with
       | Some t ->
           let v = chopi IntRank.none t in
-            Some (Var v)
-      | None -> None
-  in
-    variable kind ?name:name ?structure:structure ?pos:pos ()
+          Some (Var v)
+      | None -> None in
+  variable kind ?name:name ?structure:structure ?pos:pos ()
 
 (** [variable_list xs] allocates a fresh variable for every element in the
   list [xs], and returns both a list of these variables and an association
   list that maps elements to variables, viewed as types. *)
 let variable_list kind xs =
   List.fold_right (fun x (vs, xts) ->
-                     let v = variable kind () in
-                       v :: vs, (x, TVariable v) :: xts
-                  ) xs ([], [])
+      let v = variable kind () in
+      v :: vs, (x, TVariable v) :: xts
+    ) xs ([], [])
 
 (** [variable_list_from_names f xs] allocates a fresh variable for every
   string in the list [xs], and returns both a list of these variables
@@ -325,7 +312,7 @@ let variable_list kind xs =
 let variable_list_from_names kind xs =
   List.fold_right
     (fun x (vs, xts) ->
-       let k, n = kind x in
+      let k, n = kind x in
        let v = variable k ?name:n () in
-         v :: vs, (x, TVariable v) :: xts
+       v :: vs, (x, TVariable v) :: xts
     ) xs ([], [])

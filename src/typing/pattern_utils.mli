@@ -16,21 +16,24 @@
 (**************************************************************************)
 
 open Parsing
-open Misc
 open Ast
 open TypingEnvironment
+
+module StringSet : Set.S with type elt = string
 
 (* pattern matrix utilities *)
 
 val default_mat:
-  (('a, 'b) pattern list * 'c) list -> (('a, 'b) pattern list * 'c) list
+  (('a, 'b, mod_qual) pattern list * 'c) list -> (('a, 'b, mod_qual) pattern list * 'c) list
 
 val specialize_mat:
-  environment -> (('a, 'b) pattern list * 'c) list -> ('d, 'e) pattern
-  -> (('a, 'b) pattern list * 'c) list
+  environment
+  -> (('a, 'b, mod_qual) pattern list * 'c) list
+  -> ('d, 'e, mod_qual) pattern
+  -> (('a, 'b, mod_qual) pattern list * 'c) list
 
 val is_complete_sig:
-  environment -> ('a, 'b) pattern list -> bool
+  environment -> ('a, 'b, mod_qual) pattern list -> bool
 
 val first_col:
   ('a list * 'b) list -> 'a list
@@ -42,10 +45,10 @@ val swap_cols:
   ('a list * 'b) list -> int -> int -> ('a list * 'b) list
 
 val roots:
-  environment -> ('a, 'b) pattern list -> (('a, 'b) pattern * int) list
+  environment -> ('a, 'b, mod_qual) pattern list -> (('a, 'b, mod_qual) pattern * int) list
 
 val unused_constructors:
-  environment -> Ast.ident -> Ast.ident list -> StringSet.t
+  environment -> Ast.mname -> Ast.ident -> Ast.ident list -> StringSet.t
 
 (* bitvector utilities *)
 

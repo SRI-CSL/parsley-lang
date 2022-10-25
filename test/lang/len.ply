@@ -8,9 +8,9 @@ fun cons <'a> (l : my_list<'a>, e : 'a) -> my_list<'a> = {
    | my_list::Cons(_, _) -> my_list::Cons(e, l))
 }
 
-recfun len <'a> (l : my_list<'a>) -> int = {
+recfun len <'a> (l : my_list<'a>) -> usize = {
   (case l of
-   | my_list::Null() -> 0
+   | my_list::Null() -> 0u
    | my_list::Cons(_, t) -> len(t)
   )
 }

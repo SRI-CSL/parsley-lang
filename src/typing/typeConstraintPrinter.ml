@@ -22,7 +22,6 @@
 
 (** This module implements a pretty printer for constraints. *)
 
-open Misc
 open PrettyPrinter
 open TypeEnvPrinter
 open TypeConstraint
@@ -114,7 +113,7 @@ let printf_constraint mode c =
            printf ")"
 
        | CLet ([ Scheme (_, [], fqs, c, h) ], CTrue _)
-            when StringMap.empty = h ->
+            when Misc.StringMap.empty = h ->
            let rec chop_exists acu = function
              | CLet ([ Scheme (_, [], fqs', c', _) ], CTrue _) ->
                  chop_exists (acu @ fqs') c'
@@ -122,7 +121,7 @@ let printf_constraint mode c =
            let (fqs, c) = chop_exists fqs c in
            if   List.length fqs <> 0
            then print_string exists;
-           print_string (print_separated_list " " print_variable fqs);
+           print_string (Misc.print_separated_list " " print_variable fqs);
            if   List.length fqs <> 0
            then printf ".@,";
            printf "@[<b 2>";
@@ -149,13 +148,13 @@ let printf_constraint mode c =
   and is_true = function CTrue _ -> true | _ -> false
 
   and printf_scheme (Scheme (_, rqs, fqs, c, header)) =
-    let len = StringMap.fold (fun _x _k acu -> acu + 1) header 0 in
+    let len = Misc.StringMap.fold (fun _x _k acu -> acu + 1) header 0 in
     printf "";
     if   List.length rqs + List.length fqs <> 0
     then print_string forall;
-    print_string (print_separated_list " " print_variable fqs);
+    print_string (Misc.print_separated_list " " print_variable fqs);
     if   rqs <> []
-    then printf " {%s}" (print_separated_list " " print_variable rqs);
+    then printf " {%s}" (Misc.print_separated_list " " print_variable rqs);
     if   not (is_true c)
     then (printf "@,[@[<b>";
           pconstraint c;
@@ -163,7 +162,7 @@ let printf_constraint mode c =
     if (len <> 0) then print_string " (";
     let f = ref true in
     let sep () = if !f then (f := false; "") else "; " in
-    StringMap.iter (fun name (t, _pos) ->
+    Misc.StringMap.iter (fun name (t, _pos) ->
         printf "%s%s : %s"
           (sep ())  name (print_crterm t)
       ) header;

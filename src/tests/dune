@@ -1,4 +1,4 @@
 (library
   (name tests)
-  (libraries parsing typing ir interpreter)
+  (libraries parsing typing anfcfg anfcfg_interpreter)
 )

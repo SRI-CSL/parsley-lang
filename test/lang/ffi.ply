@@ -1,0 +1,14 @@
+// This shows how to declare a foreign function (here `my_length`)
+// that is implemented in an external language (here `ocaml`).
+// The implementation is in `src/anfcfg_interpreter/externals.ml`.
+// The interpreter will need to be invoked with `-f` or
+// `--with-foreign` to register the external functions.
+
+foreign {
+  {ocaml="Sample_ext.length"} my_length(l: [usize]) -> usize
+}
+
+format {
+  Pure p {v: usize} := { let l = [1u; 2u] in
+                         p.v := my_length(l) }
+}

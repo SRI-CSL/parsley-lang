@@ -24,7 +24,6 @@
     framework. *)
 
 open Parsing
-open Misc
 
 (** [sname] is the type of the names that are used to refer to type
     schemes inside constraints. These names are bound by [CLet]
@@ -52,7 +51,7 @@ type ('crterm, 'variable) type_constraint =
     scheme. A header is a mapping of names to types. *)
 and ('crterm, 'variable) scheme =
   | Scheme of Location.t * 'variable list * 'variable list
-      * ('crterm, 'variable) type_constraint * ('crterm * Location.t) StringMap.t
+      * ('crterm, 'variable) type_constraint * ('crterm * Location.t) Misc.StringMap.t
 
 (** The variables that appear in constraints are the same as the multi-equation
     ones. *)

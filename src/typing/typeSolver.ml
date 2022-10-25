@@ -26,11 +26,9 @@ include ConstraintSolver
 
 let print_env print env =
   let print_entry acu (name, t) =
-    if name.[0] <> '_' then
-      acu
-      ^ "val " ^ name ^ ": " ^ (print t) ^ "\n"
-    else
-      acu
-  in
-    Printf.printf "%s\n"
-      (List.fold_left print_entry "" (environment_as_list env))
+    if   name.[0] <> '_'
+    then acu
+         ^ "val " ^ name ^ ": " ^ (print t) ^ "\n"
+    else acu in
+  Printf.printf "%s\n"
+    (List.fold_left print_entry "" (environment_as_list env))

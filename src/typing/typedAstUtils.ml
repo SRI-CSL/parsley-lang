@@ -18,17 +18,21 @@
 open Parsing
 open Ast
 
-module ME = MultiEquation
 module TEnv = TypingEnvironment
 module TExc = TypingExceptions
+
+let mk_full_tname m t =
+  m, TName (Location.value t)
 
 (* Expands type abbreviations in a type expression. *)
 let expand_type_abbrevs env te =
   let rec expand te =
     let loc = te.type_expr_loc in
     match te.type_expr with
-      | TE_tvar t ->
-          let tc = TName (Location.value t) in
+      | TE_tvar _ ->
+          te
+      | TE_tname (m, t) ->
+          let tc = mk_full_tname m t in
           (match TEnv.lookup_type_abbrev env tc with
              | None -> te
              | Some abb ->
@@ -38,8 +42,8 @@ let expand_type_abbrevs env te =
                  else let err =
                         TExc.PartialTypeConstructorApplication (tc, n, 0)
                       in raise (TExc.Error (loc, err)))
-      | TE_tapp ({type_expr = TE_tvar t; _} as c, args) ->
-          let tc = TName (Location.value t) in
+      | TE_tapp ({type_expr = TE_tname (m, t); _} as c, args) ->
+          let tc = mk_full_tname m t in
           (match TEnv.lookup_type_abbrev env tc with
              | None ->
                  let args' = List.map expand args in
@@ -61,11 +65,16 @@ let expand_type_abbrevs env te =
 
   and subst map te =
     match te.type_expr with
-      | TE_tvar t ->
+      | TE_tvar _ ->
+          te
+      (* only apply the subst to local (inferred) type identifiers *)
+      | TE_tname (Modul (Mod_inferred _), t) ->
           let s = Location.value t in
           (match List.assoc_opt (TName s) map with
              | None    -> te
              | Some te -> te)
+      | TE_tname _ ->
+          te
       | TE_tapp (c, args) ->
           let c' = subst map c in
           let args' = List.map (subst map) args in
@@ -73,10 +82,9 @@ let expand_type_abbrevs env te =
 
   in expand te
 
-let lookup_bitfield_info tenv t =
-  let tn = Location.value t in
+let lookup_bitfield_info tenv m t =
   let l  = Location.loc t in
-  let tt = TName tn in
+  let tt = mk_full_tname m t in
   let adt = match TEnv.lookup_adt tenv tt with
       | None     -> let err = TExc.UnboundRecord tt in
                     raise (TExc.Error (l, err))
@@ -91,12 +99,12 @@ let lookup_bitfield_info tenv t =
     | {adt = Record {bitfield_info = Some bfi; _}; _} ->
         bfi
 
-let lookup_bitfield_length tenv t =
-  let bfi = lookup_bitfield_info tenv t in
+let lookup_bitfield_length tenv m t =
+  let bfi = lookup_bitfield_info tenv m t in
   bfi.bf_length
 
-let lookup_bitfield_fields tenv t =
-  let bfi = lookup_bitfield_info tenv t in
+let lookup_bitfield_fields tenv m t =
+  let bfi = lookup_bitfield_info tenv m t in
   bfi.bf_fields
 
 (* A helper to check if a bound for the repeat combinator is
@@ -108,7 +116,7 @@ let lookup_bitfield_fields tenv t =
  * simplicity, and so the result cannot be used to replace the source
  * argument. *)
 
-let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
+let rec const_fold: 't 'v 'm. ('t, 'v, 'm) expr -> ('t, 'v, 'm) expr =
   fun e ->
   match e.expr with
     | E_var _ | E_literal _ | E_mod_member _ | E_apply _ | E_constr _ ->
@@ -124,45 +132,127 @@ let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
     | E_unop (op, e') ->
         let e' = const_fold e' in
         (match op, e'.expr with
-          | Uminus, E_literal (PL_int i) ->
-              {e with expr = E_literal (PL_int (~- i))}
-          | Not, E_literal (PL_bool b) ->
-              {e with expr = E_literal (PL_bool (not b))}
-          | _ ->
+           | Uminus _, E_literal (PL_int (i, n)) ->
+               let i = -i in
+               (if   not (AstUtils.check_int_literal n i)
+                then let err = TExc.Invalid_integer_value (i, n) in
+                     raise (TExc.Error (e.expr_loc, err)));
+               {e with expr = E_literal (PL_int (-i, n))}
+           | Inot _, E_literal (PL_int (i, n)) ->
+               let i = Int.lognot i in
+               (if   not (AstUtils.check_int_literal n i)
+                then let err = TExc.Invalid_integer_value (i, n) in
+                     raise (TExc.Error (e.expr_loc, err)));
+               {e with expr = E_literal (PL_int (-i, n))}
+           | Not, E_literal (PL_bool b) ->
+               {e with expr = E_literal (PL_bool (not b))}
+           | _ ->
               {e with expr = E_unop (op, e')})
     | E_binop (op, l, r) ->
         let l', r' = const_fold l, const_fold r in
         (match op, l'.expr, r'.expr with
-           | Lt,   E_literal (PL_int l), E_literal (PL_int r) ->
+           | Lt on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
                {e with expr = E_literal (PL_bool (l < r))}
-           | Gt,   E_literal (PL_int l), E_literal (PL_int r) ->
+           | Gt on,   E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
                {e with expr = E_literal (PL_bool (l > r))}
-           | Lteq, E_literal (PL_int l), E_literal (PL_int r) ->
+           | Lteq on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
                {e with expr = E_literal (PL_bool (l <= r))}
-           | Gteq, E_literal (PL_int l), E_literal (PL_int r) ->
+           | Gteq on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
                {e with expr = E_literal (PL_bool (l >= r))}
-           | Plus, E_literal (PL_int l), E_literal (PL_int r) ->
-               {e with expr = E_literal (PL_int (l + r))}
-           | Minus, E_literal (PL_int l), E_literal (PL_int r) ->
-               {e with expr = E_literal (PL_int (l - r))}
-           | Mult, E_literal (PL_int l), E_literal (PL_int r) ->
-               {e with expr = E_literal (PL_int (l * r))}
-           | Mod,  E_literal (PL_int _), E_literal (PL_int r)
+           | Plus on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = l + r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Minus on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = l - r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Mult on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = l * r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Mod _,  E_literal (PL_int _), E_literal (PL_int (r, _))
                 when r = 0 ->
                raise (TExc.Error (e.expr_loc, TExc.Possible_division_by_zero))
-           | Mod,  E_literal (PL_int l), E_literal (PL_int r) ->
-               {e with expr = E_literal (PL_int (l mod r))}
-           | Div,  E_literal (PL_int _), E_literal (PL_int r)
+           | Mod on,  E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = l mod r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Div _,  E_literal (PL_int _), E_literal (PL_int (r, _))
                 when r = 0 ->
                raise (TExc.Error (e.expr_loc, TExc.Possible_division_by_zero))
-           | Div,  E_literal (PL_int l), E_literal (PL_int r) ->
-               {e with expr = E_literal (PL_int (l / r))}
+           | Div on,  E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = l / r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Iand on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = Int.logand l r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Ior on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = Int.logor l r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Ixor on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && ln = rn ->
+               let v = Int.logxor l r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Lshft on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && rn = Ast.u8_t ->
+               let v = Int.shift_left l r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Rshft on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && rn = Ast.u8_t ->
+               let v = Int.shift_right_logical l r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
+           | Ashft on, E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when on = ln && rn = Ast.u8_t ->
+               let v = Int.shift_right l r in
+               if   not (AstUtils.check_int_literal on v)
+               then let err = TExc.Invalid_integer_literal (v, on) in
+                    raise (TExc.Error (e.expr_loc, err))
+               else {e with expr = E_literal (PL_int (v, on))}
            | Land, E_literal (PL_bool l), E_literal (PL_bool r) ->
                {e with expr = E_literal (PL_bool (l && r))}
            | Lor,  E_literal (PL_bool l), E_literal (PL_bool r) ->
                {e with expr = E_literal (PL_bool (l || r))}
            (* Eq and Neq are polymorphic. *)
-           | Eq,   E_literal (PL_int l), E_literal (PL_int r) ->
+           | Eq,   E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when ln = rn ->
                {e with expr = E_literal (PL_bool (l = r))}
            | Eq,   E_literal (PL_bytes l), E_literal (PL_bytes r) ->
                {e with expr = E_literal (PL_bool (l = r))}
@@ -174,7 +264,8 @@ let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
                {e with expr = E_literal (PL_bool (l = r))}
            | Eq,   E_literal (PL_bitvector l), E_literal (PL_bitvector r) ->
                {e with expr = E_literal (PL_bool (l = r))}
-           | Neq,  E_literal (PL_int l), E_literal (PL_int r) ->
+           | Neq,  E_literal (PL_int (l, ln)), E_literal (PL_int (r, rn))
+                when ln = rn ->
                {e with expr = E_literal (PL_bool (not (l = r)))}
            | Neq,  E_literal (PL_bytes l), E_literal (PL_bytes r) ->
                {e with expr = E_literal (PL_bool (not (l = r)))}
@@ -188,26 +279,26 @@ let rec const_fold: 't 'v. ('t, 'v) expr -> ('t, 'v) expr =
                {e with expr = E_literal (PL_bool (not (l = r)))}
            | _ ->
                {e with expr = E_binop (op, l', r')})
-    | E_recop (t, rop, e') ->
-        {e with expr = E_recop (t, rop, const_fold e')}
+    | E_recop ((m, t, rop), e') ->
+        {e with expr = E_recop ((m, t, rop), const_fold e')}
     | E_bitrange (e', n, m) ->
         {e with expr = E_bitrange (const_fold e', n, m)}
 
-let is_non_zero: 't 'v. ('t, 'v) expr -> bool =
+let is_non_zero: 't 'v 'm. ('t, 'v, 'm) expr -> bool =
   fun e ->
   match (const_fold e).expr with
-    | E_literal (PL_int i) -> i != 0
-    | _                    -> true
+    | E_literal (PL_int (i, _)) -> i != 0
+    | _                         -> true
 
 
 (* Extract a nested sequence of field accessors in an expression,
    along with the head variable.  This is usually applied to check
    whether an expression is a reference. *)
-let lhs_fields (type b) e : ((string * b) * string list) option =
-  let rec traverse (acc: string list) e =
+let lhs_fields (type b m) e : ((string * b) * (m modul * string) list) option =
+  let rec traverse (acc: (m modul * string) list) e =
     match e.expr with
-      | E_field (e', f) ->
-          traverse (Location.value f :: acc) e'
+      | E_field (e', (m, f)) ->
+          traverse ((m, Location.value f) :: acc) e'
       | E_var v ->
           Some (Location.value v, acc)
       | _ ->
@@ -242,6 +333,7 @@ let rec guess_is_regexp_elem rle =
     | RE_seq_flat rles -> List.for_all guess_is_regexp_elem rles
 
     | RE_constraint _
+    | RE_suspend_resume _
     | RE_named _
     | RE_action _
     | RE_non_term _
@@ -259,31 +351,36 @@ let rec guess_is_regexp_elem rle =
    such that it can be condensed into a single regexp.
    Since an environment is provided, it looks up the types of any
    non-terminals to check whether they are regular expressions. *)
-let rec is_regexp_elem tenv rle =
+let rec is_regexp_elem tenv modul rle =
   match rle.rule_elem with
     | RE_epsilon
     | RE_regexp _ -> true
 
     | RE_opt rle'
-    | RE_star (rle', None) -> is_regexp_elem tenv rle'
+    | RE_star (rle', None) -> is_regexp_elem tenv modul rle'
 
     | RE_star (rle', Some e) ->
         (match (const_fold e).expr with
-           | E_literal (PL_int _) -> is_regexp_elem tenv rle'
+           | E_literal (PL_int _) -> is_regexp_elem tenv modul rle'
            | _                    -> false)
 
     | RE_choice rles
     | RE_seq rles
-    | RE_seq_flat rles -> List.for_all (is_regexp_elem tenv) rles
+    | RE_seq_flat rles -> List.for_all (is_regexp_elem tenv modul) rles
 
+    (* We currently do not support cross-module non-stdlib regexps
+       since the DFAs are inlined during construction. *)
+    | RE_non_term (m, _, _)
+         when m <> AstUtils.stdlib && AstUtils.mod_compare m modul != 0 ->
+        false
     (* TODO: we currently don't support attributed regexp
        non-terminals. But they should be possible to support as long
        as the attributes can be constant folded, and there is a
        statically known regexp expansion for each of the constant
        attribute combinations used in the spec. *)
-    | RE_non_term (nid, None) ->
+    | RE_non_term (m, nid, None) ->
         let n = Location.value nid in
-        (match TEnv.lookup_non_term_type tenv (NName n) with
+        (match TEnv.lookup_non_term_type tenv (m, (NName n)) with
            | Some t -> TypeAlgebra.is_regexp_type (TEnv.typcon_variable tenv) t
            | None   -> false)
 
@@ -291,6 +388,7 @@ let rec is_regexp_elem tenv rle =
     | RE_named _
     | RE_action _
     | RE_constraint _
+    | RE_suspend_resume _
     | RE_bitvector _
     | RE_bitfield _
     | RE_align _
@@ -301,9 +399,9 @@ let rec is_regexp_elem tenv rle =
     | RE_set_view _
     | RE_map_views _ -> false
 
-let is_regexp_rule tenv r =
+let is_regexp_rule tenv modul r =
      List.length r.rule_temps = 0
-  && List.for_all (is_regexp_elem tenv) r.rule_rhs
+  && List.for_all (is_regexp_elem tenv modul) r.rule_rhs
 
 (* Converts a typed regexp rule element into a regexp.  It maintains
    the aux and location information as best it can.  It assumes that
@@ -311,6 +409,7 @@ let is_regexp_rule tenv r =
  *)
 let rec rule_elem_to_regexp r =
   let wrap r' = {regexp = r';
+                 regexp_mod = r.rule_elem_mod;
                  regexp_loc = r.rule_elem_loc;
                  regexp_aux = r.rule_elem_aux} in
   match r.rule_elem with
@@ -318,8 +417,8 @@ let rec rule_elem_to_regexp r =
         wrap RX_empty
     | RE_regexp r' ->
         r'
-    | RE_non_term (nid, None) ->
-        wrap (RX_type nid)
+    | RE_non_term (m, nid, None) ->
+        wrap (RX_type (m, nid))
 
     | RE_star (r', None) ->
         wrap (RX_star (rule_elem_to_regexp r', None))
@@ -344,7 +443,7 @@ let rec rule_elem_to_regexp r =
 (* Converts a typed rule into a regexp.  It maintains the aux and
    location information as best it can.  It assumes that `r` satisfies
    `is_regexp_rule r`. *)
-let rule_to_regexp r =
+let rule_to_regexp m r =
   assert (List.length r.rule_temps = 0);
   assert (List.length r.rule_rhs > 0);
   (* Since all regexps have the same type, we use the type from the
@@ -352,18 +451,20 @@ let rule_to_regexp r =
   let rx = List.hd r.rule_rhs in
   let rxs = List.map rule_elem_to_regexp r.rule_rhs in
   {regexp     = RX_seq rxs;
+   regexp_mod = m;
    regexp_loc = r.rule_loc;
    regexp_aux = rx.rule_elem_aux}
 
 (* Converts a sequence of typed rules into a regexp.  It maintains the
    aux and location information as best it can.  It assumes that each
    rule `r` in `rs` satisfies `is_regexp_rule r`. *)
-let rules_to_regexp rs =
-  let rxs = List.map rule_to_regexp rs in
+let rules_to_regexp m rs =
+  let rxs = List.map (rule_to_regexp m) rs in
   let rxh = List.hd rxs in
   let rxt = List.hd (List.rev rxs) in
   {regexp     = RX_choice rxs;
    regexp_loc = Location.extent rxh.regexp_loc rxt.regexp_loc;
+   regexp_mod = m;
    regexp_aux = rxh.regexp_aux}
 
 (* Separate out the trailing fields for a nested record expression. *)
@@ -373,3 +474,82 @@ let fields_suffix e =
       | E_field (e', f) -> split e' (f :: fs)
       | _               -> e, fs in
   split e []
+
+(* utilities to make ast types comparable by syntactical equality, by
+   normalizing location and aux information *)
+
+let unwrap_id id =
+  Location.mk_loc_val (Location.value id) Location.ghost_loc
+
+let unwrap_mod m =
+  match m with
+    | Modul (Mod_explicit m) -> Modul (Mod_explicit (unwrap_id m))
+    | m                      -> m
+
+let unwrap_var v =
+  Location.mk_loc_val (var_name v, ()) Location.ghost_loc
+
+let unwrap_constructor (m, typ, constr) =
+  (unwrap_mod m, unwrap_id typ, unwrap_id constr)
+
+let rec unwrap_typ typ =
+  let t = match typ.type_expr with
+      | TE_tvar t ->
+          TE_tvar (unwrap_id t)
+      | TE_tname (m, t) ->
+          TE_tname (unwrap_mod m, unwrap_id t)
+      | TE_tapp (c, ts) ->
+          TE_tapp (unwrap_typ c, List.map unwrap_typ ts) in
+  {type_expr = t; type_expr_loc = Location.ghost_loc}
+
+let rec unwrap_pat pat =
+  let p = match pat.pattern with
+      | P_wildcard ->
+          P_wildcard
+      | P_var v ->
+          P_var (unwrap_var v)
+      | P_literal l ->
+          P_literal l
+      | P_variant (c, ps) ->
+          P_variant (unwrap_constructor c, List.map unwrap_pat ps) in
+  {pattern = p; pattern_loc = Location.ghost_loc; pattern_aux = ()}
+
+let rec unwrap_exp exp =
+  let e = match exp.expr with
+      | E_var v ->
+          E_var (unwrap_var v)
+      | E_constr (c, es) ->
+          let c = unwrap_constructor c in
+          E_constr (c, List.map unwrap_exp es)
+      | E_record fs ->
+          E_record (List.map
+                      (fun ((m, f), e) ->
+                        ((m, unwrap_id f), unwrap_exp e)
+                      ) fs)
+      | E_apply (f, es) ->
+          E_apply (unwrap_exp f, List.map unwrap_exp es)
+      | E_unop (op, e) ->
+          E_unop (op, unwrap_exp e)
+      | E_binop (op, l, r) ->
+          E_binop (op, unwrap_exp l, unwrap_exp r)
+      | E_recop ((m, r, rop), e) ->
+          E_recop ((unwrap_mod m, unwrap_id r, unwrap_id rop), unwrap_exp e)
+      | E_bitrange (e, n, m) ->
+          E_bitrange (unwrap_exp e, n, m)
+      | E_match (e, (m, t, c)) ->
+          E_match (unwrap_exp e, (unwrap_mod m, unwrap_id t, unwrap_id c))
+      | E_literal l ->
+          E_literal l
+      | E_field (e, (m, f)) ->
+          E_field (unwrap_exp e, (m, unwrap_id f))
+      | E_mod_member (m, v) ->
+          E_mod_member (unwrap_id m, unwrap_id v)
+      | E_let (p, e, b) ->
+          E_let (unwrap_pat p, unwrap_exp e, unwrap_exp b)
+      | E_case (e, bs) ->
+          let bs' =
+            List.map (fun (p, e') -> unwrap_pat p, unwrap_exp e') bs in
+          E_case (unwrap_exp e, bs')
+      | E_cast (e, t) ->
+          E_cast (unwrap_exp e, unwrap_typ t) in
+  {expr = e; expr_loc = Location.ghost_loc; expr_aux = ()}

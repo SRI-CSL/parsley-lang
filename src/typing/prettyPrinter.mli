@@ -23,16 +23,15 @@
 (** This module provides a common formatting interface to
     pretty-print in LaTeX, raw text or module Format mode. *)
 
-type formatter_output = {
-  out       : string -> int -> int -> unit;
-  flush     : unit -> unit;
-  newline   : unit -> unit;
-  spaces    : int -> unit;
-  with_tags : bool;
-  open_tag  : Format.stag -> unit;
-  close_tag : Format.stag -> unit;
-  margin    : int;
-}
+type formatter_output =
+  {out:       string -> int -> int -> unit;
+   flush:     unit -> unit;
+   newline:   unit -> unit;
+   spaces:    int -> unit;
+   with_tags: bool;
+   open_tag:  Format.stag -> unit;
+   close_tag: Format.stag -> unit;
+   margin:    int}
 
 type output =
   | Channel of out_channel
@@ -42,6 +41,6 @@ type mode =
   | Txt       of output
   | Formatter of formatter_output
 
-val output_string : output -> string -> unit
+val output_string: output -> string -> unit
 
-val flush : output -> unit
+val flush: output -> unit

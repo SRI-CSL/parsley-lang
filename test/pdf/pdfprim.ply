@@ -62,7 +62,7 @@ format {
   // specified by (NT ^ N), where N has to have an integer value.
   // RawStream is given an inherited attribute 'len' that controls how
   // long the payload is.
-  RawStream rs (len: int) {bytes: [byte]} :=
+  RawStream rs (len: usize) {bytes: [byte]} :=
     (# ["stream"] ["\n" | "\r\n"] #)
     b=(Byte ^ len)
     (# ["\r" | "\n" | "\r\n"]
@@ -72,11 +72,11 @@ format {
   HexString hs {hs: [byte] := []} :=
     !"<"!
     ( h1=HexChar h2=HexChar
-      { hs.hs := byte_of_int_unsafe((Int.of_byte(h1)*16 + Int.of_byte(h2))) :: hs.hs }
+      { hs.hs := h1 :: h2 :: hs.hs }
     )*
 
     ( h=HexChar
-      { hs.hs := byte_of_int_unsafe(Int.of_byte(h) * 16) :: hs.hs}
+      { hs.hs := h :: hs.hs}
     )?
     !">"!
     { hs.hs := List.rev(hs.hs) }
@@ -115,10 +115,10 @@ format {
   // Int.of_bytes() is a function in the Parsley standard library.
   // The _unsafe() version could be used if since we can be certain
   // that the string indeed contains a value convertible to an integer.
-  Integer i { i: int } :=
-    n=(# DigitS+ #)             { i.i := Int.of_bytes_unsafe(n)  }
+  Integer i { i: isize } :=
+    n=(# DigitS+ #)       { i.i := Isize.of_bytes_unsafe(n)  }
   ;
-    !"-"! n=(# DigitS+ #) { i.i := -Int.of_bytes_unsafe(n) }
+    !"-"! n=(# DigitS+ #) { i.i := -_i Isize.of_bytes_unsafe(n) }
   ;;
 
   // TODO: we might need to have a user-defined type for PDF reals,
