@@ -17,6 +17,7 @@ format {
 
 fun accum (acc: u32, b: byte) -> u32 = {
   acc +_u32 U32.of_byte(b)
+    acc + Int.of_byte(b)
 }
 
 fun do_fold(bl: [byte]) -> u32 = {

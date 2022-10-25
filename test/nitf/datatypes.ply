@@ -1,6 +1,6 @@
 format {
+    // NITF SPEC pg 6
     BCS_A := (# ["\x20" .. "\x7E"] #);;
-    ECS_A := (# ["\x20" .. "\x7E"] | ["\xA0" .. "\xFF"] #);;
-
-    // BCS_N_POS := ;;
+    ECS_A := (# ["\x20" .. "\x7E"] | ["\xA0" .. "\xFF"] #)
+    // BCS_N_POS :=
 }
