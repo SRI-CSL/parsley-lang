@@ -1,0 +1,6 @@
+// Defining the character sets required by NITF based on Page 6 of the spec
+format{
+    ECS := (# ["\x20" .. "\x7E"] | ["\xA0" .. "\xFF"] | ["\x0A"] | ["\x0C"] | ["\x0D"] #);;
+    ECS_A := (# ["\x20" .. "\x7E"] | ["\xA0" .. "\xFF"] #);;
+    BCS_A := (# ["\x20" .. "\x7E"] #);;
+}
