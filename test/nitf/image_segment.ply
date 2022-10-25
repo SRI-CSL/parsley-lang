@@ -11,6 +11,8 @@
 //   shall be preceded by a subheader corresponding to that data segment.
 // - The NITF File header and various subheaders have two types of fields: required and conditional.
 
+include character_sets
+
 // The data elements in the image subheader fields provide information 
 // about the image source, its identification, and characteristics 
 // needed to display and interpret it properly. The image subheader field definitions 
@@ -20,19 +22,19 @@ type image_subheader = {
     // image subheader presented as a user-defined record type
 
     // length of image subheader, see Fig. 7, pg. 9
-    sh_length: int,
-    im: string,
-    iid1: string,
+    // sh_length: int,
+    im: [byte],
+    iid1: [byte],
     // todo: Verify with Prashanth as IDATIM is datetime
-    idatim: string,
-    tgtid: string,
-    iid2: string,
+    idatim: [byte],
+    tgtid: [byte],
+    iid2: [byte],
     // image security classification
     // todo: consider moving this to a separate type
     isclas: [byte],
     isclsy: [byte],
     isctlh: [byte],
-    isrel: [string],
+    isrel: [byte],
     isdctp: [byte],
     isdcdt: string,         // another datetime
     isdcxm: [byte],
@@ -49,7 +51,7 @@ type image_subheader = {
     nrows: int,             // number of significant rows in image
     ncols: int,             // number of significant columns in image
     pvtype: [byte],         // pixel value type
-    irep: string,           // image representation
+    irep: [byte],           // image representation
     icat: string,           // image category
     abpp: int,              // actual bits-per-pixel per band
     pjust: [byte],          // pixel justification
@@ -82,13 +84,19 @@ type image_subheader = {
     udid: [byte],           // user-defined image data, DOUBLE-CHECK
     ixshdl: int,            // image extended subheader data length
     ixsofl: int,            // image extended subheader overflow
-    ixshd: [byte],          // image extended subheader data, length of (ixshdl - 3), DOUBLE-CHECK
+    ixshd: [byte]           // image extended subheader data, length of (ixshdl - 3), DOUBLE-CHECK
 }
 
 // todo: length of image segment, see Fig. 7, pg. 9
 type image_datafield = {
     // image datafield information goes here
     df_length: int
+}
+
+// The image data mask table is a conditional data structure 
+// included in the image data stream for masked images when so indicated by the IC field value
+type image_datamask = {
+    // todo
 }
 
 type image_segment = {
@@ -100,18 +108,37 @@ type image_segments = {
     // number of images, see Fig. 7, pg. 9
     n: int,
     // list of image segments
-    img_segs = [image_segment]
+    img_segs: [image_segment]
 }
 
 format {
-    // image segment non-terminal definition
-    ImageSegment im {i: image_segment} :=
-        {
+    IM := !"IM"!;;
+    ISCLAS := (#["T"|"S"|"C"|"R"|"U"]#);;
 
+    ImageSubheader img_sub {is: image_subheader} := 
+        image_identifier_1 = (BCS_A^10u)
+        // to do
+        // image_date_time =
+        // target_identifier = 
+        image_identifier_2 = (ECS_A^80u) // Required and BCS spaces required for the entire field, ask @Prashanth
+        image_security_classification = (ISCLAS^1u)
+        {
+            // img_sub.is.im   := IM;
+            img_sub.is.iid1 := image_identifier_1;
+            // img_sub.is.idatim := image_date_time;
+            // img_sub.is.tgtid := target_identifier;
+            img_sub.is.iid2 := image_identifier_2;
+            img_sub.is.isclas := image_security_classification
         }
+
+    // // image segment non-terminal definition
+    // ImageSegment im {i: image_segment} :=
+    //     {
+
+    //     }
     
-    ImageSegments ims {s: image_segments} := 
-        {
+    // ImageSegments ims {s: image_segments} := 
+    //     {
 
-        }
+    //     }
 }

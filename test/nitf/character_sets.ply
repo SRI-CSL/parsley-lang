@@ -1,0 +1,18 @@
+// NITF Image Segment Parsley Definition
+//
+// Description: Defining the character sets required by NITF based on Page 6 of the spec
+// 
+// SRI International, 2022
+
+format{
+    // Extended Character Set
+    ECS := (# ["\x20" .. "\x7E"] | ["\xA0" .. "\xFF"] | ["\x0A"] | ["\x0C"] | ["\x0D"] #);;
+    ECS_A := (# ["\x20" .. "\x7E"] | ["\xA0" .. "\xFF"] #);;
+
+    // Basic Character Set
+    BCS := (# ["\x20" .. "\x7E"] | ["\x0A"] | ["\x0C"] | ["\x0D"] #);;
+    BCS_A := (# ["\x20" .. "\x7E"] #);;
+    BCS_N := (# ["\x30" .. "\x39"] | ["\x2B"] | ["\x2D"] | ["\x2E"] | ["\x2F"] #);;
+    BCS_N_INT := (# ["\x30" .. "\x39"] | ["\x2B"] | ["\x2D"] #);;
+    BCS_N_INT_POS := (# ["\x30" .. "\x39"] #)
+}
