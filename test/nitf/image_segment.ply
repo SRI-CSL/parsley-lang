@@ -23,8 +23,8 @@ type image_subheader = {
 
     // length of image subheader, see Fig. 7, pg. 9
     sh_length: int,
-    im: string,
-    iid1: string,
+    im: [byte],
+    iid1: [byte],
     // todo: Verify with Prashanth as IDATIM is datetime
     idatim: string,
     tgtid: string,
@@ -112,6 +112,17 @@ type image_segments = {
 }
 
 format {
+    // file part type
+    IM := (# [ BCS-A | "IM" ] #);;
+
+    ImageSubheader img_sub {is: image_subheader} := 
+        file_part_type = (IM^2u)
+        image_identifier_1 = (BCS_A^10u)
+        {
+            img_sub.is.im   := file_part_type;
+            img_sub.is.iid1 := image_identifier_1;
+        }
+
     // image segment non-terminal definition
     ImageSegment im {i: image_segment} :=
         {
