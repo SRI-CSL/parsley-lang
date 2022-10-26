@@ -113,13 +113,14 @@ type image_segments = {
 }
 
 format {
-    // IM := !"IM"!;;
+    IM := !"IM"!;;
     ISCLAS := (# ["T" | "S" | "C" | "R" | "U" ] #);;
     ISDCTP := (# ["DD" | "DE" | "GD" | "GE" | "O" | "X" | "\x20"] #);;
     ISDCXM := (# ["X1" .. "X8"] | ["25X1" .. "25X9"] | "DNIO" | "\x20" #)
     ISDG := (# ["S" | "C" | "R" | "\x20"] #)
 
     ImageSubheader img_sub {is: image_subheader} := 
+        file_part_type = IM
         image_identifier_1 = (BCS_A^10u)
         // to do
         // image_date_time =
@@ -134,7 +135,7 @@ format {
         image_declassification_exemption = (ISDCXM^4u)
         image_downgrade = (ISDG^1u)
         {
-            img_sub.is.im   := !"IM"!;
+            img_sub.is.im   := file_part_type;
             img_sub.is.iid1 := image_identifier_1;
             // img_sub.is.idatim := image_date_time;
             // img_sub.is.tgtid := target_identifier;
