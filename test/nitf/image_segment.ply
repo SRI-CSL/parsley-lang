@@ -71,20 +71,20 @@ type image_subheader = {
     // more of the above in pg. 42
     isync: [byte],          // image sync code
     imode: [byte],          // image mode
-    nbpr: int,              // number of blocks per row
-    nbpc: int,              // number of blocks per column
-    nppbh: int,             // number of pixels per block horizontal
-    nppbv: int,             // number of pixels per block vertical
-    nbpp: int,              // number of bits per pixel per band
-    idlvl: int,             // image display level, BCS-N positive integer from 001 - 999
-    ialvl: int,             // attachment level, BCS-N positive integer from 000 - 998
+    nbpr: [byte],              // number of blocks per row
+    nbpc: [byte],              // number of blocks per column
+    nppbh: [byte],             // number of pixels per block horizontal
+    nppbv: [byte],             // number of pixels per block vertical
+    nbpp: [byte],              // number of bits per pixel per band
+    idlvl: [byte],             // image display level, BCS-N positive integer from 001 - 999
+    ialvl: [byte],             // attachment level, BCS-N positive integer from 000 - 998
     iloc: [byte],           // image location
     imag: [byte],           // image magnification
-    udidl: int,             // user-defined image data length, BCS-N positive integer 00000 or 00003 to 99999
-    udofl: int,             // user-defined overflow
+    udidl: [byte],             // user-defined image data length, BCS-N positive integer 00000 or 00003 to 99999
+    udofl: [byte],             // user-defined overflow
     udid: [byte],           // user-defined image data, DOUBLE-CHECK
-    ixshdl: int,            // image extended subheader data length
-    ixsofl: int,            // image extended subheader overflow
+    ixshdl: [byte],            // image extended subheader data length
+    ixsofl: [byte],            // image extended subheader overflow
     ixshd: [byte]           // image extended subheader data, length of (ixshdl - 3), DOUBLE-CHECK
 }
 
@@ -137,6 +137,12 @@ format {
     NICOM := (# ["0" .. "9"] #);;
     IC := (# ["NC" | "NM" | "I1"] | ["C1" .. "C8"] | ["M1" .. "M8"] | ["CB" | "MB" | "C9" | "M9" | "CA" | "MA"] #);;
     XBANDS := (# ["00010" .. "99999"] #);;
+    IMODE := (# ["B" | "P" | "R" | "S"] | ["T" | "D" | "E" | "F" | "X" | "Z"] #);;
+    NBP := (# ["0001" .. "9999"] #);;
+    NPP := (# ["0000"] | ["0001" .. "8192"] #);;
+    IDLVL := (# ["001" .. "999"] #);;
+    IALVL := (# ["000" .. "998"] #);;
+    UDIDL := (# ["00000"] | ["00003" .. "99999"] #);;
 
     ImageSubheader img_sub {is: image_subheader} := 
         file_part_type = IM
@@ -178,6 +184,27 @@ format {
         // compression_rate_code = 
         number_of_bands = (NICOM^1u)
         number_of_multispectral_bands = (XBANDS^5u)
+        // image sync code field is reserved for future use.
+        // This field shall contain BCS zero (0x30). see pg. 42 of NITF spec
+        image_sync_code = "\x30"
+        image_mode = (IMODE^1u)
+        number_of_blocks_per_row = (NBP^4u)
+        number_of_blocks_per_col = (NBP^4u)
+        number_of_pixels_per_block_horizontal = (NPP^4u)
+        number_of_pixels_per_block_vertical = (NPP^4u)
+        number_of_bits_per_pixel_per_band = (ABPP^2u)
+        image_display_level = (IDLVL^3u)
+        attachment_level = (IALVL^3u)
+        image_location = (BCS_N^10u)
+        image_magnification = (BCS_A^4u)
+        user_defined_image_data_length = (UDIDL^5u)
+        // conditional on UDIDL
+        // user_defined_overflow =
+        // user_defined_image_data = 
+        image_extended_subheader_data_length = (UDIDL^5u)
+        // conditional on IXSHDL
+        // image_extended_subheader_overflow =
+        // image_extended_subheader_data = 
         {
             img_sub.is.im   := file_part_type;
             
@@ -274,6 +301,41 @@ format {
             img_sub.is.nbands := number_of_bands;
 
             img_sub.is.xbands := number_of_multispectral_bands;
+
+            img_sub.is.isync := image_sync_code;
+
+            img_sub.is.imode := image_mode;
+
+            img_sub.is.nbpr := number_of_blocks_per_row;
+
+            img_sub.is.nbpc := number_of_blocks_per_col;
+
+            img_sub.is.nppbh := number_of_pixels_per_block_horizontal;
+
+            img_sub.is.nppbv := number_of_pixels_per_block_vertical;
+
+            img_sub.is.nbpp := number_of_bits_per_pixel_per_band;
+
+            img_sub.is.idlvl := image_display_level;
+
+            img_sub.is.ialvl := attachment_level;
+
+            img_sub.is.iloc := image_location;
+
+            img_sub.is.imag := image_magnification;
+
+            img_sub.is.udidl := user_defined_image_data_length;
+
+            // img_sub.is.udofl := user_defined_overflow;
+
+            // img_sub.is.udid := user_defined_image_data;
+
+            img_sub.is.ixshdl := image_extended_subheader_data_length;
+
+            // img_sub.is.ixsofl := image_extended_subheader_overflow;
+
+            // img_sub.is.ixshd := image_extended_subheader_data;
+
         }
 
     // // image segment non-terminal definition
