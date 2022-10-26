@@ -116,7 +116,7 @@ format {
     IM := !"IM"!;;
     ISCLAS := (# ["T" | "S" | "C" | "R" | "U" ] #);;
     ISDCTP := (# ["DD" | "DE" | "GD" | "GE" | "O" | "X" | "\x20"] #);;
-    ISDCXM := (# ["X1" .. "X8"] | ["25X1" .. "25X9"] | "DNIO" | "\x20" #)
+    ISDCXM := (# ["X1" .. "X8"] | ["25X1" .. "25X9"] | "DNIO" | "\x20" #);;
     ISDG := (# ["S" | "C" | "R" | "\x20"] #);;
     ISCATP := (# ["O" | "D" | "M" | "\x20"] #);;
     ISCRSN := (# ["A" .. "H"] | ["\x20"] #);;
@@ -130,6 +130,12 @@ format {
     ISSRDT := (# CCYYMMDD | ["\x20"]* #);;
     N_ROW_COL := (# ["00000001" .. "99999999"] #);;
     PVTYPE := (# [BCS_A | "INT" | "B" | "SI" | "R" | "C"] #);;
+    IREP := (# [BCS_A | "MONO" | "RGB" | "RGB/LUT" | "MULTI" | "NODISPLY" | "NVECTOR" | "POLAR" | "VPH" | "YCbCr601"] #);;
+    ABPP := (# ["01" .. "96"] #);;
+    PJUST := (# ["R" | "L"] #);;
+    ICORDS := (#["U" | "G" | "N" | "S" | "P" | "D" | "\x20"] #);;
+    NICOM := (# ["0" .. "9"] #);;
+    IC := (# ["NC" | "NM" | "I1"] | ["C1" .. "C8"] | ["M1" .. "M8"] | ["CB" | "MB" | "C9" | "M9" | "CA" | "MA"] #);;
 
     ImageSubheader img_sub {is: image_subheader} := 
         file_part_type = IM
@@ -147,7 +153,7 @@ format {
         image_declassification_exemption = (ISDCXM^4u)
         image_downgrade = (ISDG^1u)
         // image_downgrade_date = 
-        image_classification_text = (Byte^43)
+        image_classification_text = (Byte^43u)
         image_classification_authority_type = (ISCATP^1u)
         image_classification_authority = (Byte^40u)
         image_classification_reason = (ISCRSN^1u)
@@ -157,49 +163,108 @@ format {
         image_source = (ECS_A^42u)
         number_of_significant_rows_in_image = N_ROW_COL
         number_of_significant_cols_in_image = N_ROW_COL
-        pixel_value_type = (PVTYPE^3)
+        pixel_value_type = (PVTYPE^3u)
+        image_representation = (IREP^8u)
+        image_category = (BCS_A^8u)
+        actual_bit_per_pixel_per_band = (ABPP^2u)
+        pixel_justification = (PJUST^1u)
+        image_coordinate_representation = (ICORDS^1u)
+        // image_geographic_location =
+        number_of_image_comments = (NICOM^1u)
+        image_comment_n = (ECS_A^80u)
+        image_compression = (IC^2u)
         {
             img_sub.is.im   := file_part_type;
+            
             img_sub.is.iid1 := image_identifier_1;
+            
             // img_sub.is.idatim := image_date_time;
+            
             // img_sub.is.tgtid := target_identifier;
+            
             img_sub.is.iid2 := image_identifier_2;
+            
             img_sub.is.isclas := image_security_classification;
+            
             // img_sub.is.isclsy := image_security_classification_system;
+            
             // img_sub.is.iscode := image_codewords;
+            
             img_sub.is.isrel := image_releasing_instructions;
+            
             img_sub.is.isdctp := image_declassification_type;
+            
             // img_sub.is.isdcdt := image_declassification_date;
+            
             img_sub.is.isdcxm := image_declassification_exemption;
+            
             img_sub.is.isdg := image_downgrade;
+            
             // img_sub.is.isdgdt := image_downgrade_date;
+            
             img_sub.is.iscltx := image_classification_text;
 
             // to do: if this field contains and ECS space,
             // it shall imply that image classification authority type does not apply
             img_sub.is.iscatp := image_classification_authority_type;
+            
             // to do: If this field is populated with all ECS spaces (0x20), 
             // it shall imply that no image classification authority applies.
             img_sub.is.iscaut := image_classification_authority;
+            
             // to do: If this field contains an ECS space (0x20), 
             // it shall imply that no image classification reason applies.
             img_sub.is.iscrsn := image_classification_reason;
+            
             img_sub.is.issrdt := image_security_source_date;
+            
             // to do: If this field is populated with all ECS spaces (0x20), 
             // it shall imply that no image security control number applies.
             img_sub.is.isctln := image_security_control_number;
+            
             // This field shall contain the value BCS zero (0x30) 
             // until such time as this specification is updated to define the use of other values.
             img_sub.is.encryp := encryption;
+            
             // to do: This field shall contain a description of the source of the image. 
             // If the source of the data is classified, then the description shall be preceded by 
             // the classification, including codeword(s) contained in the NITF Field Value Registry,
             // specified in section C.2.1 Online Resources. If this field is populated with all ECS 
             // spaces (0x20), it shall imply that no image source data applies.
             img_sub.is.isorce := image_source;
+            
             img_sub.is.nrows := number_of_significant_rows_in_image;
+            
             img_sub.is.ncols := number_of_significant_cols_in_image;
+            
             img_sub.is.pvtype := pixel_value_type;
+
+            // This field should be used in conjunction with the IREPBANDn field to interpret
+            // the processing required to display each band in the image.
+            img_sub.is.irep := image_representation;
+
+            // to do: refer to pg. 34 for additional conditions
+            img_sub.is.icat := image_category;
+
+            // to do: The default number of significant bits to be used is the value contained in NBPP.
+            img_sub.is.abpp := actual_bits_per_pixel_per_band;
+            
+            // to do: default is R
+            img_sub.is.pjust := pixel_justification;
+
+            img_sub.is.icords := image_coordinate_representation;
+
+            // img_sub.is.igeolo := image_geographic_location;
+
+            img_sub.is.nicom := number_of_image_comments;
+
+            // to do: Check with Prashanth whether we can define this 
+            // as a matrix [idx_i][comment_img_i]
+            for i .. number_of_image_comments {
+                img_sub.is.icomn := image_comment_n
+            }
+
+            img_sub.is.ic := image_compression;
         }
 
     // // image segment non-terminal definition
