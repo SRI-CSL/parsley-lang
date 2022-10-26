@@ -21,5 +21,6 @@ consists of a sub-header and data fields as shown on FIGURE 3. An example is pro
 ## Questions (Briland):
 
 1. What is the best way to express `datetime` fields in Parsley?
-2. What would be the best way to approach to the fields in the image subheader? It seems as `string` would be the best way to represent most of them.
+2. What would be the best way to approach to the fields in the image subheader? It seems as `[byte]` would be the best way to represent most of them.
 3. How can we represent `required` and `not required` fields in Parsley?
+4. How to define a function to set `default` values for a field in NITF spec using Parsley?

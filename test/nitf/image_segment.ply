@@ -127,7 +127,7 @@ format {
                   ["1" .. "2"]["0" .. "9"] |
                   ["3"]["0" .. "1"]) // DD
                  #);;
-    ISSRDT := (# CCYYMMDD | ["\x20"]* #)              
+    ISSRDT := (# CCYYMMDD | ["\x20"]* #)         
 
     ImageSubheader img_sub {is: image_subheader} := 
         file_part_type = IM
@@ -151,6 +151,7 @@ format {
         image_classification_reason = (ISCRSN^1u)
         image_security_source_date = ISSRDT
         image_security_control_number = (ECS_A^15u)
+        encryption = (BCS_N_INT_POS^1u)
         {
             img_sub.is.im   := file_part_type;
             img_sub.is.iid1 := image_identifier_1;
@@ -181,6 +182,9 @@ format {
             // to do: If this field is populated with all ECS spaces (0x20), 
             // it shall imply that no image security control number applies.
             img_sub.is.isctln := image_security_control_number;
+            // This field shall contain the value BCS zero (0x30) 
+            // until such time as this specification is updated to define the use of other values.
+            img_sub.is.encryp := encryption;
         }
 
     // // image segment non-terminal definition
