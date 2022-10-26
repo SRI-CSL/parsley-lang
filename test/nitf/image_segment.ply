@@ -48,12 +48,12 @@ type image_subheader = {
     issrdt: [byte],         // date of the source used to derive the classification of the image
     isctln: [byte],            // image security control number
     encryp: [byte],         // encryption
-    isorce: string,         // image source
+    isorce: [byte],         // image source
     nrows: int,             // number of significant rows in image
     ncols: int,             // number of significant columns in image
     pvtype: [byte],         // pixel value type
     irep: [byte],           // image representation
-    icat: string,           // image category
+    icat: [byte],           // image category
     abpp: int,              // actual bits-per-pixel per band
     pjust: [byte],          // pixel justification
     icords: [byte],         // image coordinate representation
@@ -117,9 +117,9 @@ format {
     ISCLAS := (# ["T" | "S" | "C" | "R" | "U" ] #);;
     ISDCTP := (# ["DD" | "DE" | "GD" | "GE" | "O" | "X" | "\x20"] #);;
     ISDCXM := (# ["X1" .. "X8"] | ["25X1" .. "25X9"] | "DNIO" | "\x20" #)
-    ISDG := (# ["S" | "C" | "R" | "\x20"] #)
-    ISCATP := (# ["O" | "D" | "M" | "\x20"] #)
-    ISCRSN := (# ["A" .. "H"] | ["\x20"] #)
+    ISDG := (# ["S" | "C" | "R" | "\x20"] #);;
+    ISCATP := (# ["O" | "D" | "M" | "\x20"] #);;
+    ISCRSN := (# ["A" .. "H"] | ["\x20"] #);;
     CCYYMMDD := (# ["00".."99"] // CC
                  ["00".."99"] // YY
                  (["0"]["0".."9"]|["1"]["0".."2"])  // MM
@@ -127,7 +127,9 @@ format {
                   ["1" .. "2"]["0" .. "9"] |
                   ["3"]["0" .. "1"]) // DD
                  #);;
-    ISSRDT := (# CCYYMMDD | ["\x20"]* #)         
+    ISSRDT := (# CCYYMMDD | ["\x20"]* #);;
+    N_ROW_COL := (# ["00000001" .. "99999999"] #);;
+    PVTYPE := (# [BCS_A | "INT" | "B" | "SI" | "R" | "C"] #);;
 
     ImageSubheader img_sub {is: image_subheader} := 
         file_part_type = IM
@@ -152,6 +154,10 @@ format {
         image_security_source_date = ISSRDT
         image_security_control_number = (ECS_A^15u)
         encryption = (BCS_N_INT_POS^1u)
+        image_source = (ECS_A^42u)
+        number_of_significant_rows_in_image = N_ROW_COL
+        number_of_significant_cols_in_image = N_ROW_COL
+        pixel_value_type = (PVTYPE^3)
         {
             img_sub.is.im   := file_part_type;
             img_sub.is.iid1 := image_identifier_1;
@@ -185,6 +191,15 @@ format {
             // This field shall contain the value BCS zero (0x30) 
             // until such time as this specification is updated to define the use of other values.
             img_sub.is.encryp := encryption;
+            // to do: This field shall contain a description of the source of the image. 
+            // If the source of the data is classified, then the description shall be preceded by 
+            // the classification, including codeword(s) contained in the NITF Field Value Registry,
+            // specified in section C.2.1 Online Resources. If this field is populated with all ECS 
+            // spaces (0x20), it shall imply that no image source data applies.
+            img_sub.is.isorce := image_source;
+            img_sub.is.nrows := number_of_significant_rows_in_image;
+            img_sub.is.ncols := number_of_significant_cols_in_image;
+            img_sub.is.pvtype := pixel_value_type;
         }
 
     // // image segment non-terminal definition
