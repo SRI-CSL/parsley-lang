@@ -69,8 +69,8 @@ type image_subheader = {
     isubcatn: [byte],       // n-th band subcategory
     ifcn: [byte],           // n-th band filter condition
     // more of the above in pg. 42
-    isync: byte,            // image sync code
-    imode: byte,            // image mode
+    isync: [byte],          // image sync code
+    imode: [byte],          // image mode
     nbpr: int,              // number of blocks per row
     nbpc: int,              // number of blocks per column
     nppbh: int,             // number of pixels per block horizontal
@@ -136,6 +136,7 @@ format {
     ICORDS := (#["U" | "G" | "N" | "S" | "P" | "D" | "\x20"] #);;
     NICOM := (# ["0" .. "9"] #);;
     IC := (# ["NC" | "NM" | "I1"] | ["C1" .. "C8"] | ["M1" .. "M8"] | ["CB" | "MB" | "C9" | "M9" | "CA" | "MA"] #);;
+    XBANDS := (# ["00010" .. "99999"] #);;
 
     ImageSubheader img_sub {is: image_subheader} := 
         file_part_type = IM
@@ -173,6 +174,10 @@ format {
         number_of_image_comments = (NICOM^1u)
         image_comment_n = (ECS_A^80u)
         image_compression = (IC^2u)
+        // ASK: pg. 37: the field (COMRAT) is conditional based on the values of image compression (IC)
+        // compression_rate_code = 
+        number_of_bands = (NICOM^1u)
+        number_of_multispectral_bands = (XBANDS^5u)
         {
             img_sub.is.im   := file_part_type;
             
@@ -265,6 +270,10 @@ format {
             }
 
             img_sub.is.ic := image_compression;
+
+            img_sub.is.nbands := number_of_bands;
+
+            img_sub.is.xbands := number_of_multispectral_bands;
         }
 
     // // image segment non-terminal definition
