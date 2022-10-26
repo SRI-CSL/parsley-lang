@@ -33,13 +33,14 @@ type image_subheader = {
     // todo: consider moving this to a separate type
     isclas: [byte],
     isclsy: [byte],
+    iscode: [byte],
     isctlh: [byte],
     isrel: [byte],
     isdctp: [byte],
-    isdcdt: string,         // another datetime
+    isdcdt: [byte],         // another datetime
     isdcxm: [byte],
     isdg: [byte],
-    isdgdt: string,
+    isdgdt: [byte],
     iscltx: string,
     iscatp: [byte],
     iscaut: string,         // this and iscltx are user-defined free text
@@ -112,8 +113,11 @@ type image_segments = {
 }
 
 format {
-    IM := !"IM"!;;
-    ISCLAS := (#["T"|"S"|"C"|"R"|"U"]#);;
+    // IM := !"IM"!;;
+    ISCLAS := (# ["T" | "S" | "C" | "R" | "U" ] #);;
+    ISDCTP := (# ["DD" | "DE" | "GD" | "GE" | "O" | "X" | "\x20"] #);;
+    ISDCXM := (# ["X1" .. "X8"] | ["25X1" .. "25X9"] | "DNIO" | "\x20" #)
+    ISDG := (# ["S" | "C" | "R" | "\x20"] #)
 
     ImageSubheader img_sub {is: image_subheader} := 
         image_identifier_1 = (BCS_A^10u)
@@ -122,13 +126,27 @@ format {
         // target_identifier = 
         image_identifier_2 = (ECS_A^80u) // Required and BCS spaces required for the entire field, ask @Prashanth
         image_security_classification = (ISCLAS^1u)
+        // image_security_classification_system =
+        // image_codewords = 
+        image_releasing_instructions = (ECS_A^20u)
+        image_declassification_type = (ISDCTP^2u)
+        // image_declassification_date = 
+        image_declassification_exemption = (ISDCXM^4u)
+        image_downgrade = (ISDG^1u)
         {
-            // img_sub.is.im   := IM;
+            img_sub.is.im   := !"IM"!;
             img_sub.is.iid1 := image_identifier_1;
             // img_sub.is.idatim := image_date_time;
             // img_sub.is.tgtid := target_identifier;
             img_sub.is.iid2 := image_identifier_2;
-            img_sub.is.isclas := image_security_classification
+            img_sub.is.isclas := image_security_classification;
+            // img_sub.is.isclsy := image_security_classification_system;
+            // img_sub.is.iscode := image_codewords;
+            img_sub.is.isrel := image_releasing_instructions;
+            img_sub.is.isdctp := image_declassification_type;
+            // img_sub.is.isdcdt := image_declassification_date;
+            img_sub.is.isdcxm := image_declassification_exemption;
+            img_sub.is.isdg := image_downgrade;
         }
 
     // // image segment non-terminal definition
