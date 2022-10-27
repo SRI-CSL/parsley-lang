@@ -307,9 +307,14 @@ let rec eval_stmt (s: state) (st: Anf.astmt) : state =
         let svr = match av.av with
             | Anf.AV_var v -> Some (Anf_printer.string_of_var v)
             | _            -> None in
-        Printf.eprintf "%s = %s\n%!"
+        let fmt_pos (o, e) =
+          Printf.sprintf "offset %d (%d bytes remaining)" o (e - o) in
+        let o, e = let v = s.st_cur_view in
+                   v.vu_ofs, v.vu_end in
+        Printf.eprintf "%s = %s @ %s\n%!"
           (match svr with
              | Some s -> s  (* print var *)
              | None   -> Location.str_of_file_loc loc)
-          svl;
+          svl
+          (fmt_pos (o, e));
         s
