@@ -1,0 +1,10 @@
+type my_list('a) =
+ | Null
+ | Cons of 'a * my_list<'a>
+
+fun cons <'a> (e: 'a, l: my_list<'a>) -> my_list<'a> = {
+  (case l of
+   | my_list::Null()     -> my_list::Cons(e, my_list::Null())
+   | my_list::Cons(h, t) -> my_list::Cons(e, l)
+  )
+}

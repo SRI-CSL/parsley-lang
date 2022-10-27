@@ -1,11 +1,13 @@
 // import basic types
 include datatypes
+include match
 
 // TABLE 1 NITF FILE HEADER. pg. 15 of NITF spec
-// type image_segment_tuple = {
-//     lishn: [byte],
-//     lin: [byte]
-// }
+type image_segment_tuple = {
+    lishn: usize,
+    lin: usize
+}
+
 
 // NITF packet type
 type nitf_packet = {
@@ -15,43 +17,48 @@ type nitf_packet = {
     clevel: [byte],
     stype: [byte],
     ostaid: [byte],
-    fdt: [byte]
-    // ftitle: [byte]
-    // fsclas: [byte],
-    // fsclsy: [byte],
-    // fscode: [byte],
-    // fsctlh: [byte],
-    // fsrel: [byte],
-    // fsdctp: [byte],
-    // fsdcdt: [byte],
-    // fsdcxm: [byte],
-    // fsdg: [byte],
-    // fsdgdt: [byte],
-    // fscltx: [byte],
-    // fscatp: [byte],
-    // fscaut: [byte],
-    // fscrsn: [byte],
-    // fssrdt: [byte],
-    // fsctln: [byte],
-    // fscop: [byte],
-    // fscpys: [byte],
-    // encryp: [byte],
-    // fbkgc: [byte],
-    // oname: [byte],
-    // ophone: [byte],
-    // fl: [byte],
-    // hl: [byte],
-    // numi: [byte]
+    fdt: [byte],
+    ftitle: [byte],
+    fsclas: [byte],
+    fsclsy: [byte],
+    fscode: [byte],
+    fsctlh: [byte],
+    fsrel: [byte],
+    fsdctp: [byte],
+    fsdcdt: [byte],
+    fsdcxm: [byte],
+    fsdg: [byte],
+    fsdgdt: [byte],
+    fscltx: [byte],
+    fscatp: [byte],
+    fscaut: [byte],
+    fscrsn: [byte],
+    fssrdt: [byte],
+    fsctln: [byte],
+    fscop: [byte],
+    fscpys: [byte],
+    encryp: [byte],
+    fbkgc: [byte],
+    oname: [byte],
+    ophone: [byte],
+    fl: usize,
+    hl: usize,
+    numi: usize,
 
     // image segment subheader + image segment header len start here
-    // image_segment_tuple : [image_segment_tuple]
+    image_segments: [image_segment_tuple]
 }
 
 
-// fun str_to_int(b: [byte]) -> usize {
-//    // try list.nth
-//    b[2] +_u (b[1] *_u 256u) +_u (b[0] * 256u)
-// }
+fun sum(acc: (usize, usize), b: byte) -> (usize, usize) = {
+    let (x, y) = acc in
+        (x +_u (Usize.of_byte(b) *_u 256u), y +_u 1u)
+}
+
+fun byte_to_usize(b: [byte]) -> usize = {
+   let (acc, count) = List.fold(sum, (0u, 0u), b) in
+    acc
+}
 
 format {
     // Table 1 of NITF spec.
@@ -81,13 +88,12 @@ format {
     FSCTLH := (# ECS_A ^ 2u #);;
     FSREL := (# ECS_A ^ 20u #);;
     FSDCTP := (# ["DD" | "DE" | "GD" | "GE" | "O" | "X" | "\x20\x20"] #);;
-    CCYYMMDD := (# ["00".."99"] // CC
-                 ["00".."99"] // YY
-                 (["0"]["0".."9"]|["1"]["0".."2"])  // MM
-                 (["0"]["1".."9"] |
-                  ["1" .. "2"]["0" .. "9"] |
-                  ["3"]["0" .. "1"]) // DD
-                 #);;
+    CC := (#["0".."9"] ^ 2u #);;
+    YY := (#["0".."9"] ^ 2u #);;
+    MM := (# ["0"] ["1" .. "9"] | ["1"] ["0" .. "2"] #);;
+    DD := (# ["0"] ["1" .. "9"] | ["1"|"2"] ["0" .. "9"] | ["3"]["0" .. "1"] #);;
+
+    CCYYMMDD := (#CC YY MM DD#);;
     FSDCDT := (# CCYYMMDD | ["\x20"]* #);;
     FSDCXM := (# (["X"]["1".. "8"] ) |
                  (["25X"]["1" .. "9"]) |
@@ -102,19 +108,31 @@ format {
     FSCRSN := (# ["A" .. "H"] | ["\x20"] #);;
     FSSRDT := (# CCYYMMDD | ["\x20"]* #);;
     FSCTLN := (# ECS_A ^ 15u #);;
-    FSCOP := (# ["00000" .. "99999"] #);;
-    FSCPYS := (# ["00000" .. "99999"] #);;
+    FSCOP := (# ["0" .. "9"] #);;
+    FSCPYS := (# ["0" .. "9"] #);;
     ENCRYP := !"\x30"!;;
     FBKGC := (# ["\x00" .. "\xFF"] ^ 3u #);;
     ONAME := (# ECS_A ^ 24u #);;
     OPHONE := (# ECS_A ^ 18u #);;
-    FL := (# ["000000000388" .. "999999999998"]#);;
-    HL := (# ["000388" .. "999999"]#);;
-    NUMI := (# ["0" .. "9"] ^ 3u #);; // ask
 
-    LISHn := (# ["000439" .. "999999"] #);;
-    LIn := (# ["0000000001" .. "9999999999"] #);;
+    FL := (# ["0" .. "9"]#);;
+    HL := (# ["0" .. "9"]#);;
+    NUMI := (# ["0" .. "9"] ^ 3u #);;
 
+    LISHn := (# ["0" .. "9"] ^ 6u #);;
+    LIn := (# ["0" .. "9"] ^ 10u #);;
+
+    ImageSegment imgSeg {is: image_segment_tuple} :=
+    lishn = LISHn
+    [byte_to_usize(lishn) >=_u 000439u
+        && byte_to_usize(lishn) <=_u 999999u]
+
+    lin = LIn
+    [byte_to_usize(lin) >=_u 1u && byte_to_usize(lin) <=_u 9999999999u]
+    {
+        imgSeg.is.lishn := byte_to_usize(lishn);
+        imgSeg.is.lin := byte_to_usize(lin)
+    };;
 
     NITFpacket npkt {n: nitf_packet} :=
     fhdr = FHDR
@@ -138,69 +156,108 @@ format {
     [List.length(stype) = 14u]
     {npkt.n.fdt    := fdt}
 
-    // ftitle = FTITLE
-    // fsclas = FSCLAS
-    // fsclas = (Byte^01u)
-    // // ask: if fsclas is not U then FSCLSY cannot be spaces
-    // fsclsy = FSCLSY
-    // fsclsy = (Byte ^02u)
-    // fscode = FSCODE
-    // fscode = (Byte^11u)
-    // fsctlh = FSCTLH
-    // fsctlh = (Byte^2u)
-    // fsrel = FSREL
-    // fsrel = (Byte^20u)
-    // fsdctp = FSDCTP
-    // fsdcdt = FSDCDT
-    // fsdcxm = FSDCXM
-    // fsdg   = FSDG
-    // fsdgdt  = FSDGDT
-    // fscltx = FSCLTX
-    // fscatp = FSCATP
-    // fscaut = FSCAUT
-    // fscrsn = FSCRSN
-    // fssrdt = FSSRDT
-    // fsctln = FSCTLN
-    // fscop  = FSCOP
-    // fscpys = FSCPYS
-    // encryp = ENCRYP
-    // fbkgc  = FBKGC
-    // oname  = ONAME
-    // ophone = OPHONE
-    // fl     = FL
-    // hl     = HL
-    // numi   = NUMI
-    // {
-    //    //  npkt.n.ftitle := ftitle;
-    //    //  npkt.n.fsclas := fsclas;
-    //    //  npkt.n.fsclsy := fsclsy;
-    //    //  npkt.n.fscode := fscode;
-    //    //  npkt.n.fsctlh := fsctlh;
-    //    //  npkt.n.fsrel  := fsrel;
-    //    //  npkt.n.fsdctp := fsdctp;
-    //    //  npkt.n.fsdcdt := fsdcdt;
-    //    //  npkt.n.fsdcxm := fsdcxm;
-    //    //  npkt.n.fsdg   := fsdg;
-    //    //  npkt.n.fsdgdt := fsdgdt;
-    //    //  npkt.n.fscltx := fscltx;
-    //    //  npkt.n.fscatp := fscatp;
-    //    //  npkt.n.fscaut := fscaut;
-    //    //  npkt.n.fscrsn := fscrsn;
-    //    //  npkt.n.fssrdt := fssrdt;
-    //    //  npkt.n.fsctln := fsctln;
-    //    //  npkt.n.fscop  := fscop;
-    //    //  npkt.n.fscpys := fscpys;
-    //    //  npkt.n.encryp := encryp;
-    //    //  npkt.n.fbkgc  := fbkgc;
-    //    //  npkt.n.oname  := oname;
-    //    //  npkt.n.ophone := ophone;
-    //    //  npkt.n.fl     := fl;
-    //    //  npkt.n.hl     := hl;
-    //    //  npkt.n.numi   := numi
-    //    //  // // image segments start here
-    //    //  // for i .. numi {
-    //    //  //     image_segment_tuple.lishn := LISHn;;
-    //    //  //     image_segment_tuple.lin := LIn;;
-    //    //  // }
-    // }
+    ftitle = FTITLE
+    {npkt.n.ftitle := ftitle}
+    fsclas = FSCLAS
+    {npkt.n.fsclas := fsclas}
+
+    fsclsy = FSCLSY
+    // ask implication
+    // if fsclas is not U then FSCLSY cannot be spaces
+    [(fsclas != "U" && fsclsy != "  ")]
+    {npkt.n.fsclsy := fsclsy}
+
+    fscode = FSCODE
+    [(fscode != "           " && fsclsy != "  ")]
+    {npkt.n.fscode := fscode}
+
+    fsctlh = FSCTLH
+    [(fsctlh != "  " && fsclsy != "  ")]
+    {npkt.n.fsctlh := fsctlh}
+
+    fsrel = FSREL
+    [(fsrel != "                    " && fsclsy != "  ")]
+    {npkt.n.fsrel  := fsrel}
+
+    fsdctp = FSDCTP
+    [(fsdctp != "  " && fsclsy != "  ")]
+    {npkt.n.fsdctp := fsdctp}
+
+    fsdcdt = FSDCDT
+    [(fsdcdt != "        " && fsclsy != "  ")]
+    {npkt.n.fsdcdt := fsdcdt}
+
+    fsdcxm = FSDCXM
+    [(fsdcxm != "    " && fsclsy != "  ")]
+    {npkt.n.fsdcxm := fsdcxm}
+
+    fsdg   = FSDG
+    [(fsdg != " " && fsclsy != "  ")]
+    {npkt.n.fsdg   := fsdg}
+
+    fsdgdt  = FSDGDT
+    [(fsdgdt != "        " && fsclsy != "  ")]
+    {npkt.n.fsdgdt := fsdgdt}
+
+    fscltx = FSCLTX
+    [(fscltx != "                                           " && fsclsy != "  ")]
+    {npkt.n.fscltx := fscltx}
+
+    fscatp = FSCATP
+    [(fscatp != " " && fsclsy != "  ")]
+    {npkt.n.fscatp := fscatp}
+
+    fscaut = FSCAUT
+    [(fscaut != "                                        "
+        && fsclsy != "  ")]
+    {npkt.n.fscaut := fscaut}
+
+    fscrsn = FSCRSN
+    [(fscrsn != " " && fsclsy != "  ")]
+    {npkt.n.fscrsn := fscrsn}
+
+    fssrdt = FSSRDT
+    [(fssrdt != "        " && fsclsy != "  ")]
+    {npkt.n.fssrdt := fssrdt}
+
+    fsctln = FSCTLN
+    [(fsctln != "               " && fsclsy != "  ")]
+    {npkt.n.fsctln := fsctln}
+
+    fscop  = FSCOP
+    {npkt.n.fscop  := fscop}
+
+    fscpys = FSCPYS
+    {npkt.n.fscpys := fscpys}
+
+    encryp = ENCRYP
+    {npkt.n.encryp := encryp}
+
+    fbkgc  = FBKGC
+    {npkt.n.fbkgc  := fbkgc}
+
+    oname  = ONAME
+    {npkt.n.oname  := oname}
+
+    ophone = OPHONE
+    {npkt.n.ophone := ophone}
+
+    fl     = FL
+    [List.length(fl) = 12u]
+
+    hl     = HL
+    [List.length(hl) = 6u]
+
+    numi   = NUMI
+    [List.length(numi) = 3u]
+
+    images_segments = (ImageSegment^byte_to_usize(numi))
+    {
+        npkt.n.fl     := byte_to_usize(fl);
+        npkt.n.hl     := byte_to_usize(hl);
+        npkt.n.numi   := byte_to_usize(numi);
+
+        // parse image segments
+        npkt.n.image_segments := images_segments.is
+    }
 }
