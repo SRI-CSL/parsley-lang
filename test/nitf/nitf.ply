@@ -122,7 +122,7 @@ format {
     LISHn := (# ["0" .. "9"] ^ 6u #);;
     LIn := (# ["0" .. "9"] ^ 10u #);;
 
-    ImageSegment imgSeg {is: image_segment_tuple} :=
+    ImageSegment imgSeg {image_segment_tuple} :=
     lishn = LISHn
     [byte_to_usize(lishn) >=_u 000439u
         && byte_to_usize(lishn) <=_u 999999u]
@@ -130,8 +130,8 @@ format {
     lin = LIn
     [byte_to_usize(lin) >=_u 1u && byte_to_usize(lin) <=_u 9999999999u]
     {
-        imgSeg.is.lishn := byte_to_usize(lishn);
-        imgSeg.is.lin := byte_to_usize(lin)
+        imgSeg.lishn := byte_to_usize(lishn);
+        imgSeg.lin := byte_to_usize(lin)
     };;
 
     NITFpacket npkt {n: nitf_packet} :=
@@ -258,6 +258,6 @@ format {
         npkt.n.numi   := byte_to_usize(numi);
 
         // parse image segments
-        npkt.n.image_segments := images_segments.is
+        npkt.n.image_segments := images_segments
     }
 }
