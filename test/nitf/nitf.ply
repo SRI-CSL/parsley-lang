@@ -1,6 +1,7 @@
 // import basic types
-include datatypes
+include character_sets
 include match
+
 
 // TABLE 1 NITF FILE HEADER. pg. 15 of NITF spec
 type image_segment_tuple = {
@@ -8,6 +9,25 @@ type image_segment_tuple = {
     lin: usize
 }
 
+type graphic_segment_tuple = {
+    lsshn: usize,
+    lsn: usize
+}
+
+type text_segment_tuple = {
+    ltshn: usize,
+    ltn: usize
+}
+
+type data_segment_tuple = {
+    ldshn: usize,
+    ldn: usize
+}
+
+type res_segment_tuple = {
+    lreshn: usize,
+    lren: usize
+}
 
 // NITF packet type
 type nitf_packet = {
@@ -43,40 +63,86 @@ type nitf_packet = {
     ophone: [byte],
     fl: usize,
     hl: usize,
-    numi: usize,
 
     // image segment subheader + image segment header len start here
-    image_segments: [image_segment_tuple]
+    numi: usize,
+    image_segments: [image_segment_tuple],
+
+    // graphic segments
+    nums: usize,
+    graphic_segments: [graphic_segment_tuple],
+
+    // reserved field
+    numx: usize,
+
+    // text segments
+    numt: usize,
+    text_segments: [text_segment_tuple],
+
+    // data extension segments
+    numdes: usize,
+    data_segments: [data_segment_tuple],
+
+    // reserved extension segments
+    numres: usize,
+    res_segments: [res_segment_tuple],
+
+    udhdl: usize,
+    udhofl: usize,
+    udhd: [byte],
+    xhdl: usize,
+    xhdlofl: usize,
+    xhd: [byte]
 }
 
+recfun pow(x: usize, y: usize, z: usize) -> usize = {
+    (case y of
+    | 0u -> 1u
+    | 1u -> x
+    | _ ->  (case z <_u y of
+             | bool::True() -> pow(x *_u x, y, z +_u 1u)
+             | bool::False() -> x))
+
+}
 
 fun sum(acc: (usize, usize), b: byte) -> (usize, usize) = {
     let (x, y) = acc in
-        (x +_u (Usize.of_byte(b) *_u 256u), y +_u 1u)
+        (x +_u ((Usize.of_byte(b) -_u 48u) *_u pow(10u, y, 1u)), y +_u 1u)
 }
 
-fun byte_to_usize(b: [byte]) -> usize = {
-   let (acc, count) = List.fold(sum, (0u, 0u), b) in
-    acc
+fun byte_to_usize(b: [byte], width: usize) -> usize = {
+   // 48u is 0x30 hex subtracted to get the decimal value of each index
+   // let (acc, count) = List.fold(sum, (0u, 0u), List.rev(b)) in
+   //  acc
+   let s = (case width of
+   | 3u -> 3158064u
+   | 4u -> 808464432u
+   | 6u -> 52983525027888u
+   | 5u -> 206966894640u
+   | 7u -> 13563782407139376u
+   // incorrect
+   | 10u -> 0u
+   | 12u -> 0u
+   | _ -> 0u)
+   in
+   (case Usize.of_bytes(b) of
+    | option::Some(a) -> a -_u s
+    | option::None() -> 0u)
 }
 
 format {
     // Table 1 of NITF spec.
     FHDR := !"NITF"!;;
-    FVER := !"02.00"!;;
 
-    CLEVEL := (# ["0" .. "9"] ^ 2u#);;
+    FVER := !"02.10"!;;
 
-    // STYPE := !"BF01"!;;
-    // relaxed version:
-    STYPE := (# BCS_A ^ 4u #);;
+    CLEVEL := (# BCS_N ^ 2u#);;
 
-    // This field shall contain the identification code or name of the
-    // originating organization, system, station, or product.
-    // It shall not be filled with BCS spaces (0x20). size 10.
+    STYPE := !"BF01"!;;
+
     OSTAID := (# BCS_A ^ 10u #);;
 
-    FDT := (#["0" .. "9"] ^ 14u #);;
+    FDT := (# BCS_N ^ 14u #);;
 
     FSCLAS := (#["T"|"S"|"C"|"R"|"U"]#);;
 
@@ -92,31 +158,34 @@ format {
     YY := (#["0".."9"] ^ 2u #);;
     MM := (# ["0"] ["1" .. "9"] | ["1"] ["0" .. "2"] #);;
     DD := (# ["0"] ["1" .. "9"] | ["1"|"2"] ["0" .. "9"] | ["3"]["0" .. "1"] #);;
+    // hh :=
+    // mm :=
+    // ss :=
 
     CCYYMMDD := (#CC YY MM DD#);;
-    FSDCDT := (# CCYYMMDD | ["\x20"]* #);;
-    FSDCXM := (# (["X"]["1".. "8"] ) |
-                 (["25X"]["1" .. "9"]) |
-                 ["DINO"]|
-                 ["\x20"]*
-               #);;
-    FSDG := (# ["S" | "C" | "R" | "\x20"] #);;
-    FSDGDT := (# CCYYMMDD | ["\x20"]* #);;
+    FSDCDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
+    FSDCXM := (# (["\x20"] ^ 4u)
+                 | (["  X"]["1" .. "8"])
+                 | (["X"]["1" .. "8"]["  "])
+                 | (["25X"]["1" .. "9"])
+                 | ["DINO"] #);;
+    FSDG := (# ["\x20" | "S" | "C" | "R"]  #);;
+    FSDGDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
     FSCLTX := (# ECS_A ^ 43u #);;
     FSCATP := (# ["O" | "D" | "M" | "\x20"] #);;
     FSCAUT := (# ECS_A ^ 40u #);;
     FSCRSN := (# ["A" .. "H"] | ["\x20"] #);;
-    FSSRDT := (# CCYYMMDD | ["\x20"]* #);;
+    FSSRDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
     FSCTLN := (# ECS_A ^ 15u #);;
-    FSCOP := (# ["0" .. "9"] #);;
-    FSCPYS := (# ["0" .. "9"] #);;
+    FSCOP := (# ["0" .. "9"] ^ 5u#);;
+    FSCPYS := (# ["0" .. "9"] ^ 5u #);;
     ENCRYP := !"\x30"!;;
     FBKGC := (# ["\x00" .. "\xFF"] ^ 3u #);;
     ONAME := (# ECS_A ^ 24u #);;
     OPHONE := (# ECS_A ^ 18u #);;
 
-    FL := (# ["0" .. "9"]#);;
-    HL := (# ["0" .. "9"]#);;
+    FL := (# ["0" .. "9"] ^ 12u#);;
+    HL := (# ["0" .. "9"] ^ 6u#);;
     NUMI := (# ["0" .. "9"] ^ 3u #);;
 
     LISHn := (# ["0" .. "9"] ^ 6u #);;
@@ -124,140 +193,306 @@ format {
 
     ImageSegment imgSeg {image_segment_tuple} :=
     lishn = LISHn
-    [byte_to_usize(lishn) >=_u 000439u
-        && byte_to_usize(lishn) <=_u 999999u]
-
+    // [byte_to_usize(lishn, 6u) >=_u 000439u && byte_to_usize(lishn, 6u) <=_u 999999u]
     lin = LIn
-    [byte_to_usize(lin) >=_u 1u && byte_to_usize(lin) <=_u 9999999999u]
+    // [byte_to_usize(lin, 10u) >=_u 1u && byte_to_usize(lin, 10u) <=_u 9999999999u]
     {
-        imgSeg.lishn := byte_to_usize(lishn);
-        imgSeg.lin := byte_to_usize(lin)
+        $print_t("lishn:");
+        imgSeg.lishn := byte_to_usize(lishn, 6u);
+        $print_t(imgSeg.lishn);
+        $print_t("lin:");
+        imgSeg.lin := byte_to_usize(lin, 10u);
+        $print_t(imgSeg.lin)
     };;
 
-    NITFpacket npkt {n: nitf_packet} :=
+    // pg 15 table 1 continues after imageSegment info
+    NUMS := (#BCS_N ^ 3u#);;
+
+    LSSHn := (# ["0" .. "9"] ^ 4u #);;
+    LSn := (# ["0" .. "9"] ^ 6u #);;
+
+    GraphicSegment graSeg {graphic_segment_tuple} :=
+    lsshn = LSSHn
+    // [byte_to_usize(lsshn, 4u) >=_u 0258u && byte_to_usize(lsshn, 4u) <=_u 9998u]
+    lsn = LSn
+    // [byte_to_usize(lsn, 6u) >=_u 1u && byte_to_usize(lsn, 6u) <=_u 999998u]
+    {
+        $print_t("lsshn:");
+        graSeg.lsshn := byte_to_usize(lsshn, 6u);
+        $print_t(graSeg.lsshn);
+        $print_t("lsn:");
+        graSeg.lsn := byte_to_usize(lsn, 10u);
+        $print_t(graSeg.lsn)
+    };;
+
+    NUMX := (#BCS_N ^ 3u#);;
+    NUMT := (#BCS_N ^ 3u#);;
+
+    LTSHn := (# ["0" .. "9"] ^ 4u #);;
+    LTn := (# ["0" .. "9"] ^ 5u #);;
+
+    TextSegment txtSeg {text_segment_tuple} :=
+    ltshn = LTSHn
+    // [byte_to_usize(lsshn, 4u) >=_u 282u && byte_to_usize(lsshn, 4u) <=_u 9998u]
+    ltn = LTn
+    // [byte_to_usize(lsn, 6u) >=_u 1u && byte_to_usize(lsn, 6u) <=_u 99998]
+    {
+        $print_t("ltshn:");
+        txtSeg.ltshn := byte_to_usize(ltshn, 6u);
+        $print_t(txtSeg.ltshn);
+        $print_t("ltn:");
+        txtSeg.ltn := byte_to_usize(ltn, 10u);
+        $print_t(txtSeg.ltn)
+    };;
+
+    NUMDES := (#BCS_N ^ 3u#);;
+
+    LDSHn := (# ["0" .. "9"] ^ 4u #);;
+    LDn := (# ["0" .. "9"] ^ 9u #);;
+
+    DesSegment desSeg {data_segment_tuple} :=
+    ldshn = LDSHn
+    // [byte_to_usize(ldshn, 4u) >=_u 200u && byte_to_usize(ldshn, 4u) <=_u 9998u]
+    ldn = LDn
+    // [byte_to_usize(ldn, 9u) >=_u 1u && byte_to_usize(ldn, 9u) <=_u 999999998u]
+    {
+        $print_t("ldshn:");
+        desSeg.ldshn := byte_to_usize(ldshn, 4u);
+        $print_t(desSeg.ldshn);
+        $print_t("ldn:");
+        desSeg.ldn := byte_to_usize(ldn, 9u);
+        $print_t(desSeg.ldn)
+    };;
+
+    NUMRES := (#BCS_N ^ 3u#);;
+
+    LRESHn := (# ["0" .. "9"] ^ 4u #);;
+    LREn := (# ["0" .. "9"] ^ 7u #);;
+
+    ResSegment resSeg {res_segment_tuple} :=
+    lreshn = LRESHn
+    // [byte_to_usize(lreshn, 4u) >=_u 200u && byte_to_usize(lreshn, 4u) <=_u 9999u]
+    lren = LREn
+    // [byte_to_usize(lren, 7u) >=_u 1u && byte_to_usize(lren, 7u) <=_u 9999999u]
+    {
+        $print_t("lreshn:");
+        resSeg.lreshn := byte_to_usize(lreshn, 4u);
+        $print_t(resSeg.lreshn);
+        $print_t("lren:");
+        resSeg.lren := byte_to_usize(lren, 7u);
+        $print_t(resSeg.lren)
+    };;
+
+    UDHDL := (# ["0" .. "9"] ^ 5u #);;
+    UDHOFL := (# ["0" .. "9"] ^ 3u #);;
+
+    XHDL := (# ["0" .. "9"] ^ 5u #);;
+    XHDLOFL := (# ["0" .. "9"] ^ 3u #);;
+
+    NITFpacket npkt {nitf_packet} :=
     fhdr = FHDR
-    {npkt.n.fhdr   := fhdr}
+    {npkt.fhdr   := fhdr;
+    $print_t("FHDR")}
 
     fver = FVER
-    {npkt.n.fver   := fver}
+    {npkt.fver   := fver}
 
     clevel = CLEVEL
-    {npkt.n.clevel := clevel}
+    {npkt.clevel := clevel}
 
     stype = STYPE
     [List.length(stype) = 4u]
-    {npkt.n.stype  := stype}
+    {npkt.stype  := stype}
 
     ostaid = OSTAID
     [ostaid != "          "]
-    {npkt.n.ostaid := ostaid}
+    {npkt.ostaid := ostaid;
+    $print_t("OSTAID")}
 
     fdt = FDT
-    [List.length(stype) = 14u]
-    {npkt.n.fdt    := fdt}
+    [List.length(fdt) = 14u]
+    {npkt.fdt    := fdt}
 
     ftitle = FTITLE
-    {npkt.n.ftitle := ftitle}
+    {npkt.ftitle := ftitle}
+
     fsclas = FSCLAS
-    {npkt.n.fsclas := fsclas}
+    {npkt.fsclas := fsclas;
+    $print_t("FSCLAS")}
 
     fsclsy = FSCLSY
-    // ask implication
     // if fsclas is not U then FSCLSY cannot be spaces
-    [(fsclas != "U" && fsclsy != "  ")]
-    {npkt.n.fsclsy := fsclsy}
+    [(fsclas = "U" || fsclsy != "  ")]
+    {npkt.fsclsy := fsclsy}
 
     fscode = FSCODE
-    [(fscode != "           " && fsclsy != "  ")]
-    {npkt.n.fscode := fscode}
+    // [(fscode = "           " || fsclsy != "  ")]
+    {npkt.fscode := fscode}
 
     fsctlh = FSCTLH
-    [(fsctlh != "  " && fsclsy != "  ")]
-    {npkt.n.fsctlh := fsctlh}
+    // [(fsctlh = "  " || fsclsy != "  ")]
+    {npkt.fsctlh := fsctlh}
 
     fsrel = FSREL
-    [(fsrel != "                    " && fsclsy != "  ")]
-    {npkt.n.fsrel  := fsrel}
+    // [(fsrel = "                    " || fsclsy != "  ")]
+    {npkt.fsrel  := fsrel}
 
     fsdctp = FSDCTP
-    [(fsdctp != "  " && fsclsy != "  ")]
-    {npkt.n.fsdctp := fsdctp}
+    // [(fsdctp = "  " || fsclsy != "  ")]
+    {npkt.fsdctp := fsdctp}
 
     fsdcdt = FSDCDT
-    [(fsdcdt != "        " && fsclsy != "  ")]
-    {npkt.n.fsdcdt := fsdcdt}
+    // [(fsdcdt = "        " || fsclsy != "  ")]
+    {npkt.fsdcdt := fsdcdt;
+      $print_t("165 offset here") }
 
     fsdcxm = FSDCXM
-    [(fsdcxm != "    " && fsclsy != "  ")]
-    {npkt.n.fsdcxm := fsdcxm}
+    // [(fsdcxm = "    " || fsclsy != "  ")]
+    {npkt.fsdcxm := fsdcxm;
+    $print_t("offset 169 - FSDCXM passed")}
 
     fsdg   = FSDG
-    [(fsdg != " " && fsclsy != "  ")]
-    {npkt.n.fsdg   := fsdg}
+    // [(fsdg = " " || fsclsy != "  ")]
+    {npkt.fsdg   := fsdg}
 
     fsdgdt  = FSDGDT
-    [(fsdgdt != "        " && fsclsy != "  ")]
-    {npkt.n.fsdgdt := fsdgdt}
+    // [(fsdgdt = "        " || fsclsy != "  ")]
+    {npkt.fsdgdt := fsdgdt;
+     $print_t("offset 178 - FSDGDT passed")}
 
     fscltx = FSCLTX
-    [(fscltx != "                                           " && fsclsy != "  ")]
-    {npkt.n.fscltx := fscltx}
+    {npkt.fscltx := fscltx;
+     $print_t("offset 221 - FSCLTX passed")}
 
     fscatp = FSCATP
-    [(fscatp != " " && fsclsy != "  ")]
-    {npkt.n.fscatp := fscatp}
+    {npkt.fscatp := fscatp;
+     $print_t("offset 222 - FACATP parsed.")}
 
     fscaut = FSCAUT
-    [(fscaut != "                                        "
-        && fsclsy != "  ")]
-    {npkt.n.fscaut := fscaut}
+    {npkt.fscaut := fscaut;
+     $print_t("offset 262 - FSCAUT")}
 
     fscrsn = FSCRSN
-    [(fscrsn != " " && fsclsy != "  ")]
-    {npkt.n.fscrsn := fscrsn}
+    {npkt.fscrsn := fscrsn;
+     $print_t("offset 263 - FSCRSN")}
 
     fssrdt = FSSRDT
-    [(fssrdt != "        " && fsclsy != "  ")]
-    {npkt.n.fssrdt := fssrdt}
+    {npkt.fssrdt := fssrdt;
+     $print_t("offset 271 - FSSRDT")}
 
     fsctln = FSCTLN
-    [(fsctln != "               " && fsclsy != "  ")]
-    {npkt.n.fsctln := fsctln}
+    {npkt.fsctln := fsctln;
+     $print_t("offset 286 - FSSTLN")}
 
     fscop  = FSCOP
-    {npkt.n.fscop  := fscop}
+    {npkt.fscop  := fscop;
+     $print_t("offset 291 - FSCOP")}
 
     fscpys = FSCPYS
-    {npkt.n.fscpys := fscpys}
+    {npkt.fscpys := fscpys;
+     $print_t("offset 296 - FSCPYS")}
 
     encryp = ENCRYP
-    {npkt.n.encryp := encryp}
+    {npkt.encryp := encryp}
 
     fbkgc  = FBKGC
-    {npkt.n.fbkgc  := fbkgc}
+    {npkt.fbkgc  := fbkgc;
+     $print_t("offset 300 - FBKGC")}
 
     oname  = ONAME
-    {npkt.n.oname  := oname}
+    {npkt.oname  := oname}
 
     ophone = OPHONE
-    {npkt.n.ophone := ophone}
+    {npkt.ophone := ophone;
+     $print_t("offset 342 - OPHONE")}
 
     fl     = FL
-    [List.length(fl) = 12u]
+    {npkt.fl := byte_to_usize(fl, 12u);
+     $print_t("offset 354 - FL")}
 
     hl     = HL
     [List.length(hl) = 6u]
+    {npkt.hl := byte_to_usize(hl, 6u);
+     $print_t("offset 360 - HL")}
 
+    // parse image segment tuples
     numi   = NUMI
     [List.length(numi) = 3u]
+    {$print_t("numi value is:");
+     $print_t(numi);
+     $print(numi);
+     npkt.numi := byte_to_usize(numi, 3u);
+     $print_t("numi:");
+     $print_t(npkt.numi)}
 
-    images_segments = (ImageSegment^byte_to_usize(numi))
-    {
-        npkt.n.fl     := byte_to_usize(fl);
-        npkt.n.hl     := byte_to_usize(hl);
-        npkt.n.numi   := byte_to_usize(numi);
+    images_segments = (ImageSegment^byte_to_usize(numi, 3u))
+    { npkt.image_segments := images_segments }
 
-        // parse image segments
-        npkt.n.image_segments := images_segments
-    }
+    // parse graphic segment tuples
+    nums = NUMS
+    [List.length(nums) = 3u]
+    {$print_t("nums value is:"); $print_t(nums);
+     npkt.nums := byte_to_usize(nums, 3u)}
+
+    graphic_segments = (GraphicSegment^byte_to_usize(nums, 3u))
+    { npkt.graphic_segments := graphic_segments }
+
+    numx = NUMX
+    [List.length(numx) = 3u]
+    {$print_t("numx value is:"); $print_t(numx);
+     npkt.numx := byte_to_usize(numx, 3u)}
+
+    // parse text segment tuples
+    numt = NUMT
+    [List.length(numt) = 3u]
+    {$print_t("numt value is:"); $print_t(numt);
+     npkt.numt := byte_to_usize(numt, 3u)}
+
+    text_segments = (TextSegment^byte_to_usize(numt, 3u))
+    { npkt.text_segments := text_segments }
+
+    // parse data extension segment tuples
+    numdes = NUMDES
+    [List.length(numdes) = 3u]
+    {$print_t("numdes value is:"); $print_t(numdes);
+     npkt.numdes := byte_to_usize(numdes, 3u)}
+
+    data_segments = (DesSegment^byte_to_usize(numdes, 3u))
+    { npkt.data_segments := data_segments }
+
+    // parse reserve extension segment tuples
+    numres = NUMRES
+    [List.length(numres) = 3u]
+    {$print_t("numres value is:"); $print_t(numres);
+     npkt.numres := byte_to_usize(numres, 3u)}
+
+    res_segments = (ResSegment^byte_to_usize(numres, 3u))
+    { npkt.res_segments := res_segments }
+
+    udhdl = UDHDL
+    [List.length(udhdl) = 5u]
+    {$print_t("udhdl value is:"); $print_t(udhdl);
+     npkt.udhdl := byte_to_usize(udhdl, 5u)}
+
+    udhofl = UDHOFL
+    [List.length(udhofl) = 3u]
+    {$print_t("udhofl value is:"); $print_t(udhofl);
+     npkt.udhofl := byte_to_usize(udhofl, 3u)}
+
+    // ask conditional
+    udhd = (Byte^(npkt.udhdl -_u 3u))
+    {npkt.udhd := udhd}
+
+    xhdl = XHDL
+    [List.length(xhdl) = 5u]
+    {$print_t("xhdl value is:"); $print_t(xhdl);
+     npkt.xhdl := byte_to_usize(xhdl, 5u)}
+
+    xhdlofl = XHDLOFL
+    [List.length(xhdlofl) = 3u]
+    {$print_t("xhdlofl value is:"); $print_t(xhdlofl);
+     npkt.xhdlofl := byte_to_usize(xhdlofl, 3u)}
+
+    xhd = (Byte^(npkt.xhdl -_u 3u))
+    {npkt.xhd := xhd}
 }
