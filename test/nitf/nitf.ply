@@ -95,6 +95,12 @@ type nitf_packet = {
     xhd: [byte]
 }
 
+fun max(x:usize, y :usize) -> usize = {
+    (case (x >_u y) of
+    | bool::True() -> x
+    | bool::False() -> y)
+}
+
 recfun pow(x: usize, y: usize, z: usize) -> usize = {
     (case y of
     | 0u -> 1u
@@ -199,10 +205,10 @@ format {
     {
         $print_t("lishn:");
         imgSeg.lishn := byte_to_usize(lishn, 6u);
-        $print_t(imgSeg.lishn);
+        $print_t(lishn);
         $print_t("lin:");
         imgSeg.lin := byte_to_usize(lin, 10u);
-        $print_t(imgSeg.lin)
+        $print_t(lin)
     };;
 
     // pg 15 table 1 continues after imageSegment info
@@ -292,64 +298,74 @@ format {
     NITFpacket npkt {nitf_packet} :=
     fhdr = FHDR
     {npkt.fhdr   := fhdr;
-    $print_t("FHDR")}
+    $print_t("offset 4 - FHDR")}
 
     fver = FVER
-    {npkt.fver   := fver}
+    {npkt.fver   := fver;
+    $print_t("offset 9 - FVER")}
 
     clevel = CLEVEL
-    {npkt.clevel := clevel}
+    {npkt.clevel := clevel;
+    $print_t("offset 11 - CLEVEL")}
 
     stype = STYPE
     [List.length(stype) = 4u]
-    {npkt.stype  := stype}
+    {npkt.stype  := stype;
+    $print_t("offset 15 - STYPE")}
 
     ostaid = OSTAID
     [ostaid != "          "]
     {npkt.ostaid := ostaid;
-    $print_t("OSTAID")}
+    $print_t("offset 25 - OSTAID")}
 
     fdt = FDT
     [List.length(fdt) = 14u]
-    {npkt.fdt    := fdt}
+    {npkt.fdt    := fdt;
+    $print_t("offset 39 - FDT")}
 
     ftitle = FTITLE
-    {npkt.ftitle := ftitle}
+    {npkt.ftitle := ftitle;
+    $print_t("offset 119 - FTITLE")}
 
     fsclas = FSCLAS
     {npkt.fsclas := fsclas;
-    $print_t("FSCLAS")}
+    $print_t("offset 120 - FSCLAS")}
 
     fsclsy = FSCLSY
     // if fsclas is not U then FSCLSY cannot be spaces
     [(fsclas = "U" || fsclsy != "  ")]
-    {npkt.fsclsy := fsclsy}
+    {npkt.fsclsy := fsclsy;
+    $print_t("offset 122 - FSCLSY")}
 
     fscode = FSCODE
     // [(fscode = "           " || fsclsy != "  ")]
-    {npkt.fscode := fscode}
+    {npkt.fscode := fscode;
+    $print_t("offset 133 - FSCODE")}
 
     fsctlh = FSCTLH
     // [(fsctlh = "  " || fsclsy != "  ")]
-    {npkt.fsctlh := fsctlh}
+    {npkt.fsctlh := fsctlh;
+    $print_t("offset 135 - FSCTLH")}
 
     fsrel = FSREL
     // [(fsrel = "                    " || fsclsy != "  ")]
-    {npkt.fsrel  := fsrel}
+    {npkt.fsrel  := fsrel;
+    $print_t("offset 155 - FSREL")}
 
     fsdctp = FSDCTP
     // [(fsdctp = "  " || fsclsy != "  ")]
-    {npkt.fsdctp := fsdctp}
+    {npkt.fsdctp := fsdctp;
+    $print_t("offset 157 - FSDCTP")}
 
     fsdcdt = FSDCDT
     // [(fsdcdt = "        " || fsclsy != "  ")]
     {npkt.fsdcdt := fsdcdt;
-      $print_t("165 offset here") }
+      $print_t("offset 165 - FSDCDT") }
 
     fsdcxm = FSDCXM
     // [(fsdcxm = "    " || fsclsy != "  ")]
     {npkt.fsdcxm := fsdcxm;
-    $print_t("offset 169 - FSDCXM passed")}
+    $print_t("offset 169 - FSDCXM")}
 
     fsdg   = FSDG
     // [(fsdg = " " || fsclsy != "  ")]
@@ -358,15 +374,15 @@ format {
     fsdgdt  = FSDGDT
     // [(fsdgdt = "        " || fsclsy != "  ")]
     {npkt.fsdgdt := fsdgdt;
-     $print_t("offset 178 - FSDGDT passed")}
+     $print_t("offset 178 - FSDGDT")}
 
     fscltx = FSCLTX
     {npkt.fscltx := fscltx;
-     $print_t("offset 221 - FSCLTX passed")}
+     $print_t("offset 221 - FSCLTX")}
 
     fscatp = FSCATP
     {npkt.fscatp := fscatp;
-     $print_t("offset 222 - FACATP parsed.")}
+     $print_t("offset 222 - FACATP")}
 
     fscaut = FSCAUT
     {npkt.fscaut := fscaut;
@@ -474,25 +490,35 @@ format {
     {$print_t("udhdl value is:"); $print_t(udhdl);
      npkt.udhdl := byte_to_usize(udhdl, 5u)}
 
-    udhofl = UDHOFL
-    [List.length(udhofl) = 3u]
+    // if we replace Byte with UDHOFL it wont work correctly due to type checks.
+    udhofl = (Byte^(case npkt.udhdl of
+                        | 0u -> 0u
+                        | _ -> 3u))
+    // [List.length(udhofl) = 3u]
     {$print_t("udhofl value is:"); $print_t(udhofl);
      npkt.udhofl := byte_to_usize(udhofl, 3u)}
 
     // ask conditional
-    udhd = (Byte^(npkt.udhdl -_u 3u))
-    {npkt.udhd := udhd}
+    udhd = (Byte^(max(npkt.udhdl -_u 3u, 0u)))
+    {npkt.udhd := udhd;
+     $print_t("udhd parsed")
+    }
 
     xhdl = XHDL
     [List.length(xhdl) = 5u]
     {$print_t("xhdl value is:"); $print_t(xhdl);
      npkt.xhdl := byte_to_usize(xhdl, 5u)}
 
-    xhdlofl = XHDLOFL
-    [List.length(xhdlofl) = 3u]
+
+    xhdlofl = (Byte^(case npkt.udhdl of
+                     | 0u -> 0u
+                     | _ -> 3u))
+    // [List.length(xhdlofl) = 3u]
     {$print_t("xhdlofl value is:"); $print_t(xhdlofl);
      npkt.xhdlofl := byte_to_usize(xhdlofl, 3u)}
 
     xhd = (Byte^(npkt.xhdl -_u 3u))
     {npkt.xhd := xhd}
+
+    // header ends here
 }
