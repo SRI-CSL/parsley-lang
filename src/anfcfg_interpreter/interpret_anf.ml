@@ -143,7 +143,7 @@ let matcher loc vr vl cases =
       | V_bool true, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_variant (stdlib, "bool", "True") ->
           br
-      | V_bool true, (p, br) :: _
+      | V_bool false, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_variant (stdlib, "bool", "False") ->
           br
       | V_bit true, (p, br) :: _
