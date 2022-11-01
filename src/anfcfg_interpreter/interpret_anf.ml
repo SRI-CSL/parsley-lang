@@ -252,6 +252,19 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
     | AE_case (vr, cases) ->
         let vl = VEnv.lookup s.st_venv vr.v vr.v_loc in
         val_of_aexp s (matcher loc vr vl cases)
+    | AE_print (as_ascii, ae') ->
+        let v   = val_of_av s ae' in
+        let svl = string_of_value as_ascii v in
+        let svr = match ae'.av with
+            | Anf.AV_var v -> Some (Anf_printer.string_of_var v)
+            | _            -> None in
+        Printf.eprintf "%s = %s @ %s\n%!"
+          (match svr with
+             | Some s -> s  (* print var *)
+             | None   -> Location.str_of_file_loc loc)
+          svl
+          (fmt_pos (view_info s));
+        V_unit
 
 let rec eval_stmt (s: state) (st: Anf.astmt) : state =
   let loc = st.astmt_loc in
@@ -302,14 +315,15 @@ let rec eval_stmt (s: state) (st: Anf.astmt) : state =
         let env = VEnv.assign s.st_venv p v in
         eval_stmt {s with st_venv = env} st'
     | AS_print (as_ascii, av) ->
-        let v = val_of_av s av in
+        let v   = val_of_av s av in
         let svl = string_of_value as_ascii v in
         let svr = match av.av with
             | Anf.AV_var v -> Some (Anf_printer.string_of_var v)
             | _            -> None in
-        Printf.eprintf "%s = %s\n%!"
+        Printf.eprintf "%s = %s @ %s\n%!"
           (match svr with
              | Some s -> s  (* print var *)
              | None   -> Location.str_of_file_loc loc)
-          svl;
+          svl
+          (fmt_pos (view_info s));
         s
