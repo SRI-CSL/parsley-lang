@@ -4,27 +4,27 @@ include match
 
 
 // TABLE 1 NITF FILE HEADER. pg. 15 of NITF spec
-type image_segment_tuple = {
+type image_info_tuple = {
     lishn: usize,
     lin: usize
 }
 
-type graphic_segment_tuple = {
+type graphic_info_tuple = {
     lsshn: usize,
     lsn: usize
 }
 
-type text_segment_tuple = {
+type text_info_tuple = {
     ltshn: usize,
     ltn: usize
 }
 
-type data_segment_tuple = {
+type data_info_tuple = {
     ldshn: usize,
     ldn: usize
 }
 
-type res_segment_tuple = {
+type res_info_tuple = {
     lreshn: usize,
     lren: usize
 }
@@ -64,28 +64,28 @@ type nitf_packet = {
     fl: usize,
     hl: usize,
 
-    // image segment subheader + image segment header len start here
+    // image info subheader + image info header len start here
     numi: usize,
-    image_segments: [image_segment_tuple],
+    image_info: [image_info_tuple],
 
-    // graphic segments
+    // graphic info
     nums: usize,
-    graphic_segments: [graphic_segment_tuple],
+    graphic_info: [graphic_info_tuple],
 
     // reserved field
     numx: usize,
 
-    // text segments
+    // text info
     numt: usize,
-    text_segments: [text_segment_tuple],
+    text_info: [text_info_tuple],
 
-    // data extension segments
+    // data extension info
     numdes: usize,
-    data_segments: [data_segment_tuple],
+    data_info: [data_info_tuple],
 
-    // reserved extension segments
+    // reserved extension info
     numres: usize,
-    res_segments: [res_segment_tuple],
+    res_info: [res_info_tuple],
 
     udhdl: usize,
     udhofl: usize,
@@ -101,39 +101,43 @@ fun max(x:usize, y :usize) -> usize = {
     | bool::False() -> y)
 }
 
-recfun pow(x: usize, y: usize, z: usize) -> usize = {
+recfun pow(x: usize, y: usize, z: usize, o: usize) -> usize = {
     (case y of
     | 0u -> 1u
     | 1u -> x
     | _ ->  (case z <_u y of
-             | bool::True() -> pow(x *_u x, y, z +_u 1u)
+             | bool::True() -> pow(x *_u o, y, z +_u 1u, o)
              | bool::False() -> x))
 
 }
 
 fun sum(acc: (usize, usize), b: byte) -> (usize, usize) = {
     let (x, y) = acc in
-        (x +_u ((Usize.of_byte(b) -_u 48u) *_u pow(10u, y, 1u)), y +_u 1u)
+        (x +_u ((Usize.of_byte(b) -_u 48u) *_u pow(10u, y, 1u, 10u)), y +_u 1u)
+}
+
+fun sub30(b: byte) -> usize = {
+    pow(10u, 10u, 1u, 10u)
 }
 
 fun byte_to_usize(b: [byte], width: usize) -> usize = {
    // 48u is 0x30 hex subtracted to get the decimal value of each index
-   // let (acc, count) = List.fold(sum, (0u, 0u), List.rev(b)) in
-   //  acc
-   let s = (case width of
-   | 3u -> 3158064u
-   | 4u -> 808464432u
-   | 6u -> 52983525027888u
-   | 5u -> 206966894640u
-   | 7u -> 13563782407139376u
-   // incorrect
-   | 10u -> 0u
-   | 12u -> 0u
-   | _ -> 0u)
-   in
-   (case Usize.of_bytes(b) of
-    | option::Some(a) -> a -_u s
-    | option::None() -> 0u)
+   let (acc, count) = List.fold(sum, (0u, 0u), List.rev(b)) in
+    acc
+   // let s = (case width of
+   // | 3u -> 3158064u
+   // | 4u -> 808464432u
+   // | 6u -> 52983525027888u
+   // | 5u -> 206966894640u
+   // | 7u -> 13563782407139376u
+   // // incorrect
+   // | 10u -> 0u
+   // | 12u -> 0u
+   // | _ -> 0u)
+   // in
+   // (case Usize.of_bytes(b) of
+   //  | option::Some(a) -> a -_u s
+   //  | option::None() -> 0u)
 }
 
 format {
@@ -197,7 +201,7 @@ format {
     LISHn := (# ["0" .. "9"] ^ 6u #);;
     LIn := (# ["0" .. "9"] ^ 10u #);;
 
-    ImageSegment imgSeg {image_segment_tuple} :=
+    ImageInfo imgSeg {image_info_tuple} :=
     lishn = LISHn
     // [byte_to_usize(lishn, 6u) >=_u 000439u && byte_to_usize(lishn, 6u) <=_u 999999u]
     lin = LIn
@@ -208,7 +212,9 @@ format {
         $print_t(lishn);
         $print_t("lin:");
         imgSeg.lin := byte_to_usize(lin, 10u);
-        $print_t(lin)
+        $print_t(lin);
+        $print_t(imgSeg.lin)
+        // $print_t(List.map(sub30, lin))
     };;
 
     // pg 15 table 1 continues after imageSegment info
@@ -217,7 +223,7 @@ format {
     LSSHn := (# ["0" .. "9"] ^ 4u #);;
     LSn := (# ["0" .. "9"] ^ 6u #);;
 
-    GraphicSegment graSeg {graphic_segment_tuple} :=
+    GraphicInfo graSeg {graphic_info_tuple} :=
     lsshn = LSSHn
     // [byte_to_usize(lsshn, 4u) >=_u 0258u && byte_to_usize(lsshn, 4u) <=_u 9998u]
     lsn = LSn
@@ -237,7 +243,7 @@ format {
     LTSHn := (# ["0" .. "9"] ^ 4u #);;
     LTn := (# ["0" .. "9"] ^ 5u #);;
 
-    TextSegment txtSeg {text_segment_tuple} :=
+    TextInfo txtSeg {text_info_tuple} :=
     ltshn = LTSHn
     // [byte_to_usize(lsshn, 4u) >=_u 282u && byte_to_usize(lsshn, 4u) <=_u 9998u]
     ltn = LTn
@@ -256,18 +262,18 @@ format {
     LDSHn := (# ["0" .. "9"] ^ 4u #);;
     LDn := (# ["0" .. "9"] ^ 9u #);;
 
-    DesSegment desSeg {data_segment_tuple} :=
+    DataInfo desInfo {data_info_tuple} :=
     ldshn = LDSHn
     // [byte_to_usize(ldshn, 4u) >=_u 200u && byte_to_usize(ldshn, 4u) <=_u 9998u]
     ldn = LDn
     // [byte_to_usize(ldn, 9u) >=_u 1u && byte_to_usize(ldn, 9u) <=_u 999999998u]
     {
         $print_t("ldshn:");
-        desSeg.ldshn := byte_to_usize(ldshn, 4u);
-        $print_t(desSeg.ldshn);
+        desInfo.ldshn := byte_to_usize(ldshn, 4u);
+        $print_t(desInfo.ldshn);
         $print_t("ldn:");
-        desSeg.ldn := byte_to_usize(ldn, 9u);
-        $print_t(desSeg.ldn)
+        desInfo.ldn := byte_to_usize(ldn, 9u);
+        $print_t(desInfo.ldn)
     };;
 
     NUMRES := (#BCS_N ^ 3u#);;
@@ -275,18 +281,18 @@ format {
     LRESHn := (# ["0" .. "9"] ^ 4u #);;
     LREn := (# ["0" .. "9"] ^ 7u #);;
 
-    ResSegment resSeg {res_segment_tuple} :=
+    ResInfo resInfo {res_info_tuple} :=
     lreshn = LRESHn
     // [byte_to_usize(lreshn, 4u) >=_u 200u && byte_to_usize(lreshn, 4u) <=_u 9999u]
     lren = LREn
     // [byte_to_usize(lren, 7u) >=_u 1u && byte_to_usize(lren, 7u) <=_u 9999999u]
     {
         $print_t("lreshn:");
-        resSeg.lreshn := byte_to_usize(lreshn, 4u);
-        $print_t(resSeg.lreshn);
+        resInfo.lreshn := byte_to_usize(lreshn, 4u);
+        $print_t(resInfo.lreshn);
         $print_t("lren:");
-        resSeg.lren := byte_to_usize(lren, 7u);
-        $print_t(resSeg.lren)
+        resInfo.lren := byte_to_usize(lren, 7u);
+        $print_t(resInfo.lren)
     };;
 
     UDHDL := (# ["0" .. "9"] ^ 5u #);;
@@ -294,6 +300,9 @@ format {
 
     XHDL := (# ["0" .. "9"] ^ 5u #);;
     XHDLOFL := (# ["0" .. "9"] ^ 3u #);;
+
+    ImageSegment (i : image_info) {image_segment} :=
+    {};;
 
     NITFpacket npkt {nitf_packet} :=
     fhdr = FHDR
@@ -431,7 +440,7 @@ format {
     {npkt.hl := byte_to_usize(hl, 6u);
      $print_t("offset 360 - HL")}
 
-    // parse image segment tuples
+    // parse image info tuples
     numi   = NUMI
     [List.length(numi) = 3u]
     {$print_t("numi value is:");
@@ -441,49 +450,49 @@ format {
      $print_t("numi:");
      $print_t(npkt.numi)}
 
-    images_segments = (ImageSegment^byte_to_usize(numi, 3u))
-    { npkt.image_segments := images_segments }
+    image_info = (ImageInfo^byte_to_usize(numi, 3u))
+    { npkt.image_info := image_info }
 
-    // parse graphic segment tuples
+    // parse graphic info tuples
     nums = NUMS
     [List.length(nums) = 3u]
     {$print_t("nums value is:"); $print_t(nums);
      npkt.nums := byte_to_usize(nums, 3u)}
 
-    graphic_segments = (GraphicSegment^byte_to_usize(nums, 3u))
-    { npkt.graphic_segments := graphic_segments }
+    graphic_info = (GraphicInfo^byte_to_usize(nums, 3u))
+    { npkt.graphic_info := graphic_info }
 
     numx = NUMX
     [List.length(numx) = 3u]
     {$print_t("numx value is:"); $print_t(numx);
      npkt.numx := byte_to_usize(numx, 3u)}
 
-    // parse text segment tuples
+    // parse text info tuples
     numt = NUMT
     [List.length(numt) = 3u]
     {$print_t("numt value is:"); $print_t(numt);
      npkt.numt := byte_to_usize(numt, 3u)}
 
-    text_segments = (TextSegment^byte_to_usize(numt, 3u))
-    { npkt.text_segments := text_segments }
+    text_info = (TextInfo^byte_to_usize(numt, 3u))
+    { npkt.text_info := text_info }
 
-    // parse data extension segment tuples
+    // parse data extension info tuples
     numdes = NUMDES
     [List.length(numdes) = 3u]
     {$print_t("numdes value is:"); $print_t(numdes);
      npkt.numdes := byte_to_usize(numdes, 3u)}
 
-    data_segments = (DesSegment^byte_to_usize(numdes, 3u))
-    { npkt.data_segments := data_segments }
+    data_info = (DataInfo^byte_to_usize(numdes, 3u))
+    { npkt.data_info := data_info }
 
-    // parse reserve extension segment tuples
+    // parse reserve extension info tuples
     numres = NUMRES
     [List.length(numres) = 3u]
     {$print_t("numres value is:"); $print_t(numres);
      npkt.numres := byte_to_usize(numres, 3u)}
 
-    res_segments = (ResSegment^byte_to_usize(numres, 3u))
-    { npkt.res_segments := res_segments }
+    res_info = (ResInfo^byte_to_usize(numres, 3u))
+    { npkt.res_info := res_info }
 
     udhdl = UDHDL
     [List.length(udhdl) = 5u]
@@ -521,4 +530,7 @@ format {
     {npkt.xhd := xhd}
 
     // header ends here
+
+    // image sub header
+    // image_subheader = ImageSegment^
 }
