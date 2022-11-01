@@ -55,7 +55,16 @@ type image_subheader = {
     // igeolo: [byte],     // image geographic location, size: 60, type C -- TODO
     nicom: [byte],      // number of image comments, size: 1, type R
     // icomn: [image_comments]       // image comment n, size: 80, type C -- TODO
-    ic: [byte]          // image compression, size: 2, type R
+    ic: [byte],         // image compression, size: 2, type R
+    comrat: [byte],     // compression rate code, size: 4, type C -- TODO: Add condition function
+    nbands: [byte],     // number of bands, size: 1, type R
+    xbands: [byte],     // number of multispectral bands, size: 5, type C -- TODO: Add condition function
+    isync: [byte],      // image sync code, size: 1, type R
+    imode: [byte],      // image mode, size: 1, type R
+    nbpr: [byte],       // number of blocks per row, size: 4, type R
+    nbpc: [byte],       // number of blocks per column, size: 4, type R
+    nppbh: [byte],      // number of pixels per block horizontal, size: 4, type R
+    nppbv: [byte]       // number of pixels per block vertical, size: 4, type R
 }
 
 
@@ -101,6 +110,14 @@ format {
     NICOM := (# BCS_N_INT_POS ^ 1u #);;
     ICOMN := (# ECS_A ^ 80u #);;
     IC := (# ["NC" | "NM" | "I1"] | ["C1" .. "C8"] | ["M1" .. "M8"] | ["CB" | "MB" | "C9" | "M9" | "CA" | "MA"] #);;
+    COMRAT := (# BCS_A ^ 4u #);;
+    NBANDS := (# BCS_N_INT_POS ^ 1u #);;
+    XBANDS := (# ["00010" .. "99999"] #);;
+    ISYNC := (# ["\x30"] ^ 1u #);;
+    IMODE := (# ["B" | "P" | "R" | "S"] | ["T" | "D" | "E" | "F" | "X" | "Z"] #);;
+    NBPR := (# ["0001" .. "9999"] #);;
+    NBPC := (# ["0001" .. "9999"] #);;
+    NPP := (# ["0000"] | ["0001" .. "8192"] #);;
 
     ImageComments img_comm {image_comments} :=
         img_comment = ICOMN
@@ -215,4 +232,35 @@ format {
         
         image_compression = IC
         { img_subh.ic := image_compression }
+
+        compression_rate_code = COMRAT
+        { img_subh.comrat := compression_rate_code }
+
+        number_of_bands = NBANDS
+        { img_subh.nbands := number_of_bands }
+
+        number_of_multispectral_bands = XBANDS
+        { img_subh.xbands := number_of_multispectral_bands }
+
+        // Fields IREPBANDn to LUTDnm repeat the number of times indicated
+        // in the NBANDS field or the XBANDS field
+
+        image_sync_code = ISYNC
+        { img_subh.isync := image_sync_code }
+
+        image_mode = IMODE
+        { img_subh.imode := image_mode }
+
+        number_of_blocks_per_row = NBPR
+        { img_subh.nbpr := number_of_blocks_per_row }
+
+        number_of_blocks_per_column = NBPC
+        { img_subh.nbpc := number_of_blocks_per_column }
+
+        number_of_pixels_per_block_horizontal = NPP
+        { img_subh.nppbh := number_of_pixels_per_block_horizontal }
+
+        number_of_pixels_per_block_vertical = NPP
+        { img_subh.nppbv := number_of_pixels_per_block_vertical }
+
 }
