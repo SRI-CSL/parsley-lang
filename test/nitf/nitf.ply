@@ -117,13 +117,22 @@ fun max(x:usize, y :usize) -> usize = {
 
 fun process_one_image_info(acc: ((view, usize), [view]), cur: image_info_tuple) -> ((view, usize), [view]) = {
     let ((cv, ofs), vs) = acc in
-        let end = ofs +_u cur.lin +_u cur.lishn in
-            let v = View.restrict(cv, ofs, end) in
-                ((cv, end), v::vs)
+    // let _ = $print_t("ofs") in
+    // let _ = $print_t(ofs) in
+    let end = ofs +_u cur.lin +_u cur.lishn in
+    // let _ = $print_t("end") in
+    // let _ = $print_t(end) in
+    // let _ = $print_t("cur.lin +_u cur.lishn") in
+    // let _ = $print_t(cur.lin +_u cur.lishn) in
+    // let _ = $print_t("View.get_remaining()") in
+    // let _ = $print_t(View.get_current_remaining()) in
+    let v = View.restrict(cv, ofs, end) in
+        ((cv, end), v::vs)
 }
 
 fun mkviews(image_info: [image_info_tuple]) -> [view] = {
-    let (_, vs) = List.fold(process_one_image_info, ((View.get_current(), View.get_current_cursor()), []), image_info) in
+    let (_, vs) = List.fold(process_one_image_info,
+    ((View.get_current(), 0u), []), image_info) in
         vs
 }
 
@@ -178,6 +187,7 @@ recfun pow(x: usize, y: usize, z: usize, o: usize) -> usize = {
 }
 
 fun sum(acc: (usize, usize), b: byte) -> (usize, usize) = {
+   // 48u is 0x30 hex subtracted to get the decimal value of each index
     let (x, y) = acc in
         (x +_u ((Usize.of_byte(b) -_u 48u) *_u pow(10u, y, 1u, 10u)), y +_u 1u)
 }
@@ -187,23 +197,8 @@ fun sub30(b: byte) -> usize = {
 }
 
 fun byte_to_usize(b: [byte], width: usize) -> usize = {
-   // 48u is 0x30 hex subtracted to get the decimal value of each index
    let (acc, count) = List.fold(sum, (0u, 0u), List.rev(b)) in
     acc
-   // let s = (case width of
-   // | 3u -> 3158064u
-   // | 4u -> 808464432u
-   // | 6u -> 52983525027888u
-   // | 5u -> 206966894640u
-   // | 7u -> 13563782407139376u
-   // // incorrect
-   // | 10u -> 0u
-   // | 12u -> 0u
-   // | _ -> 0u)
-   // in
-   // (case Usize.of_bytes(b) of
-   //  | option::Some(a) -> a -_u s
-   //  | option::None() -> 0u)
 }
 
 format {
@@ -602,32 +597,37 @@ format {
     // header ends here
 
     // image segment views
-    // image_segment_views = {let vs = mkviews(image_info)
-    // in $print_t(vs); $print_t(image_info) ;; mkviews(image_info)}
-    // image_segments = @#[image_segment_views, ImageSegment<i <- (image_info)>]
+    image_segment_views = {let vs = mkviews(image_info)
+    in $print_t(vs); $print_t(image_info) ;; mkviews(image_info)}
+    image_segments = @#[image_segment_views, ImageSegment<i <- (image_info)>]
 
     // image segments bytes
-    image_segment_bytes = Byte^(span_image_segments(image_info))
-    {npkt.image_segments := image_segment_bytes}
+    // image_segment_bytes = Byte^(span_image_segments(image_info))
+    // {npkt.image_segments := image_segment_bytes}
+    {$print_t(image_segments);
+    npkt.image_segments := []}
 
     // use the image_segment_bytes and convert
 
-    // // graphic
-    graphic_segment_bytes = Byte^(span_graphic_segments(graphic_info))
-    {npkt.graphic_segments:= graphic_segment_bytes}
+    // graphic
+    // graphic_segment_bytes = Byte^(span_graphic_segments(graphic_info))
+    // {npkt.graphic_segments:= graphic_segment_bytes}
+    {npkt.graphic_segments:= []}
 
     // reserved
     // reserved_segment_bytes = Byte^(span_reserved_segments(reserved_info))
 
     // text
-    text_segment_bytes = Byte^(span_text_segments(text_info))
-    {npkt.text_segments := text_segment_bytes}
+    // text_segment_bytes = Byte^(span_text_segments(text_info))
+    // {npkt.text_segments := text_segment_bytes}
+    {npkt.text_segments := []}
 
     // // data extension
-    data_segment_bytes = Byte^(span_data_segments(data_info))
-    {npkt.data_segments := data_segment_bytes}
+    // data_segment_bytes = Byte^(span_data_segments(data_info))
+    // {npkt.data_segments := data_segment_bytes}
+    {npkt.data_segments := []}
 
     // // reserved extension segment
-    resex_segment_bytes = Byte^(span_resex_segments(res_info))
-    {npkt.resex_segments := resex_segment_bytes}
+    // resex_segment_bytes = Byte^(span_resex_segments(res_info))
+    {npkt.resex_segments := []}
 }
