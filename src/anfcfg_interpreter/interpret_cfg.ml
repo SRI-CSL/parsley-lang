@@ -227,7 +227,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
              let err = Internal_errors.Bitsbound_check m in
              internal_error loc err
         else if match_padding bits pat
-        then let bits = List.map (fun b -> V_bool b) bits in
+        then let bits = safe_map (fun b -> V_bool b) bits in
              let env  = VEnv.assign s.st_venv v (V_list bits) in
              let s    = {s with st_venv = env} in
              do_jump loc s lsc
@@ -300,7 +300,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
         let ntn = Location.value nt in
         let loc = Location.loc nt in
         let pvs =
-          List.map (fun (p, vr) ->
+          safe_map (fun (p, vr) ->
               let vl = VEnv.lookup s.st_venv Anf.(vr.v) vr.v_loc in
               Location.value p, vl
             ) params in
