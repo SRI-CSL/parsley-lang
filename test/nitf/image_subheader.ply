@@ -29,7 +29,14 @@ type image_subheader = {
     isclas: [byte],     // image security classification, size: 1, type: R
     isclsy: [byte],     // image security classification system, size: 2, type <R>
     iscode: [byte],     // image codewords, size: 11, type <R>
-    isctlh: [byte]     // image control and handling, size: 2, type <R>
+    isctlh: [byte],     // image control and handling, size: 2, type <R>
+    isrel: [byte],      // image releasing instructions, size: 20, type <R>
+    isdctp: [byte],     // image declassification type, size: 2, type <R>
+    isdcdt: [byte],     // image declassification date, size: 8, type <R>
+    isdcxm: [byte],     // image declassification exemption, size: 4, type <R>
+    isdg: [byte],       // image downgrade, size: 1, type <R>
+    isdgdt: [byte],     // image downgrade date, size: 8, type <R>
+    iscltx: [byte]      // image classification text, size: 43, type <R>
 }
 
 
@@ -49,6 +56,13 @@ format {
     ISCLSY := (# ECS_A ^ 2u #);;
     ISCODE := (# ECS_A ^ 11u #);;
     ISCTLH := (# ECS_A ^ 2u #);;
+    ISREL := (# ECS_A ^ 20u #);;
+    ISDCTP := (# ["DD" | "DE" | "GD" | "GE" | "O" | "X" | "\x20\x20"] #);;
+    ISDCDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
+    ISDCXM := (# ["X1" .. "X8"] | ["25X1" .. "25X9"] | ["DNIO"] | ["\x20"] ^ 4u #);;
+    ISDG := (# ["S" | "C" | "R" | "\x20"] #);;
+    ISDGDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
+    ISCLTX := (# ECS_A ^ 43u #);;
 
     ImageSubheader img_sub {image_subheader} := 
         file_part_type = IM
@@ -76,6 +90,28 @@ format {
 
         image_control_and_handling = ISCTLH
         { img_sub.isctlh := image_control_and_handling }
+
+        image_releasing_instructions = ISREL
+        { img_sub.isrel := image_releasing_instructions }
+
+        image_declassification_type = ISDCTP
+        { img_sub.isdctp := image_declassification_type }
+
+        image_declassification_date = ISDCDT
+        // [image_declassification_type = "DD"] todo: revisit this field
+        { img_sub.isdcdt := image_declassification_date }
+
+        image_declassification_exemption = ISDCXM
+        { img_sub.isdcxm := image_declassification_exemption }
+
+        image_downgrade = ISDG
+        { img_sub.isdg := image_downgrade }
+
+        image_downgrade_date = ISDGDT
+        { img_sub.isdgdt := image_downgrade_date }
+
+        image_classification_text = ISCLTX
+        { img_sub.iscltx := image_classification_text }
 
         image_security_classification_system = ISCLSY
         [is_valid_isclsy_1(image_security_classification_system, image_security_classification)]
