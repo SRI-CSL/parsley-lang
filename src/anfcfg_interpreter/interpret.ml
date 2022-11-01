@@ -142,12 +142,6 @@ let init load_externals (spec: Cfg.spec_cfg) (entry_nt: Anf.modul * string) (vie
   let b   = get_block loc s (Cfg.L_static ent.nt_entry) in
   s, b
 
-(* Returns the `vu_ofs` and `vu_end` of the view in the state. *)
-type last_pos = int * int
-let view_info (s: state) : last_pos =
-  let v = s.st_cur_view in
-  v.vu_ofs, v.vu_end
-
 (* Returns the parse call stack. *)
 type parse_stk = Ast.ident list
 let parse_info (s: state) : parse_stk =

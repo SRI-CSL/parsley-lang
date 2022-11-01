@@ -312,6 +312,9 @@ let rec convert_exp ctx lm e =
         let e = convert_exp ctx lm e in
         let t = convert_type_expr ctx lm t in
         wrap (E_cast (e, t))
+    | E_print (b, e) ->
+        let e = convert_exp ctx lm e in
+        wrap (E_print (b, e))
 
 let rec convert_stmt ctx lm s =
   let wrap s' = {stmt = s'; stmt_loc = s.stmt_loc} in

@@ -503,6 +503,18 @@ error being returned to the application using the engine.
 
 NOTE: The parsing state after this exception is currently unspecified.
 
+=== Printing
+
+To aid debugging using the interpreter, an additional statement form
+is the *print expression*, whose syntax is `$print(e)` where `e` is
+any expression.  When this expression is evaluated in the interpreter,
+the value that `e` evaluates to is printed to the standard error, and
+the print expression evaluates to a `unit` value.  A sequence of bytes
+in the value is interpreted as binary data and printed in hex.
+However, in some cases, sequences of bytes could contain ASCII
+characters and hence may need to be printed as strings; this use case
+is served by `$print_t(e)`.
+
 == Modules
 
 Parsley supports the use of definitions from one Parsley

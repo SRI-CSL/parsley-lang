@@ -121,7 +121,7 @@ let rec const_fold: 't 'v 'm. ('t, 'v, 'm) expr -> ('t, 'v, 'm) expr =
   match e.expr with
     | E_var _ | E_literal _ | E_mod_member _ | E_apply _ | E_constr _ ->
         e
-    | E_match _ | E_record _ | E_field _ | E_let _ | E_case _ ->
+    | E_match _ | E_record _ | E_field _ | E_let _ | E_case _ | E_print _ ->
         (* Although these could be reduced in theory, it is unlikely
          * to be useful in this context. *)
         e
@@ -551,5 +551,7 @@ let rec unwrap_exp exp =
             List.map (fun (p, e') -> unwrap_pat p, unwrap_exp e') bs in
           E_case (unwrap_exp e, bs')
       | E_cast (e, t) ->
-          E_cast (unwrap_exp e, unwrap_typ t) in
+          E_cast (unwrap_exp e, unwrap_typ t)
+      | E_print (b, e) ->
+          E_print (b, unwrap_exp e) in
   {expr = e; expr_loc = Location.ghost_loc; expr_aux = ()}

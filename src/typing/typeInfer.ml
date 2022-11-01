@@ -907,6 +907,12 @@ let rec infer_expr tenv (venv: VEnv.t) (e: (unit, unit, mod_qual) expr) (t : crt
         (t =?= ityp) e.expr_loc ^ c,
         (wc,
          mk_auxexpr (E_cast (exp', typ)))
+    | E_print (b, e) ->
+        exists_aux (fun t' ->
+            let ce, (wce, e') = infer_expr tenv venv e t' in
+            let u = typcon_variable tenv (std_type "unit") in
+            let cu = (t =?= u) e.expr_loc in
+            ce ^ cu, (wce, mk_auxexpr (E_print (b, e'))))
     | E_unop (op, e) ->
         (* This is a special case of a constructor application. *)
         exists_aux (fun exvar ->
