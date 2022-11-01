@@ -108,6 +108,16 @@ let extend_view v : unit =
     | VK_closed -> ()
     | VK_open   -> v.vu_end <- buf_size !(v.vu_buf)
 
+(* printing helper *)
+let string_of_view v : string =
+  Printf.sprintf "view<%s: start=%d, ofs=%d, end=%d>"
+    (match v.vu_kind with
+         | VK_closed -> "closed"
+         | VK_open   -> "open")
+    v.vu_start
+    v.vu_ofs
+    v.vu_end
+
 (* Internal types for bitvectors and binary integers. *)
 
 type signed =
@@ -313,7 +323,7 @@ let string_of_value (as_ascii: bool) (v: value) : string =
                                   (safe_map (fun (f, v) ->
                                        Printf.sprintf "%s: %s" f (pr (d + 1) v)
                                      ) (srt_r fs)))
-      | V_view _v         -> "view"
+      | V_view v          -> string_of_view v
       | V_set  vs         -> Printf.sprintf "set<%s>"
                                (String.concat (mk_sep ",") (safe_map (pr (d + 1)) (srt vs)))
       | V_map  kvs        -> Printf.sprintf "map<%s>"
