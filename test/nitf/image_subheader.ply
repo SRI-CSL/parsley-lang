@@ -47,7 +47,13 @@ type image_subheader = {
     nrows: [byte],      // number of significant rows in image, size: 8, type R
     ncols: [byte],      // number of significant columns in image, size: 8, type R
     pvtype: [byte],     // pixel value type, size: 3, type R
-    irep: [byte]        // image representation, size: 8, type R
+    irep: [byte],       // image representation, size: 8, type R
+    icat: [byte],       // image category, size: 8, type R
+    abpp: [byte],       // actual bits-per-pixel per band, size: 2, type R
+    pjust: [byte],      // pixel justification, size: 1, type R
+    icords: [byte],     // image coordinate representation, size: 1, type <R>
+    // igeolo: [byte],     // image geographic location, size: 60, type C -- TODO
+    nicom: [byte]       // number of image comments, size: 1, type R
 }
 
 
@@ -86,6 +92,12 @@ format {
     NCOLS := (# ["00000001" .. "99999999"] #);;
     PVTYPE := (# ["INT" | "B" | "SI" | "R" | "C"] ^ 3u #);;
     IREP := (# ["MONO" | "RGB" | "RGB/LUT" | "MULTI" | "NODISPLY" | "NVECTOR" | "POLAR" | "VPH" | "YCbCr601"] ^ 8u #);;
+    ICAT := (# BCS_A ^ 8u #);;
+    ABPP := (# ["01" .. "96"] #);;
+    PJUST := (# ["R" | "L"] #);;
+    ICORDS := (#["U" | "G" | "N" | "S" | "P" | "D" | "\x20"] #);;
+    IGEOLO := (# BCS_A ^ 60u #);;
+    NICOM := (# BCS_N_INT_POS ^ 1u #);;
 
     ImageSubheader img_subh {image_subheader} := 
         file_part_type = IM
@@ -173,5 +185,23 @@ format {
 
         image_representation = IREP
         { img_subh.irep := image_representation }
+
+        image_category = ICAT
+        { img_subh.icat := image_category }
+
+        actual_bits_per_pixel_per_band = ABPP
+        { img_subh.abpp := actual_bits_per_pixel_per_band }
+
+        pixel_justification = PJUST
+        { img_subh.pjust := pixel_justification }
+
+        image_coordinate_representation = ICORDS
+        { img_subh.icords := image_coordinate_representation }
+
+        // image_geographic_location = IGEOLO
+        // { img_subh.igeolo := image_geographic_location }
+
+        number_of_image_comments = NICOM
+        { img_subh.nicom := number_of_image_comments }
         
 }
