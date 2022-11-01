@@ -6,14 +6,32 @@
 
 include character_sets
 
+fun is_valid_isclsy_1(isclas: [byte], isclsy: [byte]) -> bool = {
+    (case isclas of
+        | "U" -> (case isclsy of
+                    | "  " -> bool::True()
+                    | _ -> bool::False()
+                )
+        | _ -> (case isclsy of
+                    | "  " -> bool::False()
+                    | _ -> bool::True()
+                )
+    )
+}
+
+
 type image_subheader = {
     im: [byte],         // file part type, size: 2, type: R
     iid1: [byte],       // image identifier 1, size: 10, type: R
     idatim: [byte],     // image date and time, size: 14, type: R
     tgtid: [byte],      // target identifier, size: 17, type: R
     iid2: [byte],       // image identifier 2, size: 80, type: <R>
-    isclas: [byte]     // image security classification, size: 1, type: R
+    isclas: [byte],     // image security classification, size: 1, type: R
+    isclsy: [byte],     // image security classification system, size: 2, type <R>
+    iscode: [byte],     // image codewords, size: 11, type <R>
+    isctlh: [byte]     // image control and handling, size: 2, type <R>
 }
+
 
 format {
     IM := !"IM"!;;
@@ -28,6 +46,9 @@ format {
 
     IID2 := (# ECS_A ^ 80u | ["\x20"] ^ 80u #);;
     ISCLAS := (# ["T" | "S" | "C" | "R" | "U" ] #);;
+    ISCLSY := (# ECS_A ^ 2u #);;
+    ISCODE := (# ECS_A ^ 11u #);;
+    ISCTLH := (# ECS_A ^ 2u #);;
 
     ImageSubheader img_sub {image_subheader} := 
         file_part_type = IM
@@ -47,4 +68,17 @@ format {
 
         image_security_classification = ISCLAS
         { img_sub.isclas := image_security_classification }
+
+        // Fields from ISCODE until ISCTLN are placed before ISCLSY
+        // per interpretation of NOTE at the top of Table 3, pg. 30
+        image_codewords = ISCODE
+        { img_sub.iscode := image_codewords }
+
+        image_control_and_handling = ISCTLH
+        { img_sub.isctlh := image_control_and_handling }
+
+        image_security_classification_system = ISCLSY
+        [is_valid_isclsy_1(image_security_classification_system, image_security_classification)]
+        { img_sub.isclsy := image_security_classification_system }
+        
 }
