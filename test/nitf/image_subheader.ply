@@ -15,17 +15,6 @@ type image_subheader = {
 format {
     IM := !"IM"!;;
     IID1 := (# BCS_A ^ 10u #);;
-    
-    // date and time
-    CC := (#["0".."9"] ^ 2u #);;
-    YY := (#["0".."9"] ^ 2u #);;
-    MM := (# ["0"] ["1" .. "9"] | ["1"] ["0" .. "2"] #);;
-    DD := (# ["0"] ["1" .. "9"] | ["1"|"2"] ["0" .. "9"] | ["3"]["0" .. "1"] #);;
-    Hours := (# ["0"] ["1" .. "9"] | ["1"] ["0" .. "9"] | ["2"] ["0" .. "3"] #);;
-    Minutes := (# ["0" .. "5"] ["0" .. "9"] #);;
-    Seconds := (# ["0" .. "5"] ["0" .. "9"] #);;
-
-    CCYYMMDDhhmmss := (#CC YY MM DD Hours Minutes Seconds#);;
     IDATIM := (# CCYYMMDDhhmmss #);;
 
     ImageSubheader img_sub {image_subheader} := 
