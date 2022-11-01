@@ -8,10 +8,7 @@ include character_sets
 
 fun is_valid_isclsy_1(isclas: [byte], isclsy: [byte]) -> bool = {
     (case isclas of
-        | "U" -> (case isclsy of
-                    | "  " -> bool::True()
-                    | _ -> bool::False()
-                )
+        | "U" -> bool::True()
         | _ -> (case isclsy of
                     | "  " -> bool::False()
                     | _ -> bool::True()
@@ -19,6 +16,9 @@ fun is_valid_isclsy_1(isclas: [byte], isclsy: [byte]) -> bool = {
     )
 }
 
+type image_comments = {
+    comment: [byte]
+}
 
 type image_subheader = {
     im: [byte],         // file part type, size: 2, type: R
@@ -53,13 +53,14 @@ type image_subheader = {
     pjust: [byte],      // pixel justification, size: 1, type R
     icords: [byte],     // image coordinate representation, size: 1, type <R>
     // igeolo: [byte],     // image geographic location, size: 60, type C -- TODO
-    nicom: [byte]       // number of image comments, size: 1, type R
+    nicom: [byte],      // number of image comments, size: 1, type R
+    // icomn: [image_comments]       // image comment n, size: 80, type C -- TODO
+    ic: [byte]          // image compression, size: 2, type R
 }
 
 
 format {
-    // IM := !"IM"!;;
-    IM := (# BCS_A ^ 2u #);;
+    IM := !"IM"!;;
     IID1 := (# BCS_A ^ 10u #);;
     IDATIM := (# CCYYMMDDhhmmss #);;
 
@@ -98,10 +99,15 @@ format {
     ICORDS := (#["U" | "G" | "N" | "S" | "P" | "D" | "\x20"] #);;
     IGEOLO := (# BCS_A ^ 60u #);;
     NICOM := (# BCS_N_INT_POS ^ 1u #);;
+    ICOMN := (# ECS_A ^ 80u #);;
+    IC := (# ["NC" | "NM" | "I1"] | ["C1" .. "C8"] | ["M1" .. "M8"] | ["CB" | "MB" | "C9" | "M9" | "CA" | "MA"] #);;
+
+    ImageComments img_comm {image_comments} :=
+        img_comment = ICOMN
+        { img_comm.comment := img_comment };;
 
     ImageSubheader img_subh {image_subheader} := 
         file_part_type = IM
-        [file_part_type = "IM"]
         { img_subh.im := file_part_type }
 
         image_identifier_1 = IID1
@@ -203,5 +209,10 @@ format {
 
         number_of_image_comments = NICOM
         { img_subh.nicom := number_of_image_comments }
+
+        // image_comment_n = (ImageComments^Usize.of_byte(number_of_image_comments))
+        // { img_subh.icomn := image_comment_n }
         
+        image_compression = IC
+        { img_subh.ic := image_compression }
 }
