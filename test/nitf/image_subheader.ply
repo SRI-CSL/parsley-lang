@@ -36,7 +36,12 @@ type image_subheader = {
     isdcxm: [byte],     // image declassification exemption, size: 4, type <R>
     isdg: [byte],       // image downgrade, size: 1, type <R>
     isdgdt: [byte],     // image downgrade date, size: 8, type <R>
-    iscltx: [byte]      // image classification text, size: 43, type <R>
+    iscltx: [byte],     // image classification text, size: 43, type <R>
+    iscatp: [byte],     // image classification authority type, size: 1, type <R>
+    iscaut: [byte],     // image classification authority, size: 40, type <R>
+    iscrsn: [byte],     // image classification reason, size: 1, type <R>
+    issrdt: [byte],     // image security source date, size: 8, type <R>
+    isctln: [byte]      // image security control number, size: 15, type <R>
 }
 
 
@@ -63,6 +68,11 @@ format {
     ISDG := (# ["S" | "C" | "R" | "\x20"] #);;
     ISDGDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
     ISCLTX := (# ECS_A ^ 43u #);;
+    ISCATP := (# ["O" | "D" | "M" | "\x20"] #);;
+    ISCAUT := (# ECS_A ^ 40u #);;
+    ISCRSN := (# ["A" .. "H"] | ["\x20"] #);;
+    ISSRDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
+    ISCTLN := (# ECS_A ^ 20u #);;
 
     ImageSubheader img_sub {image_subheader} := 
         file_part_type = IM
@@ -112,6 +122,21 @@ format {
 
         image_classification_text = ISCLTX
         { img_sub.iscltx := image_classification_text }
+
+        image_classification_authority_type = ISCATP
+        { img_sub.iscatp := image_classification_authority_type }
+
+        image_classification_authority = ISCAUT
+        { img_sub.iscaut := image_classification_authority }
+
+        image_classification_reason = ISCRSN
+        { img_sub.iscrsn := image_classification_reason }
+
+        image_security_source_date = ISSRDT
+        { img_sub.issrdt := image_security_source_date }
+
+        image_security_control_number = ISCTLN
+        { img_sub.isctln := image_security_control_number }
 
         image_security_classification_system = ISCLSY
         [is_valid_isclsy_1(image_security_classification_system, image_security_classification)]
