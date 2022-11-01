@@ -66,7 +66,12 @@ type image_subheader = {
     nppbh: [byte],      // number of pixels per block horizontal, size: 4, type R
     nppbv: [byte],      // number of pixels per block vertical, size: 4, type R
     nbpp: [byte],       // number of bits per pixel per band, size: 2, type R
-    idlvl: [byte]       // image display level, size: 3, type R
+    idlvl: [byte],      // image display level, size: 3, type R
+    ialvl: [byte],      // attachment level, size: 3, type R
+    iloc: [byte],       // image location, size: 10, type R
+    imag: [byte],       // image magnification, size: 4, type R
+    udidl: [byte],      // use defined image data length, size: 5, type R
+    ixshdl: [byte]      // image extended subheader data length, size: 5, type R
 }
 
 
@@ -122,10 +127,17 @@ format {
     NPP := (# ["0000"] | ["0001" .. "8192"] #);;
     NBPP := (# ["01" .. "96"] #);;
     IDLVL := (# ["001" .. "999"] #);;
+    IALVL := (# ["000" .. "998"] | ["\x30"] ^ 3u #);;
+    ILOC := (# BCS_N ^ 10u #);;
+    IMAG := (# BCS_A ^ 4u | ["1.0\x20"] #);;
+    UDIDL := (# ["00000"] | ["00003" .. "99999"] #);;
+    IXSHDL := (# ["00000"] | ["00003" .. "99999"] #);;
+
 
     ImageComments img_comm {image_comments} :=
         img_comment = ICOMN
         { img_comm.comment := img_comment };;
+
 
     ImageSubheader img_subh {image_subheader} := 
         file_part_type = IM
@@ -272,5 +284,20 @@ format {
 
         image_display_level = IDLVL
         { img_subh.idlvl := image_display_level }
+
+        attachment_level = IALVL
+        { img_subh.ialvl := attachment_level }
+
+        image_location = ILOC
+        { img_subh.iloc := image_location }
+
+        image_magnification = IMAG
+        { img_subh.imag := image_magnification }
+
+        user_defined_image_data_length = UDIDL
+        { img_subh.udidl := user_defined_image_data_length }
+
+        image_extended_subheader_data_length = IXSHDL
+        { img_subh.ixshdl := image_extended_subheader_data_length }
 
 }
