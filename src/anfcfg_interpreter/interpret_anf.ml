@@ -44,7 +44,7 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
     (* TODO: handle module lookup *)
     | Anf.AV_constr ((_, "*", c), avs) ->
         assert (c = "_Tuple");
-        let vs = List.map (val_of_av s) avs in
+        let vs = safe_map (val_of_av s) avs in
         V_tuple vs
     | Anf.AV_constr ((_, "[]", "[]"), avs) ->
         assert (List.length avs = 0);
@@ -74,9 +74,9 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
         assert (List.length avs = 0);
         V_bit false
     | Anf.AV_constr (c, avs) ->
-        V_constr (c, List.map (val_of_av s) avs)
+        V_constr (c, safe_map (val_of_av s) avs)
     | Anf.AV_record fs ->
-        let vs = List.map (fun (f, av) ->
+        let vs = safe_map (fun (f, av) ->
                      Location.value f, val_of_av s av
                    ) fs in
         V_record vs
@@ -230,13 +230,13 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
     | AE_cast (av, _) ->
         val_of_av s av
     | AE_apply (({fv = FV_var v; _} as f), args) ->
-        let vs = List.map (val_of_av s) args in
+        let vs = safe_map (val_of_av s) args in
         let ps, bd = FEnv.lookup s.st_fenv v f.fv_loc in
         let fn = Anf_printer.string_of_var v in
         do_apply s fn (ps, vs) bd f.fv_loc
     | AE_apply (({fv = FV_mod_member (m, f); _} as fv), args) ->
         let fn = Location.value f in
-        let vs = List.map (val_of_av s) args in
+        let vs = safe_map (val_of_av s) args in
         let mn = Location.value m in
         if      mn = "View"
         then    dispatch_viewlib fv.fv_loc mn fn s vs
