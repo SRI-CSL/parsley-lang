@@ -1,0 +1,40 @@
+// Parsley: Foundations of Safe Parsing
+// 
+// NITF: Image Sub-header Parsley Definition
+// 
+// SRI International, 2022
+
+include character_sets
+
+type image_subheader = {
+    im: [byte],         // file part type, size: 2
+    iid1: [byte],       // image identifier 1, size: 10
+    idatim: [byte]     // image date and time, size: 14
+}
+
+format {
+    IM := !"IM"!;;
+    IID1 := (# BCS_A ^ 10u #);;
+    
+    // date and time
+    CC := (#["0".."9"] ^ 2u #);;
+    YY := (#["0".."9"] ^ 2u #);;
+    MM := (# ["0"] ["1" .. "9"] | ["1"] ["0" .. "2"] #);;
+    DD := (# ["0"] ["1" .. "9"] | ["1"|"2"] ["0" .. "9"] | ["3"]["0" .. "1"] #);;
+    Hours := (# ["0"] ["1" .. "9"] | ["1"] ["0" .. "9"] | ["2"] ["0" .. "3"] #);;
+    Minutes := (# ["0" .. "5"] ["0" .. "9"] #);;
+    Seconds := (# ["0" .. "5"] ["0" .. "9"] #);;
+
+    CCYYMMDDhhmmss := (#CC YY MM DD Hours Minutes Seconds#);;
+    IDATIM := (# CCYYMMDDhhmmss #);;
+
+    ImageSubheader img_sub {image_subheader} := 
+        file_part_type = IM
+        { img_sub.im := file_part_type }
+
+        image_identifier_1 = IID1
+        { img_sub.iid1 := image_identifier_1 }
+
+        image_date_and_time = IDATIM
+        { img_sub.idatim := image_date_and_time }
+}

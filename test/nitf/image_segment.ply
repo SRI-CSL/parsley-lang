@@ -292,9 +292,9 @@ format {
 
             // to do: Check with Prashanth whether we can define this 
             // as a matrix [idx_i][comment_img_i]
-            for i .. number_of_image_comments {
-                img_sub.is.icomn := image_comment_n
-            }
+            // for i .. number_of_image_comments {
+            //     img_sub.is.icomn := image_comment_n
+            // }
 
             img_sub.is.ic := image_compression;
 
