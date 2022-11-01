@@ -29,6 +29,12 @@ type res_info_tuple = {
     lren: usize
 }
 
+type image_segment = {
+    subheader : [byte],
+    imgdataseg: [byte]
+}
+
+
 // NITF packet type
 type nitf_packet = {
     // NITF header starts here
@@ -92,13 +98,73 @@ type nitf_packet = {
     udhd: [byte],
     xhdl: usize,
     xhdlofl: usize,
-    xhd: [byte]
+    xhd: [byte],
+    // header ends
+
+    // segments follow header
+    image_segments: [byte],
+    graphic_segments: [byte],
+    text_segments: [byte],
+    data_segments: [byte],
+    resex_segments: [byte]
 }
 
 fun max(x:usize, y :usize) -> usize = {
     (case (x >_u y) of
     | bool::True() -> x
     | bool::False() -> y)
+}
+
+fun process_one_image_info(acc: ((view, usize), [view]), cur: image_info_tuple) -> ((view, usize), [view]) = {
+    let ((cv, ofs), vs) = acc in
+        let end = ofs +_u cur.lin +_u cur.lishn in
+            let v = View.restrict(cv, ofs, end) in
+                ((cv, end), v::vs)
+}
+
+fun mkviews(image_info: [image_info_tuple]) -> [view] = {
+    let (_, vs) = List.fold(process_one_image_info, ((View.get_current(), View.get_current_cursor()), []), image_info) in
+        vs
+}
+
+fun add_image_info(acc: usize, image_info: image_info_tuple) -> usize = {
+    acc +_u image_info.lin +_u image_info.lishn
+}
+
+fun span_image_segments(image_info:[image_info_tuple]) -> usize = {
+    List.fold(add_image_info, 0u, image_info)
+}
+
+fun add_graphic_info(acc: usize, graphic_info: graphic_info_tuple) -> usize = {
+    acc +_u graphic_info.lsn +_u graphic_info.lsshn
+}
+
+fun span_graphic_segments(graphic_info:[graphic_info_tuple]) -> usize = {
+    List.fold(add_graphic_info, 0u, graphic_info)
+}
+
+fun add_text_info(acc: usize, text_info: text_info_tuple) -> usize = {
+    acc +_u text_info.ltn +_u text_info.ltshn
+}
+
+fun span_text_segments(text_info:[text_info_tuple]) -> usize = {
+    List.fold(add_text_info, 0u, text_info)
+}
+
+fun add_data_info(acc: usize, data_info: data_info_tuple) -> usize = {
+    acc +_u data_info.ldn +_u data_info.ldshn
+}
+
+fun span_data_segments(data_info:[data_info_tuple]) -> usize = {
+    List.fold(add_data_info, 0u, data_info)
+}
+
+fun add_res_info(acc: usize, res_info: res_info_tuple) -> usize = {
+    acc +_u res_info.lren +_u res_info.lreshn
+}
+
+fun span_resex_segments(res_info:[res_info_tuple]) -> usize = {
+    List.fold(add_res_info, 0u, res_info)
 }
 
 recfun pow(x: usize, y: usize, z: usize, o: usize) -> usize = {
@@ -301,8 +367,11 @@ format {
     XHDL := (# ["0" .. "9"] ^ 5u #);;
     XHDLOFL := (# ["0" .. "9"] ^ 3u #);;
 
-    ImageSegment (i : image_info) {image_segment} :=
-    {};;
+    ImageSegment  is (i : image_info_tuple) {image_segment} :=
+        imgsubheader = Byte^(i.lishn)
+        imgdataseg = Byte^(i.lin)
+    { is.subheader := imgsubheader;
+      is.imgdataseg := imgdataseg };;
 
     NITFpacket npkt {nitf_packet} :=
     fhdr = FHDR
@@ -531,6 +600,33 @@ format {
 
     // header ends here
 
-    // image sub header
-    // image_subheader = ImageSegment^
+    // image segment views
+    // image_segment_views = {let vs = mkviews(image_info)
+    // in $print_t(vs); $print_t(image_info) ;; mkviews(image_info)}
+    // image_segments = @#[image_segment_views, ImageSegment<i <- (image_info)>]
+
+    // image segments bytes
+    image_segment_bytes = Byte^(span_image_segments(image_info))
+    {npkt.image_segments := image_segment_bytes}
+
+    // use the image_segment_bytes and convert
+
+    // // graphic
+    graphic_segment_bytes = Byte^(span_graphic_segments(graphic_info))
+    {npkt.graphic_segments:= graphic_segment_bytes}
+
+    // reserved
+    // reserved_segment_bytes = Byte^(span_reserved_segments(reserved_info))
+
+    // text
+    text_segment_bytes = Byte^(span_text_segments(text_info))
+    {npkt.text_segments := text_segment_bytes}
+
+    // // data extension
+    data_segment_bytes = Byte^(span_data_segments(data_info))
+    {npkt.data_segments := data_segment_bytes}
+
+    // // reserved extension segment
+    resex_segment_bytes = Byte^(span_resex_segments(res_info))
+    {npkt.resex_segments := resex_segment_bytes}
 }
