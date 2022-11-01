@@ -54,7 +54,7 @@ type image_subheader = {
     icords: [byte],     // image coordinate representation, size: 1, type <R>
     // igeolo: [byte],     // image geographic location, size: 60, type C -- TODO
     nicom: [byte],      // number of image comments, size: 1, type R
-    // icomn: [image_comments]       // image comment n, size: 80, type C -- TODO
+    icomn: [image_comments],       // image comment n, size: 80, type C -- TODO
     ic: [byte],         // image compression, size: 2, type R
     comrat: [byte],     // compression rate code, size: 4, type C -- TODO: Add condition function
     nbands: [byte],     // number of bands, size: 1, type R
@@ -64,7 +64,9 @@ type image_subheader = {
     nbpr: [byte],       // number of blocks per row, size: 4, type R
     nbpc: [byte],       // number of blocks per column, size: 4, type R
     nppbh: [byte],      // number of pixels per block horizontal, size: 4, type R
-    nppbv: [byte]       // number of pixels per block vertical, size: 4, type R
+    nppbv: [byte],      // number of pixels per block vertical, size: 4, type R
+    nbpp: [byte],       // number of bits per pixel per band, size: 2, type R
+    idlvl: [byte]       // image display level, size: 3, type R
 }
 
 
@@ -118,6 +120,8 @@ format {
     NBPR := (# ["0001" .. "9999"] #);;
     NBPC := (# ["0001" .. "9999"] #);;
     NPP := (# ["0000"] | ["0001" .. "8192"] #);;
+    NBPP := (# ["01" .. "96"] #);;
+    IDLVL := (# ["001" .. "999"] #);;
 
     ImageComments img_comm {image_comments} :=
         img_comment = ICOMN
@@ -227,8 +231,8 @@ format {
         number_of_image_comments = NICOM
         { img_subh.nicom := number_of_image_comments }
 
-        // image_comment_n = (ImageComments^Usize.of_byte(number_of_image_comments))
-        // { img_subh.icomn := image_comment_n }
+        image_comment_n = (ImageComments^Usize.of_bytes_unsafe(number_of_image_comments))
+        { img_subh.icomn := image_comment_n }
         
         image_compression = IC
         { img_subh.ic := image_compression }
@@ -262,5 +266,11 @@ format {
 
         number_of_pixels_per_block_vertical = NPP
         { img_subh.nppbv := number_of_pixels_per_block_vertical }
+
+        number_of_bits_per_pixel_per_band = NBPP
+        { img_subh.nbpp := number_of_bits_per_pixel_per_band }
+
+        image_display_level = IDLVL
+        { img_subh.idlvl := image_display_level }
 
 }
