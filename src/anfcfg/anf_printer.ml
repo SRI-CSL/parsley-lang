@@ -177,6 +177,10 @@ and print_aexp e =
         pp_string " in ";
         pp_break  0 0;
         print_aexp b
+    | AE_print (as_ascii, av) ->
+        pp_string (Printf.sprintf "$print_%s "
+                     (if as_ascii then "ascii" else "hex"));
+        print_av av
     | AE_letpat (v, (av, occ), e) ->
         pp_string "letpat ";
         pp_string (string_of_var v.v);

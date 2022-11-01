@@ -307,6 +307,8 @@ and descend_expr (ctx, acc) e =
           descend_expr (descend_expr (ctx, acc) e) b
       | E_let (p, e, b) ->
           descend_expr (descend_expr (ctx, [p] :: acc) e) b
+      | E_print (_, e) ->
+          descend_expr (ctx, acc) e
 
 (** [extract_nt_pats ntd] extracts the patterns used in all the
     expressions (and subexpressions) in the production rules of the

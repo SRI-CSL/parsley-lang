@@ -164,6 +164,7 @@ type ('a, 'b, 'm) expr_desc =
   | E_case       of ('a, 'b, 'm) expr * (('a, 'b, 'm) pattern * ('a, 'b, 'm) expr) list
   | E_let        of ('a, 'b, 'm) pattern * ('a, 'b, 'm) expr * ('a, 'b, 'm) expr
   | E_cast       of ('a, 'b, 'm) expr * 'm gen_type_expr
+  | E_print      of bool (* data: true -> ascii | false -> hex *) * ('a, 'b, 'm) expr
 
 and ('a, 'b, 'm) expr =
   {expr:     ('a, 'b, 'm) expr_desc;

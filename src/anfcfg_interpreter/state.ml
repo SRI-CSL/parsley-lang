@@ -161,6 +161,16 @@ and state =
 
 (* helpers *)
 
+(* Returns the `vu_ofs` and `vu_end` of the view in the state. *)
+type last_pos = int * int
+let view_info (s: state) : last_pos =
+  let v = s.st_cur_view in
+  v.vu_ofs, v.vu_end
+
+let fmt_pos (p: last_pos) : string =
+  let o, e = p in
+  Printf.sprintf "offset %d (%d bytes remaining)" o (e - o)
+
 let get_block lc (s: state) (l: Cfg.label) : Cfg.closed =
   (* We should only be given static labels. *)
   assert (Cfg.is_static l);

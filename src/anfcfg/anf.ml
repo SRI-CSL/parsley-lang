@@ -144,6 +144,7 @@ type aexp_desc =
   | AE_case of var * (apat * aexp) list
   | AE_let of var * aexp * aexp
   | AE_cast of av * Ast.type_expr
+  | AE_print of bool * av
   (* subterm identification for pattern variables *)
   | AE_letpat of var * (av * occurrence) * aexp
 

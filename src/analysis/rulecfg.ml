@@ -312,7 +312,7 @@ let free_vars_of_expr (e: (typ, varid, mod_qual) expr) (bound: References.t)
           add acc e
       | E_literal _ | E_mod_member _ ->
           acc
-      | E_unop (_, e) | E_match (e, _) | E_cast (e, _) ->
+      | E_unop (_, e) | E_match (e, _) | E_cast (e, _) | E_print (_, e) ->
           add acc e in
   fst (add (References.empty, bound) e)
 

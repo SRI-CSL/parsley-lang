@@ -481,6 +481,10 @@ expr:
     else if List.length l = 1
     then List.nth l 0
     else make_expr (E_constr ((Modul None, t, c), l)) $startpos $endpos }
+| PRINT  LPAREN e=expr RPAREN
+  { make_expr (E_print (false, e)) $startpos $endpos }
+| PRINTT LPAREN e=expr RPAREN
+  { make_expr (E_print (true, e)) $startpos $endpos }
 | e=expr LPAREN l=separated_list(COMMA, expr) RPAREN
   { make_expr (E_apply(e, l)) $startpos $endpos }
 | e=expr LBRACK i=expr RBRACK
@@ -619,7 +623,7 @@ stmt:
   { make_stmt (S_let (p, e, s)) $startpos $endpos }
 | LPAREN CASE e=expr OF option(BAR) c=separated_list(BAR, branchstmt) RPAREN
   { make_stmt (S_case (e, c)) $startpos $endpos }
-| PRINT LPAREN e=expr RPAREN
+| PRINT  LPAREN e=expr RPAREN
   { make_stmt (S_print (false, e)) $startpos $endpos }
 | PRINTT LPAREN e=expr RPAREN
   { make_stmt (S_print (true, e)) $startpos $endpos }
