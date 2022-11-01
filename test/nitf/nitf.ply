@@ -1,6 +1,7 @@
 // import basic types
 include character_sets
 include match
+include image_subheader
 
 
 // TABLE 1 NITF FILE HEADER. pg. 15 of NITF spec
