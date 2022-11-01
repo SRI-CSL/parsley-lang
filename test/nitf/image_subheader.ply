@@ -45,12 +45,15 @@ type image_subheader = {
     encryp: [byte],     // encryption, size: 1, type R
     isorce: [byte],     // image source, size: 42, type <R>
     nrows: [byte],      // number of significant rows in image, size: 8, type R
-    ncols: [byte]       // number of significant columns in image, size: 8, type R
+    ncols: [byte],      // number of significant columns in image, size: 8, type R
+    pvtype: [byte],     // pixel value type, size: 3, type R
+    irep: [byte]        // image representation, size: 8, type R
 }
-// todo: ENCRYp pg. 32 onwards
+
 
 format {
-    IM := !"IM"!;;
+    // IM := !"IM"!;;
+    IM := (# BCS_A ^ 2u #);;
     IID1 := (# BCS_A ^ 10u #);;
     IDATIM := (# CCYYMMDDhhmmss #);;
 
@@ -81,85 +84,94 @@ format {
     ISORCE := (# ECS_A ^ 42u #);;
     NROWS := (# ["00000001" .. "99999999"] #);;
     NCOLS := (# ["00000001" .. "99999999"] #);;
+    PVTYPE := (# ["INT" | "B" | "SI" | "R" | "C"] ^ 3u #);;
+    IREP := (# ["MONO" | "RGB" | "RGB/LUT" | "MULTI" | "NODISPLY" | "NVECTOR" | "POLAR" | "VPH" | "YCbCr601"] ^ 8u #);;
 
-    ImageSubheader img_sub {image_subheader} := 
+    ImageSubheader img_subh {image_subheader} := 
         file_part_type = IM
-        { img_sub.im := file_part_type }
+        [file_part_type = "IM"]
+        { img_subh.im := file_part_type }
 
         image_identifier_1 = IID1
-        { img_sub.iid1 := image_identifier_1 }
+        { img_subh.iid1 := image_identifier_1 }
 
         image_date_and_time = IDATIM
-        { img_sub.idatim := image_date_and_time }
+        { img_subh.idatim := image_date_and_time }
 
         target_identifier = TGTID
-        { img_sub.tgtid := target_identifier }
+        { img_subh.tgtid := target_identifier }
 
         image_identifier_2 = IID2
-        { img_sub.iid2 := image_identifier_2 }
+        { img_subh.iid2 := image_identifier_2 }
 
         image_security_classification = ISCLAS
-        { img_sub.isclas := image_security_classification }
+        { img_subh.isclas := image_security_classification }
 
         // Fields from ISCODE until ISCTLN are placed before ISCLSY
         // per interpretation of NOTE at the top of Table 3, pg. 30
         image_codewords = ISCODE
-        { img_sub.iscode := image_codewords }
+        { img_subh.iscode := image_codewords }
 
         image_control_and_handling = ISCTLH
-        { img_sub.isctlh := image_control_and_handling }
+        { img_subh.isctlh := image_control_and_handling }
 
         image_releasing_instructions = ISREL
-        { img_sub.isrel := image_releasing_instructions }
+        { img_subh.isrel := image_releasing_instructions }
 
         image_declassification_type = ISDCTP
-        { img_sub.isdctp := image_declassification_type }
+        { img_subh.isdctp := image_declassification_type }
 
         image_declassification_date = ISDCDT
         // [image_declassification_type = "DD"] todo: revisit this field
-        { img_sub.isdcdt := image_declassification_date }
+        { img_subh.isdcdt := image_declassification_date }
 
         image_declassification_exemption = ISDCXM
-        { img_sub.isdcxm := image_declassification_exemption }
+        { img_subh.isdcxm := image_declassification_exemption }
 
         image_downgrade = ISDG
-        { img_sub.isdg := image_downgrade }
+        { img_subh.isdg := image_downgrade }
 
         image_downgrade_date = ISDGDT
-        { img_sub.isdgdt := image_downgrade_date }
+        { img_subh.isdgdt := image_downgrade_date }
 
         image_classification_text = ISCLTX
-        { img_sub.iscltx := image_classification_text }
+        { img_subh.iscltx := image_classification_text }
 
         image_classification_authority_type = ISCATP
-        { img_sub.iscatp := image_classification_authority_type }
+        { img_subh.iscatp := image_classification_authority_type }
 
         image_classification_authority = ISCAUT
-        { img_sub.iscaut := image_classification_authority }
+        { img_subh.iscaut := image_classification_authority }
 
         image_classification_reason = ISCRSN
-        { img_sub.iscrsn := image_classification_reason }
+        { img_subh.iscrsn := image_classification_reason }
 
         image_security_source_date = ISSRDT
-        { img_sub.issrdt := image_security_source_date }
+        { img_subh.issrdt := image_security_source_date }
 
         image_security_control_number = ISCTLN
-        { img_sub.isctln := image_security_control_number }
+        { img_subh.isctln := image_security_control_number }
 
         image_security_classification_system = ISCLSY
         [is_valid_isclsy_1(image_security_classification_system, image_security_classification)]
-        { img_sub.isclsy := image_security_classification_system }
+        { img_subh.isclsy := image_security_classification_system }
 
         encryption = ENCRYP
-        { img_sub.encryp := encryption }
+        { img_subh.encryp := encryption }
 
         image_source = ISORCE
-        { img_sub.isorce := image_source }
+        { img_subh.isorce := image_source }
 
         number_of_significant_rows_in_image = NROWS
-        { img_sub.nrows := number_of_significant_rows_in_image }
+        { img_subh.nrows := number_of_significant_rows_in_image }
 
         number_of_significant_cols_in_image = NCOLS
-        { img_sub.ncols := number_of_significant_cols_in_image }
+        { img_subh.ncols := number_of_significant_cols_in_image }
+
+        pixel_value_type = PVTYPE
+        { img_subh.pvtype := pixel_value_type }
+
+        image_representation = IREP
+        { img_subh.irep := image_representation }
         
 }
