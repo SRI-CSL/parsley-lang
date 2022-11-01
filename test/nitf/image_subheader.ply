@@ -41,9 +41,13 @@ type image_subheader = {
     iscaut: [byte],     // image classification authority, size: 40, type <R>
     iscrsn: [byte],     // image classification reason, size: 1, type <R>
     issrdt: [byte],     // image security source date, size: 8, type <R>
-    isctln: [byte]      // image security control number, size: 15, type <R>
+    isctln: [byte],     // image security control number, size: 15, type <R>
+    encryp: [byte],     // encryption, size: 1, type R
+    isorce: [byte],     // image source, size: 42, type <R>
+    nrows: [byte],      // number of significant rows in image, size: 8, type R
+    ncols: [byte]       // number of significant columns in image, size: 8, type R
 }
-
+// todo: ENCRYp pg. 32 onwards
 
 format {
     IM := !"IM"!;;
@@ -73,6 +77,10 @@ format {
     ISCRSN := (# ["A" .. "H"] | ["\x20"] #);;
     ISSRDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
     ISCTLN := (# ECS_A ^ 20u #);;
+    ENCRYP := (# BCS_N_INT_POS ^ 1u #);;
+    ISORCE := (# ECS_A ^ 42u #);;
+    NROWS := (# ["00000001" .. "99999999"] #);;
+    NCOLS := (# ["00000001" .. "99999999"] #);;
 
     ImageSubheader img_sub {image_subheader} := 
         file_part_type = IM
@@ -141,5 +149,17 @@ format {
         image_security_classification_system = ISCLSY
         [is_valid_isclsy_1(image_security_classification_system, image_security_classification)]
         { img_sub.isclsy := image_security_classification_system }
+
+        encryption = ENCRYP
+        { img_sub.encryp := encryption }
+
+        image_source = ISORCE
+        { img_sub.isorce := image_source }
+
+        number_of_significant_rows_in_image = NROWS
+        { img_sub.nrows := number_of_significant_rows_in_image }
+
+        number_of_significant_cols_in_image = NCOLS
+        { img_sub.ncols := number_of_significant_cols_in_image }
         
 }
