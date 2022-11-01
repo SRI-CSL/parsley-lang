@@ -111,7 +111,7 @@ let bool_not lc (v: value) : value =
 
 let bitvector_negate lc (v: value) : value =
   match v with
-    | V_bitvector bl -> V_bitvector (List.map not bl)
+    | V_bitvector bl -> V_bitvector (safe_map not bl)
     | _ -> internal_error lc (Type_error ("negate", 1, vtype_of v, T_bitvector))
 
 let int_plus t lc (l: value) (r: value) : value =
@@ -271,7 +271,7 @@ let bool_or lc (l: value) (r: value) : value =
 
 let bv_not lc (v: value) : value =
   match v with
-    | V_bitvector bv -> V_bitvector (List.map not bv)
+    | V_bitvector bv -> V_bitvector (safe_map not bv)
     | _              -> internal_error lc (Type_error ("~", 1, vtype_of v, T_bitvector))
 
 let bv_or lc (l: value) (r: value) : value =
@@ -314,7 +314,7 @@ let bv_bitrange lc (l: value) (hi: int) (lo: int) : value =
         internal_error lc (Type_error ("bitrange", 1, vtype_of l, T_bitvector))
 
 let mk_bitfield_type (bfi: TypingEnvironment.bitfield_info) =
-  let rcd = List.map (fun (f, _) -> f, T_bitvector) bfi.bf_fields in
+  let rcd = safe_map (fun (f, _) -> f, T_bitvector) bfi.bf_fields in
   T_record rcd
 
 let rec_of_bits lc (r: string) (l: value) (bfi: TypingEnvironment.bitfield_info)
@@ -491,7 +491,7 @@ let set_field lc (l: value) (f: string) (v: value) : value =
            initializing assignment. *)
         (match List.assoc_opt f fs with
            | Some _ ->
-               V_record (List.map (fun (f', v') ->
+               V_record (safe_map (fun (f', v') ->
                              f', if f' = f then v else v'
                            ) fs)
            | None ->
