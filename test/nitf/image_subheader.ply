@@ -7,15 +7,27 @@
 include character_sets
 
 type image_subheader = {
-    im: [byte],         // file part type, size: 2
-    iid1: [byte],       // image identifier 1, size: 10
-    idatim: [byte]     // image date and time, size: 14
+    im: [byte],         // file part type, size: 2, type: R
+    iid1: [byte],       // image identifier 1, size: 10, type: R
+    idatim: [byte],     // image date and time, size: 14, type: R
+    tgtid: [byte],      // target identifier, size: 17, type: R
+    iid2: [byte],       // image identifier 2, size: 80, type: <R>
+    isclas: [byte]     // image security classification, size: 1, type: R
 }
 
 format {
     IM := !"IM"!;;
     IID1 := (# BCS_A ^ 10u #);;
     IDATIM := (# CCYYMMDDhhmmss #);;
+
+    BE := (# BCS_A ^ 10u #);;
+    OSUFFIX := (# BCS_A ^ 5u #);;
+    CountryCode := (# BCS_A ^ 2u #);;
+    BOC := (# BE OSUFFIX CountryCode #);;
+    TGTID := (# BOC | ["\x20"] ^ 17u #);;
+
+    IID2 := (# ECS_A ^ 80u | ["\x20"] ^ 80u #);;
+    ISCLAS := (# ["T" | "S" | "C" | "R" | "U" ] #);;
 
     ImageSubheader img_sub {image_subheader} := 
         file_part_type = IM
@@ -26,4 +38,13 @@ format {
 
         image_date_and_time = IDATIM
         { img_sub.idatim := image_date_and_time }
+
+        target_identifier = TGTID
+        { img_sub.tgtid := target_identifier }
+
+        image_identifier_2 = IID2
+        { img_sub.iid2 := image_identifier_2 }
+
+        image_security_classification = ISCLAS
+        { img_sub.isclas := image_security_classification }
 }
