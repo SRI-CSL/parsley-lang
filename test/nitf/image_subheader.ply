@@ -77,7 +77,7 @@ type image_subheader = {
 
 format {
     IM := !"IM"!;;
-    IID1 := (# AsciiCharS ^ 10u #);;
+    IID1 := (# BCS_A ^ 10u #);;
     IDATIM := (# CCYYMMDDhhmmss #);;
 
     BE := (# BCS_A ^ 10u #);;
@@ -103,35 +103,53 @@ format {
     ISCRSN := (# ["A" .. "H"] | ["\x20"] #);;
     ISSRDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
     ISCTLN := (# ECS_A ^ 20u #);;
-    ENCRYPT := (# BCS_N_INT_POS ^ 1u #);;
+    //ENCRYPT := (# BCS_N_INT_POS ^ 1u #);; // FIXME?
+    ENCRYPT := (# AsciiCharS ^ 1u #);;
     ISORCE := (# ECS_A ^ 42u #);;
-    NROWS := (# ["00000001" .. "99999999"] #);;
-    NCOLS := (# ["00000001" .. "99999999"] #);;
-    PVTYPE := (# ["INT" | "B" | "SI" | "R" | "C"] ^ 3u #);;
-    IREP := (# ["MONO" | "RGB" | "RGB/LUT" | "MULTI" | "NODISPLY" | "NVECTOR" | "POLAR" | "VPH" | "YCbCr601"] ^ 8u #);;
+    //NROWS := (# ["00000001" .. "99999999"] #);; // FIXME?
+    NROWS := (# AsciiCharS ^ 8u #);;
+    //NCOLS := (# ["00000001" .. "99999999"] #);; // FIXME?
+    NCOLS := (# AsciiCharS ^ 8u #);;
+    //PVTYPE := (# ["INT" | "B" | "SI" | "R" | "C"] ^ 3u #);; // FIXME?
+    PVTYPE := (# AsciiCharS ^ 3u #);;
+    //IREP := (# ["MONO" | "RGB" | "RGB/LUT" | "MULTI" | "NODISPLY" | "NVECTOR" | "POLAR" | "VPH" | "YCbCr601"] ^ 8u #);; // FIXME?
+    IREP := (# AsciiCharS ^ 8u #);;
     ICAT := (# BCS_A ^ 8u #);;
     ABPP := (# ["01" .. "96"] #);;
-    PJUST := (# ["R" | "L"] #);;
-    ICORDS := (#["U" | "G" | "N" | "S" | "P" | "D" | "\x20"] #);;
+    // PJUST := (# ["R" | "L"] #);; FIXME?
+    PJUST := AsciiCharS;;
+    // ICORDS := (#["U" | "G" | "N" | "S" | "P" | "D" | "\x20"] #);; // FIXME?
+    ICORDS := AsciiCharS;;
     IGEOLO := (# BCS_A ^ 60u #);;
-    NICOM := (# BCS_N_INT_POS ^ 1u #);;
+    // NICOM := (# BCS_N_INT_POS ^ 1u #);;
+    NICOM := AsciiCharS;;
     ICOMN := (# ECS_A ^ 80u #);;
-    IC := (# ["NC" | "NM" | "I1"] | ["C1" .. "C8"] | ["M1" .. "M8"] | ["CB" | "MB" | "C9" | "M9" | "CA" | "MA"] #);;
+    //IC := (# ["NC" | "NM" | "I1"] | ["C1" .. "C8"] | ["M1" .. "M8"] | ["CB" | "MB" | "C9" | "M9" | "CA" | "MA"] #);; // FIXME?
+    IC := (# AsciiCharS ^ 2u #);;
     COMRAT := (# BCS_A ^ 4u #);;
     NBANDS := (# BCS_N_INT_POS ^ 1u #);;
-    XBANDS := (# ["00010" .. "99999"] #);;
-    ISYNC := (# ["\x30"] ^ 1u #);;
-    IMODE := (# ["B" | "P" | "R" | "S"] | ["T" | "D" | "E" | "F" | "X" | "Z"] #);;
-    NBPR := (# ["0001" .. "9999"] #);;
+    // XBANDS := (# ["00010" .. "99999"] #);;
+    XBANDS := (# AsciiCharS ^ 5u #);;
+    // ISYNC := (# ["\x30"] ^ 1u #);; // FIXME
+    ISYNC := AsciiCharS;;
+    // IMODE := (# ["B" | "P" | "R" | "S"] | ["T" | "D" | "E" | "F" | "X" | "Z"] #);; // FIXME?
+    IMODE := AsciiCharS;;
+    // NBPR := (# ["0001" .. "9999"] #);; // FIXME?
+    NBPR := (# AsciiCharS ^ 4u #);;
     NBPC := (# ["0001" .. "9999"] #);;
-    NPP := (# ["0000"] | ["0001" .. "8192"] #);;
-    NBPP := (# ["01" .. "96"] #);;
+    // NPP := (# ["0000"] | (["0001" .. "8192"]) #);; // FIXME?
+    NPP := (# AsciiCharS ^ 4u #);;
+    // NBPP := (# ["01" .. "96"] #);; // FIXME?
+    NBPP := (# AsciiCharS ^ 2u #);;
     IDLVL := (# ["001" .. "999"] #);;
     IALVL := (# ["000" .. "998"] | ["\x30"] ^ 3u #);;
-    ILOC := (# BCS_N ^ 10u #);;
+    // ILOC := (# BCS_N ^ 10u #);; // FIXME?
+    ILOC := (# AsciiCharS ^ 10u #);;
     IMAG := (# BCS_A ^ 4u | ["1.0\x20"] #);;
-    UDIDL := (# ["00000"] | ["00003" .. "99999"] #);;
-    IXSHDL := (# ["00000"] | ["00003" .. "99999"] #);;
+    // UDIDL := (# ["00000"] | ["00003" .. "99999"] #);; // FIXME?
+    UDIDL := (# AsciiCharS ^ 5u #);;
+    // IXSHDL := (# ["00000"] | ["00003" .. "99999"] #);; // FIXME?
+    IXSHDL := (# AsciiCharS ^ 5u #);;
 
 
     ImageComments img_comm {image_comments} :=
@@ -146,169 +164,242 @@ format {
             $print_t(img_subh.im)
         }
 
+        { $print_t("trying IID1") }
         image_identifier_1 = IID1
         { 
             img_subh.iid1 := image_identifier_1;
             $print_t(img_subh.iid1)
         }
 
+        { $print_t("trying IDATIM") }
         image_date_and_time = IDATIM
         { 
             img_subh.idatim := image_date_and_time;
             $print_t(img_subh.idatim)
         }
-
+        { $print_t("trying TGTID") }
         target_identifier = TGTID
         { 
-            img_subh.tgtid := target_identifier;
-            $print_t(img_subh.tgtid)
+            img_subh.tgtid := target_identifier
+            //$print_t(img_subh.tgtid)
         }
-
+        { $print_t("trying IID2") }
         image_identifier_2 = IID2
         { img_subh.iid2 := image_identifier_2 }
 
+        { $print_t("trying ISCLAS") }
         image_security_classification = ISCLAS
-        { img_subh.isclas := image_security_classification }
+        { img_subh.isclas := image_security_classification;
+	  $print_t(img_subh.isclas)
+	}
 
         // Fields from ISCODE until ISCTLN are placed before ISCLSY
         // per interpretation of NOTE at the top of Table 3, pg. 30
+        { $print_t("trying ISCODE") }
         image_codewords = ISCODE
         { img_subh.iscode := image_codewords }
 
+        { $print_t("trying ISCTLH") }
         image_control_and_handling = ISCTLH
         { img_subh.isctlh := image_control_and_handling }
 
+        { $print_t("trying ISREL") }
         image_releasing_instructions = ISREL
         { img_subh.isrel := image_releasing_instructions }
 
+        { $print_t("trying ISDCTP") }
         image_declassification_type = ISDCTP
         { img_subh.isdctp := image_declassification_type }
 
+        { $print_t("trying ISDCDT") }
         image_declassification_date = ISDCDT
         // [image_declassification_type = "DD"] todo: revisit this field
         { img_subh.isdcdt := image_declassification_date }
 
+        { $print_t("trying ISDCXM") }
         image_declassification_exemption = ISDCXM
         { img_subh.isdcxm := image_declassification_exemption }
 
+        { $print_t("trying ISDG") }
         image_downgrade = ISDG
         { img_subh.isdg := image_downgrade }
 
+        { $print_t("trying ISDGDT") }
         image_downgrade_date = ISDGDT
         { img_subh.isdgdt := image_downgrade_date }
 
+        { $print_t("trying ISCLTX") }
         image_classification_text = ISCLTX
         { img_subh.iscltx := image_classification_text }
 
+        { $print_t("trying ISCATP") }
         image_classification_authority_type = ISCATP
         { img_subh.iscatp := image_classification_authority_type }
 
+        { $print_t("trying ISCAUT") }
         image_classification_authority = ISCAUT
         { img_subh.iscaut := image_classification_authority }
 
+        { $print_t("trying ISCRSN") }
         image_classification_reason = ISCRSN
         { img_subh.iscrsn := image_classification_reason }
 
+        { $print_t("trying ISSRDT") }
         image_security_source_date = ISSRDT
         { img_subh.issrdt := image_security_source_date }
 
+        { $print_t("trying ISCTLN") }
         image_security_control_number = ISCTLN
         { img_subh.isctln := image_security_control_number }
 
+        { $print_t("trying ISCLSY") }
         image_security_classification_system = ISCLSY
-        [is_valid_isclsy_1(image_security_classification_system, image_security_classification)]
+        // [is_valid_isclsy_1(image_security_classification_system, image_security_classification)]
         { img_subh.isclsy := image_security_classification_system }
 
+        { $print_t("trying ENCRYPT") }
         encryption = ENCRYPT
-        { img_subh.encrypt := encryption }
+        { img_subh.encrypt := encryption;
+	  $print_t(img_subh.encrypt) }
 
+        { $print_t("trying ISORCE") }
         image_source = ISORCE
         { img_subh.isorce := image_source }
 
+        { $print_t("trying NROWS") }
         number_of_significant_rows_in_image = NROWS
-        { img_subh.nrows := number_of_significant_rows_in_image }
+        { img_subh.nrows := number_of_significant_rows_in_image;
+	  $print_t(img_subh.nrows) }
 
+        { $print_t("trying NCOLS") }
         number_of_significant_cols_in_image = NCOLS
-        { img_subh.ncols := number_of_significant_cols_in_image }
+        { img_subh.ncols := number_of_significant_cols_in_image;
+	  $print_t(img_subh.ncols) }
 
+        { $print_t("trying PVTYPE") }
         pixel_value_type = PVTYPE
-        { img_subh.pvtype := pixel_value_type }
+        { img_subh.pvtype := pixel_value_type;
+	  $print_t(img_subh.pvtype) }
 
+        { $print_t("trying IREP") }
         image_representation = IREP
-        { img_subh.irep := image_representation }
+        { img_subh.irep := image_representation;
+	  $print_t(img_subh.irep) }
 
+        { $print_t("trying ICAT") }
         image_category = ICAT
         { img_subh.icat := image_category }
 
+        { $print_t("trying ABPP") }
         actual_bits_per_pixel_per_band = ABPP
         { img_subh.abpp := actual_bits_per_pixel_per_band }
 
+        { $print_t("trying PJUST") }
         pixel_justification = PJUST
-        { img_subh.pjust := pixel_justification }
+        { img_subh.pjust := pixel_justification;
+	  $print_t(img_subh.pjust) }
 
+        { $print_t("trying ICORDS") }
         image_coordinate_representation = ICORDS
-        { img_subh.icords := image_coordinate_representation }
+        { img_subh.icords := image_coordinate_representation;
+	  $print_t(img_subh.icords) }
 
         // image_geographic_location = IGEOLO
         // { img_subh.igeolo := image_geographic_location }
 
+        { $print_t("trying NICOM") }
         number_of_image_comments = NICOM
-        { img_subh.nicom := number_of_image_comments }
+        { img_subh.nicom := number_of_image_comments;
+	  $print_t(img_subh.nicom) }
 
-        image_comment_n = (ImageComments^Usize.of_bytes_unsafe(number_of_image_comments))
+        { $print_t(Usize.of_bytes_unsafe(number_of_image_comments) -_u 48u);
+	  $print_t("NICOM conversion succeeded") }
+
+        // FIXME: NICOM is decimal text, not binary.  of_bytes takes
+        // binary inputs, so you need a helper to convert the ascii
+        // decimals (i.e. subtract the ascii '0' (48u) from the byte.
+        image_comment_n = (ImageComments^(Usize.of_bytes_unsafe(number_of_image_comments) -_u 48u))
         { img_subh.icomn := image_comment_n }
-        
-        image_compression = IC
-        { img_subh.ic := image_compression }
 
+        { $print_t("trying IC") }
+        image_compression = IC
+        { img_subh.ic := image_compression;
+	  $print_t(img_subh.ic) }
+
+        { $print_t("trying COMRAT") }
         compression_rate_code = COMRAT
         { img_subh.comrat := compression_rate_code }
 
+        { $print_t("trying NBANDS") }
         number_of_bands = NBANDS
         { img_subh.nbands := number_of_bands }
 
+        { $print_t("trying XBANDS") }
         number_of_multispectral_bands = XBANDS
-        { img_subh.xbands := number_of_multispectral_bands }
+        { img_subh.xbands := number_of_multispectral_bands;
+	  $print_t(img_subh.xbands) }
 
         // Fields IREPBANDn to LUTDnm repeat the number of times indicated
         // in the NBANDS field or the XBANDS field
 
+        { $print_t("trying ISYNC") }
         image_sync_code = ISYNC
-        { img_subh.isync := image_sync_code }
+        { img_subh.isync := image_sync_code;
+	  $print_t(img_subh.isync) }
 
+        { $print_t("trying IMODE") }
         image_mode = IMODE
-        { img_subh.imode := image_mode }
+        { img_subh.imode := image_mode;
+	  $print_t(img_subh.imode) }
 
+        { $print_t("trying NBPR") }
         number_of_blocks_per_row = NBPR
-        { img_subh.nbpr := number_of_blocks_per_row }
+        { img_subh.nbpr := number_of_blocks_per_row;
+	  $print_t(img_subh.nbpr) }
 
+        { $print_t("trying NBPC") }
         number_of_blocks_per_column = NBPC
-        { img_subh.nbpc := number_of_blocks_per_column }
+        { img_subh.nbpc := number_of_blocks_per_column;
+	  $print_t(img_subh.nbpc) }
 
+        { $print_t("trying NPPh") }
         number_of_pixels_per_block_horizontal = NPP
-        { img_subh.nppbh := number_of_pixels_per_block_horizontal }
+        { img_subh.nppbh := number_of_pixels_per_block_horizontal;
+	  $print_t(img_subh.nppbh) }
 
+        { $print_t("trying NPPv") }
         number_of_pixels_per_block_vertical = NPP
-        { img_subh.nppbv := number_of_pixels_per_block_vertical }
+        { img_subh.nppbv := number_of_pixels_per_block_vertical;
+	  $print_t(img_subh.nppbv) }
 
+        { $print_t("trying NBPP") }
         number_of_bits_per_pixel_per_band = NBPP
-        { img_subh.nbpp := number_of_bits_per_pixel_per_band }
+        { img_subh.nbpp := number_of_bits_per_pixel_per_band;
+	  $print_t(img_subh.nbpp) }
 
+        { $print_t("trying IDLVL") }
         image_display_level = IDLVL
         { img_subh.idlvl := image_display_level }
 
+        { $print_t("trying IALVL") }
         attachment_level = IALVL
         { img_subh.ialvl := attachment_level }
 
+        { $print_t("trying ILOC") }
         image_location = ILOC
-        { img_subh.iloc := image_location }
+        { img_subh.iloc := image_location;
+	  $print_t(img_subh.iloc) }
 
+        { $print_t("trying IMAG") }
         image_magnification = IMAG
         { img_subh.imag := image_magnification }
 
+        { $print_t("trying UDIDL") }
         user_defined_image_data_length = UDIDL
-        { img_subh.udidl := user_defined_image_data_length }
+        { img_subh.udidl := user_defined_image_data_length;
+	  $print_t(img_subh.udidl) }
 
+        { $print_t("trying IXSHDL") }
         image_extended_subheader_data_length = IXSHDL
         { img_subh.ixshdl := image_extended_subheader_data_length }
 

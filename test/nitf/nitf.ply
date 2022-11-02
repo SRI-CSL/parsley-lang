@@ -371,7 +371,9 @@ format {
 
     ImageSegment  is (i : image_info_tuple) {image_segment} :=
         // imgsubheader = Byte^(i.lishn)
+        { $print(i); $print_t("Starting imgsubheader") }
         imgsubheader = ImageSubheader
+	{ $print(i); $print_t("ending imgsubheader") }
         imgdataseg = Byte^(i.lin)
     { is.subheader := imgsubheader;
       $print_t(is.subheader);
