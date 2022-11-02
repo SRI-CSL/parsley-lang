@@ -827,6 +827,9 @@ let rec expand_expr ctx (exp: (unit, unit, mod_qual) expr)
         let ctx, f  = expand_expr ctx f in
         let ctx, es = expand_exprs ctx es in
         ctx, {exp with expr = E_apply (f, es)}
+    | E_print (b, e) ->
+        let ctx, e = expand_expr ctx e in
+        ctx, {exp with expr = E_print (b, e)}
 
 and expand_exprs ctx es : context * (unit, unit, mod_qual) expr list =
   let ctx, es =

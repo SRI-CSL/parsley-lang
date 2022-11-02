@@ -44,7 +44,7 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
     (* TODO: handle module lookup *)
     | Anf.AV_constr ((_, "*", c), avs) ->
         assert (c = "_Tuple");
-        let vs = List.map (val_of_av s) avs in
+        let vs = safe_map (val_of_av s) avs in
         V_tuple vs
     | Anf.AV_constr ((_, "[]", "[]"), avs) ->
         assert (List.length avs = 0);
@@ -74,9 +74,9 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
         assert (List.length avs = 0);
         V_bit false
     | Anf.AV_constr (c, avs) ->
-        V_constr (c, List.map (val_of_av s) avs)
+        V_constr (c, safe_map (val_of_av s) avs)
     | Anf.AV_record fs ->
-        let vs = List.map (fun (f, av) ->
+        let vs = safe_map (fun (f, av) ->
                      Location.value f, val_of_av s av
                    ) fs in
         V_record vs
@@ -143,7 +143,7 @@ let matcher loc vr vl cases =
       | V_bool true, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_variant (stdlib, "bool", "True") ->
           br
-      | V_bool true, (p, br) :: _
+      | V_bool false, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_variant (stdlib, "bool", "False") ->
           br
       | V_bit true, (p, br) :: _
@@ -230,13 +230,13 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
     | AE_cast (av, _) ->
         val_of_av s av
     | AE_apply (({fv = FV_var v; _} as f), args) ->
-        let vs = List.map (val_of_av s) args in
+        let vs = safe_map (val_of_av s) args in
         let ps, bd = FEnv.lookup s.st_fenv v f.fv_loc in
         let fn = Anf_printer.string_of_var v in
         do_apply s fn (ps, vs) bd f.fv_loc
     | AE_apply (({fv = FV_mod_member (m, f); _} as fv), args) ->
         let fn = Location.value f in
-        let vs = List.map (val_of_av s) args in
+        let vs = safe_map (val_of_av s) args in
         let mn = Location.value m in
         if      mn = "View"
         then    dispatch_viewlib fv.fv_loc mn fn s vs
@@ -252,6 +252,19 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
     | AE_case (vr, cases) ->
         let vl = VEnv.lookup s.st_venv vr.v vr.v_loc in
         val_of_aexp s (matcher loc vr vl cases)
+    | AE_print (as_ascii, ae') ->
+        let v   = val_of_av s ae' in
+        let svl = string_of_value as_ascii v in
+        let svr = match ae'.av with
+            | Anf.AV_var v -> Some (Anf_printer.string_of_var v)
+            | _            -> None in
+        Printf.eprintf "%s = %s @ %s\n%!"
+          (match svr with
+             | Some s -> s  (* print var *)
+             | None   -> Location.str_of_file_loc loc)
+          svl
+          (fmt_pos (view_info s));
+        V_unit
 
 let rec eval_stmt (s: state) (st: Anf.astmt) : state =
   let loc = st.astmt_loc in
@@ -302,19 +315,15 @@ let rec eval_stmt (s: state) (st: Anf.astmt) : state =
         let env = VEnv.assign s.st_venv p v in
         eval_stmt {s with st_venv = env} st'
     | AS_print (as_ascii, av) ->
-        let v = val_of_av s av in
+        let v   = val_of_av s av in
         let svl = string_of_value as_ascii v in
         let svr = match av.av with
             | Anf.AV_var v -> Some (Anf_printer.string_of_var v)
             | _            -> None in
-        let fmt_pos (o, e) =
-          Printf.sprintf "offset %d (%d bytes remaining)" o (e - o) in
-        let o, e = let v = s.st_cur_view in
-                   v.vu_ofs, v.vu_end in
         Printf.eprintf "%s = %s @ %s\n%!"
           (match svr with
              | Some s -> s  (* print var *)
              | None   -> Location.str_of_file_loc loc)
           svl
-          (fmt_pos (o, e));
+          (fmt_pos (view_info s));
         s

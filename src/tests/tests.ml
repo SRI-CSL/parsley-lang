@@ -472,6 +472,14 @@ let tests = [
                                 b.v2 := Bits.to_u32_endian(endian::Little(), v2) }}",
      "Bits", "\x01\x02\x00\x01\x02", V_record ["v1", V_int (Ast.u16_t, 0x0102L);
                                                "v2", V_int (Ast.u32_t, 0x20100L)]);
+    ("case_match_bug", "fun umax(x: u8, y: u8) -> u8 = {
+                          (case x >_u8 y of
+                          | bool::True() -> x | bool::False() -> y
+                          )
+                        }
+                        format { M m {m: u8} :=
+                                  x=UInt8 y=UInt8 {m.m := umax(x, y)}}",
+     "M", "\x01\x02", V_record ["m", V_int (Ast.u8_t, 0x02L)]);
   ]
 
 let do_tests print_cfg gen_cfg exe_cfg =

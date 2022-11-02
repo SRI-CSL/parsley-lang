@@ -364,6 +364,11 @@ and print_expr auxp e =
         pp_string " : ";
         print_type_expr auxp t;
         pp_string ")"
+    | E_print (b, e) ->
+        let print = if b then "$print(" else "$print_t(" in
+        pp_string print;
+        print_expr auxp e;
+        pp_string ")"
 
 let print_param_decl auxp (pm, ty, _) =
   pp_string (auxp.auxp_var pm);

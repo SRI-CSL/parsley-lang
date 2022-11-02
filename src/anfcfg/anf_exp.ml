@@ -227,6 +227,14 @@ and normalize_exp tenv venv (e: exp) : aexp * VEnv.t =
         let ae, venv = normalize_exp_case tenv venv av cases loc in
         let ae = make_lets binds ae in
         ae, venv
+    | E_print (b, e) ->
+        let se, venv = subnorm tenv venv e in
+        let binds, av = match se with
+            | S_var av          -> [], av
+            | S_let (v, ae, av) -> [v, ae], av in
+        let ae = wrap (AE_print (b, av)) in
+        let ae = make_lets binds ae in
+        ae, venv
 
 and normalize_exp_case (tenv: TypingEnvironment.environment)
       (venv: VEnv.t) (scrutinee: av) (cases: (pat * exp) list) loc

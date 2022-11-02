@@ -170,7 +170,7 @@ module PInt = struct
         | _ -> internal_error lc err in
     match v with
       | V_list l ->
-          let cs = List.map conv l in
+          let cs = safe_map conv l in
           (* This assumes big-endian; i.e. leading byte is most
              significant.  FIXME: should we parameterize by
              endianness? *)
@@ -589,7 +589,7 @@ module PList = struct
         | V_list e -> e
         | _ -> internal_error lc err in
     match v with
-      | V_list l -> let l' = List.map conv l in
+      | V_list l -> let l' = safe_map conv l in
                     V_list (List.concat l')
       | _ -> internal_error lc err
 
@@ -668,7 +668,7 @@ module PString = struct
         | _ -> internal_error lc err in
     match v with
       | V_list l ->
-          let l = List.map conv l in
+          let l = safe_map conv l in
           let buf = Buffer.create 16 in
           List.iter (Buffer.add_char buf) l;
           V_option (Some (V_string (Buffer.contents buf)))
