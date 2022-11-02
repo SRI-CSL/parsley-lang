@@ -77,7 +77,7 @@ type image_subheader = {
 
 format {
     IM := !"IM"!;;
-    IID1 := (# BCS_A ^ 10u #);;
+    IID1 := (# AsciiCharS ^ 10u #);;
     IDATIM := (# CCYYMMDDhhmmss #);;
 
     BE := (# BCS_A ^ 10u #);;
@@ -141,16 +141,28 @@ format {
 
     ImageSubheader img_subh {image_subheader} := 
         file_part_type = IM
-        { img_subh.im := file_part_type }
+        { 
+            img_subh.im := file_part_type;
+            $print_t(img_subh.im)
+        }
 
         image_identifier_1 = IID1
-        { img_subh.iid1 := image_identifier_1 }
+        { 
+            img_subh.iid1 := image_identifier_1;
+            $print_t(img_subh.iid1)
+        }
 
         image_date_and_time = IDATIM
-        { img_subh.idatim := image_date_and_time }
+        { 
+            img_subh.idatim := image_date_and_time;
+            $print_t(img_subh.idatim)
+        }
 
         target_identifier = TGTID
-        { img_subh.tgtid := target_identifier }
+        { 
+            img_subh.tgtid := target_identifier;
+            $print_t(img_subh.tgtid)
+        }
 
         image_identifier_2 = IID2
         { img_subh.iid2 := image_identifier_2 }
