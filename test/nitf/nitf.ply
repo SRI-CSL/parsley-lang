@@ -30,8 +30,13 @@ type res_info_tuple = {
     lren: usize
 }
 
+// type image_segment = {
+//     subheader : [byte],
+//     imgdataseg: [byte]
+// }
+
 type image_segment = {
-    subheader : [byte],
+    subheader : image_subheader,
     imgdataseg: [byte]
 }
 
@@ -365,9 +370,11 @@ format {
     XHDLOFL := (# ["0" .. "9"] ^ 3u #);;
 
     ImageSegment  is (i : image_info_tuple) {image_segment} :=
-        imgsubheader = Byte^(i.lishn)
+        // imgsubheader = Byte^(i.lishn)
+        imgsubheader = ImageSubheader
         imgdataseg = Byte^(i.lin)
     { is.subheader := imgsubheader;
+      $print_t(is.subheader);
       is.imgdataseg := imgdataseg };;
 
     NITFpacket npkt {nitf_packet} :=
