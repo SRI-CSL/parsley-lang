@@ -16,6 +16,16 @@ fun is_valid_isclsy_1(isclas: [byte], isclsy: [byte]) -> bool = {
     )
 }
 
+fun udofl_setup(udidl: [byte]) -> usize = {
+    // UDOFL: user defined overflow field
+    // shall be omitted if the field UDIDL
+    // contains BCS zeros (0x30)
+    (case udidl of 
+        | "     " -> 0u
+        | _ -> 3u
+    )
+}
+
 type image_comments = {
     comment: [byte]
 }
@@ -71,6 +81,7 @@ type image_subheader = {
     iloc: [byte],       // image location, size: 10, type R
     imag: [byte],       // image magnification, size: 4, type R
     udidl: [byte],      // use defined image data length, size: 5, type R
+    udofl: [byte],      // user defined overflow, size: 3, type C
     ixshdl: [byte]      // image extended subheader data length, size: 5, type R
 }
 
@@ -150,6 +161,7 @@ format {
     UDIDL := (# AsciiCharS ^ 5u #);;
     // IXSHDL := (# ["00000"] | ["00003" .. "99999"] #);; // FIXME?
     IXSHDL := (# AsciiCharS ^ 5u #);;
+    // IXSHDL := (# BCS ^ 5u #);;
 
 
     ImageComments img_comm {image_comments} :=
@@ -396,11 +408,22 @@ format {
 
         { $print_t("trying UDIDL") }
         user_defined_image_data_length = UDIDL
-        { img_subh.udidl := user_defined_image_data_length;
-	  $print_t(img_subh.udidl) }
+        { 
+            img_subh.udidl := user_defined_image_data_length;
+	        $print_t(img_subh.udidl) 
+        }
+
+        { $print_t("trying UDOFL") }
+        user_defined_overflow = (AsciiCharS ^ udofl_setup(user_defined_image_data_length))
+        {
+            img_subh.udofl := user_defined_overflow;
+            $print_t(img_subh.udofl)
+        }
 
         { $print_t("trying IXSHDL") }
         image_extended_subheader_data_length = IXSHDL
-        { img_subh.ixshdl := image_extended_subheader_data_length }
+        { img_subh.ixshdl := image_extended_subheader_data_length;
+         $print_t(img_subh.ixshdl)
+         }
 
 }
