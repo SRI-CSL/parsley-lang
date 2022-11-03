@@ -6,6 +6,7 @@
 
 include character_sets
 
+
 fun is_valid_isclsy_1(isclas: [byte], isclsy: [byte]) -> bool = {
     (case isclas of
         | "U" -> bool::True()
@@ -16,11 +17,23 @@ fun is_valid_isclsy_1(isclas: [byte], isclsy: [byte]) -> bool = {
     )
 }
 
+
 fun udofl_setup(udidl: [byte]) -> usize = {
     // UDOFL: user defined overflow field
     // shall be omitted if the field UDIDL
     // contains BCS zeros (0x30)
     (case udidl of 
+        | "     " -> 0u
+        | _ -> 3u
+    )
+}
+
+
+fun ixsofl_setup(ixshdl: [byte]) -> usize = {
+    // IXSOFL: image extended subheader overflow
+    // field shall be omitted if the field IXSHDL 
+    // contains BCS zeros (0x30)
+    (case ixshdl of 
         | "     " -> 0u
         | _ -> 3u
     )
@@ -82,7 +95,10 @@ type image_subheader = {
     imag: [byte],       // image magnification, size: 4, type R
     udidl: [byte],      // use defined image data length, size: 5, type R
     udofl: [byte],      // user defined overflow, size: 3, type C
-    ixshdl: [byte]      // image extended subheader data length, size: 5, type R
+    // udid: [byte],       // user defined image data, size: TRE, type C
+    ixshdl: [byte],     // image extended subheader data length, size: 5, type R
+    ixsofl: [byte]      // image extended subheader overflow, size: 3, type C
+    // ixshd: [byte]       // image extended subheader data, size TRE, type C
 }
 
 
@@ -422,8 +438,17 @@ format {
 
         { $print_t("trying IXSHDL") }
         image_extended_subheader_data_length = IXSHDL
-        { img_subh.ixshdl := image_extended_subheader_data_length;
-         $print_t(img_subh.ixshdl)
-         }
+        { 
+            img_subh.ixshdl := image_extended_subheader_data_length;
+            $print_t(img_subh.ixshdl)
+        }
+
+        { $print_t("trying IXSOFL") }
+        image_extended_subheader_overflow = (AsciiCharS ^ ixsofl_setup(image_extended_subheader_data_length))
+        {
+            img_subh.ixsofl := image_extended_subheader_overflow;
+            $print_t(img_subh.ixsofl)
+        }
+        
 
 }
