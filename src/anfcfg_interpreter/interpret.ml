@@ -92,6 +92,7 @@ let init load_externals (spec: Cfg.spec_cfg) (entry_nt: Anf.modul * string) (vie
   then resolve_foreign Cfg.(spec.cfg_foreigns);
   (* Initialize state. *)
   let venv  = VEnv.empty in
+  let cenv  = CEnv.empty in
   let fenv  = FEnv.empty in
   let mvenv = MVEnv.empty in
   let mfenv = MFEnv.empty in
@@ -100,10 +101,12 @@ let init load_externals (spec: Cfg.spec_cfg) (entry_nt: Anf.modul * string) (vie
            st_cfg_tenv     = Cfg.(spec.cfg_tenv);
            st_cfg_venv     = Cfg.(spec.cfg_venv);
            st_mode         = Mode_normal;
+           st_cenv         = cenv;
            st_venv         = venv;
            st_fenv         = fenv;
            st_mvenv        = mvenv;
            st_mfenv        = mfenv;
+           st_curpath      = [];
            st_view_stk     = [];
            st_cur_view     = view;
            st_ctrl_stk     = []} in

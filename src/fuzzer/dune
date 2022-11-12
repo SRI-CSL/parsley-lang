@@ -1,0 +1,3 @@
+(library
+  (name fuzzer)
+  (libraries parsing typing anfcfg anfcfg_interpreter unix))

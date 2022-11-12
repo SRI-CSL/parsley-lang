@@ -14,6 +14,7 @@
 (*  02110-1301 USA                                                        *)
 (*                                                                        *)
 (**************************************************************************)
+open Anfcfg
 
 (* The source of the data in a view. *)
 type source =
@@ -118,6 +119,21 @@ type endian =
   | E_little
   | E_big
 
+(* contraint definitions *)
+type path = Cfg.Node.exit_node list
+
+(* Represents a constriant encounted in the grammar *)
+type cfg_path_constraint = Constraint_dfa of Dfa.dfa
+                         | Constraint_if_true of constraint_path
+                         | Constraint_if_false of constraint_path
+                         | Constraint_cond_branch_true of constraint_path
+                         | Constraint_cond_branch_false of constraint_path
+                         | Constraint_None
+and 
+constraint_path = (cfg_path_constraint * path)
+
+type constraint_paths = constraint_path list
+
 (* The values of the expression language.  Sets and maps have an
    inefficient representation since the Set and Map functors in
    OCaml's stdlib give predicative types, and those in `value` are
@@ -139,6 +155,7 @@ type value =
   | V_tuple of value list
   | V_constr of constr * value list
   | V_record of (string * value) list
+  | V_constraint of constraint_paths
   (* module types *)
   | V_view of view
   | V_set of value list
@@ -167,6 +184,7 @@ type vtype =
   | T_view
   | T_set of vtype
   | T_map of vtype * vtype
+  | T_constraint
 
 let mod_prefix    = Anfcfg.Anf.mod_prefix
 let str_of_constr = Anfcfg.Anf.string_of_constr
@@ -209,6 +227,7 @@ let rec string_of_vtype (t: vtype) : string =
     | T_map (tk, tv)           -> Printf.sprintf "map<%s,%s>"
                                     (string_of_vtype tk)
                                     (string_of_vtype tv)
+    | T_constraint -> "constraint"
 
 (* The runtime type of a value. *)
 let rec vtype_of (v: value) : vtype =
@@ -236,6 +255,19 @@ let rec vtype_of (v: value) : vtype =
     | V_set (e :: _)   -> T_set (vtype_of e)
     | V_map []         -> T_map (T_empty, T_empty)
     | V_map ((k,v)::_) -> T_map (vtype_of k, vtype_of v)
+    | V_constraint _ -> T_constraint
+
+(* returns a string of a constraint path in a CFG *)
+let rec string_of_constraint_path cp : string =
+  let (c, _) = cp in
+  match c with
+  | Constraint_dfa d -> "Constraint dfa"
+  | Constraint_if_true x -> "Constraint_if_true: " ^ (string_of_constraint_path x)
+  | Constraint_if_false x -> "Constraint_if_false: " ^ (string_of_constraint_path x)
+  | Constraint_cond_branch_true x -> "Constraint_cond_branch_true" ^ (string_of_constraint_path x)
+  | Constraint_cond_branch_false x -> "Constraint_cond_branch_false: " ^ (string_of_constraint_path x)
+  | _ -> "None"
+
 
 let field_of_bitvector (v: bool list) (h: int) (l: int) : bool list =
   (* Asserted version of `Builtins.bit_extract`. *)
@@ -315,5 +347,7 @@ let string_of_value (as_ascii: bool) (v: value) : string =
                                (String.concat (mk_sep ",")
                                   (List.map (fun (k, v) ->
                                        Printf.sprintf "%s: %s" (pr (d+1) k) (pr (d+1) v)
-                                     ) (srt kvs))) in
+                                     ) (srt kvs)))
+      | V_constraint cp -> List.fold_left
+                             (fun acc y -> acc ^ string_of_constraint_path y) "" cp in
   pr 0 v

@@ -20,6 +20,7 @@
 open Parsing
 open Typing
 open Anfcfg
+open Values
 open Runtime_exceptions
 open Internal_errors
 
@@ -53,6 +54,35 @@ module VEnv = struct
     Bindings.add Anf.(v.v) (vl, v) t
 
   let lookup (t: t) (v: Anf.varid) (l: Location.t) : Values.value =
+    match Bindings.find_opt v t with
+      | None         -> internal_error l (No_binding_for_read v)
+      | Some (vl, _) -> vl
+
+  let bound (t: t) (v: Anf.varid) : bool =
+    Bindings.mem v t
+end
+
+(* Constraint environment *)
+module PathHT = Hashtbl.Make(
+    struct
+        type t = path
+        let equal x y = x = y
+        let hash = Hashtbl.hash
+    end);;
+
+module CEnv = struct
+  type vmap = (constraint_path * Anf.var) Bindings.t
+
+  (* use a flat environment for now: consume more memory to
+     prioritize speed *)
+  type t = vmap
+
+  let empty = Bindings.empty
+
+  let assign (t: t) (v: Anf.var) (vl: constraint_path) : t =
+    Bindings.add Anf.(v.v) (vl, v) t
+
+  let lookup (t: t) (v: Anf.varid) (l: Location.t) : constraint_path =
     match Bindings.find_opt v t with
       | None         -> internal_error l (No_binding_for_read v)
       | Some (vl, _) -> vl
@@ -151,6 +181,8 @@ and state =
    st_cfg_venv:     Anf.VEnv.t;
    (* dynamic state *)
    st_mode:         mode;
+   st_cenv:         CEnv.t;
+   st_curpath:      path;
    st_venv:         VEnv.t;
    st_fenv:         FEnv.t;
    st_mvenv:        MVEnv.t;

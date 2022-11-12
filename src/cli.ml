@@ -31,6 +31,16 @@ let check copts ckopts sopts spec_file : unit =
   Options.process_ckopts ckopts;
   Check.check_spec copts.co_verbose ckopts sopts spec_file
 
+let fuzz copts sopts xopts load_externals loop start
+      spec_file data_file stdin : unit =
+  Options.process_copts copts;
+  let verbose = copts.co_verbose in
+  let ckopts = Options.default_ckopts in
+  let spec = Check.cfg_of_spec verbose ckopts sopts spec_file in
+  let m = Parsing.AstUtils.modname_of_file spec_file in
+  Fuzz.fuzz verbose xopts.exe_show_data_as_ascii
+    load_externals loop m start spec data_file stdin
+
 let execute copts sopts xopts load_externals loop start
       spec_file data_file stdin : unit =
   Options.process_copts copts;
@@ -71,6 +81,7 @@ let mk_ckopts co_trace_solver co_show_raw_ast co_show_parsed_ast
    co_show_cfg;
    co_show_decorated;
    co_output_json}
+
 
 let ckopts_t : check_opts Term.t =
   let trace_solver =
@@ -166,6 +177,12 @@ let check_cmd : unit Cmd.t =
   let info = Cmd.info "check" ~doc in
   Cmd.v info Term.(const check $ copts_t $ ckopts_t $ sopts_t $ spec)
 
+let fuzz_cmd : unit Cmd.t =
+  let doc  = "generate test input from a specification" in
+  let info = Cmd.info "fuzz" ~doc in
+  Cmd.v info Term.(const fuzz $ copts_t $ sopts_t $ exopts_t
+                   $ load_externals $ loop $ start $ spec $ data $ stdin)
+
 let execute_cmd : unit Cmd.t =
   let doc  = "parse the given data using the given specification" in
   let info = Cmd.info "execute" ~doc in
@@ -177,7 +194,7 @@ let main_cmd : unit Cmd.t =
   let doc  = "the Parsley compiler" in
   let prog = Filename.basename Sys.argv.(0) in
   let info = Cmd.info prog ~version:version ~doc in
-  Cmd.group info [check_cmd; execute_cmd; test_cmd]
+  Cmd.group info [check_cmd; execute_cmd; test_cmd; fuzz_cmd]
 
 let run () =
   exit (Cmd.eval main_cmd)
