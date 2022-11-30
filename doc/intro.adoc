@@ -10,7 +10,7 @@ those tools become more usable.
 The Parsley specification language describes data formats.  It does
 this using two sub-languages: an expression sub-language that looks
 like a functional language, and a grammar sub-language that looks like
-an extended Backus-Naur Form notation which incorporates elements of
+an extended Backus-Naur Form notation that incorporates elements of
 an attribute grammar and the combinators from parsing expression
 grammars (PEGs).
 
@@ -38,21 +38,22 @@ specification file follow.
 
 == The expression sub-language
 
-Parsley uses a fairly typical typed functional language as the
-<<expressions.adoc#,expression sub-language>>.  This language allows a
-user to specify types and functions.  These can be then used in the
-grammar sub-language to specify the types of the grammar
+Parsley uses a fairly typical typed first-order functional language as
+the <<expressions.adoc#,expression sub-language>>.  This language
+allows a user to specify types and functions.  These can be then used
+in the grammar sub-language to specify the types of the grammar
 non-terminals, the computations in constraint expressions, and the
 computation of values to be assigned to synthesized attributes.
 
-The basic atomic types in this language are `byte`, `int`, `double`,
-`string`, `bool`, `endian`, `bit` and `unit` (known as `void` in
-C-like languages).  In addition, the language includes parsing buffers
-as atomic values, which belong to a special atomic type called `view`.
-The basic type constructors are lists, tuples, and option types.
-Bitvectors of concrete lengths are also supported as type
-constructors.  User-specified types include records and variants, and
-can be mutually recursive; bitfield records can also be user-defined.
+The basic atomic types in this language are `byte`, integer types of
+typical widths and signedness, `double`, `string`, `bool`, `endian`,
+`bit` and `unit` (known as `void` in C-like languages).  In addition,
+the language includes parsing buffers as atomic values, which belong
+to a special atomic type called `view`.  The basic type constructors
+are lists, tuples, and option types.  Bitvectors of concrete lengths
+are also supported as type constructors.  User-specified types include
+records and variants, and can be mutually recursive.  Bitfield records
+can also be user-defined.
 
 The language is equipped with a module system that provides access to
 a standard library.  The library provides data structures such as
@@ -63,11 +64,8 @@ the atomic types.
 ====
 The functional language is currently first-order: it does not
 support first-class functions or closures.  All functions need to be
-completely applied, and cannot be curried.  Functions can currently be
-self-recursive, but not mutually recursive.
+completely applied, and cannot be curried.
 
-The module system is currently restricted to language built-ins: new
-modules cannot be specified by the user.
 ====
 
 == The grammar sub-language
@@ -76,7 +74,7 @@ The <<grammar.adoc#,grammar sub-language>> is used to define the
 non-terminals in the grammar.  A non-terminal is defined in terms of a
 sequence of production rules.  These rules form an ordered choice:
 later rules in the sequence are only tried if the earlier rules fail
-to apply to the input.
+to match the input.
 
 Each standard non-terminal can be specified to have a set of
 synthesized attributes, each with a declared type.  The type of such a
@@ -97,12 +95,11 @@ applied to each view in a list of views.
 
 Bitvectors can also be used as rule-elements.  However, there are
 alignment restrictions on their use, and Parsley requires
-non-bit-oriented constructs to be byte-aligned.  Suitable alignment
-can be ensured with the use of suitable alignment and padding
-specifiers.
+non-bit-oriented constructs to be byte-aligned.  Byte alignment can be
+ensured with the use of suitable alignment and padding specifiers.
 
 The Parsley type-checker computes a type for each element of the
-production rule, to ensure that the computations performed in the rule
+production rule to ensure that the computations performed in the rule
 are well-typed.
 
 For convenience, the sub-language provides special syntactic support
@@ -118,7 +115,7 @@ and `Byte`, each of which have the `byte` type.  The `S`-suffixed
 versions of these non-terminals (such as `AsciiCharS`, `DigitS`, ... )
 represent the match as a single-element list containing the matched
 byte. This allows them to be used in with combinators that combine
-list-valued non-terminals.
+regular expressions or list-valued non-terminals.
 
 Other primitive non-terminals support parsing binary integers of
 various widths, signedness and endianness.
@@ -127,7 +124,7 @@ various widths, signedness and endianness.
 
 Parsley source files are named with a `.ply` suffix.
 
-The specification of a format can be split across multiple files,
+The specification of a format can be split across multiple files
 using the `include` specifier described below.  A specification has a
 top-level source file, which is typically the file specified on the
 command line to the Parsley compiler.  The name for the Parsley
@@ -141,12 +138,14 @@ Any one of these files will have the same structure.
 A file contains a sequence of declarations, each of which can be one
 of the following:
 
-* `include` specifiers for inclusions of declarations from other Parsley files
-* `import` specifiers for imports of declarations from other Parsley specifications
+* `include` specifiers for inclusions of declarations from other
+  Parsley files in the same specification
+* `import` specifiers for imports of declarations from other Parsley
+  specifications
 * `type` definitions
 * `const` definitions of constant expressions
 * `fun` (function) or `recfun` (recursive function) definitions
-* `format` blocks containing a set of non-terminal definitions
+* `format` blocks containing a sequence of non-terminal definitions
 
 The grammar sub-language is used only within the `format` blocks.
 
@@ -174,8 +173,11 @@ The scoping of `type` and `fun`/`recfun` is _lexical_: a `type`
 definition can only use the types defined by definitions in scope at
 that point.  A `const` definition can only refer to types and other
 constants and functions whose definitions are in scope.  Similarly, a
-`fun`/`recfun` function definition can only refer to types or call
-other functions whose definitions are in scope.
+`fun` function definition can only refer to types or call other
+functions whose definitions are in scope.  `recfun` function
+definitions support mutually recursive function definitions that can
+call themselves and each other, as well as other functions that are in
+scope.
 
 `type`, `const` and `fun`/`recfun` definitions are processed before
 any format block, so all type, constant and function definitions are

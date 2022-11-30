@@ -27,8 +27,8 @@ NOTE: The standard library is under rapid evolution.
 |===
 
 
-The integer operators are suffixed by the type `<int_type>`of their
-operands and result type.  `<int_type>` can be either `i8`, `u8`,
+The integer operators are suffixed by the type `+<int_type>+` of their
+operands and result type.  `+<int_type>+` can be either `i8`, `u8`,
 `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `u`, or `i`, where `u` and
 `i` denote `usize` and `isize` respectively.
 
@@ -36,8 +36,8 @@ operands and result type.  `<int_type>` can be either `i8`, `u8`,
 |===
 | Symbol | Signature | Description
 
-| `-_<int_type>`
-| `<int_type> -> <int_type>`
+| `+-_<int_type>+`
+| `+<int_type> -> <int_type>+`
 | Unary minus
 
 | `!`
@@ -45,40 +45,40 @@ operands and result type.  `<int_type>` can be either `i8`, `u8`,
 | Boolean negation
 
 | `~`
-| `bitvector<'n> -> bitvector<'n>`
+| `+bitvector<'n> -> bitvector<'n>+`
 | Bitwise complement
 
-| `~_<int_type>`
-| `<int_type> -> <int_type>`
+| `+~_<int_type>+`
+| `+<int_type> -> <int_type>+`
 | Unary integer bitwise complement
 
-| `+_<int_type>`, `-_<int_type>`, `*_<int_type>`, `/_<int_type>`
-| `<int_type> -> <int_type> -> <int_type>`
-| Binary integer arithmetic operators
+| `++_<int_type>+`, `+-_<int_type>+`, `+*_<int_type>+`, `+/_<int_type>+`
+| `+<int_type> -> <int_type> -> <int_type>+`
+| Binary integer arithmetic operators (add, subtract, multiply, divide)
 
-| `&_<int_type>`, `|_<int_type>`, `^_<int_type>`
-| `<int_type> -> <int_type> -> <int_type>`
-| Binary integer bitwise operators
+| `+&_<int_type>+`, `+\|_<int_type>+`, `+^_<int_type>+`
+| `+<int_type> -> <int_type> -> <int_type>+`
+| Binary integer bitwise operators (and, or, xor)
 
-| `<<_<int_type>`, `>>_<int_type>`, `>>_a<int_type>`
-| `<int_type> -> u8 -> <int_type>`
-| Binary integer bitwise shift operators
+| `+<<_<int_type>+`, `+>>_<int_type>+`, `+>>_a<int_type>+`
+| `+<int_type> -> u8 -> <int_type>+`
+| Binary integer bitwise shift operators (left shift, logical right shift, arithmetic right shift)
 
-| `<_<int_type>`, `<=_<int_type>`, `>_<int_type>`, `>=_<int_type>`
-| `<int_type> -> <int_type> -> bool`
-| Integer comparisons
+| `+<_<int_type>+`, `+<=_<int_type>+`, `+>_<int_type>+`, `+>=_<int_type>+`
+| `+<int_type> -> <int_type> -> bool+`
+| Integer comparisons (less, less or equal, greater, greater or equal)
 
 | `&&`, `\|\|`
 | `bool -> bool -> bool`
-| Binary boolean operators
+| Binary boolean operators (and, or)
 
 | `\|_b`, `&_b`
 | `bitvector<'n> -> bitvector<'n> -> bitvector<'n>`
-| Binary bitwise operators
+| Binary bitwise operators (or, and)
 
 | `=`, `!=`
 | `'a -> 'a -> bool`
-| Operators to check equality
+| Operators to check equality (equal, not equal)
 
 | `[]`
 | `list<'a> -> usize -> option<'a`>
@@ -112,16 +112,16 @@ value.)
 | integer value of a byte
 
 | `of_string`
-| `string -> option<<int_type>>`
+| `+string -> option<int_type>+`
 | safe string to integer conversion
 
 | `of_string_unsafe`
-| `string -> <int_type>`
+| `+string -> <int_type>+`
 | string to integer conversion;
 throws an exception if conversion fails
 
 | `of_bytes`
-| `[byte] -> option<<int_type>>`
+| `+[byte] -> option<int_type>+`
 | safe byte vector to integer conversion
 
 | `of_bytes_unsafe`
@@ -130,11 +130,11 @@ throws an exception if conversion fails
 throws an exception if conversion fails
 
 | `of_<source_int_type>`
-| `<source_int_type> -> result<int_type>`
+| `+<source_int_type> -> result<int_type>+`
 | safe integer type conversion
 
 | `of_<source_int_type>_wrapped`
-| `<source_int_type> -> <int_type>`
+| `+<source_int_type> -> <int_type>+`
 | wrapping integer type conversion
 
 
@@ -145,11 +145,11 @@ throws an exception if conversion fails
 | Value | Signature | Description
 
 | `of_<int_type>`
-| `<int_type> -> option<byte>`
+| `+<int_type> -> option<byte>+`
 | safe integer to byte conversion
 
 | `of_<int_type>_wrapped`
-| `<int_type> -> byte`
+| `+<int_type> -> byte+`
 | integer to byte conversion with wrapping semantics
 
 |===
