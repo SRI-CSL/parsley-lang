@@ -517,6 +517,10 @@ let rec print_regexp auxp re =
         print_list " " (print_regexp auxp) res;
         pp_string ")"
 
+let print_regexp_flush auxp re =
+  print_regexp auxp re;
+  pp_flush ()
+
 let rec print_clause auxp (p, s) =
   pp_string "| ";
   print_pattern auxp p;

@@ -83,7 +83,8 @@ let type_check ckopts spec =
           (Printexc.get_backtrace ()) l (Rulecfg.error_msg e)
 
 let mk_cfg ckopts init_envs tenv (spec: Cfg.spec_module) : Cfg.spec_cfg =
-  try  Cfg_spec.lower_spec init_envs tenv spec ckopts.co_show_anf
+  try  Cfg_spec.lower_spec ckopts.co_trace_cfg_build
+         init_envs tenv spec ckopts.co_show_anf
   with
     | Anf.Error (l, e) ->
         Errors.handle_exception (Printexc.get_backtrace ()) l (Anf.error_msg e)

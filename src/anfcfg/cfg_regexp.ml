@@ -336,11 +336,16 @@ let build_re (renv: re_env) (re: regexp) : unit re =
 
 (* the core DFA building algorithm. *)
 
-let build_dfa (renv: re_env) (re: regexp) : dfa =
+let build_dfa (trace: bool) (renv: re_env) (re: regexp) : dfa =
   let mk_re r = {re = r; re_aux = ()} in
   let new_pos = get_pos_generator () in
   (* desugar *)
   let r = simplify renv new_pos re in
+  if   trace
+  then (Printf.printf "Simplifying regexp from:\n%!";
+        AstPrinter.print_regexp_flush TypeInfer.typed_auxp re;
+        Printf.printf "\n  to:\n%!";
+        Cfg_printer.print_re () r);
   (* construct end-marked version, noting the end-position *)
   let end_pos = new_pos () in
   let rend = mk_re (R_end end_pos) in
@@ -402,11 +407,15 @@ let build_dfa (renv: re_env) (re: regexp) : dfa =
                    then StateSet.add st accept
                    else accept
                  ) states StateSet.empty in
-  {dfa_states      = states;
-   dfa_start       = start;
-   dfa_accepts     = accept;
-   dfa_transitions = table;
-   dfa_loc         = re.regexp_loc}
+  let dfa = {dfa_states      = states;
+             dfa_start       = start;
+             dfa_accepts     = accept;
+             dfa_transitions = table;
+             dfa_loc         = re.regexp_loc} in
+  if   trace
+  then (Printf.printf "\nBuilt DFA:%!";
+        Cfg_printer.print_dfa dfa);
+  dfa
 
 let re_of_character_class cc : unit re =
   let new_pos = get_pos_generator () in

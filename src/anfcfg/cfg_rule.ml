@@ -260,7 +260,7 @@ let mk_choice_cfg loc (ctx: context) (b: opened)
    would make the current Anf_exp overly complicated.  It would be
    good to fix this via some restructuring. *)
 
-let rec lower_rule_elem (ctx: context) (m: Ast.mname)
+let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
           (b: opened) (ret: return) (re: rule_elem)
         : (context * opened) =
   let typ = re.rule_elem_aux in
@@ -357,7 +357,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
     | RE_regexp r ->
         let ctx, b = exit_bitmode ctx b loc in
         (* Compile the regexp into a DFA. *)
-        let dfa = Cfg_regexp.build_dfa ctx.ctx_re_env r in
+        let dfa = Cfg_regexp.build_dfa trace ctx.ctx_re_env r in
         (* Bind a new var for the matched value if we don't have a
            return binding. *)
         let v, venv =
@@ -378,7 +378,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let rx = TypedAstUtils.rule_elem_to_regexp re in
         (* Now do as above *)
         (* Compile the regexp into a DFA. *)
-        let dfa = Cfg_regexp.build_dfa ctx.ctx_re_env rx in
+        let dfa = Cfg_regexp.build_dfa trace ctx.ctx_re_env rx in
         (* Bind a new var for the matched value if we don't have a
            return binding. *)
         let v, venv =
@@ -459,7 +459,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let v, venv = bind_var ctx.ctx_venv v typ in
         let ret' = Some v in
         let ctx, b =
-          lower_rule_elem {ctx with ctx_venv = venv} m b ret' re' in
+          lower_rule_elem trace {ctx with ctx_venv = venv} m b ret' re' in
         (* we might have our own return to bind *)
         let b = match ret with
             | None -> b
@@ -543,7 +543,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
     | RE_seq res when ret = None ->
         let ctx, b = exit_bitmode ctx b loc in
         List.fold_left (fun (ctx, b) re ->
-            lower_rule_elem ctx m b ret re
+            lower_rule_elem trace ctx m b ret re
           ) (ctx, b) res
 
     (* with a return value, the outline is the same as above, but we
@@ -557,7 +557,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
                 fresh_var ctx.ctx_venv re.rule_elem_aux re.rule_elem_loc in
               let ret = Some v in
               let ctx = {ctx with ctx_venv = venv} in
-              let ctx, b = lower_rule_elem ctx m b ret re in
+              let ctx, b = lower_rule_elem trace ctx m b ret re in
               ctx, b, v :: vs
             ) (ctx, b, []) res in
         (* construct the list value holding the elements, starting
@@ -586,7 +586,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
           Ast.(re.rule_elem_loc) in
         let lower_fn (ctx: context) (b: opened) (re: rule_elem) =
           (* Capture `ret` from the environment. *)
-          lower_rule_elem ctx m b ret re in
+          lower_rule_elem trace ctx m b ret re in
         mk_choice_cfg loc ctx b res loc_fn lower_fn
 
     | RE_star (re', None) ->
@@ -620,7 +620,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let ctx = {ctx with ctx_failcont = lsc} in
         let ctx, b = match vr with
             | None ->
-                lower_rule_elem ctx m b None re'
+                lower_rule_elem trace ctx m b None re'
             | Some vr ->
                 (* create a variable for the matched value for re' *)
                 let typ' = re'.rule_elem_aux in
@@ -628,7 +628,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
                 let v, venv = fresh_var ctx.ctx_venv typ' loc' in
                 let ret' = Some v in
                 let ctx = {ctx with ctx_venv = venv} in
-                let ctx, b = lower_rule_elem ctx m b ret' re' in
+                let ctx, b = lower_rule_elem trace ctx m b ret' re' in
                 (* update the return value:
                      vr := v :: vr , and reverse it when done *)
                 let l =
@@ -707,7 +707,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
            value *)
         let ctx, b = match vr with
             | None ->
-                lower_rule_elem ctx m b None re'
+                lower_rule_elem trace ctx m b None re'
             | Some vr ->
                 (* create a variable for the matched value for re' *)
                 let typ' = re'.rule_elem_aux in
@@ -715,7 +715,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
                 let v, venv = fresh_var ctx.ctx_venv typ' loc'  in
                 let ret' = Some v in
                 let ctx = {ctx with ctx_venv = venv} in
-                let ctx, b = lower_rule_elem ctx m b ret' re' in
+                let ctx, b = lower_rule_elem trace ctx m b ret' re' in
                 (* update the return value:
                    vr := v :: vr , and reverse it when done *)
                 let l =
@@ -763,7 +763,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let orig_failcont = ctx.ctx_failcont in
         (* lower re' with the new failure continuation *)
         let ctx = {ctx with ctx_failcont = lsc} in
-        let ctx, b = lower_rule_elem ctx m b ret re' in
+        let ctx, b = lower_rule_elem trace ctx m b ret re' in
         (* terminate the current block with a jump to the
            continuation block, since that is where the failure path
            will join us *)
@@ -794,7 +794,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let orig_failcont = ctx.ctx_failcont in
         let ctx = {ctx with ctx_failcont = lfl; ctx_venv = venv} in
         (* lower the re *)
-        let ctx, b = lower_rule_elem ctx m b ret' re' in
+        let ctx, b = lower_rule_elem trace ctx m b ret' re' in
         (* extract the current return value *)
         let vr = match ret with
             | None -> assert false (* handled above *)
@@ -892,7 +892,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         let orig_failcont = ctx.ctx_failcont in
         (* lower the rule element with this failcont *)
         let ctx = {ctx with ctx_venv = venv; ctx_failcont = lf} in
-        let ctx, b = lower_rule_elem ctx m b ret re' in
+        let ctx, b = lower_rule_elem trace ctx m b ret re' in
         (* on the success path, restore the view *)
         let b = add_gnode b N_pop_view unit loc in
         let ctx = {ctx with ctx_failcont = orig_failcont} in
@@ -924,7 +924,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
         (* lower the rule element with this failcont *)
         let ctx = {ctx with ctx_venv     = venv;
                             ctx_failcont = lf} in
-        let ctx, b = lower_rule_elem ctx m b ret re' in
+        let ctx, b = lower_rule_elem trace ctx m b ret re' in
         (* on the success path, restore the view *)
         let b = add_gnode b N_pop_view unit loc in
         let ctx = {ctx with ctx_failcont = orig_failcont} in
@@ -1174,8 +1174,9 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
            any return value *)
         let ctx, b = match vr with
             | None ->
-                lower_rule_elem {ctx with ctx_venv     = venv;
-                                          ctx_failcont = lf} m b None re'
+                let ctx = {ctx with ctx_venv     = venv;
+                                    ctx_failcont = lf} in
+                lower_rule_elem trace ctx m b None re'
             | Some vr ->
                 (* create a new variable to hold a matched value for re' *)
                 let typ' = re'.rule_elem_aux in
@@ -1183,7 +1184,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
                 let ret' = Some v in
                 let ctx = {ctx with ctx_venv     = venv;
                                     ctx_failcont = lf} in
-                let ctx, b = lower_rule_elem ctx m b ret' re' in
+                let ctx, b = lower_rule_elem trace ctx m b ret' re' in
                 (* update the return value:
                    vr := v :: vr , and reverse it when done *)
                 let l =
@@ -1218,7 +1219,7 @@ let rec lower_rule_elem (ctx: context) (m: Ast.mname)
 (* Unlike a rule element, a rule has no explicit return value, since
    the 'return values' of a rule are assigned by the actions within a
    well-typed rule. *)
-let lower_rule (ctx: context) (m: Ast.mname) (b: opened) (r: rule)
+let lower_rule (trace: bool) (ctx: context) (m: Ast.mname) (b: opened) (r: rule)
     : (context * opened) =
   (* Initialize the rule temporaries. *)
   let b, venv =
@@ -1233,7 +1234,7 @@ let lower_rule (ctx: context) (m: Ast.mname) (b: opened) (r: rule)
   (* Now lower the rule elements. *)
   let ctx, b =
     List.fold_left (fun (ctx, b) re ->
-        lower_rule_elem ctx m b None re
+        lower_rule_elem trace ctx m b None re
       ) ({ctx with ctx_venv = venv}, b) r.rule_rhs in
   (* Ensure bitmode has been exited at the end of the rule. *)
   exit_bitmode ctx b r.rule_loc
@@ -1241,7 +1242,8 @@ let lower_rule (ctx: context) (m: Ast.mname) (b: opened) (r: rule)
 (* A non-terminal requires the set up of its attributes and lowering
    of the ordered choice of its rules; in addition, it needs an
    nt_entry so that it can be called from other rules. *)
-let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
+let lower_general_ntd (trace: bool) (ctx: context) (ntd: non_term_defn)
+    : context =
   let nt_name = Location.value ntd.non_term_name in
   let orig_venv = ctx.ctx_venv in
   let mname = Ast.(Modul (Mod_inferred ntd.non_term_mod)) in
@@ -1277,7 +1279,7 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
   (* Create the wrapper functions for `mk_choice_cfg`. *)
   let loc_fn (r: rule) = Ast.(r.rule_loc) in
   let lower_fn (ctx: context) (b: opened) (r: rule) =
-    lower_rule ctx mname b r in
+    lower_rule trace ctx mname b r in
   (* Lowering returns the updated context and the block containing the
      success continuation. *)
   let ctx, b =
@@ -1307,7 +1309,8 @@ let lower_general_ntd (ctx: context) (ntd: non_term_defn) : context =
 
 (* a wrapper to intercept the special case of a non-terminal without
    attributes, no temporaries and regexp-convertible rules. *)
-let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
+let lower_ntd (trace: bool)
+      (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
     : context * TypeInfer.VEnv.t =
   let mname = Ast.(Modul (Mod_inferred ntd.non_term_mod)) in
   (* detect special case *)
@@ -1424,5 +1427,5 @@ let lower_ntd (ctx: context) (tvenv: TypeInfer.VEnv.t) (ntd: non_term_defn)
     else
       ctx, tvenv, ntd in
   (* now dispatch to general case *)
-  let ctx = lower_general_ntd ctx ntd in
+  let ctx = lower_general_ntd trace ctx ntd in
   ctx, tvenv
