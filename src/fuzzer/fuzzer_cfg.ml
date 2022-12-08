@@ -24,6 +24,33 @@ open Parsleygram
 open Runtime_exceptions
 open Interpret_anf
 open Interpret_bitops
+open Cfg
+
+(*TODO START HERE *)
+let rec convert_to_sat (r: regexp) =
+    match r.regexp with
+    | RX_empty -> "empty"
+    | RX_literals ls ->
+    (match ls.literal_set with
+        | LS_type (_m, _id) ->
+            (* Cross-module regexp compilation is not supported. *)
+            "LS_TYPE"
+        | LS_set lls ->
+            let llsa = List.map Location.value lls in
+            "(str.to.re_lsset \"" ^ (String.concat "" llsa) ^ "\")"
+        | LS_diff ({literal_set = LS_type (_m, _cc); _},
+                   {literal_set = LS_set _ls'; _}) ->
+            "LS_diff"
+        | LS_diff _ ->
+            (* This should have been checked during type-checking *)
+            assert false
+        | LS_range (_s, _e) -> "LS_range" );
+    | RX_wildcard -> "wildcard"
+    | RX_type (_, _) -> "type"
+    | RX_seq s -> "seq:"  ^ string_of_int (List.length s) ^":"^ (String.concat "" (List.map convert_to_sat s))
+    | RX_choice lst -> "choice:" ^ string_of_int (List.length lst) ^ ":" ^ String.concat "" (List.map convert_to_sat lst)
+    | RX_opt _ -> "opt"
+    | RX_star (_, _) -> "star";;
 
 (* Executions of linear or non-control flow nodes return an
    updated state. *)
@@ -260,6 +287,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
     | Cfg.Node.N_exec_dfa (dfa, v, lsc, _lf) ->
         assert (s.st_mode = Mode_normal);
         let loc = Dfa.DFA.loc dfa in
+        let sat = convert_to_sat dfa.dfa_regex in
+        let _ = print_endline sat in
         let c_val = (V_constraint [(Constraint_dfa dfa, [n])]) in
         let env = VEnv.assign s.st_venv v c_val in
         let s = {s with st_venv     = env} in

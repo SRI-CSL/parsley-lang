@@ -1,0 +1,19 @@
+type nitf_packet = {
+    // NITF header starts here
+    fhdr: [byte],
+    fver: [byte]
+}
+
+format {
+    FHDR := !"NITF"!;;
+
+    // FVER := !"02.10"!;;
+    FVER := (# [ "0" | "5" | "9" ] #);;
+
+    NITFpacket npkt {nitf_packet} :=
+    fhdr = FHDR
+    {npkt.fhdr   := fhdr}
+
+    fver = FVER
+    {npkt.fver   := fver}
+}

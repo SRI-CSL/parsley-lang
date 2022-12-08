@@ -1,0 +1,41 @@
+SMT FRAGMENT:
+
+(set-option :smt.mbqi true)
+;; (set-logic QF_BVRE)
+;; (set-logic QF_S)
+(set-logic QF_SLIA)
+
+(declare-fun input () String)
+(assert (= input "ab"))
+
+(assert (str.in.re input (re.++  (str.to.re "a") (re.++  (str.to.re "b") (re.*  (str.to.re "c") )))))
+
+(check-sat)
+(get-model)
+
+
+
+#a
+;(set-option :smt.mbqi true)
+;; (set-logic QF_BVRE)
+;; (set-logic QF_S)
+(set-logic QF_SLIA)
+
+(declare-fun input () String)
+(declare-fun x () String)
+(declare-fun y () String)
+;; (assert (= input "abccc"))
+
+;; (assert (str.in.re input (re.++  (str.to.re "a") (re.++  (str.to.re "#") (re.*  (str.to.re "c") )))))
+;; (assert (= 4 (str.len input)))
+
+(assert (str.in.re y (re.* (str.to.re "a"))))
+(assert (= (str.to.int x) (str.len y)))
+;; DFA of NT at ...
+(assert (str.in.re input (re.++ (re.++ (str.to.re x) (str.to.re "#")) (str.to.re y)))))
+(assert (not (str.in.re input (str.to.re "#"))))
+;;(assert (= input constraint_a constraint_b))
+;;(assert (= 5 (str.to.int x)))
+
+(check-sat)
+(get-model)

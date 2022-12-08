@@ -261,7 +261,7 @@ let rec vtype_of (v: value) : vtype =
 let rec string_of_constraint_path cp : string =
   let (c, _) = cp in
   match c with
-  | Constraint_dfa d -> "Constraint dfa"
+  | Constraint_dfa _ -> "Constraint dfa"
   | Constraint_if_true x -> "Constraint_if_true: " ^ (string_of_constraint_path x)
   | Constraint_if_false x -> "Constraint_if_false: " ^ (string_of_constraint_path x)
   | Constraint_cond_branch_true x -> "Constraint_cond_branch_true" ^ (string_of_constraint_path x)

@@ -1,0 +1,633 @@
+// import basic types
+include character_sets
+include match
+
+
+// TABLE 1 NITF FILE HEADER. pg. 15 of NITF spec
+type image_info_tuple = {
+    lishn: usize,
+    lin: usize
+}
+
+type graphic_info_tuple = {
+    lsshn: usize,
+    lsn: usize
+}
+
+type text_info_tuple = {
+    ltshn: usize,
+    ltn: usize
+}
+
+type data_info_tuple = {
+    ldshn: usize,
+    ldn: usize
+}
+
+type res_info_tuple = {
+    lreshn: usize,
+    lren: usize
+}
+
+type image_segment = {
+    subheader : [byte],
+    imgdataseg: [byte]
+}
+
+
+// NITF packet type
+type nitf_packet = {
+    // NITF header starts here
+    fhdr: [byte],
+    fver: [byte],
+    clevel: [byte],
+    stype: [byte],
+    ostaid: [byte],
+    fdt: [byte],
+    ftitle: [byte],
+    fsclas: [byte],
+    fsclsy: [byte],
+    fscode: [byte],
+    fsctlh: [byte],
+    fsrel: [byte],
+    fsdctp: [byte],
+    fsdcdt: [byte],
+    fsdcxm: [byte],
+    fsdg: [byte],
+    fsdgdt: [byte],
+    fscltx: [byte],
+    fscatp: [byte],
+    fscaut: [byte],
+    fscrsn: [byte],
+    fssrdt: [byte],
+    fsctln: [byte],
+    fscop: [byte],
+    fscpys: [byte],
+    encryp: [byte],
+    fbkgc: [byte],
+    oname: [byte],
+    ophone: [byte],
+    fl: usize,
+    hl: usize,
+
+    // image info subheader + image info header len start here
+    numi: usize,
+    image_info: [image_info_tuple],
+
+    // graphic info
+    nums: usize,
+    graphic_info: [graphic_info_tuple],
+
+    // reserved field
+    numx: usize,
+
+    // text info
+    numt: usize,
+    text_info: [text_info_tuple],
+
+    // data extension info
+    numdes: usize,
+    data_info: [data_info_tuple],
+
+    // reserved extension info
+    numres: usize,
+    res_info: [res_info_tuple],
+
+    udhdl: usize,
+    udhofl: usize,
+    udhd: [byte],
+    xhdl: usize,
+    xhdlofl: usize,
+    xhd: [byte],
+    // header ends
+
+    // segments follow header
+    image_segments: [byte],
+    graphic_segments: [byte],
+    text_segments: [byte],
+    data_segments: [byte],
+    resex_segments: [byte]
+}
+
+fun max(x:usize, y :usize) -> usize = {
+    (case (x >_u y) of
+    | bool::True() -> x
+    | bool::False() -> y)
+}
+
+fun process_one_image_info(acc: ((view, usize), [view]), cur: image_info_tuple) -> ((view, usize), [view]) = {
+    let ((cv, ofs), vs) = acc in
+    // let _ = $print_t("ofs") in
+    // let _ = $print_t(ofs) in
+    let end = ofs +_u cur.lin +_u cur.lishn in
+    // let _ = $print_t("end") in
+    // let _ = $print_t(end) in
+    // let _ = $print_t("cur.lin +_u cur.lishn") in
+    // let _ = $print_t(cur.lin +_u cur.lishn) in
+    // let _ = $print_t("View.get_remaining()") in
+    // let _ = $print_t(View.get_current_remaining()) in
+    let v = View.restrict(cv, ofs, end) in
+        ((cv, end), v::vs)
+}
+
+fun mkviews(image_info: [image_info_tuple]) -> [view] = {
+    let (_, vs) = List.fold(process_one_image_info,
+    ((View.get_current(), 0u), []), image_info) in
+        vs
+}
+
+fun add_image_info(acc: usize, image_info: image_info_tuple) -> usize = {
+    acc +_u image_info.lin +_u image_info.lishn
+}
+
+fun span_image_segments(image_info:[image_info_tuple]) -> usize = {
+    List.fold(add_image_info, 0u, image_info)
+}
+
+fun add_graphic_info(acc: usize, graphic_info: graphic_info_tuple) -> usize = {
+    acc +_u graphic_info.lsn +_u graphic_info.lsshn
+}
+
+fun span_graphic_segments(graphic_info:[graphic_info_tuple]) -> usize = {
+    List.fold(add_graphic_info, 0u, graphic_info)
+}
+
+fun add_text_info(acc: usize, text_info: text_info_tuple) -> usize = {
+    acc +_u text_info.ltn +_u text_info.ltshn
+}
+
+fun span_text_segments(text_info:[text_info_tuple]) -> usize = {
+    List.fold(add_text_info, 0u, text_info)
+}
+
+fun add_data_info(acc: usize, data_info: data_info_tuple) -> usize = {
+    acc +_u data_info.ldn +_u data_info.ldshn
+}
+
+fun span_data_segments(data_info:[data_info_tuple]) -> usize = {
+    List.fold(add_data_info, 0u, data_info)
+}
+
+fun add_res_info(acc: usize, res_info: res_info_tuple) -> usize = {
+    acc +_u res_info.lren +_u res_info.lreshn
+}
+
+fun span_resex_segments(res_info:[res_info_tuple]) -> usize = {
+    List.fold(add_res_info, 0u, res_info)
+}
+
+recfun pow(x: usize, y: usize, z: usize, o: usize) -> usize = {
+    (case y of
+    | 0u -> 1u
+    | 1u -> x
+    | _ ->  (case z <_u y of
+             | bool::True() -> pow(x *_u o, y, z +_u 1u, o)
+             | bool::False() -> x))
+
+}
+
+fun sum(acc: (usize, usize), b: byte) -> (usize, usize) = {
+   // 48u is 0x30 hex subtracted to get the decimal value of each index
+    let (x, y) = acc in
+        (x +_u ((Usize.of_byte(b) -_u 48u) *_u pow(10u, y, 1u, 10u)), y +_u 1u)
+}
+
+fun sub30(b: byte) -> usize = {
+    pow(10u, 10u, 1u, 10u)
+}
+
+fun byte_to_usize(b: [byte], width: usize) -> usize = {
+   let (acc, count) = List.fold(sum, (0u, 0u), List.rev(b)) in
+    acc
+}
+
+format {
+    // Table 1 of NITF spec.
+    FHDR := !"NITF"!;;
+
+    FVER := !"02.10"!;;
+
+    CLEVEL := (# BCS_N ^ 2u#);;
+
+    STYPE := !"BF01"!;;
+
+    OSTAID := (# BCS_A ^ 10u #);;
+
+    FDT := (# BCS_N ^ 14u #);;
+
+    FSCLAS := (#["T"|"S"|"C"|"R"|"U"]#);;
+
+    // TOOD: if any other populated with a valid code for the security
+    // classification system used: FSCODE, FSCTLH, FSREL, FSDCTP,
+    FSCLSY := (# ECS_A ^ 2u #);;
+    FSCODE := (# ECS_A ^ 11u #);;
+    FTITLE := (# ECS_A ^ 80u #);;
+    FSCTLH := (# ECS_A ^ 2u #);;
+    FSREL := (# ECS_A ^ 20u #);;
+    FSDCTP := (# ["DD" | "DE" | "GD" | "GE" | "O" | "X" | "\x20\x20"] #);;
+
+    // CC := (#["0".."9"] ^ 2u #);;
+    // YY := (#["0".."9"] ^ 2u #);;
+    // MM := (# ["0"] ["1" .. "9"] | ["1"] ["0" .. "2"] #);;
+    // DD := (# ["0"] ["1" .. "9"] | ["1"|"2"] ["0" .. "9"] | ["3"]["0" .. "1"] #);;
+    // hh :=
+    // mm :=
+    // ss :=
+    // CCYYMMDD := (#CC YY MM DD#);;
+
+    FSDCDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
+    FSDCXM := (# (["\x20"] ^ 4u)
+                 | (["  X"]["1" .. "8"])
+                 | (["X"]["1" .. "8"]["  "])
+                 | (["25X"]["1" .. "9"])
+                 | ["DINO"] #);;
+    FSDG := (# ["\x20" | "S" | "C" | "R"]  #);;
+    FSDGDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
+    FSCLTX := (# ECS_A ^ 43u #);;
+    FSCATP := (# ["O" | "D" | "M" | "\x20"] #);;
+    FSCAUT := (# ECS_A ^ 40u #);;
+    FSCRSN := (# ["A" .. "H"] | ["\x20"] #);;
+    FSSRDT := (# CCYYMMDD | ["\x20"] ^ 8u #);;
+    FSCTLN := (# ECS_A ^ 15u #);;
+    FSCOP := (# ["0" .. "9"] ^ 5u#);;
+    FSCPYS := (# ["0" .. "9"] ^ 5u #);;
+    ENCRYP := !"\x30"!;;
+    FBKGC := (# ["\x00" .. "\xFF"] ^ 3u #);;
+    ONAME := (# ECS_A ^ 24u #);;
+    OPHONE := (# ECS_A ^ 18u #);;
+
+    FL := (# ["0" .. "9"] ^ 12u#);;
+    HL := (# ["0" .. "9"] ^ 6u#);;
+    NUMI := (# ["0" .. "9"] ^ 3u #);;
+
+    LISHn := (# ["0" .. "9"] ^ 6u #);;
+    LIn := (# ["0" .. "9"] ^ 10u #);;
+
+    ImageInfo imgSeg {image_info_tuple} :=
+    lishn = LISHn
+    // [byte_to_usize(lishn, 6u) >=_u 000439u && byte_to_usize(lishn, 6u) <=_u 999999u]
+    lin = LIn
+    // [byte_to_usize(lin, 10u) >=_u 1u && byte_to_usize(lin, 10u) <=_u 9999999999u]
+    {
+        $print_t("lishn:");
+        imgSeg.lishn := byte_to_usize(lishn, 6u);
+        $print_t(lishn);
+        $print_t("lin:");
+        imgSeg.lin := byte_to_usize(lin, 10u);
+        $print_t(lin);
+        $print_t(imgSeg.lin)
+        // $print_t(List.map(sub30, lin))
+    };;
+
+    // pg 15 table 1 continues after imageSegment info
+    NUMS := (#BCS_N ^ 3u#);;
+
+    LSSHn := (# ["0" .. "9"] ^ 4u #);;
+    LSn := (# ["0" .. "9"] ^ 6u #);;
+
+    GraphicInfo graSeg {graphic_info_tuple} :=
+    lsshn = LSSHn
+    // [byte_to_usize(lsshn, 4u) >=_u 0258u && byte_to_usize(lsshn, 4u) <=_u 9998u]
+    lsn = LSn
+    // [byte_to_usize(lsn, 6u) >=_u 1u && byte_to_usize(lsn, 6u) <=_u 999998u]
+    {
+        $print_t("lsshn:");
+        graSeg.lsshn := byte_to_usize(lsshn, 6u);
+        $print_t(graSeg.lsshn);
+        $print_t("lsn:");
+        graSeg.lsn := byte_to_usize(lsn, 10u);
+        $print_t(graSeg.lsn)
+    };;
+
+    NUMX := (#BCS_N ^ 3u#);;
+    NUMT := (#BCS_N ^ 3u#);;
+
+    LTSHn := (# ["0" .. "9"] ^ 4u #);;
+    LTn := (# ["0" .. "9"] ^ 5u #);;
+
+    TextInfo txtSeg {text_info_tuple} :=
+    ltshn = LTSHn
+    // [byte_to_usize(lsshn, 4u) >=_u 282u && byte_to_usize(lsshn, 4u) <=_u 9998u]
+    ltn = LTn
+    // [byte_to_usize(lsn, 6u) >=_u 1u && byte_to_usize(lsn, 6u) <=_u 99998]
+    {
+        $print_t("ltshn:");
+        txtSeg.ltshn := byte_to_usize(ltshn, 6u);
+        $print_t(txtSeg.ltshn);
+        $print_t("ltn:");
+        txtSeg.ltn := byte_to_usize(ltn, 10u);
+        $print_t(txtSeg.ltn)
+    };;
+
+    NUMDES := (#BCS_N ^ 3u#);;
+
+    LDSHn := (# ["0" .. "9"] ^ 4u #);;
+    LDn := (# ["0" .. "9"] ^ 9u #);;
+
+    DataInfo desInfo {data_info_tuple} :=
+    ldshn = LDSHn
+    // [byte_to_usize(ldshn, 4u) >=_u 200u && byte_to_usize(ldshn, 4u) <=_u 9998u]
+    ldn = LDn
+    // [byte_to_usize(ldn, 9u) >=_u 1u && byte_to_usize(ldn, 9u) <=_u 999999998u]
+    {
+        $print_t("ldshn:");
+        desInfo.ldshn := byte_to_usize(ldshn, 4u);
+        $print_t(desInfo.ldshn);
+        $print_t("ldn:");
+        desInfo.ldn := byte_to_usize(ldn, 9u);
+        $print_t(desInfo.ldn)
+    };;
+
+    NUMRES := (#BCS_N ^ 3u#);;
+
+    LRESHn := (# ["0" .. "9"] ^ 4u #);;
+    LREn := (# ["0" .. "9"] ^ 7u #);;
+
+    ResInfo resInfo {res_info_tuple} :=
+    lreshn = LRESHn
+    // [byte_to_usize(lreshn, 4u) >=_u 200u && byte_to_usize(lreshn, 4u) <=_u 9999u]
+    lren = LREn
+    // [byte_to_usize(lren, 7u) >=_u 1u && byte_to_usize(lren, 7u) <=_u 9999999u]
+    {
+        $print_t("lreshn:");
+        resInfo.lreshn := byte_to_usize(lreshn, 4u);
+        $print_t(resInfo.lreshn);
+        $print_t("lren:");
+        resInfo.lren := byte_to_usize(lren, 7u);
+        $print_t(resInfo.lren)
+    };;
+
+    UDHDL := (# ["0" .. "9"] ^ 5u #);;
+    UDHOFL := (# ["0" .. "9"] ^ 3u #);;
+
+    XHDL := (# ["0" .. "9"] ^ 5u #);;
+    XHDLOFL := (# ["0" .. "9"] ^ 3u #);;
+
+    ImageSegment  is (i : image_info_tuple) {image_segment} :=
+        imgsubheader = Byte^(i.lishn)
+        imgdataseg = Byte^(i.lin)
+    { is.subheader := imgsubheader;
+      is.imgdataseg := imgdataseg };;
+
+    NITFpacket npkt {nitf_packet} :=
+    fhdr = FHDR
+    {npkt.fhdr   := fhdr;
+    $print_t("offset 4 - FHDR")}
+
+    fver = FVER
+    {npkt.fver   := fver;
+    $print_t("offset 9 - FVER")}
+
+    clevel = CLEVEL
+    {npkt.clevel := clevel;
+    $print_t("offset 11 - CLEVEL")}
+
+    stype = STYPE
+    [List.length(stype) = 4u]
+    {npkt.stype  := stype;
+    $print_t("offset 15 - STYPE")}
+
+    ostaid = OSTAID
+    [ostaid != "          "]
+    {npkt.ostaid := ostaid;
+    $print_t("offset 25 - OSTAID")}
+
+    fdt = FDT
+    [List.length(fdt) = 14u]
+    {npkt.fdt    := fdt;
+    $print_t("offset 39 - FDT")}
+
+    ftitle = FTITLE
+    {npkt.ftitle := ftitle;
+    $print_t("offset 119 - FTITLE")}
+
+    fsclas = FSCLAS
+    {npkt.fsclas := fsclas;
+    $print_t("offset 120 - FSCLAS")}
+
+    fsclsy = FSCLSY
+    // if fsclas is not U then FSCLSY cannot be spaces
+    [(fsclas = "U" || fsclsy != "  ")]
+    {npkt.fsclsy := fsclsy;
+    $print_t("offset 122 - FSCLSY")}
+
+    fscode = FSCODE
+    // [(fscode = "           " || fsclsy != "  ")]
+    {npkt.fscode := fscode;
+    $print_t("offset 133 - FSCODE")}
+
+    fsctlh = FSCTLH
+    // [(fsctlh = "  " || fsclsy != "  ")]
+    {npkt.fsctlh := fsctlh;
+    $print_t("offset 135 - FSCTLH")}
+
+    fsrel = FSREL
+    // [(fsrel = "                    " || fsclsy != "  ")]
+    {npkt.fsrel  := fsrel;
+    $print_t("offset 155 - FSREL")}
+
+    fsdctp = FSDCTP
+    // [(fsdctp = "  " || fsclsy != "  ")]
+    {npkt.fsdctp := fsdctp;
+    $print_t("offset 157 - FSDCTP")}
+
+    fsdcdt = FSDCDT
+    // [(fsdcdt = "        " || fsclsy != "  ")]
+    {npkt.fsdcdt := fsdcdt;
+      $print_t("offset 165 - FSDCDT") }
+
+    fsdcxm = FSDCXM
+    // [(fsdcxm = "    " || fsclsy != "  ")]
+    {npkt.fsdcxm := fsdcxm;
+    $print_t("offset 169 - FSDCXM")}
+
+    fsdg   = FSDG
+    // [(fsdg = " " || fsclsy != "  ")]
+    {npkt.fsdg   := fsdg}
+
+    fsdgdt  = FSDGDT
+    // [(fsdgdt = "        " || fsclsy != "  ")]
+    {npkt.fsdgdt := fsdgdt;
+     $print_t("offset 178 - FSDGDT")}
+
+    fscltx = FSCLTX
+    {npkt.fscltx := fscltx;
+     $print_t("offset 221 - FSCLTX")}
+
+    fscatp = FSCATP
+    {npkt.fscatp := fscatp;
+     $print_t("offset 222 - FACATP")}
+
+    fscaut = FSCAUT
+    {npkt.fscaut := fscaut;
+     $print_t("offset 262 - FSCAUT")}
+
+    fscrsn = FSCRSN
+    {npkt.fscrsn := fscrsn;
+     $print_t("offset 263 - FSCRSN")}
+
+    fssrdt = FSSRDT
+    {npkt.fssrdt := fssrdt;
+     $print_t("offset 271 - FSSRDT")}
+
+    fsctln = FSCTLN
+    {npkt.fsctln := fsctln;
+     $print_t("offset 286 - FSSTLN")}
+
+    fscop  = FSCOP
+    {npkt.fscop  := fscop;
+     $print_t("offset 291 - FSCOP")}
+
+    fscpys = FSCPYS
+    {npkt.fscpys := fscpys;
+     $print_t("offset 296 - FSCPYS")}
+
+    encryp = ENCRYP
+    {npkt.encryp := encryp}
+
+    fbkgc  = FBKGC
+    {npkt.fbkgc  := fbkgc;
+     $print_t("offset 300 - FBKGC")}
+
+    oname  = ONAME
+    {npkt.oname  := oname}
+
+    ophone = OPHONE
+    {npkt.ophone := ophone;
+     $print_t("offset 342 - OPHONE")}
+
+    fl     = FL
+    {npkt.fl := byte_to_usize(fl, 12u);
+     $print_t("offset 354 - FL")}
+
+    hl     = HL
+    [List.length(hl) = 6u]
+    {npkt.hl := byte_to_usize(hl, 6u);
+     $print_t("offset 360 - HL")}
+
+    // parse image info tuples
+    numi   = NUMI
+    [List.length(numi) = 3u]
+    {$print_t("numi value is:");
+     $print_t(numi);
+     $print(numi);
+     npkt.numi := byte_to_usize(numi, 3u);
+     $print_t("numi:");
+     $print_t(npkt.numi)}
+
+    image_info = (ImageInfo^byte_to_usize(numi, 3u))
+    { npkt.image_info := image_info }
+
+    // parse graphic info tuples
+    nums = NUMS
+    [List.length(nums) = 3u]
+    {$print_t("nums value is:"); $print_t(nums);
+     npkt.nums := byte_to_usize(nums, 3u)}
+
+    graphic_info = (GraphicInfo^byte_to_usize(nums, 3u))
+    { npkt.graphic_info := graphic_info }
+
+    numx = NUMX
+    [List.length(numx) = 3u]
+    {$print_t("numx value is:"); $print_t(numx);
+     npkt.numx := byte_to_usize(numx, 3u)}
+
+    // parse text info tuples
+    numt = NUMT
+    [List.length(numt) = 3u]
+    {$print_t("numt value is:"); $print_t(numt);
+     npkt.numt := byte_to_usize(numt, 3u)}
+
+    text_info = (TextInfo^byte_to_usize(numt, 3u))
+    { npkt.text_info := text_info }
+
+    // parse data extension info tuples
+    numdes = NUMDES
+    [List.length(numdes) = 3u]
+    {$print_t("numdes value is:"); $print_t(numdes);
+     npkt.numdes := byte_to_usize(numdes, 3u)}
+
+    data_info = (DataInfo^byte_to_usize(numdes, 3u))
+    { npkt.data_info := data_info }
+
+    // parse reserve extension info tuples
+    numres = NUMRES
+    [List.length(numres) = 3u]
+    {$print_t("numres value is:"); $print_t(numres);
+     npkt.numres := byte_to_usize(numres, 3u)}
+
+    res_info = (ResInfo^byte_to_usize(numres, 3u))
+    { npkt.res_info := res_info }
+
+    udhdl = UDHDL
+    [List.length(udhdl) = 5u]
+    {$print_t("udhdl value is:"); $print_t(udhdl);
+     npkt.udhdl := byte_to_usize(udhdl, 5u)}
+
+    // if we replace Byte with UDHOFL it wont work correctly due to type checks.
+    udhofl = (Byte^(case npkt.udhdl of
+                        | 0u -> 0u
+                        | _ -> 3u))
+    // [List.length(udhofl) = 3u]
+    {$print_t("udhofl value is:"); $print_t(udhofl);
+     npkt.udhofl := byte_to_usize(udhofl, 3u)}
+
+    // ask conditional
+    udhd = (Byte^(max(npkt.udhdl -_u 3u, 0u)))
+    {npkt.udhd := udhd;
+     $print_t("udhd parsed")
+    }
+
+    xhdl = XHDL
+    [List.length(xhdl) = 5u]
+    {$print_t("xhdl value is:"); $print_t(xhdl);
+     npkt.xhdl := byte_to_usize(xhdl, 5u)}
+
+
+    xhdlofl = (Byte^(case npkt.udhdl of
+                     | 0u -> 0u
+                     | _ -> 3u))
+    // [List.length(xhdlofl) = 3u]
+    {$print_t("xhdlofl value is:"); $print_t(xhdlofl);
+     npkt.xhdlofl := byte_to_usize(xhdlofl, 3u)}
+
+    xhd = (Byte^(npkt.xhdl -_u 3u))
+    {npkt.xhd := xhd}
+
+    // header ends here
+
+    // image segment views
+    image_segment_views = {let vs = mkviews(image_info)
+    in $print_t(vs); $print_t(image_info) ;; mkviews(image_info)}
+    image_segments = @#[image_segment_views, ImageSegment<i <- (image_info)>]
+
+    // image segments bytes
+    // image_segment_bytes = Byte^(span_image_segments(image_info))
+    // {npkt.image_segments := image_segment_bytes}
+    {$print_t(image_segments);
+    npkt.image_segments := []}
+
+    // use the image_segment_bytes and convert
+
+    // graphic
+    // graphic_segment_bytes = Byte^(span_graphic_segments(graphic_info))
+    // {npkt.graphic_segments:= graphic_segment_bytes}
+    {npkt.graphic_segments:= []}
+
+    // reserved
+    // reserved_segment_bytes = Byte^(span_reserved_segments(reserved_info))
+
+    // text
+    // text_segment_bytes = Byte^(span_text_segments(text_info))
+    // {npkt.text_segments := text_segment_bytes}
+    {npkt.text_segments := []}
+
+    // // data extension
+    // data_segment_bytes = Byte^(span_data_segments(data_info))
+    // {npkt.data_segments := data_segment_bytes}
+    {npkt.data_segments := []}
+
+    // // reserved extension segment
+    // resex_segment_bytes = Byte^(span_resex_segments(res_info))
+    {npkt.resex_segments := []}
+}

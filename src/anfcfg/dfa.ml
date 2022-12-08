@@ -16,6 +16,7 @@
 (**************************************************************************)
 
 open Parsing
+open Typing
 
 (* The desugared representation of regexps and their compiled DFAs *)
 
@@ -71,7 +72,8 @@ type dfa =
    dfa_start:       state;          (* starting state *)
    dfa_accepts:     StateSet.t;     (* accepting states *)
    dfa_transitions: state TTable.t; (* transition table *)
-   dfa_loc:         Location.t}
+   dfa_loc:         Location.t;
+   dfa_regex: (Anf.typ, TypeInfer.varid, Ast.mod_qual) Ast.regexp}
 
 module DFA = struct
   type t = dfa
