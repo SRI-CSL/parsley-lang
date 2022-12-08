@@ -21,6 +21,12 @@ $ make
 ```
 should leave the compiler executable in `./parsleyc.exe`.
 
+To build a version suitable for fuzzing with AFL, run
+```
+$ make afl
+```
+and use the executable in `./parsleyc_afl.exe`.
+
 Documentation
 -------------
 

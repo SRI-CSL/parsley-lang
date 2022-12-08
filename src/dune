@@ -3,4 +3,9 @@
  (libraries parsing typing analysis anfcfg anfcfg_interpreter tests yojson cmdliner)
  (link_deps parsing/parseErrorMessages.check)
  (preprocess (pps ppx_deriving_yojson))
-)
+ )
+
+; Specify a profile for an AFL build to get global flag settings.
+; Use this with --profile in the Makefile.
+(env
+ (afl (ocamlopt_flags (:standard -afl-instrument))))
