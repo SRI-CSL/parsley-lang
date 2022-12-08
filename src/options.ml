@@ -30,6 +30,7 @@ type check_opts =
    co_show_types:        bool;
    co_show_typed_ast:    bool;
    co_show_anf:          bool;
+   co_trace_cfg_build:   bool;
    co_show_cfg:          bool;
    co_show_decorated:    string list;
    co_output_json:       bool}
@@ -42,6 +43,7 @@ let default_ckopts =
    co_show_types        = false;
    co_show_typed_ast    = false;
    co_show_anf          = false;
+   co_trace_cfg_build   = false;
    co_show_cfg          = false;
    co_show_decorated    = [];
    co_output_json       = false}

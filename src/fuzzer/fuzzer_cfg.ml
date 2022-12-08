@@ -27,30 +27,27 @@ open Interpret_bitops
 open Cfg
 
 (*TODO START HERE *)
-let rec convert_to_sat (r: regexp) =
-    match r.regexp with
-    | RX_empty -> "empty"
-    | RX_literals ls ->
-    (match ls.literal_set with
-        | LS_type (_m, _id) ->
-            (* Cross-module regexp compilation is not supported. *)
-            "LS_TYPE"
-        | LS_set lls ->
-            let llsa = List.map Location.value lls in
-            "(str.to.re_lsset \"" ^ (String.concat "" llsa) ^ "\")"
-        | LS_diff ({literal_set = LS_type (_m, _cc); _},
-                   {literal_set = LS_set _ls'; _}) ->
-            "LS_diff"
-        | LS_diff _ ->
-            (* This should have been checked during type-checking *)
-            assert false
-        | LS_range (_s, _e) -> "LS_range" );
-    | RX_wildcard -> "wildcard"
-    | RX_type (_, _) -> "type"
-    | RX_seq s -> "seq:"  ^ string_of_int (List.length s) ^":"^ (String.concat "" (List.map convert_to_sat s))
-    | RX_choice lst -> "choice:" ^ string_of_int (List.length lst) ^ ":" ^ String.concat "" (List.map convert_to_sat lst)
-    | RX_opt _ -> "opt"
-    | RX_star (_, _) -> "star";;
+let rec convert_to_sat (r: unit Dfa.re) =
+    match r.re with
+    | R_empty -> ""
+    | R_end _ -> ""
+    | R_chars (char_set, _) ->
+        let items:string = (Dfa.CharSet.fold
+        (fun c acc -> acc ^ (String.make 1 c)) char_set "") in
+            "(str.to.re " ^ "\"" ^ items ^ "\")"
+    | R_choice (a, b) ->
+        (match ((convert_to_sat a), (convert_to_sat b)) with
+            | ("", "") -> ""
+            | ("", b) -> b
+            | (a, "") -> a
+            | (x, y) -> "(re.union " ^ x ^ " " ^ y ^ ")")
+    | R_seq (r0, r1) ->
+        (match ((convert_to_sat r0), (convert_to_sat r1)) with
+            | ("", "") -> ""
+            | ("", b) -> b
+            | (a, "") -> a
+            | (a, b) ->  "(re.++ " ^ a ^ " " ^ b ^ ")")
+    | R_star r -> "(re.* " ^ (convert_to_sat r) ^ " )";;
 
 (* Executions of linear or non-control flow nodes return an
    updated state. *)

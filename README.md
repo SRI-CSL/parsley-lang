@@ -1,5 +1,5 @@
 
-Syntax and parser for the Parsley data definition language.
+Interpreter for the Parsley data definition language.
 
 Building
 --------

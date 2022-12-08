@@ -1,5 +1,5 @@
-Version 0.2.0 (in-progress)
----------------------------
+Version 0.2.0
+-------------
 
 - A module system for composing specifications.
 

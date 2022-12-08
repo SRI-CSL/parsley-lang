@@ -1,0 +1,8 @@
+format {
+  SEQ  := !"SEQ"!
+  ;;
+  CHO  := (# ["C" | "H" | "O"] #)
+  ;;
+  RXP  := !"some"!
+        ; !"regexp"!
+}

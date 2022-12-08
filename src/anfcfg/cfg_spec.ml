@@ -21,9 +21,7 @@ open Parsing
 open Typing
 open Cfg
 
-let debug = false
-
-let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
+let lower_spec trace (_, init_venv) tenv (spec: spec_module) print_anf =
   (* VEnv creates globally unique bindings for all variables bound in
      the spec; however, the predefined/builtin variables from the
      standard library are not bound in the spec, so the VEnv needs to
@@ -122,7 +120,7 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
               let ctx, tvenv, sts =
                 List.fold_left (fun (ctx, tvenv, sts) (fd: format_decl) ->
                     let ntd = fd.format_decl in
-                    let ctx, tvenv = Cfg_rule.lower_ntd ctx tvenv ntd in
+                    let ctx, tvenv = Cfg_rule.lower_ntd trace ctx tvenv ntd in
                     ctx, tvenv, sts
                   ) (ctx, tvenv, sts) f.format_decls in
               ctx, tvenv, sts, foreigns
@@ -137,20 +135,20 @@ let lower_spec (_, init_venv) tenv (spec: spec_module) print_anf =
      cfg_venv          = ctx.ctx_venv} in
 
   (* Check consistency of the IR. *)
-  if   debug
+  if   trace
   then (Printf.printf "%! Original spec:\n%!";
         Cfg_printer.print_spec spec);
-  Cfg_optimize.validate spec false debug;
+  Cfg_optimize.validate spec false trace;
 
   (* Optimize the IR, and then connect back-pointers in the CFG. *)
-  let opt_spec = Cfg_optimize.optimize spec debug in
+  let opt_spec = Cfg_optimize.optimize spec trace in
   let opt_spec = Cfg_optimize.connect_predecessors opt_spec in
 
   (* Check consistency of optimized IR. *)
-  if   debug
+  if   trace
   then (Printf.printf "%! Optimized spec:\n%!";
         Cfg_printer.print_spec opt_spec);
-  Cfg_optimize.validate opt_spec true debug;
+  Cfg_optimize.validate opt_spec true trace;
 
   (* Return the optimized spec. *)
   opt_spec
