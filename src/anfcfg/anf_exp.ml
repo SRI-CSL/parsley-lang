@@ -17,6 +17,7 @@
 
 open Parsing
 open Typing
+open TypedAst
 open Anf
 open Anf_pattern
 

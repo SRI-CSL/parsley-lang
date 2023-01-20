@@ -19,6 +19,7 @@
 
 open Parsing
 open Typing
+open TypedAst
 open Cfg
 
 let lower_spec trace (_, init_venv) tenv (spec: spec_module) print_anf =
@@ -36,9 +37,9 @@ let lower_spec trace (_, init_venv) tenv (spec: spec_module) print_anf =
   (* Initialize the re (i.e. compiled regexp) environment. *)
   let re_env =
     List.fold_left (fun acc (s, cc) ->
-        let re = Cfg_regexp.re_of_character_class cc in
-        Dfa.StringMap.add s (gl, re) acc
-      ) Dfa.StringMap.empty TypeAlgebra.character_classes in
+        let re = Dfa.Dfa_of_regexp.re_of_character_class cc in
+        Dfa.Automaton.StringMap.add s (gl, re) acc
+      ) Dfa.Automaton.StringMap.empty TypeAlgebra.character_classes in
 
   (* Initialize the context with a dummy failure label. *)
   let init_failcont = fresh_virtual () in

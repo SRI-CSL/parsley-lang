@@ -17,8 +17,8 @@
 
 open Parsing
 open Typing
-open Cfg
-open Dfa
+open TypedAst
+open Automaton
 
 (* This file constructs DFA transition tables for regular expressions. *)
 
@@ -345,7 +345,7 @@ let build_dfa (trace: bool) (renv: re_env) (re: regexp) : dfa =
   then (Printf.printf "Simplifying regexp from:\n%!";
         AstPrinter.print_regexp_flush TypeInfer.typed_auxp re;
         Printf.printf "\n  to:\n%!";
-        Cfg_printer.print_re () r);
+        Re_printer.print_re () r);
   (* construct end-marked version, noting the end-position *)
   let end_pos = new_pos () in
   let rend = mk_re (R_end end_pos) in
@@ -414,7 +414,7 @@ let build_dfa (trace: bool) (renv: re_env) (re: regexp) : dfa =
              dfa_loc         = re.regexp_loc} in
   if   trace
   then (Printf.printf "\nBuilt DFA:%!";
-        Cfg_printer.print_dfa dfa);
+        Re_printer.print_dfa dfa);
   dfa
 
 let re_of_character_class cc : unit re =
