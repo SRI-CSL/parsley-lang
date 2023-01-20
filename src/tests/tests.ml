@@ -56,6 +56,11 @@ let tests = [
                          A a {i: i8} := { a.i := i8_operator(127i8, -1i8) }
                        }", "A",
      "", V_record ["i", V_int (Ast.i8_t, 127L)]);
+    ("u16_of_bytes_unsafe", "format {
+                               TU16 t {i: u16} := bs=(Byte^2u)
+                                                  {t.i := U16.of_bytes_unsafe(bs)}
+                             }", "TU16",
+     "\x00\x01", V_record ["i", V_int (Ast.u16_t, 1L)]);
     ("trivial", "format { A := (# [\"A\"] #) }",  "A",
      "A", V_list [V_char 'A']);
     ("exact",   "format { A := (# [\"AB\"] #) }", "A",
