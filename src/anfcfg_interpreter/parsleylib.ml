@@ -177,7 +177,7 @@ module PInt = struct
           let max_bytes = (Builtins.get_width tm) / 8 in
           (* Allow conversion from byte-vectors of shorter lengths
              since they cannot overflow. *)
-          if   max_bytes <= List.length cs
+          if   max_bytes < List.length cs
           then V_option None
           else let i =
                  List.fold_left (fun i b ->
