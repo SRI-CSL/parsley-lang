@@ -260,7 +260,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
         assert (s.st_mode = Mode_normal);
         (* extend view before parsing *)
         extend_view s.st_cur_view;
-        let loc = Dfa.DFA.loc dfa in
+        let loc = Dfa.Automaton.DFA.loc dfa in
         let run = Interpret_dfa.run dfa s.st_cur_view in
         (match run with
            | None ->

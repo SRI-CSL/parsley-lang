@@ -19,19 +19,7 @@ open Parsing
 open Typing
 open Flow
 open Anf
-open Dfa
-
-(* source-level regexps, rule-elements, rules and non-terminals *)
-type regexp         = (typ, TypeInfer.varid, Ast.mod_qual) Ast.regexp
-type rule_elem      = (typ, TypeInfer.varid, Ast.mod_qual) Ast.rule_elem
-type rule           = (typ, TypeInfer.varid, Ast.mod_qual) Ast.rule
-type non_term_defn  = (typ, TypeInfer.varid, Ast.mod_qual) Ast.non_term_defn
-type format_decl    = (typ, TypeInfer.varid, Ast.mod_qual) Ast.format_decl
-type ffi_decl       = (typ, TypeInfer.varid, Ast.mod_qual) Ast.ffi_decl
-
-(* source-level spec *)
-type format         = (typ, TypeInfer.varid, Ast.mod_qual) Ast.format
-type spec_module    = (typ, TypeInfer.varid) Ast.spec_module
+open Dfa.Automaton
 
 (* The IR for the grammar language is a control-flow graph (CFG) with
    explicit control-flow for the grammar matching.  The most important
@@ -174,7 +162,7 @@ type gnode_desc =
 
 type gnode =
   {node:     gnode_desc;
-   node_typ: typ;
+   node_typ: TypedAst.typ;
    node_loc: Location.t}
 
 let mk_gnode n t l =
@@ -401,9 +389,9 @@ type nt_entry =
   {nt_name:      Ast.ident;
    (* each inherited attribute and the corresponding var used for it
       in the CFG *)
-   nt_inh_attrs: (var * typ) StringMap.t;
+   nt_inh_attrs: (var * TypedAst.typ) StringMap.t;
    (* type of the return value after parsing this non-terminal *)
-   nt_typ:       typ;
+   nt_typ:       TypedAst.typ;
    (* the entry label for the CFG *)
    nt_entry:     Label.label; (* is implicitly static *)
    (* a pair of success and failure continuations are assumed for the
@@ -431,7 +419,7 @@ type spec_cfg =
   {cfg_gtoc:          nt_entry ValueMap.t; (* indexed by non-terminal name *)
    cfg_blocks:        closed LabelMap.t;
    cfg_statics:       opened; (* constants and functions *)
-   cfg_foreigns:      ffi_decl ValueMap.t;
+   cfg_foreigns:      TypedAst.ffi_decl ValueMap.t;
    cfg_init_failcont: label;  (* should always be virtual *)
    (* debugging state for the interpreter *)
    cfg_tenv:          TypingEnvironment.environment;

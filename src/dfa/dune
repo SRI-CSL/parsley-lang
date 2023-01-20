@@ -1,0 +1,4 @@
+(library
+  (name dfa)
+  (libraries parsing typing)
+)

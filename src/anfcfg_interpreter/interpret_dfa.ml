@@ -18,7 +18,7 @@
 (* Runs a regular DFA on input bytes and return the result (bytes
    matched and an updated view) if any. *)
 
-open Anfcfg.Dfa
+open Dfa.Automaton
 open Values
 
 let run (dfa: DFA.t) (v: view) : (value * view) option =

@@ -16,6 +16,7 @@
 (**************************************************************************)
 
 open Parsing
+open Typing
 open Anfcfg
 open State
 open Values
@@ -33,7 +34,7 @@ let init_runtime _ =
    resolution uses the number of arguments in the signature, but does
    not check the types involved.  *)
 
-let resolve_foreign (ffs: Cfg.ffi_decl Cfg.ValueMap.t) =
+let resolve_foreign (ffs: TypedAst.ffi_decl Cfg.ValueMap.t) =
   (* Create lookup table of externals. *)
   let etable = Dispatch.create_dtable () in
   Dispatch.update_dtable etable Externals.ext_mods;

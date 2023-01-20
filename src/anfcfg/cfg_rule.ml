@@ -17,6 +17,7 @@
 
 open Parsing
 open Typing
+open TypedAst
 open Anf
 open Cfg
 
@@ -357,7 +358,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
     | RE_regexp r ->
         let ctx, b = exit_bitmode ctx b loc in
         (* Compile the regexp into a DFA. *)
-        let dfa = Cfg_regexp.build_dfa trace ctx.ctx_re_env r in
+        let dfa = Dfa.Dfa_of_regexp.build_dfa trace ctx.ctx_re_env r in
         (* Bind a new var for the matched value if we don't have a
            return binding. *)
         let v, venv =
@@ -378,7 +379,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let rx = TypedAstUtils.rule_elem_to_regexp re in
         (* Now do as above *)
         (* Compile the regexp into a DFA. *)
-        let dfa = Cfg_regexp.build_dfa trace ctx.ctx_re_env rx in
+        let dfa = Dfa.Dfa_of_regexp.build_dfa trace ctx.ctx_re_env rx in
         (* Bind a new var for the matched value if we don't have a
            return binding. *)
         let v, venv =
@@ -1366,9 +1367,9 @@ let lower_ntd (trace: bool)
       (* construct a regexp from the rules *)
       let rx = TypedAstUtils.rules_to_regexp
                  ntd.non_term_mod ntd.non_term_rules in
-      let re = Cfg_regexp.build_re ctx.ctx_re_env rx in
+      let re = Dfa.Dfa_of_regexp.build_re ctx.ctx_re_env rx in
       (* add this to the re environment *)
-      let renv = Dfa.StringMap.add
+      let renv = Dfa.Automaton.StringMap.add
                    (Location.value ntd.non_term_name)
                    (rx.regexp_loc, re)
                    ctx.ctx_re_env in

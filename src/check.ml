@@ -19,6 +19,7 @@ open Parsing
 open Typing
 open Flow
 open Analysis
+open Dfa
 open Anfcfg
 open Options
 
@@ -82,14 +83,14 @@ let type_check ckopts spec =
         Errors.handle_exception
           (Printexc.get_backtrace ()) l (Rulecfg.error_msg e)
 
-let mk_cfg ckopts init_envs tenv (spec: Cfg.spec_module) : Cfg.spec_cfg =
+let mk_cfg ckopts init_envs tenv (spec: TypedAst.spec_module) : Cfg.spec_cfg =
   try  Cfg_spec.lower_spec ckopts.co_trace_cfg_build
          init_envs tenv spec ckopts.co_show_anf
   with
     | Anf.Error (l, e) ->
         Errors.handle_exception (Printexc.get_backtrace ()) l (Anf.error_msg e)
-    | Cfg_regexp.Error (l, e) ->
-        Errors.handle_exception (Printexc.get_backtrace ()) l (Cfg_regexp.error_msg e)
+    | Dfa_of_regexp.Error (l, e) ->
+        Errors.handle_exception (Printexc.get_backtrace ()) l (Dfa_of_regexp.error_msg e)
     | Cfg.Error (l, e) ->
         Errors.handle_exception (Printexc.get_backtrace ()) l (Cfg.error_msg e)
 
