@@ -77,7 +77,7 @@ type image_subheader = {
     icords: [byte],     // image coordinate representation, size: 1, type <R>
     // igeolo: [byte],     // image geographic location, size: 60, type C -- TODO
     nicom: [byte],      // number of image comments, size: 1, type R
-    icomn: [image_comments],       // image comment n, size: 80, type C -- TODO
+    icomn: [image_comments],       // image comment n, size: 80, type C 
     ic: [byte],         // image compression, size: 2, type R
     comrat: [byte],     // compression rate code, size: 4, type C -- TODO: Add condition function
     nbands: [byte],     // number of bands, size: 1, type R
@@ -95,10 +95,10 @@ type image_subheader = {
     imag: [byte],       // image magnification, size: 4, type R
     udidl: [byte],      // use defined image data length, size: 5, type R
     udofl: [byte],      // user defined overflow, size: 3, type C
-    // udid: [byte],       // user defined image data, size: TRE, type C
+    // udid: [byte],       // user defined image data, size: TRE, type C -- TODO
     ixshdl: [byte],     // image extended subheader data length, size: 5, type R
     ixsofl: [byte]      // image extended subheader overflow, size: 3, type C
-    // ixshd: [byte]       // image extended subheader data, size TRE, type C
+    // ixshd: [byte]       // image extended subheader data, size TRE, type C -- TODO
 }
 
 
