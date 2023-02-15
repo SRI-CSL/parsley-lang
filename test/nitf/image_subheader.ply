@@ -348,55 +348,80 @@ format {
 
         { $print_t("trying ISYNC") }
         image_sync_code = ISYNC
-        { img_subh.isync := image_sync_code;
-	  $print_t(img_subh.isync) }
+        { 
+            img_subh.isync := image_sync_code;
+	        $print_t(img_subh.isync) 
+        }
 
         { $print_t("trying IMODE") }
         image_mode = IMODE
-        { img_subh.imode := image_mode;
-	  $print_t(img_subh.imode) }
+        { 
+            img_subh.imode := image_mode;
+	        $print_t(img_subh.imode) 
+        }
 
         { $print_t("trying NBPR") }
         number_of_blocks_per_row = NBPR
-        { img_subh.nbpr := number_of_blocks_per_row;
-	  $print_t(img_subh.nbpr) }
+        { 
+            img_subh.nbpr := number_of_blocks_per_row;
+	        $print_t(img_subh.nbpr) 
+        }
 
         { $print_t("trying NBPC") }
         number_of_blocks_per_column = NBPC
-        { img_subh.nbpc := number_of_blocks_per_column;
-	  $print_t(img_subh.nbpc) }
+        { 
+            img_subh.nbpc := number_of_blocks_per_column;
+	        $print_t(img_subh.nbpc) 
+        }
 
         { $print_t("trying NPPh") }
         number_of_pixels_per_block_horizontal = NPP
-        { img_subh.nppbh := number_of_pixels_per_block_horizontal;
-	  $print_t(img_subh.nppbh) }
+        { 
+            img_subh.nppbh := number_of_pixels_per_block_horizontal;
+	        $print_t(img_subh.nppbh) 
+        }
 
         { $print_t("trying NPPv") }
         number_of_pixels_per_block_vertical = NPP
-        { img_subh.nppbv := number_of_pixels_per_block_vertical;
-	  $print_t(img_subh.nppbv) }
+        { 
+            img_subh.nppbv := number_of_pixels_per_block_vertical;
+	        $print_t(img_subh.nppbv) 
+        }
 
         { $print_t("trying NBPP") }
         number_of_bits_per_pixel_per_band = NBPP
-        { img_subh.nbpp := number_of_bits_per_pixel_per_band;
-	  $print_t(img_subh.nbpp) }
+        { 
+            img_subh.nbpp := number_of_bits_per_pixel_per_band;
+	        $print_t(img_subh.nbpp) 
+        }
 
         { $print_t("trying IDLVL") }
         image_display_level = IDLVL
-        { img_subh.idlvl := image_display_level }
+        { 
+            img_subh.idlvl := image_display_level;
+            $print_t(img_subh.idlvl)    
+        }
 
         { $print_t("trying IALVL") }
         attachment_level = IALVL
-        { img_subh.ialvl := attachment_level }
+        { 
+            img_subh.ialvl := attachment_level; 
+            $print_t(img_subh.ialvl)    
+        }
 
         { $print_t("trying ILOC") }
         image_location = ILOC
-        { img_subh.iloc := image_location;
-	  $print_t(img_subh.iloc) }
+        { 
+            img_subh.iloc := image_location;
+	        $print_t(img_subh.iloc) 
+        }
 
         { $print_t("trying IMAG") }
         image_magnification = IMAG
-        { img_subh.imag := image_magnification }
+        { 
+            img_subh.imag := image_magnification;
+            $print_t(img_subh.imag) 
+        }
 
         { $print_t("trying UDIDL") }
         user_defined_image_data_length = UDIDL
@@ -411,6 +436,8 @@ format {
             img_subh.udofl := user_defined_overflow;
             $print_t(img_subh.udofl)
         }
+        
+        // TODO: UDID
 
         { $print_t("trying IXSHDL") }
         image_extended_subheader_data_length = IXSHDL
@@ -425,6 +452,8 @@ format {
             img_subh.ixsofl := image_extended_subheader_overflow;
             $print_t(img_subh.ixsofl)
         }
+
+        // TODO: IXSHD
         
 
 }
