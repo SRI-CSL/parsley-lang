@@ -46,3 +46,18 @@ fun xbands_setup(nbands: [byte]) -> usize = {
         | _ -> 0u
     )
 }
+
+
+fun comrat_setup(ic: [byte]) -> usize = {
+    // COMRAT: Compression Rate Code.
+    // If the IC field contains C1, C3, C4, C5, C7, C8, C9, 
+    // CA, CB, I1, M1, M3, M4, M5, M7, M8, M9, MA, or MB,
+    // this field shall be present and contain a code indicating the compression
+    // rate for the image.
+    (case ic of
+        | "NC" -> 0u
+        | "NM" -> 0u
+        | "M6" -> 0u
+        | _ -> 4u
+    )
+}

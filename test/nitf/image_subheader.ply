@@ -49,7 +49,7 @@ type image_subheader = {
     ic: [byte],         // image compression, size: 2, type R
     comrat: [byte],     // compression rate code, size: 4, type C -- TODO: Add condition function
     nbands: [byte],     // number of bands, size: 1, type R
-    xbands: [byte],     // number of multispectral bands, size: 5, type C -- TODO: Add condition function
+    xbands: [byte],     // number of multispectral bands, size: 5, type C
     isync: [byte],      // image sync code, size: 1, type R
     imode: [byte],      // image mode, size: 1, type R
     nbpr: [byte],       // number of blocks per row, size: 4, type R
@@ -319,12 +319,22 @@ format {
 
         { $print_t("trying IC") }
         image_compression = IC
-        { img_subh.ic := image_compression;
-	  $print_t(img_subh.ic) }
+        { 
+            img_subh.ic := image_compression;
+	        $print_t(img_subh.ic) 
+        }
+
+        // BH: PREVIOUS COMRAT VERSION
+        // { $print_t("trying COMRAT") }
+        // compression_rate_code = COMRAT
+        // { img_subh.comrat := compression_rate_code }
 
         { $print_t("trying COMRAT") }
-        compression_rate_code = COMRAT
-        { img_subh.comrat := compression_rate_code }
+        compression_rate_code = (AsciiCharS ^ comrat_setup(image_compression))
+        { 
+            img_subh.comrat := compression_rate_code;
+            $print_t(img_subh.comrat)
+        }
 
         { $print_t("trying NBANDS") }
         number_of_bands = NBANDS
@@ -454,6 +464,12 @@ format {
         }
 
         // TODO: IXSHD
+
+        // OBSERVATION: Fields like IXSHD (Image Extended Subheader Data) are to be omitted
+        // if the field they are conditioned upon, in this case IXHDL (Image Extended Subheader Data Length)
+        // contains BCS zeros (0x30).
+        // Per the above statement it is NOT clear whether the field should contain ALL zeroes
+        // or if the presence of even one zero is sufficient to omit the field in question, in this case IXSHD.
         
 
 }
