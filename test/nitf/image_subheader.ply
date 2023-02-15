@@ -2,42 +2,10 @@
 // 
 // NITF: Image Sub-header Parsley Definition
 // 
-// SRI International, 2022
+// SRI International, 2022 - 2023
 
 include character_sets
-
-
-fun is_valid_isclsy_1(isclas: [byte], isclsy: [byte]) -> bool = {
-    (case isclas of
-        | "U" -> bool::True()
-        | _ -> (case isclsy of
-                    | "  " -> bool::False()
-                    | _ -> bool::True()
-                )
-    )
-}
-
-
-fun udofl_setup(udidl: [byte]) -> usize = {
-    // UDOFL: user defined overflow field
-    // shall be omitted if the field UDIDL
-    // contains BCS zeros (0x30)
-    (case udidl of 
-        | "     " -> 0u
-        | _ -> 3u
-    )
-}
-
-
-fun ixsofl_setup(ixshdl: [byte]) -> usize = {
-    // IXSOFL: image extended subheader overflow
-    // field shall be omitted if the field IXSHDL 
-    // contains BCS zeros (0x30)
-    (case ixshdl of 
-        | "     " -> 0u
-        | _ -> 3u
-    )
-}
+include imgsubheader_functions
 
 type image_comments = {
     comment: [byte]
@@ -361,11 +329,19 @@ format {
         { $print_t("trying NBANDS") }
         number_of_bands = NBANDS
         { img_subh.nbands := number_of_bands }
+    
+    // BH: PREVIOUS XBANDS VERSION
+    //     { $print_t("trying XBANDS") }
+    //     number_of_multispectral_bands = XBANDS
+    //     { img_subh.xbands := number_of_multispectral_bands;
+	//   $print_t(img_subh.xbands) }
 
         { $print_t("trying XBANDS") }
-        number_of_multispectral_bands = XBANDS
-        { img_subh.xbands := number_of_multispectral_bands;
-	  $print_t(img_subh.xbands) }
+        number_of_multispectral_bands = (AsciiCharS ^ xbands_setup(number_of_bands))
+        { 
+            img_subh.xbands := number_of_multispectral_bands;
+            $print_t(img_subh.xbands) 
+        }
 
         // Fields IREPBANDn to LUTDnm repeat the number of times indicated
         // in the NBANDS field or the XBANDS field

@@ -1,0 +1,48 @@
+// A series of functions defined in response to NITF image subheader requirements
+// 
+// SRI International, 2023
+
+
+fun is_valid_isclsy_1(isclas: [byte], isclsy: [byte]) -> bool = {
+    (case isclas of
+        | "U" -> bool::True()
+        | _ -> (case isclsy of
+                    | "  " -> bool::False()
+                    | _ -> bool::True()
+                )
+    )
+}
+
+
+fun udofl_setup(udidl: [byte]) -> usize = {
+    // UDOFL: user defined overflow field
+    // shall be omitted if the field UDIDL
+    // contains BCS zeros (0x30)
+    (case udidl of 
+        | "     " -> 0u
+        | _ -> 3u
+    )
+}
+
+
+fun ixsofl_setup(ixshdl: [byte]) -> usize = {
+    // IXSOFL: image extended subheader overflow
+    // field shall be omitted if the field IXSHDL 
+    // contains BCS zeros (0x30)
+    (case ixshdl of 
+        | "     " -> 0u
+        | _ -> 3u
+    )
+}
+
+
+fun xbands_setup(nbands: [byte]) -> usize = {
+    // XBANDS: number of multispectral bands.
+    // The field shall contain the number of bands
+    // or data points comprising the multiple band image 
+    // IF nbands is BCS zero ELSE it shall be omitted.
+    (case nbands of
+        | " " -> 5u
+        | _ -> 0u
+    )
+}
