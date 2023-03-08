@@ -1318,7 +1318,7 @@ let lower_ntd (trace: bool)
   let no_synth_attrs =
     match ntd.non_term_syn_attrs with
       | ALT_decls [] -> true
-      | _                -> false in
+      | _            -> false in
   let no_inh_attrs = List.length ntd.non_term_inh_attrs = 0 in
   let only_regexp_rules =
     List.for_all
