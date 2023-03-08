@@ -31,6 +31,11 @@ let check copts ckopts sopts spec_file : unit =
   Options.process_ckopts ckopts;
   Check.check_spec copts.co_verbose ckopts sopts spec_file
 
+let check2 copts ckopts sopts spec_file : unit =
+  Options.process_copts copts;
+  Options.process_ckopts ckopts;
+  Check2.check_spec copts.co_verbose ckopts sopts spec_file
+
 let execute copts sopts xopts load_externals loop start
       spec_file data_file stdin : unit =
   Options.process_copts copts;
@@ -170,6 +175,11 @@ let check_cmd : unit Cmd.t =
   let info = Cmd.info "check" ~doc in
   Cmd.v info Term.(const check $ copts_t $ ckopts_t $ sopts_t $ spec)
 
+let check2_cmd : unit Cmd.t =
+  let doc  = "parse, type-check and generate IR for a specification" in
+  let info = Cmd.info "check2" ~doc in
+  Cmd.v info Term.(const check2 $ copts_t $ ckopts_t $ sopts_t $ spec)
+
 let execute_cmd : unit Cmd.t =
   let doc  = "parse the given data using the given specification" in
   let info = Cmd.info "execute" ~doc in
@@ -181,7 +191,7 @@ let main_cmd : unit Cmd.t =
   let doc  = "the Parsley compiler" in
   let prog = Filename.basename Sys.argv.(0) in
   let info = Cmd.info prog ~version:version ~doc in
-  Cmd.group info [check_cmd; execute_cmd; test_cmd]
+  Cmd.group info [check_cmd; check2_cmd; execute_cmd; test_cmd]
 
 let run () =
   exit (Cmd.eval main_cmd)

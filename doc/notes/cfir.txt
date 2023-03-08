@@ -1,0 +1,1105 @@
+Control-flow for the Abstract Machine
+=====================================
+
+Goals
+-----
+
+- more structured control flow
+  . simpler to lower into WASM than a CFG
+    (avoids need for Relooper or Stackifier)
+- explicit handling of backtracking
+- tackle stack frame design
+
+Core design hypothesis
+----------------------
+
+The core design goal of this IR is to make control-flow more
+structured, to simplify compilation to a WASM target.  The secondary
+goal is to simplify the IR by reducing book-keeping for simpler
+control flow; that is, we should not waste book-keeping in cases where
+the success and failure continuations are obvious.
+
+Block structure is simpler if failure continuations are implicit at
+the instruction level, but explicit at the block level.  That is, when
+an instruction fails, the failure continuation is specified by the
+enclosing block in which that instruction occurs; when it succeeds,
+the success continuation is the next instruction in the block, or, if
+it succeeds at the end of the block, it continues at the instruction
+after the control block instruction.
+
+Instruction types
+-----------------
+
+Instructions are called "linear" if they can only succeed.
+
+Instructions are called "bivalent" if they can succeed or fail.  If
+they fail, the failure continuation is specified by an enclosing
+block.
+
+[Invariant: they cannot occur outside an enclosing block.]
+
+"Jump" instructions are: 'fail' and 'break'.  For 'fail', the only
+continuation is specified as the handler of the innermost enclosing
+'do' block.  For 'break', the continuation is specified as that of the
+closest enclosing 'loop' block.
+
+[Invariant: The continuation must exist.]
+
+Jump instructions are considered bivalent instructions, even though
+they have a single continuation (and hence could technically be
+considered as linear).  (This means that handler blocks can only be
+exited at the bottom, i.e. no non-local exits; see below.  This is for
+simplicity, though this is not the only possible design: we could make
+fails/breaks linear, but this would allow them to occur in handler
+blocks, making validation a little more complex (perhaps?).)
+
+The linear instructions are atomic (i.e. no block structure) and are
+simply the 'gnode' instructions of the CFG IR.
+
+Instructions
+------------
+
+The atomic bivalent instructions are the following CFG instructions:
+
+. the bit-matching instructions
+
+. the DFA matcher
+
+. the 'scan' instruction
+
+. the 'call' instruction (See below on annotations for 'call'.)
+
+The block structured control instructions implement the control flow
+arising from the parser combinators.
+
+. do [ bivalent instructions ] handle (Succ|Fail) [linear instructions]
+
+  If all the bivalent instructions in the 'do' body execute
+  successfully, the 'do' instruction executes successfully (and the
+  instructions in the handler do not execute).  If any instruction in
+  the body fails, the subsequent instructions in the body do not
+  execute, and the linear instructions in the handler execute.  If the
+  handler is marked Succ, the 'do' instruction itself succeeds,
+  otherwise it fails.
+
+  'do' is a bivalent instruction, since it can either succeed or fail
+  depending on the Succ/Fail marker on the handle.
+
+  [ Design note: the Succ/Fail marker is actually redundant since we
+    have a 'fail' instruction.  So a Fail handler can be expressed
+    simply as a list of instructions that terminates in 'fail',
+    whereas a Succ handler is simply a list that does not contain
+    'fail'.  If we adopt this design, we would need an additional
+    invariant: if 'fail' appears in the handler, it should be the last
+    instruction.  Also, we would need to consider 'fail' as a linear
+    instruction, i.e. as an instruction which always succeeds, which
+    is a bit counterintuitive.
+
+    To keep a sensible intuition, we have not made this design choice,
+    at the expense of a bit of redundancy.
+
+    An alternative to salvage this design choice is to define 'linear'
+    differently. ]
+
+. loop [ bivalent instructions ]
+
+  A loop instruction is a bivalent instruction.  A 'break' instruction
+  in a 'loop' terminates the loop successfully.  If any instruction in
+  the loop sequence fails, the 'loop' fails.
+
+. if v [ bivalent instructions ] [ bivalent instructions ]
+
+  'v' is a boolean value that controls branching to either the first
+  instruction sequence (when true) or the second (when false).
+
+  'if' is a bivalent instruction, since its body contains bivalent
+  instructions.  'if' succeeds if the chosen branch succeeds, and
+  fails if the chosen branch fails.
+
+  [TODO: can we restrict the instructions in the 'if' body to only
+   jumps?]
+
+. Possible instructions for translating the choice combinator:
+
+    save_vars (vars)
+    drop_vars [(vars)]
+    restore_vars [(vars)]
+
+  or
+
+    start_choice (vars)
+    continue_choice
+    finish_choice
+    fail_choice
+
+  These instructions are explained below.  The first set is more
+  minimal, whereas the second is more explicit.  It's not yet clear
+  how to evaluate the tradeoffs involved.
+
+  [ Design choice: The Warren Abstract Machine uses somewhat similar
+    instructions: `try_else`, `retry_else`, and `trust_me`, with
+    invariants on the sequence in which they will occur.  The problem
+    is that using multiple instructions will result in the choice
+    block structure getting flattened out, and it will need to be
+    reconstructed using those invariants if reconstruction is needed
+    later. ]
+
+Compilation examples (control-flow only)
+----------------------------------------
+
+[[ RE_bitvector _ ]] = do [ enter_bitmode()
+                            ...
+                            collect_cursor()
+                          ]
+                       handle Fail [ fail_bitmode_trampoline() ]
+
+The other bit-matching instructions are handled similarly.
+
+[[ RE_regexp r ]] =
+  [ exec_DFA([[r]]) ]
+
+RE_non_term, RE_scan, RE_action etc. are handled similarly: by
+straightforward compilation to the single instruction that implements
+it.
+
+[[ RE_constraint c ]] =
+  [ v' := [[c]]
+    if v' [] [ fail ]
+  ]
+
+[[ v=(RE_constraint c) ]] =
+  [ v := [[c]]
+    if v [] [ fail ]
+  ]
+
+[[ RE_seq res ]] =
+  [ {[[re_i]] | re_i <- res}
+  ]
+
+[[ v=(RE_seq res) ]] =
+  [ {v_i := [[re_i]] | re_i <- res}
+    v := [v_i | i]
+  ]
+
+[[ RE_star re ]] =
+  do [ loop [ [[ re ]]
+            ]
+  handle Succ []
+
+[[ v=(RE_star re) ]] =
+  [ v := []
+    do [ loop [ [[ v'=(re) ]]
+                v := v' :: v
+              ]
+       ]
+    handle Succ [ v := List.rev v ]
+  ]
+
+[[ RE_star (re, e) ]] =
+  [ n := [[e]]
+    loop [ c := n > 0
+           if c [] [break]
+           [[ re ]]
+           n := n - 1
+         ]
+  ]
+
+[[ v=(RE_star (re, e)) ]] =
+  [ v := []
+    n := [[e]]
+    loop [ c := n > 0
+           if c [] [break]
+           [[ v'=(re) ]]
+           v := v' :: v
+           n := n - 1
+         ]
+    v := List.rev v
+  ]
+
+[[ RE_opt re ]] =
+  [ do [ [[ re ]]
+       ]
+    handle Succ []
+  ]
+
+[[ v=(RE_opt re) ]] =
+  [ do [ [[ v'=(re) ]]
+         v := Some v'
+       ]
+    handle Succ [ v := None ]
+  ]
+
+[[ RE_set_view e ]]
+  [ v' := [[e]]
+    set-view v'
+  ]
+
+[[ v=(RE_set_view e) ]]
+  [ v' := [[e]]
+    set-view v'
+    v := ()
+  ]
+
+
+[[ RE_at_pos (e, re) ]] =
+  [ v' := [[e]]
+    do [ push_view
+         set_pos v'
+         [[ re ]]
+         pop_view
+       ]
+    handle Fail [ pop_view ]
+  ]
+
+[[ v=(RE_at_pos (e, re)) ]] =
+  [ v' := [[e]]
+    do [ push_view
+         set_pos v'
+         [[ v=(re) ]]
+         pop_view
+       ]
+    handle Fail [ pop_view ]
+  ]
+
+[[ v=(RE_at_view (e, re)) ]] =
+  [ v' := [[e]]
+    do [
+         push_view
+         set_view v'
+         [[ v=(re) ]]
+         pop_view
+       ]
+    handle Fail [ pop_view ]
+  ]
+
+[[ RE_map_views (e, re) ]] =
+  [ vs := [[e]]
+    do [ push_view
+         loop [ c := vs == []
+                if c [break] []
+                v := List.head vs
+                set_view v
+                [[ re ]]
+                vs := List.tail vs
+              ]
+         pop_view
+       ]
+    handle Fail [ pop_view ]
+  ]
+
+[[ vr=(RE_map_views (e, re)) ]] =
+  [ vs := [[e]]
+    do [ vr := [] (* Allocate here instead of outside to make it more localized *)
+         push_view
+         loop [ c := vs == []
+                if c [break] []
+                v := List.head vs
+                set_view v
+                [[ r=(re) ]]
+                vr := r :: vr
+                vs := List.tail vs
+              ]
+         vr := List.rev vr
+         pop_view
+       ]
+    handle Fail [ pop_view ]
+  ]
+
+[[ vr=(RE_map_views (e, NT<i <- as, j=a>)) ]] =
+  [ vs := [[e]
+    is := [[as]] ...
+    jc := [[a]]
+    do [ vr := [] (* Allocate here instead of outside to make it more localized *)
+         push_view
+         loop [
+            c  := vs == []
+            ci := is == [] ...
+            c  := c || ci ...
+            if c [break] []
+            v  := List.head vs  (* Adjust tails along with extracting heads for code-gen *)
+            vs := List.tail vs  (* simplicity.  But execution would be more efficient if *)
+            i  := List.head is  (* tails were updated after the match. *)
+            is := List.tail is ...
+            set_view v
+            [[r=(NT<i=i, ..., j=jc, ...>)]]
+            vr := r :: vr
+         ]
+         vr := List.rev vr
+         pop_view
+    ]
+    handle Fail [ pop_view ]
+
+[[ v=(RE_choice res) ]] =
+  (* We assume `res` contains at least one element. The last `re`
+     in `res` needs special treatment.
+
+     `V_i` are the variables mutated within `re_i`.  `V` is the union
+     of all `V_i` over `i`.
+   *)
+
+    The below translation uses simple constructions, but the choice
+    frame is not very explicit.
+
+    [ save_vars(V)
+      push_view
+      loop [{ do [ [[re_i]]
+                   drop_view
+                   drop_vars(V)
+                   break
+                 ]
+              handle Succ [ pop_view
+                            restore_vars(V)
+                            push_view ]
+            } (* i = 0 ... N-2,                    *)
+              (* where N is the number of choices. *)
+              (* The last choice is below.         *)
+              do [ [[re_{N-1}]]
+                   drop_view
+                   drop_vars(V)
+                   break
+                 ]
+               handle Fail [ pop_view
+                             restore_vars(V) ] (* No need to save view *)
+      ]
+    ]
+
+    It might be possible to drop the vars argument V in `restore_vars`
+    and `drop_vars`, and have them just use all the vars specified in
+    the last `save_vars`.
+
+    Alternative translation using explicit choice frame instructions:
+
+    [ start_choice(V) [ (* saves vars in V and the current view *)
+         { do [ [[v=(re_i)]]
+                finish_choice
+              ]
+           handle Succ [ continue_choice ]
+         } (* i = 0 ... N-2,                    *)
+           (* where N is the number of choices. *)
+           do [ [[re_{N-1}]]
+                finish_choice
+              ]
+           handle Fail [ fail_choice ] (* No need to save view *)
+      ]
+
+      (* We get here when the first choice succeeds (i.e. when the
+         first `finish_choice` executes).  We don't get here if all
+         choices fail. *)
+    ]
+
+    Here, there is an explicit frame structure for choice: entering
+    the choice instruction sets up the choice frame, `finish_choice`
+    drops and exits the frame, `continue_choice` restores from the
+    frame and continues with the next instruction, and `fail_choice`
+    restores from the frame, then drops the frame and continues at the
+    next innermost failure handler.  Since the choice control flow is
+    more explicit here, this form would be easier to validate,
+    especially for choice-specific properties (e.g. all necessary
+    mutations are saved).
+
+    In this translation, `save_vars` saves a union (over all clauses)
+    of the variables that may be mutated, and `restore_vars` restores
+    all the saved variables.  This allows the saving to be done once,
+    and restoring to be done as needed.
+
+    For validation purposes (and perhaps better debugging and error
+    reporting), it would help if mutations were tracked individually
+    for each clause, even though the generated IR uses only their
+    union.
+
+    It may be possible to customize the `restore_vars` in each `do`
+    handler clause for `re_i` to only restore the variables `V_i`
+    potentially mutated in `re_i`.
+
+    Design decision: Pick the latter design with more explicit choice
+    frame instructions.  Rationale: we've already paid the price of
+    generating the CFG that was too low-level and unstructured for
+    WASM generation.  It appears to be more expensive to backtrack
+    from a low-level IR to something higher-level, while going from
+    the latter design to the former more-low-level design appears more
+    straightforward.
+
+    Choice frame manipulation:
+
+    - constructed by `start_choice`.
+
+    - slots for specified variables (affects variable naming and
+      lookup).
+
+    - slot for current view.
+
+    - copy "PC" of failure continuation from existing choice frame into
+      new choice frame; used by `fail_choice`.
+
+    - copy "PC" of instruction after `start_choice`, used by
+      `finish_choice`.
+
+    - slots used for restoration by `continue_choice` and `fail_choice`.
+
+    - frame discarded by `finish_choice` and `fail_choice`.
+
+
+Validation
+----------
+
+Fast single pass validation of the IR is an explicit design goal
+(inspired by WASM and BPF).  First, we need to specify what validation
+means, i.e. which properties or invariants of the IR are enforced.
+
+Control-flow Invariants:
+
+. `break` can only appear inside a `loop`
+
+. `fail` can only appear inside a `do`
+
+. `continue_choice`, `finish_choice` and `fail_choice` can only
+  occur within a `start_choices`
+
+. `exit_bitmode` and `fail_bitmode` match a preceding
+  `enter_bitmode`
+
+. `pop_view` and `drop_view` are preceded match a preceding
+  `push_view`
+
+. `mark_bit_cursor`, `collect_bits`, `bits`, `align`, `pad`,
+  `collect_checked_bits` and `check_bits` occur within an active
+  bitmode
+
+Data invariants:
+
+. all used variables are defined in the path to the use (without
+  using dataflow analysis)
+
+
+There are two desirable properties of the view state:
+
+. the view stack can never underflow
+
+. the view stack at each join point is consistent
+
+The latter property could be viewed as part of a control-flow
+integrity contract.
+
+Join points are points in the code where at least two control flow
+paths could converge.
+
+They are one of the following:
+
+. the instruction after an `if`: this is joined by upto both branches
+  of the `if`.
+
+. the instruction after a `do [..] handle Succ [..]`: this is joined by
+  the last instruction in the main `do` block and the last instruction
+  in the handler block (unless the handler is empty).
+
+. the first instruction in a `loop []` block: this is joined by the
+  instruction preceding the `loop` (if any) and the last instruction
+  in the `loop` block.
+
+. the first instruction after a `start_choices`: this is joined by the
+  associated `finish_choice` instructions.
+
+. the first instruction in a handler block: this is joined by all the
+  implicit failures in the associated bivalent instructions in the
+  `do` block, as well as the explicit `fail_choice` instructions in
+  any associated `start_choice` instructions, associated explicit
+  `fail` instructions, and the last instructions in the handler blocks
+  of any associated `do [] handle Fail []` instructions.
+
+. the first instruction after a `loop` instruction; this is joined by
+  all the break instructions associated with that loop.
+
+Note that a `fail` instruction within the loop will join at the
+enclosing handler.
+
+Note that the `start_choice` block is special: control flow should
+only exit the block via `finish_choice` or `fail_choice`.  There
+should be no exits via implicit failures or an explicit `fail`, and
+control flow should not go past the end of the block.
+
+Consistent join points are only part of ensuring control-flow
+integrity.  The other requirements are:
+
+. `break` only occurs inside an associated `loop`
+
+. a `loop` should have an associated `break` instruction
+
+  NO, THIS IS WRONG.
+
+    `RE_star` is explicitly a loop that does not contain a break; the
+    loop can only be exited by a failure.
+
+    For more static guarantees, we could split `loop` into two:
+    `iloop` which is not expected to contain a `break` (only used for
+    `RE_star`) and `bloop` which should have a break.
+
+. `finish_choice`, `continue_choice` and `fail_choice` only occur
+  within a `start_choices`.
+
+. `continue_choice` should have a successor instruction within the
+  associated `start_choice` block.
+
+. `fail`, `break`, `finish_choice` and `fail_choice` should be the
+  last instructions in their blocks
+
+. Some join-point crossings are illegal.  For example,
+
+   loop [
+     start_choices(_) [
+          [ ... break ...]
+          ...
+          fail
+          ...
+     ]
+   ]
+
+   Here, the `break` crosses the `start_choice` frame.  This is not
+   legal. Rationale: the choice frame should be explicitly deallocated
+   using `fail_choice` or `finish_choice`.
+
+   Similarly, an unhandled `fail` should not occur in the
+   `start_choices` block, to avoid implicit choice frame deallocation
+   when escaping from the block.
+
+   start_choices(_) [ ...
+      loop [
+         finish_choice   // illegal
+         continue_choice // illegal
+      ] ...
+   ]
+
+   Rationale: the loop should be explicitly broken out of using `break`.
+
+   [TODO: any more?]
+
+For now, we legalize an unprotected explicit `fail` instruction, since
+it should be legal to fail an entire parse.  There should be no
+unprotected implicit failures.
+
+Implementation note:
+
+Some invariants can create states that need to be consistent, however
+these states may not be localized to the same join point.  For
+example, the requirement that state at loop entry is the same as loop
+exit equates states at two different instructions.  Another example
+may be the requirement that the state at the start of each choice in a
+start_choices is the same.
+
+Consistency checks are currently done for all joining states
+registered at the join instructions.  However, we may require them to
+be also consistent with states at instructions that don't join.  To
+reuse the checking infrastructure, we could have two forms of join
+registration: real and artificial.  The real registrations represent
+real joining locations, whereas the artificial registrations are not
+really joining locations but are included in the consistency checks.
+
+Such artificial join registrations could be used for registering a
+loop entrance state at its exec_next; similarly, all continue choice
+instructions can artificially register at their parent start_choices,
+along with the entry state of the start_choices itself.
+
+Algorithm for processing a block:
+
+For each instruction in the block, in order:
+
+  . if there is no subsequent instruction, and the current block is
+
+    * a `loop`, TODO
+
+    * a `start_choice`, ensure that the current instruction is `do`
+
+    * a Fail handler, add the current instruction to the top handler
+      join point in the context
+
+      top_handler(C.join_stack) += Last_in_block <current_block_type>, <current_inst>
+
+    * otherwise, add the current instruction to the top join point in
+      the context, and continue to process the instruction.
+
+      head(C.join_stack) += Last_in_block <current_block_type>, <current_inst>
+
+    CHECK ME.
+
+  . process linear instructions: check variable use in expressions,
+    update variable env for assignment, update bitmode, check marked
+    state when collecting bitlevel matches, update view stack; then
+    proceed to the next instruction.
+
+    For `continue_choice` and `finish_choice`, ensure we are within a
+    choice context, and these are the last instructions in the block
+    they appear in.  Add the context to the choice join point list in
+    the join stack in the context.
+
+  . for a `fail`, add it to the closest `handler_top` join point with
+    exit `explicit_fail` with type `fail`.  Check that there is no
+    subsequent instruction.
+
+  . for a `break`, add it to the closest `post_loop` join point with
+    exit `break`.  Check that there is no subsequent instruction.
+
+  . for a `finish_choice`, add it to the closest `post_choices` join
+    point with exit `finish_choice`.  Check that there is no
+    subsequent instruction.
+
+  . for a `continue_choice`, add it to the closest `choice_top` join
+    point with exit `continue_choice`.  Check that there is no
+    subsequent instruction.
+
+  . for a `fail_choice`, add it to the closest `handler_top` join
+    point with exit `explicit_fail` with type `choice`.
+
+  . for each actual (i.e. not linear, control, or fail/break) bivalent
+    instruction, add it to the closest `handler_top` join point with
+    exit `implicit_fail`.
+
+  . [TODO: anything specific for `require_remaining`?]
+
+  . for an `if`, add an `post_if` join point to the join stack in the
+    entry context C to get C'.
+
+        C' = C[join_stack <- post_if :: C.join_stack]
+
+    With this context C', process the 'then' block to get a final
+    context C_t.
+
+    Ensure that `post_if` is the top entry in C_t.join_stack
+
+    With context
+
+         C' = C[join_stack      <- C_t.join_stack;
+                completed_joins <- C_t.completed_joins]
+
+    (to collect the partially complete and complete join entries from
+     C_t, but with other state same as C), process the 'else' block
+    to get final context C_e.
+
+    Ensure that `post_if` is the top entry in C_e.join_stack.
+
+    Check view and bit consistency of C_t and C_e (i.e. view_stack and
+    bitmode).
+
+    Pop the `post_if` entry from C_e.join_stack, add to the set
+    of completed join points, and continue to the next instruction
+    with context
+
+         C' = C[join_stack      <- tail(C_e.join_stack);
+                completed_joins <- C_e.completed_joins + head(C_e.join_stack)]
+
+  . for a `loop`, add a `post_loop` join point to the join stack in
+    the entry context C to get C'.
+
+         C' = C[join_stack <- post_loop :: C.join_stack]
+
+    With this context C', process the 'loop' block to get final
+    context C_l.
+
+    Ensure that the `post_loop` is the top entry in C_l.join_stack.
+
+    Pop the `post_loop` join_point from the join stack, add to
+    the set of completed join points, and continue to the next
+    instruction with the context
+
+         C' = C[join_stack      <- tail(C_l.join_stack);
+                completed_joins <- C_l.completed_joins + head(C_l.join_stack)]
+
+  . for a `do`, add two join points to the join stack in the entry
+    context C, a `handler_top` and a `post_do`, to get context C'.
+
+         C' = C[join_stack <- post_do :: handler_top :: C.join_stack]
+
+    [`post_do` is at the top of the stack since it is the default
+     success continuation; i.e. end of the `do` block continues to the
+     `post_do`.]
+
+    Process the `do` block to get context C_d.
+
+    Ensure that `post_do` and `handler_top` are still the top entries
+    in C_d.join_stack.
+
+    For a `Fail` handler, pop the top two entries into the set of
+    completed join points, and process the handler block with context
+
+        C' = C[join_stack      <- tail(tail(C_d.join_stack));
+               completed_joins <- C_d.completed_joins + top_two(C_d.join_stack)]
+
+    For a `Succ` handler, remove the `handler_top` entry from the join
+    stack but leave the `post_do` entry, and process the handler block
+
+        C' = C[join_stack      <- head(C_d.join_stack) :: tail(tail(C_d.join_stack));
+               completed_joins <- C_d.completed_joins + head(tail(C_d.join_stack))]
+
+    Note: the last instruction processing above does the right thing
+    for the Fail and Succ cases of a handler.  So we could treat both
+    cases with the logic for the `Succ` case.
+
+  . for a `start_choices`, ensure all instructions in the block are
+    `do` instructions.
+
+    Add a `post_choices` join point to the entry context C; this will
+    be common to all the choice clauses for `finish_choice` exits.
+
+        C' = C[join_stack <- post_choices :: C.join_stack]
+
+    For each instruction in the choice block, except the last, process
+    it with context
+
+        C'' = C'[join_stack <- choice_top :: C.join_stack]
+
+    to get context C''', where choice_top is applied for the next
+    instruction.  This will be the target for `continue_choice`.
+
+    Check that `choice_top` and `post_choices` are still the top
+    entries in C'''.join_stack.
+
+    Pop the `choice_top` entry into the completed join points set.
+    Repeat for the next non-terminal instruction with
+
+        C' = C'[completed_joins <- C'''.completed_joins + head(C'''.join_stack)]
+
+    For the last instruction, leave `post_choices` at the top of the
+    stack in context C' and process the instruction to get context
+    C''.
+
+    Check that `post_choices` is still the top entry in
+    C''.join_stack.
+
+    Continue with context
+
+        C = C[join_stack      <- tail(C''.join_stack);
+              completed_joins <- C''.completed_joins + head(C''.join_stack)]
+
+Variable Management
+--------------------
+
+Variables are of the types described below.  They have the following
+kinds of storage:
+
+. When allocated in a stack frame, they are referred to by the index
+  of the frame slot.
+
+. Variables can be global identifiers, and provided static storage.
+
+. Non-global variables that are not assigned explicit slots in a stack
+  frame are said to have implicit storage.  This will allow
+  late-binding storage optimization: e.g. register storage for LLVM,
+  stack storage for WASM, etc.
+
+The variable types are:
+
+- non-terminal variable
+
+  This is the variable representing the final non-terminal value of a
+  definition; it occurs on the left side of the definition.  It will
+  either be a byte-vector (for regular-expression non-terminals), or a
+  record (for attributed non-terminals).
+
+  It survives for the lifetime of the call to the non-terminal.  It
+  should be allocated in the stack frame corresponding to the call.
+
+  This is a mutable variable.  Any mutations will need to be undone
+  when backtracking.
+
+- inherited attributes
+
+  These also occur on the left side of the definition.
+
+  They are accessible for the lifetime of the call to the
+  non-terminal.  They should use implicit storage.
+
+  These are immutable variables. They do not need handling when
+  backtracking.
+
+- rule-scope temporaries
+
+  These occur on the right side of the definition, but at the
+  beginning of a rule.  Their scope is the whole rule.
+
+  They last as long as the choice corresponding to the rule is active.
+  These should be allocated in the stack frame corresponding to the
+  rule choice.
+
+  These are mutable variables, and need handling when backtracking.
+  (Backtracking could occur due to nested choice combinators within
+  the rule.)
+
+- binding temporaries
+
+  These occur on the right side of the definition, and within the
+  rule.  They are used to hold the results of an intermediate parse or
+  computed value.  They should use implicit storage.
+
+  Once bound, these are immutable variables.  They do not need
+  handling when backtracking.
+
+- compiler-inserted temporaries
+
+  These do not occur in the Parsley source.
+
+  These are mutable variables.  They should be allocated in local
+  storage for the current choice frame only if their values are needed
+  across a call or choice.
+
+Backtracking
+------------
+
+Since backtracking occurs within the innermost choice combinator, all
+side-effects and assignments done to mutable variables outside the
+current choice frame stack need to be unwound.  These currently are:
+
+- (possibly nested) record fields of the non-terminal variable,
+  allocated in the innermost non-terminal call frame.
+
+- rule-scope temporary variables, allocated in the innermost rule
+  choice stack frame.
+
+The choice frames will need to hold the previous values of variables
+overwritten during a choice.  These values are held in 'trail' slots
+(using the WAM terminology).
+
+In addition, the entire view stack at the start of the choice needs to
+be stored.  It is not enough to store only the current view at the
+start of the choice. [WHY?]  The size of the view stack is not known
+at compile time, so it would need to be stored in the heap, perhaps as
+a linked list.  This representation would allow some sharing across
+multiple choice frames.  [TODO: Address garbage collection of a view
+stack list.  Do we copy the stack?  Reference counting would require
+traversing the entire list to increase reference counts of each
+element every time a view was added to the list; but would save
+space.]
+
+The size of this space could be computed at various granularities: the
+choice rule element, the rule choice, or the whole non-terminal
+definition.  The tradeoff is space efficiency versus analysis and code
+generation complexity.  We will use a precise granular analysis, and
+annotate the choice blocks with the variable-ids in the trail.
+
+Stack frames
+------------
+
+The non-terminal call frame layout is as follows:
+
+........................
+- immutable value slots
+  (inherited attributes)
+- mutable value slots
+  (return value if required)
+........................
+
+The choice frame layout (common to rule choice and combinator choice)
+is as follows:
+
+.......................
+- view stack
+- trail slots
+  (variable-id, value) pairs
+- next choice # (effectively, the failure continuation)
+- mutable value slots
+- local slots
+  (immutable and mutable variables)
+
+.......................
+
+[Design choice: Is it worth it to unify the two frames into a single
+ frame layout?  Backtracking is only needed on exiting a choice frame,
+ so it makes sense to distinguish them.  Unifying them would simplify
+ run-time logic since it only has to handle a single frame layout.]
+
+Variable naming
+---------------
+
+When variables are stored in nested stack frames, they need to be
+appropriately identified.  A de Bruijn indexing scheme is used:
+
+  variable-id := (stack-frame-idx, slot-type, slot-idx)
+
+where stack-frame-idx counts from 0 outward from the innermost-frame.
+That is, stack-frame-idx specifies the number of stack frames that
+need to be traversed outwards from the current frame to find the value
+of the variable.
+
+slot-type and slot-idx are computed at the time of variable
+allocation, and stack-frame-idx is computed at the time of variable
+use.
+
+Effect on expression normalization:
+
+  This variable naming scheme will affect the representation of
+  normalized expressions.  Expressions are normalized in two contexts:
+  a function context, where variables will be scoped within a function
+  call frame, and a choice frame.  Since function body expressions are
+  purely functional, newly created variables will all be implicit.
+  But since expressions can occur in choice and call contexts, they
+  can refer to variables on stacks as well as implicit variables.  [As
+  for 'choices' and 'call', the 'apply' expression will need
+  annotations to help function call frame construction.]
+
+Handling of implicit storage:
+
+  In the interpreter for the abstract machine, we can use a functional
+  environment map to track the values of the implicit variables.
+  Their storage choice can be made explicit in a subsequent lowering
+  backend.
+
+Annotations for stack frames
+----------------------------
+
+Function call frames are constructed by the 'apply' construction,
+which specifies the input arguments for the call.  Since the function
+body is purely functional, no additional data is needed for
+constructing the stack frame.
+
+Non-terminal call frames are constructed by the 'call' instruction,
+which specifies the values for the inherited attributes.  If the match
+value is not required, the call frame need not allocate a slot for the
+return value.  So the 'call' instruction should have an optional
+return variable specifier.
+
+The 'choice' instruction needs the following annotations:
+
+  . rule scope temporaries, which are the same for all the combinator
+    choices in the rule
+
+  . the compiler inserted temporaries that are in scope at the time of
+    entry into the choice instruction, which are the same for all the
+    choices in the instruction
+
+  . the non-temporary variables that need trail slots because they are
+    modified in _any_ of the choice sequences.  These may differ in
+    each choice of the instruction, so their union is computed.
+
+    [It might appear we could optimize on space by keeping the third
+     allocation on a per-choice basis, but the problem is that the
+     transformation of a choice frame from one choice to the other
+     becomes a bit complex and non-uniform.]
+
+Choice frame management
+-----------------------
+
+The management of the choice frame differs for the first choice, the
+last choice, and the other intermediate choices.
+
+The prolog of the first choice has to allocate a choice frame, and
+initialize:
+
+ . the saved view stack
+ . saved values of mutable temporaries (rule-scope and
+   compiler-introduced) in scope
+ . the trail slots
+ . next choice # (if any)
+ . any local storage
+
+before executing the code for the choice.
+
+The failure-case epilog for all choices needs to:
+
+ . use the variables in the trail to undo any modifications to
+   mutable non-temporary variables
+ . restore the view stack
+ . restore the values of the temporaries
+
+The prolog for the second and later choices needs to:
+
+ . set the next choice # (if any)
+ . re-initialize any local storage
+
+The failure-case epilog for the last choice also needs to pop the
+choice frame.
+
+Representing Views as Values
+----------------------------
+
+Views are opaque at the language level, and this opacity needs to be
+preserved by the runtime.  Views are also security-sensitive objects:
+their arbitrary manipulation needs to be prevented in the presence of
+attacker-controlled computation.  This design goal could be met by
+treating views as memory capabilities, with their representation
+inspired by the techniques used in CHERI and MSWASM.  The MSWASM paper
+has a succinct treatment of the operational semantics of handles to
+segment memory that can be straightforwardly adapted to that of
+Parsley view values.
+
+TODO
+----
+
+- suspend-resume
+
+- garbage collection
+
+- precise error reporting: location and cause
+
+
+
+
+OLD
+---
+
+Stack typing: there are three components of the runtime state:
+
+ . control stack
+ . view stack
+ . bitmode state
+
+Each instruction can be given a type in terms of an effect on the
+state.
+
+The validity rules are expressed as single-step and multi-step relations.
+
+A single-step relation is shown as
+
+  X |- i -> X'
+
+indicating an initial state X transitions to X' after executing
+an instruction i.
+
+A multi-step relation is shown as
+
+  X |- i* *-> X'
+
+indicating an initial state transitions to X' after executing zero
+or more instructions i*.
+
+------
+
+Bitmode state: Off | On
+
+Off |- `enter_bitmode` -> On
+
+On  |- `exit_bitmode` | `fail_bitmode` -> Off
+
+On  |- `mark_bit_cursor` | `collect_bits` |
+       `collect_checked_bits` | `check_bits` | `bits` | `pad` |
+       `align`
+    ->  On
+
+Off |- <all non-bitwise instructions> -> Off
+
+
+B |- i -> B'   B' |- i* *-> B''
+-------------------------------
+      B |- i i* *-> B''
+
+------
+
+View stack V: v* where v indicates a valid view
+
+V    |- `push_view` -> v :: V
+
+v v* |- `pop_view`  -> v*
+
+v v* |- `drop_view` -> v*
+
+  v* |- <li>        -> v*  for other linear instructions
+
+
+The invariant for atomic bivalent instructions is subsumed by the
+condition for structured bivalent instructions: the view stack at
+all targets of control flow exits of bivalent instructions should be
+the same.
+
+------
+
+Todo: combine bitmode, view and control validation relations into a
+single relation.
+
+Todo: incorporate def-use checks into exp validation.
+
