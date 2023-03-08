@@ -128,6 +128,11 @@ let print_type_expr (type a b m) (auxp: (a, b, m) auxp) ?paren
           if paren <> None then pp_string "(";
           print_list " -> " printer args;
           if paren <> None then pp_string ")";
+      | TE_tapp ({type_expr = TE_tname (_, t); _}, args)
+           when Location.value t = "[]" ->
+          pp_string "[";
+          print_list " " printer args;
+          pp_string "]"
       | TE_tapp (con, args) ->
           if paren <> None then pp_string "(";
           printer con;

@@ -42,7 +42,7 @@ type type_info =
     (MultiEquation.variable * string) list (* forall quantifiers *)
   * print_info
 
-(** type information *)
+(** type information.  See below for the `bool` argument. *)
 val variable_type_info: bool -> MultiEquation.variable -> type_info
 val term_type_info:     bool -> MultiEquation.crterm   -> type_info
 

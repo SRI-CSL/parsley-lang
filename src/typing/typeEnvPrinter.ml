@@ -224,13 +224,12 @@ let printer is_type_scheme =
               else let pref, sep, suff =
                      match assoc with
                        | Assoc_enclosed (b, e) ->
-                           b, ", ", " " ^ e
+                           b, ", ", e
                        | _ ->
                            if   List.length args > 0
                            then (sname ^ "<"), ", ", " >"
-                           else sname, " ", "" in
+                           else sname, "", "" in
                    pref
-                   ^ (if args <> [] then " " else "")
                    ^ (Misc.print_separated_list sep loop args)
                    ^ suff) in
     let (op, name, args, infix, assoc, _) = f r in

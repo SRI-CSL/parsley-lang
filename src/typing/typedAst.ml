@@ -40,3 +40,17 @@ type ffi_decl       = (typ, TypeInfer.varid, Ast.mod_qual) Ast.ffi_decl
 (* source-level spec *)
 type format         = (typ, TypeInfer.varid, Ast.mod_qual) Ast.format
 type spec_module    = (typ, TypeInfer.varid) Ast.spec_module
+
+(* Useful type utilities *)
+
+(* Extract out the element type of a list type.  This should only be
+   called for ground list types. *)
+let list_elem (t: typ) : typ =
+  let qs, (_tv, lt, ts, _, _, _) = TypeEnvPrinter.term_type_info false t in
+  assert (List.length qs = 0);
+  assert (List.length ts = 1);
+  assert (lt = (Ast.(Modul Mod_stdlib), Ast.TName "[]"));
+  let TypeEnvPrinter.(Arg le) = List.hd ts in
+  let tv, _le, ts, _, _, _ = le in
+  assert (List.length ts = 0);
+  CoreAlgebra.TVariable tv
