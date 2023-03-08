@@ -23,7 +23,6 @@
 (** This module implements a pretty printer for constraints. *)
 
 open PrettyPrinter
-open TypeEnvPrinter
 open TypeConstraint
 open MultiEquation
 open Format
@@ -33,10 +32,10 @@ type formula =
   (MultiEquation.crterm, MultiEquation.variable) TypeConstraint.type_constraint
 
 let print_crterm t =
-  print_term false t
+  TypeEnvPrinter.print_term false t
 
 let print_variable v =
-  let vt = print_variable false v in
+  let vt = TypeEnvPrinter.print_variable false v in
   if   (UnionFind.find v).structure <> None
   then Printf.sprintf "(%s)" vt
   else vt
