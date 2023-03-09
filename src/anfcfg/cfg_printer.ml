@@ -41,21 +41,21 @@ let string_of_return (r: return) =
         "noret"
     | Some v ->
         Printf.sprintf "ret(%s)"
-          (Anf_printer.string_of_var v.v)
+          (Anf_common.string_of_var v.v)
 
 (* assumed to be called from within a hbox *)
 let print_gnode g =
   match g.node with
     | N_assign (v, ae) ->
         pp_string (Printf.sprintf "%s := "
-                     (Anf_printer.string_of_var v.v));
+                     (Anf_common.string_of_var v.v));
         Anf_printer.print_aexp ae
     | N_assign_fun (v, vs, bd, _) ->
         let args = List.map (fun v ->
-                       Anf_printer.string_of_var Anf.(v.v)
+                       Anf_common.string_of_var Anf.(v.v)
                      ) vs in
         pp_string (Printf.sprintf "%s(%s) = "
-                     (Anf_printer.string_of_var v.v)
+                     (Anf_common.string_of_var v.v)
                      (String.concat "," args)
           );
         Anf_printer.print_aexp bd
@@ -65,7 +65,7 @@ let print_gnode g =
         Anf_printer.print_aexp ae
     | N_assign_mod_fun (m, v, vs, bd, _) ->
         let args = List.map (fun v ->
-                       Anf_printer.string_of_var Anf.(v.v)
+                       Anf_common.string_of_var Anf.(v.v)
                      ) vs in
         pp_string (Printf.sprintf "%s.%s(%s) = "
                      (Location.value m)
@@ -96,7 +96,7 @@ let print_gnode g =
             | None    -> ""
             | Some bf -> Printf.sprintf "<%s>" bf.bf_name in
         pp_string (Printf.sprintf "collect_bits%s %s, %s"
-                     bf (Anf_printer.string_of_var v.v)
+                     bf (Anf_common.string_of_var v.v)
                      (string_of_mbb mbb))
     | N_push_view ->
         pp_string "push_view"
@@ -106,10 +106,10 @@ let print_gnode g =
         pp_string "drop_view"
     | N_set_view v ->
         pp_string (Printf.sprintf "set_view %s"
-                     (Anf_printer.string_of_var v.v))
+                     (Anf_common.string_of_var v.v))
     | N_set_pos v ->
         pp_string (Printf.sprintf "set_pos %s"
-                     (Anf_printer.string_of_var v.v))
+                     (Anf_common.string_of_var v.v))
 
 (* assumed to be called from within a hbox *)
 let print_node (type e x v) (n: (e, x, v) Node.node) =
@@ -143,7 +143,7 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      i (string_of_label lsc) (string_of_label lf))
     | N_collect_checked_bits (_, v, (mbb, bv), lsc, lf) ->
         pp_string (Printf.sprintf "collect_checked_bits %s, %s%s, %s, %s"
-                     (Anf_printer.string_of_var v.v)
+                     (Anf_common.string_of_var v.v)
                      (string_of_mbb mbb)
                      (sprint_padding bv)
                      (string_of_label lsc)
@@ -156,24 +156,24 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (string_of_label lf))
     | N_constraint (_, v, s, f) ->
         pp_string (Printf.sprintf "constraint %s, %s, %s"
-                     (Anf_printer.string_of_var v.v)
+                     (Anf_common.string_of_var v.v)
                      (string_of_label s)
                      (string_of_label f))
     | N_cond_branch (_, v, s, f) ->
         pp_string (Printf.sprintf "cbranch %s, %s, %s"
-                     (Anf_printer.string_of_var v.v)
+                     (Anf_common.string_of_var v.v)
                      (string_of_label s)
                      (string_of_label f))
     | N_exec_dfa (_, v, s, f) ->
         pp_string (Printf.sprintf "dfa %s, %s, %s"
-                     (Anf_printer.string_of_var v.v)
+                     (Anf_common.string_of_var v.v)
                      (string_of_label s)
                      (string_of_label f))
     | N_scan (_, (t, d), v, s, f) ->
         pp_string (Printf.sprintf "scan-%s \"%s\", %s, %s, %s"
                      (sprint_scan_dir d)
                      (Location.value t)
-                     (Anf_printer.string_of_var v.v)
+                     (Anf_common.string_of_var v.v)
                      (string_of_label s)
                      (string_of_label f))
     | N_call_nonterm (m, nt, args, ret, s, f) ->
@@ -181,7 +181,7 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (List.map (fun (a, (v: Anf.var)) ->
                           Printf.sprintf "%s<-%s"
                             (Location.value a)
-                            (Anf_printer.string_of_var v.v)
+                            (Anf_common.string_of_var v.v)
                         ) args) in
         pp_string (Printf.sprintf "call %s[%s], %s, %s, %s"
                      (Anf.mod_prefix m (Location.value nt))
@@ -191,8 +191,8 @@ let print_node (type e x v) (n: (e, x, v) Node.node) =
                      (string_of_label f))
     | N_require_remaining (v, e, lr, ln) ->
         pp_string (Printf.sprintf "require_remaining %s, %s, %s, %s"
-                     (Anf_printer.string_of_var v.v)
-                     (Anf_printer.string_of_var e.v)
+                     (Anf_common.string_of_var v.v)
+                     (Anf_common.string_of_var e.v)
                      (string_of_label lr)
                      (string_of_label ln))
 
@@ -229,7 +229,7 @@ let string_of_nt_entry e =
     (Label.to_string e.nt_entry)
     (string_of_label e.nt_succcont)
     (string_of_label e.nt_failcont)
-    (Anf_printer.string_of_var e.nt_retvar.v)
+    (Anf_common.string_of_var e.nt_retvar.v)
 
 let print_gtoc toc =
   pp_string "GTOC:"; pp_newline ();

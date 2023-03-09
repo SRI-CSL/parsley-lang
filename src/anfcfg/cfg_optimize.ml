@@ -16,6 +16,7 @@
 (**************************************************************************)
 
 open Flow
+open Anf_common
 open Cfg
 
 (* IR simplification and validation. *)
@@ -52,7 +53,7 @@ let is_jmp_block (b: closed) : bool =
    . the set of trivial jump blocks
  *)
 type info =
-  {info_entries:  (Anf.modul * string) LabelMap.t;
+  {info_entries:  (modul * string) LabelMap.t;
    info_rev_map:  LabelSet.t LabelMap.t;
    info_jmp_blks: closed LabelMap.t}
 

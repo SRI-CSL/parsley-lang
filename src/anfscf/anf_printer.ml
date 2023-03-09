@@ -17,6 +17,7 @@
 
 open Parsing
 open Typing
+open Anf_common
 open Anf
 
 let pp_string    = AstPrinter.pp_string

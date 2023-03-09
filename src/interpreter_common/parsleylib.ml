@@ -18,11 +18,10 @@
 (* The standard library for Parsley *)
 
 open Parsing
-open Anfcfg
 open Values
 open Runtime_exceptions
-open Internal_errors
 open Fi
+open Internal_errors
 
 (* common helpers *)
 
@@ -35,9 +34,9 @@ let endian_of (v: value) : endian option =
   match v with
     | V_constr (_, l) when List.length l > 0 ->
         None
-    | V_constr ((Anf.M_stdlib, t, c), _) when t = "endian" && c = "Big" ->
+    | V_constr ((Anf_common.M_stdlib, t, c), _) when t = "endian" && c = "Big" ->
         Some E_big
-    | V_constr ((Anf.M_stdlib, t, c), _) when t = "endian" && c = "Little" ->
+    | V_constr ((Anf_common.M_stdlib, t, c), _) when t = "endian" && c = "Little" ->
         Some E_little
     | _ ->
         None

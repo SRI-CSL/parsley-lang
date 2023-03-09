@@ -18,6 +18,7 @@
 open Parsing
 open Typing
 open TypedAst
+open Anf_common
 
 (* The IR for the expression language is the A-normal form.
 
@@ -41,8 +42,6 @@ let mk_frame_id_gen () : frame_gen =
 let str_of_frame_id (f: frame_id) =
   string_of_int f
 
-type varid = string * int
-
 module VSet = Set.Make(struct type t = varid * frame_id
                               let compare = compare
                        end)
@@ -62,13 +61,7 @@ type var =
    v_frame: frame_id;
    v_loc:   Location.t}
 
-type modul =
-  | M_name   of string
-  | M_stdlib
-
 (* values of ANF *)
-
-type constr = modul * string * string
 
 type av_desc =
   | AV_lit of Ast.primitive_literal
@@ -165,33 +158,6 @@ and aexp =
   {aexp:     aexp_desc;
    aexp_typ: typ;
    aexp_loc: Location.t}
-
-(* simplified module qualifiers *)
-
-let modul_of_mname m =
-  match m with
-    | Ast.(Modul Mod_stdlib)       -> M_stdlib
-    | Ast.(Modul (Mod_explicit m)) -> M_name (Location.value m)
-    | Ast.(Modul (Mod_inferred m)) -> M_name m
-
-let str_of_modul m =
-  match m with
-    | M_stdlib -> ""
-    | M_name m -> m
-
-let mod_prefix m s =
-  match m with
-    | M_stdlib -> s
-    | M_name m -> Printf.sprintf "%s.%s" m s
-
-let str_of_qname (m, s) =
-  mod_prefix m s
-
-let convert_con (m, t, c) =
-  (modul_of_mname m), Location.value t, Location.value c
-
-let string_of_constr ((m, t, c): constr) : string =
-  mod_prefix m (AstUtils.canonicalize_dcon t c)
 
 (* constructors for expressions *)
 

@@ -17,6 +17,7 @@
 
 open Parsing
 open Typing
+open Anf_common
 open Anf
 
 let pp_string    = AstPrinter.pp_string
@@ -27,16 +28,6 @@ let pp_break     = AstPrinter.pp_break
 let pp_newline   = AstPrinter.pp_newline
 let pp_cut       = AstPrinter.pp_cut
 let pp_flush     = AstPrinter.pp_flush
-
-let string_of_var (v, id) =
-  if   v <> "" && id = 1
-  then v
-  else Printf.sprintf "%s#%d" v id
-
-let string_of_occurrence occ =
-  if   occ = []
-  then ""
-  else "@" ^ (String.concat "/" (List.map string_of_int occ))
 
 let rec print_av av =
   match av.av with

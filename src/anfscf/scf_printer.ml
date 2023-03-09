@@ -153,7 +153,7 @@ let rec str_of_binst (bi: bivalent_instr) =
                              (Anf_printer.string_of_var v)
                          ) args) in
         Printf.sprintf "call %s[%s], %s"
-          (Anf.mod_prefix m (Location.value nt))
+          (Anf_common.mod_prefix m (Location.value nt))
           sargs
           (Anf_printer.string_of_var ret)
     | B_require_remaining (v, e) ->
@@ -311,7 +311,7 @@ let rec print_binst (bi: bivalent_instr) =
                             (Anf_printer.string_of_var v)
                         ) args) in
         pp_string (Printf.sprintf "call %s[%s], %s"
-                     (Anf.mod_prefix m (Location.value nt))
+                     (Anf_common.mod_prefix m (Location.value nt))
                      sargs
                      (Anf_printer.string_of_var ret))
     | B_require_remaining (v, e) ->

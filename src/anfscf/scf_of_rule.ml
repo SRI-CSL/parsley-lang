@@ -97,7 +97,7 @@ let av_of_int ctx i num_t loc =
 
 let constr_av t c args typ loc =
   (* This module only constructs values in the stdlib. *)
-  let m = M_stdlib in
+  let m = Anf_common.M_stdlib in
   make_av (AV_constr ((m, t, c), args)) typ loc
 
 (* enter and exit bitmode *)
@@ -448,7 +448,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
     | RE_non_term (m, nt, None) ->
         let ctx, b = exit_bitmode ctx b loc in
         let v, ctx = get_ret_var ctx ret in
-        let m = modul_of_mname m in
+        let m = Anf_common.modul_of_mname m in
         let id = ctx.ctx_id_gen () in
         let call = mk_binst (B_call_nonterm (m, nt, [], v)) loc id in
         ctx, add_instr call b
@@ -473,7 +473,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
               (i, v) :: args
             ) (b, []) args in
         let v, ctx = get_ret_var ctx ret in
-        let m = modul_of_mname m in
+        let m = Anf_common.modul_of_mname m in
         let id = ctx.ctx_id_gen () in
         let call = mk_binst (B_call_nonterm (m, nt, args, v)) loc id in
         ctx, add_instr call b
@@ -1175,7 +1175,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         (* Construct the inherited attr argument list for the call. *)
         let iters' = List.map (fun ((i, _), v) -> (i, v)) is in
         let args' = iters' @ consts in
-        let m = modul_of_mname m in
+        let m = Anf_common.modul_of_mname m in
         let loc' = re'.rule_elem_loc in
         let r, ctx = fresh_var ctx re'.rule_elem_aux loc'  in
         let call =
@@ -1410,7 +1410,7 @@ let lower_general_ntd (trace: bool) (ctx: context) (ntd: TypedAst.non_term_defn)
   let ctx, b = lower_choices loc ctx init_block ntd.non_term_rules
                  loc_fn lower_fn in
   (* Construct the nt_entry. *)
-  let m = modul_of_mname mname in
+  let m = Anf_common.modul_of_mname mname in
   let nte =
     {nt_name      = ntd.non_term_name;
      nt_inh_attrs;

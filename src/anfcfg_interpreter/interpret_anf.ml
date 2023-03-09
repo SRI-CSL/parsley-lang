@@ -17,12 +17,12 @@
 
 open Parsing
 open Anfcfg
+open Interpreter_common
 open Values
 open State
 open Dispatch
 open Parsleylib
 open Viewlib
-open Runtime_exceptions
 
 let mod_value = AstUtils.str_of_mod
 
@@ -83,21 +83,21 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
     | Anf.AV_mod_member (m, c) ->
         let m, c = Location.value m, Location.value c in
         if      m = "View"
-        then    dispatch_viewlib av.av_loc m c s []
+        then    dispatch_viewlib av.av_loc m c s.st_cur_view []
         else if is_lib_mod m
         then    dispatch_lib  av.av_loc m c []
         else    MVEnv.lookup s.st_mvenv (m, c) av.av_loc
 
 (* match helper, used for aexps and astmts *)
 
-let stdlib = Anf.M_stdlib
+let stdlib = Anf_common.M_stdlib
 
 let matcher loc vr vl cases =
   let rec do_cases cases =
     match vl, cases with
       | _, [] ->
-          let err = Internal_errors.Pattern_match_failure vr in
-          internal_error loc err
+          let err = Interpreter_errors.Pattern_match_failure vr in
+          Interpreter_errors.interpret_error loc err
       (* wildcard *)
       | _, (p, br) :: _
            when Anf.(p.apat) = Anf.AP_wildcard ->
@@ -164,8 +164,8 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
   let do_apply s fn (ps, vs) bd loc =
     let nps, nvs = List.length ps, List.length vs in
     if   nps != nvs
-    then let err = Internal_errors.Function_arity (fn, nps, nvs) in
-         internal_error loc err
+    then let err = Interpreter_errors.Function_arity (fn, nps, nvs) in
+         Interpreter_errors.interpret_error loc err
     else let env = List.fold_left (fun env (p, v) ->
                        VEnv.assign env p v
                      ) s.st_venv (List.combine ps vs) in
@@ -232,14 +232,14 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
     | AE_apply (({fv = FV_var v; _} as f), args) ->
         let vs = safe_map (val_of_av s) args in
         let ps, bd = FEnv.lookup s.st_fenv v f.fv_loc in
-        let fn = Anf_printer.string_of_var v in
+        let fn = Anf_common.string_of_var v in
         do_apply s fn (ps, vs) bd f.fv_loc
     | AE_apply (({fv = FV_mod_member (m, f); _} as fv), args) ->
         let fn = Location.value f in
         let vs = safe_map (val_of_av s) args in
         let mn = Location.value m in
         if      mn = "View"
-        then    dispatch_viewlib fv.fv_loc mn fn s vs
+        then    dispatch_viewlib fv.fv_loc mn fn s.st_cur_view vs
         else if is_lib_mod mn
         then    dispatch_lib fv.fv_loc mn fn   vs
         else    let ps, bd = MFEnv.lookup s.st_mfenv (mn, fn) fv.fv_loc in
@@ -256,7 +256,7 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
         let v   = val_of_av s ae' in
         let svl = string_of_value as_ascii v in
         let svr = match ae'.av with
-            | Anf.AV_var v -> Some (Anf_printer.string_of_var v)
+            | Anf.AV_var v -> Some (Anf_common.string_of_var v)
             | _            -> None in
         Printf.eprintf "%s = %s @ %s\n%!"
           (match svr with
@@ -284,8 +284,8 @@ let rec eval_stmt (s: state) (st: Anf.astmt) : state =
            fields of nested records. *)
         let rec set_fields rvl fs =
           match fs with
-            | []      -> let err = Internal_errors.No_field_specified in
-                         internal_error loc err
+            | []      -> let err = Interpreter_errors.No_field_specified in
+                         Interpreter_errors.interpret_error loc err
             | [f]     -> let lc = Location.loc f in
                          let f  = Location.value f in
                          Builtins.set_field lc rvl f fvl
@@ -318,7 +318,7 @@ let rec eval_stmt (s: state) (st: Anf.astmt) : state =
         let v   = val_of_av s av in
         let svl = string_of_value as_ascii v in
         let svr = match av.av with
-            | Anf.AV_var v -> Some (Anf_printer.string_of_var v)
+            | Anf.AV_var v -> Some (Anf_common.string_of_var v)
             | _            -> None in
         Printf.eprintf "%s = %s @ %s\n%!"
           (match svr with

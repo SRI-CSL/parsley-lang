@@ -308,7 +308,7 @@ and normalize_exp_case (tenv: TypingEnvironment.environment)
           (* Bind an ANF variable to the subterm being scrutinized,
              unless it is the root of a variable term *)
           (match scrutinee.av with
-             | AV_var v when occ = root_occurrence ->
+             | AV_var v when occ = Anf_common.root_occurrence ->
                  let var =
                    make_var v scrutinee.av_typ scrutinee.av_loc in
                  make_ae (AE_case (var, cases)) case_typ loc,
@@ -542,7 +542,7 @@ and normalize_stmt_case (tenv: TypingEnvironment.environment)
           (* Bind an ANF variable to the subterm being scrutinized,
              unless it is the root of a variable term *)
           (match scrutinee.av with
-             | AV_var v when occ = root_occurrence ->
+             | AV_var v when occ = Anf_common.root_occurrence ->
                  let var =
                    make_var v scrutinee.av_typ scrutinee.av_loc in
                  {astmt     = AS_case (var, cases);

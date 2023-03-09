@@ -18,9 +18,9 @@
 (* Implementations of external/foreign functions. *)
 
 open Parsing
+open Interpreter_common
 open Fi
 open Values
-open Runtime_exceptions
 open Internal_errors
 
 (* The external (i.e. external to Parsley, and implemented in OCaml)

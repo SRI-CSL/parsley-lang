@@ -18,6 +18,7 @@
 open Parsing
 open Typing
 open TypedAst
+open Anf_common
 open Anf
 
 (* pattern action row, with integer labels for actions *)

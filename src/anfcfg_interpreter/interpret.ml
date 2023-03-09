@@ -18,9 +18,10 @@
 open Parsing
 open Typing
 open Anfcfg
-open State
+open Interpreter_common
 open Values
 open Runtime_exceptions
+open State
 
 let init_runtime _ =
   (* Initialize standard dispatch table. *)
@@ -44,8 +45,8 @@ let resolve_foreign (ffs: TypedAst.ffi_decl Cfg.ValueMap.t) =
   Cfg.ValueMap.iter (fun (m, fn) fd ->
       let loc = Ast.(fd.ffi_decl_loc) in
       let mn = (match m with
-                  | Anf.M_name mn -> mn
-                  | Anf.M_stdlib  -> assert false) in
+                  | Anf_common.M_name mn -> mn
+                  | Anf_common.M_stdlib  -> assert false) in
       let nargs = List.length Ast.(fd.ffi_decl_params) in
       assert (fn = Ast.var_name Ast.(fd.ffi_decl_ident));
       (* Get the name of the external implementation, if any. *)
@@ -86,7 +87,8 @@ let resolve_foreign (ffs: TypedAst.ffi_decl Cfg.ValueMap.t) =
 
 (* Returns the entry block for the given non-terminal along with the
    interpreter state that is initialized by executing the static block. *)
-let init load_externals (spec: Cfg.spec_cfg) (entry_nt: Anf.modul * string) (view: view)
+let init load_externals (spec: Cfg.spec_cfg)
+      (entry_nt: Anf_common.modul * string) (view: view)
     : state * Cfg.closed =
   (* Resolve externals in FFI. *)
   if   load_externals

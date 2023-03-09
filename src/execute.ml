@@ -17,6 +17,7 @@
 
 open Parsing
 open Anfcfg
+open Interpreter_common
 open Anfcfg_interpreter
 
 let interpret load_externals spec nt inp_name inp loop data_as_ascii =
@@ -50,6 +51,10 @@ let interpret load_externals spec nt inp_name inp loop data_as_ascii =
     then do_loop ()
     else do_once ()
   with
+    | Internal_errors.Internal_error (l, e) ->
+        Errors.handle_exception
+          (Printexc.get_backtrace ()) l
+          (Printf.sprintf "%s\n" (Internal_errors.error_msg e))
     | Runtime_exceptions.Runtime_exception (l, e) ->
         Errors.handle_exception
           (Printexc.get_backtrace ()) l
@@ -76,5 +81,5 @@ let execute _verbose (data_as_ascii: bool) (load_externals: bool)
           data_file, Interpret.Inp_file data_file
       | None, Some i ->
           "stdin", Interpret.Inp_stdin i in
-  let m = Anf.M_name m in
+  let m = Anf_common.M_name m in
   interpret load_externals spec (m, start) inp_name inp loop data_as_ascii

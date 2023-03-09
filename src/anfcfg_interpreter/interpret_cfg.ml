@@ -17,9 +17,11 @@
 
 open Parsing
 open Anfcfg
+open Interpreter_common
 open Values
 open State
 open Parsleygram
+open Internal_errors
 open Runtime_exceptions
 open Interpret_anf
 open Interpret_bitops
@@ -65,15 +67,15 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
              let env = VEnv.assign s.st_venv v vl in
              {s with st_venv = env}
         else let m = Cfg_printer.string_of_mbb pred in
-             let err = Internal_errors.Bitsbound_check m in
-             internal_error loc err
+             let err = Interpreter_errors.Bitsbound_check m in
+             Interpreter_errors.interpret_error loc err
     | N_push_view ->
         let st_view_stk = s.st_cur_view :: s.st_view_stk in
         {s with st_view_stk}
     | N_pop_view | N_drop_view
          when s.st_view_stk = [] ->
-        let err = Internal_errors.View_stack_underflow in
-        internal_error loc err
+        let err = Interpreter_errors.View_stack_underflow in
+        Interpreter_errors.interpret_error loc err
     | N_pop_view ->
         let vu, stk = List.hd s.st_view_stk, List.tl s.st_view_stk in
         {s with st_cur_view = vu;
@@ -83,10 +85,10 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
         {s with st_view_stk = stk}
     | N_set_view v ->
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
-        Viewlib.set_view loc s vl
+        set_view loc s vl
     | N_set_pos v ->
         let ps = VEnv.lookup s.st_venv v.v v.v_loc in
-        Viewlib.set_pos loc s ps
+        set_pos loc s ps
 
 let do_entry_node (s: state) (n: Cfg.Node.entry_node)
     : state =
@@ -224,8 +226,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
         then let m   = Cfg_printer.string_of_mbb mbb in
-             let err = Internal_errors.Bitsbound_check m in
-             internal_error loc err
+             let err = Interpreter_errors.Bitsbound_check m in
+             Interpreter_errors.interpret_error loc err
         else if match_padding bits pat
         then let bits = safe_map (fun b -> V_bool b) bits in
              let env  = VEnv.assign s.st_venv v (V_list bits) in
@@ -236,8 +238,8 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
         then let m   = Cfg_printer.string_of_mbb mbb in
-             let err = Internal_errors.Bitsbound_check m in
-             internal_error loc err
+             let err = Interpreter_errors.Bitsbound_check m in
+             Interpreter_errors.interpret_error loc err
         else if match_padding bits pat
         then do_jump loc s lsc
         else do_jump loc s lf
@@ -290,7 +292,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
                do_jump loc s lsc)
 
     | Cfg.Node.N_call_nonterm (m, nt, params, ret, lsc, lf)
-         when m = Anf.M_stdlib
+         when m = Anf_common.M_stdlib
               && is_std_nonterm (Location.value nt) ->
         assert (s.st_mode = Mode_normal);
         (* Extend view before parsing. *)

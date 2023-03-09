@@ -908,7 +908,7 @@ Variable naming
 ---------------
 
 When variables are stored in nested stack frames, they need to be
-appropriately identified.  A de Bruijn indexing scheme is used:
+appropriately identified.  A de Bruijn indexing scheme could be used:
 
   variable-id := (stack-frame-idx, slot-type, slot-idx)
 

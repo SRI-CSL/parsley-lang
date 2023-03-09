@@ -19,6 +19,7 @@ open Parsing
 open Ast
 open Typing
 open TypedAst
+open Anf_common
 open Anf
 
 (* Based on the algorithm in

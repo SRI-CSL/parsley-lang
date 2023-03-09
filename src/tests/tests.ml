@@ -16,7 +16,7 @@
 (**************************************************************************)
 
 open Parsing
-open Anfcfg_interpreter
+open Interpreter_common
 open Values
 
 let tests = [
@@ -509,7 +509,7 @@ let do_tests print_cfg gen_cfg exe_cfg =
   let fail_except cfg e =
     incr fails;
     Printf.eprintf " failed with exception: %s\n%!"
-      (Runtime_exceptions.Internal_errors.error_msg e);
+      (Internal_errors.error_msg e);
     print_cfg cfg in
   let succ () =
     incr succs;

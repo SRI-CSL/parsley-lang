@@ -18,7 +18,7 @@
 open Parsing
 open Typing
 open TypedAst
-open Anf
+open Anf_common
 
 (* pattern action row, with integer labels for actions *)
 type prow = pat list * int

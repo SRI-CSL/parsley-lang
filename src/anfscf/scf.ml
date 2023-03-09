@@ -273,7 +273,7 @@ type bivalent_desc =
   (* Call the CFG for the specified non-terminal with the specified
      expressions for the inherited attributes. *)
   | B_call_nonterm of
-      Anf.modul * Ast.ident * (Ast.ident * var) list * (*return*) var
+      Anf_common.modul * Ast.ident * (Ast.ident * var) list * (*return*) var
 
   (* Suspension constraint (or dynamic assertion): Suspend the
      parsing machine until the constraint is satisfied.  This
@@ -353,7 +353,7 @@ type nt_entry =
    (* the location this non-term was defined *)
    nt_loc:       Location.t}
 
-module ValueMap = Map.Make(struct type t = modul * string
+module ValueMap = Map.Make(struct type t = Anf_common.modul * string
                                   let compare = compare
                            end)
 

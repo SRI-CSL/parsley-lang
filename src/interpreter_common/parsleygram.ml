@@ -206,25 +206,25 @@ let impl_int64 lc (vu: view) (e: endian) : val_result =
 
 let get_int_endian lc nt (s, v) : endian =
   match s, v with
-    | "endian", V_constr ((Anfcfg.Anf.M_stdlib, "endian", "Big"), []) ->
+    | "endian", V_constr ((Anf_common.M_stdlib, "endian", "Big"), []) ->
         E_big
-    | "endian", V_constr ((Anfcfg.Anf.M_stdlib, "endian", "Little"), []) ->
+    | "endian", V_constr ((Anf_common.M_stdlib, "endian", "Little"), []) ->
         E_little
     | "endian", V_constr (c, args) ->
         let nargs = List.length args in
         let err =
           Internal_errors.Invalid_constructor_value (c, nargs) in
-        internal_error lc err
+        Internal_errors.internal_error lc err
     | "endian", _ ->
         let f   = Printf.sprintf "%s(endian:)" nt in
         let t = T_adt "endian" in
         let err =
           Internal_errors.Type_error (f, 1, vtype_of v, t) in
-        internal_error lc err
+        Internal_errors.internal_error lc err
     | a, _ ->
         let err =
           Internal_errors.Unknown_attribute (nt, a) in
-        internal_error lc err
+        Internal_errors.internal_error lc err
 
 let wrap int_impl lc vu pv : val_result =
   let e = get_int_endian lc "UInt16" pv in
@@ -285,4 +285,4 @@ let dispatch_stdlib lc (nt: string) (vu: view) (vs: (string * value) list)
        let a0 = List.nth vs 0 in
        fn lc vu a0
   else let err = Internal_errors.Unknown_std_nonterm (nt, nvs) in
-       internal_error lc err
+       Internal_errors.internal_error lc err
