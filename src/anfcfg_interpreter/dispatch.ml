@@ -17,9 +17,10 @@
 
 (* dispatch table *)
 
+open Interpreter_common
 open Values
 open Fi
-open Runtime_exceptions
+open Interpreter_errors
 
 module DTable = Map.Make (struct type t = string * string
                                  let compare = compare
@@ -40,25 +41,25 @@ let register_mod (dt: dtable) (m: (module PARSLEY_MOD)) =
   let module M = (val m) in
   let mn = M.name in
   (if   StringSet.mem mn dt.dt_mods
-   then internal_error l (Duplicate_module mn));
+   then interpret_error l (Duplicate_module mn));
   List.iter (fun (fn, f) ->
       (if   DTable.mem (mn, fn) dt.dt_0arg
-       then internal_error l (Duplicate_mod_item (mn, fn, 0)));
+       then interpret_error l (Duplicate_mod_item (mn, fn, 0)));
       dt.dt_0arg <- DTable.add (mn, fn) f dt.dt_0arg
     ) M.arg0_funcs;
   List.iter (fun (fn, f) ->
       (if   DTable.mem (mn, fn) dt.dt_1arg
-       then internal_error l (Duplicate_mod_item (mn, fn, 1)));
+       then interpret_error l (Duplicate_mod_item (mn, fn, 1)));
       dt.dt_1arg <- DTable.add (mn, fn) f dt.dt_1arg
     ) M.arg1_funcs;
   List.iter (fun (fn, f) ->
       (if   DTable.mem (mn, fn) dt.dt_2arg
-       then internal_error l (Duplicate_mod_item (mn, fn, 2)));
+       then interpret_error l (Duplicate_mod_item (mn, fn, 2)));
       dt.dt_2arg <- DTable.add (mn, fn) f dt.dt_2arg
     ) M.arg2_funcs;
   List.iter (fun (fn, f) ->
       (if   DTable.mem (mn, fn) dt.dt_3arg
-       then internal_error l (Duplicate_mod_item (mn, fn, 3)));
+       then interpret_error l (Duplicate_mod_item (mn, fn, 3)));
       dt.dt_3arg <- DTable.add (mn, fn) f dt.dt_3arg
     ) M.arg3_funcs;
   dt.dt_mods <- StringSet.add mn dt.dt_mods
@@ -133,4 +134,4 @@ let dispatch_lib lc (m: string) (f: string) (vs: value list)
        let a2 = List.nth vs 2 in
        fn lc a0 a1 a2
   else let err = Internal_errors.Unknown_stdlib (m, f, nvs) in
-       internal_error lc err
+       Internal_errors.internal_error lc err

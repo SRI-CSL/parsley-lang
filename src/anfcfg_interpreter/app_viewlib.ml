@@ -20,6 +20,7 @@
    This is to support initialization and extension of views from
    external data sources. *)
 
+open Interpreter_common
 open Runtime_exceptions
 
 (* The pause handler specifies handler functions that handle each

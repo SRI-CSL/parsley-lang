@@ -18,10 +18,9 @@
 open Parsing
 open Typing
 open TypedAst
+open Anf_common
 
 (* The IR for the expression language is the A-normal form. *)
-
-type varid = string * int
 
 module VSet = Set.Make(struct type t = varid
                               let compare = compare
@@ -33,13 +32,7 @@ type var =
    v_typ: typ;
    v_loc: Location.t}
 
-type modul =
-  | M_name   of string
-  | M_stdlib
-
 (* values of ANF *)
-
-type constr = modul * string * string
 
 type av_desc =
   | AV_lit of Ast.primitive_literal
@@ -100,13 +93,6 @@ and apat =
   {apat:     apat_desc;
    apat_typ: typ;
    apat_loc: Location.t}
-
-(* An occurrence identifies the subterm of the value being scrutinized
-   by a pattern.  The list starts from the root and goes towards
-   the sub-term.  An empty list indicates the entire value.  Constructor
-   arguments are numbered starting from 1. *)
-type occurrence = int list
-let root_occurrence = []
 
 (* In the A-normal form, primitive operations are performed on
    `values' that are essentially names for evaluated subexpressions.

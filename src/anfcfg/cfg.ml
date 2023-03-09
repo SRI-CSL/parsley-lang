@@ -324,7 +324,8 @@ module Node = struct
        labels of the `nt_succcont` and `nt_failcont` for the
        non-terminal's CFG, as specified in its `nt_entry`. *)
     | N_call_nonterm:
-        Anf.modul * Ast.ident * (Ast.ident * var) list * return * label * label
+        Anf_common.modul * Ast.ident * (Ast.ident * var) list * return
+        * label * label
         -> (Block.o, Block.c, unit) node
 
     (* Suspension constraint (or dynamic assertion): Suspend the
@@ -406,7 +407,7 @@ type nt_entry =
    (* the location this non-term was defined *)
    nt_loc:       Location.t}
 
-module ValueMap = Map.Make(struct type t = modul * string
+module ValueMap = Map.Make(struct type t = Anf_common.modul * string
                                   let compare = compare
                            end)
 

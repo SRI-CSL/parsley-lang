@@ -22,6 +22,7 @@ open Ast
 open Lexing
 module I = Parser.MenhirInterpreter
 open Typing
+open Interpreter_common
 open Anfcfg_interpreter
 
 (* Don't use the one from errors.ml since we don't want to exit on
@@ -97,7 +98,7 @@ let gen_cfg (test_name: string) (spec: string) : cfg option =
 
 let exe_cfg (test: string) (cfg: cfg) (entry: string) (data: string)
     : Values.value option =
-  let entry = Anfcfg.Anf.M_name "Test", entry in
+  let entry = Anf_common.M_name "Test", entry in
   try  fst (Interpret.once_on_test_string test cfg entry data)
   with
     | Runtime_exceptions.Runtime_exception (_, e) ->

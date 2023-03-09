@@ -721,7 +721,7 @@ let check_def_block _nt (b: sealed_block) (l: Location.t) =
 
 let validate (spec: spec_scf) (_debug: bool) : unit =
   (* Validate statics. *)
-  let nt = Anf.M_name "_global", "_statics" in
+  let nt = Anf_common.M_name "_global", "_statics" in
   check_def_block nt spec.scf_statics (Location.ghost_loc);
 
   (* Validate each non-terminal. *)

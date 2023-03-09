@@ -94,7 +94,7 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
                  | S_let (v, ae, av) -> (v, ae) :: binds, av :: vs
               ), ctx
             ) (([], []), ctx) es in
-        let v  = AV_constr (convert_con c, List.rev vs) in
+        let v  = AV_constr (Anf_common.convert_con c, List.rev vs) in
         let av = make_av v e.expr_aux e.expr_loc in
         let ae = make_lets binds (wrap (AE_val av)) in
         ae, ctx
@@ -167,7 +167,7 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
         let binds, av = match se with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
-        let m = modul_of_mname m in
+        let m = Anf_common.modul_of_mname m in
         let ae = match Location.value op with
             | "bits"   -> wrap (AE_bits_of_rec (m, r, av, bfi))
             | "record" -> wrap (AE_rec_of_bits (m, r, av, bfi))
@@ -187,7 +187,7 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
         let binds, av = match se with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
-        let ae = wrap (AE_match (av, convert_con c)) in
+        let ae = wrap (AE_match (av, Anf_common.convert_con c)) in
         let ae = make_lets binds ae in
         ae, ctx
     | E_field (e, (_, f)) ->

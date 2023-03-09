@@ -1,0 +1,4 @@
+(library
+  (name interpreter_common)
+  (libraries parsing typing anf_common)
+)

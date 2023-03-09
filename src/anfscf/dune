@@ -1,4 +1,4 @@
 (library
   (name anfscf)
-  (libraries parsing typing dfa flow)
+  (libraries parsing typing dfa flow anf_common)
 )

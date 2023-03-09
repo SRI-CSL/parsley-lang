@@ -18,9 +18,11 @@
 (* bit and bit-vector parsing *)
 
 open Anfcfg
+open Interpreter_common
 open Values
-open State
 open Runtime_exceptions
+open State
+
 
 let init_bitwise (v: view) : bitwise =
   {bw_bit_ofs = 0;

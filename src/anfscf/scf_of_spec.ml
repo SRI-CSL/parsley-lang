@@ -114,7 +114,7 @@ let lower_spec trace (_, init_venv) tenv (spec: spec_module) print_anf =
               ctx, tvenv, sts, foreigns
           | Ast.Decl_foreign fs ->
               let foreigns = List.fold_left (fun fs f ->
-                                 let m = Anf.M_name Ast.(f.ffi_decl_mod) in
+                                 let m = Anf_common.M_name Ast.(f.ffi_decl_mod) in
                                  let v = Ast.var_name Ast.(f.ffi_decl_ident) in
                                  assert (not (ValueMap.mem (m, v) foreigns));
                                  ValueMap.add (m, v) f fs
