@@ -30,10 +30,16 @@ let position_to_pos pos =
    bol   = pos.pos_bol;
    cnum  = pos.pos_cnum}
 
-type t =
+type loc' =
   {loc_start: position;
    loc_end:   position;
    loc_ghost: bool}
+
+module LocationMap = Map.Make(struct type t = loc'
+                                     let compare = compare
+                              end)
+
+type t = loc'
 
 let init lexbuf fname =
   lexbuf.lex_curr_p <-

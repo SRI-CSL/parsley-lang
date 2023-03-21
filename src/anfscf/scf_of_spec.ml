@@ -44,6 +44,7 @@ let lower_spec trace (_, init_venv) tenv (spec: spec_module) print_anf =
   (* Initialize the IR generation context by allocating a top-level
      frame. *)
   let frame_gen = Anf.mk_frame_id_gen () in
+  let site_gen  = Site.mk_id_gen () in
   let init_frame = frame_gen () in
   let ctx = {ctx_tenv       = tenv;
              ctx_toc        = ValueMap.empty;
@@ -54,6 +55,9 @@ let lower_spec trace (_, init_venv) tenv (spec: spec_module) print_anf =
              ctx_stack      = [init_frame];
              ctx_frame_gen  = frame_gen;
              ctx_mutations  = FrameMap.empty;
+             ctx_free_vars  = StringMap.empty;
+             ctx_site_gen   = site_gen;
+             ctx_site_map   = Site.SiteMap.empty;
              ctx_id_gen     = mk_id_gen ()} in
 
   (* Create a block for evaluating the statics, i.e. constants and
@@ -75,7 +79,7 @@ let lower_spec trace (_, init_venv) tenv (spec: spec_module) print_anf =
       let fn = Location.mk_loc_val (fst fv.v) fv.v_loc in
       L_assign_mod_fun (mn, fn, params, afb, vars) in
     let id = ctx.ctx_id_gen () in
-    add_instr (mk_l2b li afb.aexp_typ loc id) fb in
+    add_instr (mk_l2b li afb.aexp_typ loc id None) fb in
 
   (* Process the spec in lexical order. *)
   let ctx, _, sts, foreigns =
@@ -88,15 +92,15 @@ let lower_spec trace (_, init_venv) tenv (spec: spec_module) print_anf =
               let c', ctx = Scf_of_rule.norm_const ctx c in
               if   print_anf
               then Anf_printer.print_const c';
-              let Anf.{aconst_ident = v';
+              let Anf.{aconst_var = v';
                        aconst_val = ae;
                        aconst_mod = m;
                        aconst_loc = loc; _} = c' in
               let mn = Location.mk_loc_val m loc in
-              let vn = Location.mk_loc_val (fst v') loc in
+              let vn = Location.mk_loc_val (fst v'.v) v'.v_loc in
               let li = L_assign_mod_var (mn, vn, ae) in
               let id = ctx.ctx_id_gen () in
-              let sts = add_instr (mk_l2b li ae.aexp_typ loc id) sts in
+              let sts = add_instr (mk_l2b li ae.aexp_typ loc id None) sts in
               ctx, tvenv, sts, foreigns
           | Ast.Decl_fun f ->
               (* populate the funcs block *)
@@ -131,11 +135,11 @@ let lower_spec trace (_, init_venv) tenv (spec: spec_module) print_anf =
               ctx, tvenv, sts, foreigns
       ) (ctx, init_venv, sts, ValueMap.empty) spec.decls in
   let spec =
-    {scf_globals       = ctx.ctx_toc;
-     scf_statics       = seal_block sts;
-     scf_foreigns      = foreigns;
-     scf_tenv          = ctx.ctx_tenv;
-     scf_venv          = ctx.ctx_venv} in
+    {scf_globals  = ctx.ctx_toc;
+     scf_statics  = seal_block sts;
+     scf_foreigns = foreigns;
+     scf_tenv     = ctx.ctx_tenv;
+     scf_venv     = ctx.ctx_venv} in
 
   (* Check consistency of the IR. *)
 

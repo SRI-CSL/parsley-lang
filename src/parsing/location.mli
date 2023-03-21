@@ -47,7 +47,13 @@ val loc:         'a loc -> t
 
 val str_of_loc:      t -> string (* full location, including file name *)
 val str_of_file_loc: t -> string (* location without file name *)
-val content_of_loc:  t -> string (* snippet of source code at location *)
+val content_of_loc:  t -> string (* snippet of source code at
+                                  * location *)
+
+(* mapping by location *)
+
+module LocationMap: Map.S
+       with type key = t
 
 (* json support *)
 

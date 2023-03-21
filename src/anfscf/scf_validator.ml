@@ -279,7 +279,7 @@ let validate_linear (ctx: context) (i: linear_instr) (z: zctx)
     | L_finish_choice ->
         (* There should be no subsequent instruction in this block. *)
         (if   not (last_in_block z)
-         then let bi  = mk_l2b i.li i.li_typ i.li_loc i.li_id in
+         then let bi  = mk_l2b i.li i.li_typ i.li_loc i.li_id None in
               let err = V_not_at_block_end bi in
               raise (Error (loc, err)));
         (* Validate control flow target. *)
@@ -291,14 +291,14 @@ let validate_linear (ctx: context) (i: linear_instr) (z: zctx)
                let ctx = {ctx with ctx_finish_choice = true} in
                (* Update join info. *)
                let js  = join_state_of_context ctx in
-               let bi  = mk_l2b i.li i.li_typ i.li_loc i.li_id in
+               let bi  = mk_l2b i.li i.li_typ i.li_loc i.li_id None in
                let j   = EP_finish_choice, bi, js in
                let tgt = JI_block t in
                add_join ctx j tgt
            | en, _ ->
                raise (Error (loc, V_invalid_continuation en)))
     | L_continue_choice ->
-        let bi = mk_l2b i.li i.li_typ i.li_loc i.li_id in
+        let bi = mk_l2b i.li i.li_typ i.li_loc i.li_id None in
         (* There should be no subsequent instruction in this block. *)
         (if   not (last_in_block z)
          then let err = V_not_at_block_end bi in
@@ -316,7 +316,7 @@ let validate_linear (ctx: context) (i: linear_instr) (z: zctx)
            | en, _ ->
                raise (Error (loc, V_invalid_continuation en)))
     | L_fail_choice ->
-        let bi = mk_l2b i.li i.li_typ i.li_loc i.li_id in
+        let bi = mk_l2b i.li i.li_typ i.li_loc i.li_id None in
         (* There should be no subsequent instruction in this block. *)
         (if   not (last_in_block z)
          then let err = V_not_at_block_end bi in
@@ -401,7 +401,7 @@ let rec validate_bivalent (ctx: context) ((i, z): scf_zipper)
 
     (* Structured control flow *)
 
-    | B_control {ci = C_if (v, tb, eb); ci_loc = cloc; ci_id = cid} ->
+    | B_control {ci = C_if (v, tb, eb); ci_loc = cloc; ci_id = cid; _} ->
         (* Step past the current instruction, which should always
            succeed. *)
         let z = match step z with
@@ -439,7 +439,7 @@ let rec validate_bivalent (ctx: context) ((i, z): scf_zipper)
            | en, _ ->
                raise (Error (loc, V_invalid_continuation en)))
 
-    | B_control {ci = C_do (b, (h, eh)); ci_loc = cloc; ci_id = cid} ->
+    | B_control {ci = C_do (b, (h, eh)); ci_loc = cloc; ci_id = cid; _} ->
         (* Step past the current instruction, which should always
            succeed. *)
         let z = match step z with
@@ -521,7 +521,7 @@ let rec validate_bivalent (ctx: context) ((i, z): scf_zipper)
                          H_success joins at exec_next;
                          H_failure joins at fail_next. *)
                       let ji = List.hd (List.rev eh) in
-                      let ji = mk_l2b ji.li ji.li_typ ji.li_loc ji.li_id in
+                      let ji = mk_l2b ji.li ji.li_typ ji.li_loc ji.li_id None in
                       match h with
                         | H_success ->
                             (match exec_next z with
@@ -552,7 +552,7 @@ let rec validate_bivalent (ctx: context) ((i, z): scf_zipper)
                                    let tgt = JI_block t in
                                    add_join ctx j tgt)))
 
-    | B_control {ci = C_loop (infinite, b); ci_loc = cloc; ci_id = cid} ->
+    | B_control {ci = C_loop (infinite, b); ci_loc = cloc; ci_id = cid; _} ->
         (* Step past the current instruction, which should always
            succeed. *)
         let z = match step z with
@@ -584,7 +584,7 @@ let rec validate_bivalent (ctx: context) ((i, z): scf_zipper)
         {ctx with ctx_break = outer_break}
 
     | B_control {ci = C_start_choices (fid, muts, b); ci_loc = cloc;
-                 ci_id = cid} ->
+                 ci_id = cid; _} ->
         (* Step past the current instruction, which should always
            succeed. *)
         let z = match step z with

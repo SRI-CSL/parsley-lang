@@ -212,9 +212,7 @@ let var_of_ident (i: ident) : unit var =
   let v = Location.value i in
   Location.mk_loc_val (v, ()) (Location.loc i)
 
-let ident_of_var (v: unit var) : ident =
-  let i, _ = Location.value v in
-  Location.mk_loc_val i (Location.loc v)
+let ident_of_var = AstUtils.ident_of_var
 
 (* utility constructors *)
 

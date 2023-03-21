@@ -201,7 +201,7 @@ let print_const (c: aconst) : unit =
   pp_open_vbox 0;
   pp_open_box 0;
   pp_string "const ";
-  pp_string (string_of_varid c.aconst_ident);
+  pp_string (string_of_var c.aconst_var);
   pp_string " = ";
   print_aexp c.aconst_val;
   pp_close_box ();

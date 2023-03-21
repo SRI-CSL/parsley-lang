@@ -25,6 +25,11 @@ let modname_of_file f : string =
   let m = Filename.remove_extension m in
   String.capitalize_ascii m
 
+(* var -> ident conversion *)
+let ident_of_var (type t) (v: t var) : ident =
+  let i, _ = Location.value v in
+  Location.mk_loc_val i (Location.loc v)
+
 (* module qualifier utils *)
 
 (* a comparator compatible with `OrderedType.compare`. *)

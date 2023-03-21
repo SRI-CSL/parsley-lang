@@ -17,6 +17,7 @@
 
 open Parsing
 open Typing
+open Site
 open Anf
 open Scf
 
@@ -85,8 +86,11 @@ let fresh_var ctx typ loc =
 
 let bind_var ctx v t =
   let v', venv = VEnv.bind ctx.ctx_venv v in
-  make_var v' ctx.ctx_frame t (Location.loc v),
-  {ctx with ctx_venv = venv}
+  let var = make_var v' ctx.ctx_frame t (Location.loc v) in
+  let sv = mk_site_var v SV_val var in
+  let fvs = StringMap.add (Ast.var_name v) sv ctx.ctx_free_vars in
+  var, {ctx with ctx_venv      = venv;
+                 ctx_free_vars = fvs}
 
 (* ANF value utilities *)
 
@@ -106,19 +110,21 @@ let enter_bitmode (ctx: context) (b: block) (loc: Location.t)
     : context * block =
   if   ctx.ctx_bitmode
   then ctx, b
-  else {ctx with ctx_bitmode = true},
-       let typ = get_std_typ ctx "unit" in
+  else let typ = get_std_typ ctx "unit" in
        let id  = ctx.ctx_id_gen () in
-       add_instr (mk_l2b L_enter_bitmode typ loc id) b
+       let s, ctx = mk_site ctx SS_bitmode loc in
+       {ctx with ctx_bitmode = true},
+       add_instr (mk_l2b L_enter_bitmode typ loc id (Some s)) b
 
 let exit_bitmode (ctx: context) (b: block) (loc: Location.t)
     : context * block =
   if   not ctx.ctx_bitmode
   then ctx, b
-  else {ctx with ctx_bitmode = false},
-       let typ = get_std_typ ctx "unit" in
+  else let typ = get_std_typ ctx "unit" in
        let id  = ctx.ctx_id_gen () in
-       add_instr (mk_l2b L_exit_bitmode typ loc id) b
+       let s, ctx = mk_site ctx SS_bitmode loc in
+       {ctx with ctx_bitmode = false},
+       add_instr (mk_l2b L_exit_bitmode typ loc id (Some s)) b
 
 (* handle inserting a mark_bit_cursor if needed for a return value *)
 let prepare_cursor
@@ -129,7 +135,7 @@ let prepare_cursor
         (* no other sensible type for mark_bit_cursor *)
         let typ = get_std_typ ctx "unit" in
         let id  = ctx.ctx_id_gen () in
-        add_instr (mk_l2b L_mark_bit_cursor typ loc id) b
+        add_instr (mk_l2b L_mark_bit_cursor typ loc id None) b
     | None ->
         b
 
@@ -141,7 +147,8 @@ let collect_cursor
     : block =
   match ret with
     | Some v ->
-        add_instr (mk_l2b (L_collect_bits (v, pred, obf)) typ loc id) b
+        let li = L_collect_bits (v, pred, obf) in
+        add_instr (mk_l2b li typ loc id None) b
     | None ->
         b
 
@@ -208,20 +215,25 @@ let lower_choices loc (ctx: context) (b: block)
    *)
   let unit  = get_std_typ ctx "unit" in
   let mk_do (b: block) (is_last: bool) loc : bivalent_instr =
-    let b =
+    let b, ctx =
       let id = ctx.ctx_id_gen () in
-      add_instr (mk_l2b L_finish_choice unit loc id) b in
+      let s, ctx  = mk_site ctx SS_choice loc in
+      let li = L_finish_choice in
+      add_instr (mk_l2b li unit loc id (Some s)) b,
+      ctx in
     let b = seal_block b in
     (* The last handler fails the choice. *)
     let hf, li = (if   is_last
                   then H_failure, L_fail_choice
                   else H_success, L_continue_choice) in
-    let h =
+    let h, ctx =
       let id = ctx.ctx_id_gen () in
-      add_instr (mk_linst li unit loc id) init_block in
+      let s, ctx = mk_site ctx SS_choice loc in
+      add_instr (mk_linst li unit loc id (Some s)) init_block,
+      ctx in
     let di = C_do (b, (hf, seal_handler h)) in
     let id = ctx.ctx_id_gen () in
-    mk_c2b di loc id in
+    mk_c2b di loc id None in
   let input_ctx = ctx in
   (* Allocate a choice frame, update the context. *)
   let cfrm = ctx.ctx_frame_gen () in
@@ -229,7 +241,10 @@ let lower_choices loc (ctx: context) (b: block)
   (* Lower each choice into its own do block. *)
   let ctx, dis, _ =
     List.fold_left (fun (ctx, dis, is_last) c ->
+        (* Save and restore free vars across combinator. *)
+        let fvs = ctx.ctx_free_vars in
         let ctx, b = lower_fn ctx init_block c in
+        let ctx = {ctx with ctx_free_vars = fvs} in
         let di = mk_do b is_last (choice_loc_fn c) in
         ctx, di :: dis, false)
       (* Process `choices` in reverse order so that the last one is
@@ -243,9 +258,11 @@ let lower_choices loc (ctx: context) (b: block)
   let cmuts = ctx.ctx_mutations in
   (* ... into a choice control block ... *)
   let ci = C_start_choices (cfrm, cmuts, seal_block cb) in
-  let b =
+  let b, ctx =
     let id = ctx.ctx_id_gen () in
-    add_instr (mk_c2b ci loc id) b in
+    let s, ctx  = mk_site ctx SS_choice loc in
+    add_instr (mk_c2b ci loc id (Some s)) b,
+    ctx in
   (* Pop the choice frame from the context. *)
   let ctx = pop_frame ctx in
   (* Fold the mutations into input mutations. *)
@@ -298,7 +315,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let bits = Location.value bits in
         let b' =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_binst (B_bits bits) loc id) b' in
+          add_instr (mk_binst (B_bits bits) loc id None) b' in
         let pred = MB_exact bits in
         let b' =
           let id = ctx.ctx_id_gen () in
@@ -306,14 +323,17 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let b' = seal_block b' in
         (* failure handler *)
         let fail = init_block in
-        let fail =
+        let fail, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_linst L_fail_bitmode unit loc id) fail in
+          let li = L_fail_bitmode in
+          let s, ctx  = mk_site ctx SS_bitmode loc in
+          add_instr (mk_linst li unit loc id (Some s)) fail,
+          ctx in
         let fail = seal_handler fail in
         (* control block *)
         let cblock =
           let id = ctx.ctx_id_gen () in
-          mk_c2b (C_do (b', (H_failure, fail))) loc id in
+          mk_c2b (C_do (b', (H_failure, fail))) loc id None in
         (* add control block to the input block *)
         ctx, add_instr cblock b
 
@@ -325,7 +345,8 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let bits = Location.value bits in
         let b' =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_binst (B_align bits) loc id) b' in
+          let bi = B_align bits in
+          add_instr (mk_binst bi loc id None) b' in
         let pred = MB_below bits in
         let b' =
           let id = ctx.ctx_id_gen () in
@@ -333,14 +354,17 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let b' = seal_block b' in
         (* failure handler *)
         let fail = init_block in
-        let fail =
+        let fail, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_linst L_fail_bitmode unit loc id) fail in
+          let li = L_fail_bitmode in
+          let s, ctx  = mk_site ctx SS_bitmode loc in
+          add_instr (mk_linst li unit loc id (Some s)) fail,
+          ctx in
         let fail = seal_handler fail in
         (* control block *)
         let cblock =
           let id = ctx.ctx_id_gen () in
-          mk_c2b (C_do (b', (H_failure, fail))) loc id in
+          mk_c2b (C_do (b', (H_failure, fail))) loc id None in
         (* add control block to the input block *)
         ctx,  add_instr cblock b
 
@@ -357,7 +381,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let b' = prepare_cursor ctx b' ret loc in
         let b' =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_binst (B_bits bits) loc id) b' in
+          add_instr (mk_binst (B_bits bits) loc id None) b' in
         let pred = MB_exact bits in
         let b' =
           let id = ctx.ctx_id_gen () in
@@ -365,15 +389,18 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let b' = seal_block b' in
         (* failure handler *)
         let fail = init_block in
-        let fail =
+        let fail, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_linst L_fail_bitmode unit loc id) fail in
+          let li = L_fail_bitmode in
+          let s, ctx  = mk_site ctx SS_bitmode loc in
+          add_instr (mk_linst li unit loc id (Some s)) fail,
+          ctx in
         let fail = seal_handler fail in
         (* control block *)
         let id = ctx.ctx_id_gen () in
-        let cblock = mk_c2b (C_do (b', (H_failure, fail))) loc id in
+        let cb = mk_c2b (C_do (b', (H_failure, fail))) loc id None in
         (* add control block to the input block *)
-        ctx, add_instr cblock b
+        ctx, add_instr cb b
 
     | RE_pad (bits, pat) ->
         (* Padding is like a bit-level constraint node in terms of
@@ -385,26 +412,29 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let b' = prepare_cursor ctx b' ret loc in
         let b' =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_binst (B_pad bits) loc id) b' in
+          add_instr (mk_binst (B_pad bits) loc id None) b' in
         let pred = MB_below bits, pat in
         let id = ctx.ctx_id_gen () in
         let chk = mk_binst (match ret with
                               | Some v -> B_collect_checked_bits (v, pred)
                               | None   -> B_check_bits pred)
-                    loc id in
+                    loc id None in
         let b' = add_instr chk b' in
         let b' = seal_block b' in
         (* failure handler *)
         let fail = init_block in
-        let fail =
+        let fail, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_linst L_fail_bitmode unit loc id) fail in
+          let li = L_fail_bitmode in
+          let s, ctx  = mk_site ctx SS_bitmode loc in
+          add_instr (mk_linst li unit loc id (Some s)) fail,
+          ctx in
         let fail = seal_handler fail in
         (* control block *)
         let id = ctx.ctx_id_gen () in
-        let cblock = mk_c2b (C_do (b', (H_failure, fail))) loc id in
+        let cb = mk_c2b (C_do (b', (H_failure, fail))) loc id None in
         (* add control block to the input block *)
-        ctx, add_instr cblock b
+        ctx, add_instr cb b
 
     (* other basic primitives *)
 
@@ -416,9 +446,12 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
            return binding. *)
         let v, ctx = get_ret_var ctx ret in
         (* Add the DFA matcher instruction. *)
-        let b =
+        let b, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_binst (B_exec_dfa (dfa, v)) loc id) b in
+          let bi = B_exec_dfa (dfa, v) in
+          let s, ctx  = mk_site ctx SS_regex loc in
+          add_instr (mk_binst bi loc id (Some s)) b,
+          ctx in
         ctx, b
 
     | RE_seq_flat _ ->
@@ -432,25 +465,27 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
            return binding. *)
         let v, ctx = get_ret_var ctx ret in
         (* Add the DFA matcher instruction. *)
-        let b =
-          let id = ctx.ctx_id_gen () in
-          add_instr (mk_binst (B_exec_dfa (dfa, v)) loc id) b in
-        ctx, b
+        let id = ctx.ctx_id_gen () in
+        let bi = B_exec_dfa (dfa, v) in
+        let s, ctx  = mk_site ctx SS_regex loc in
+        ctx, add_instr (mk_binst bi loc id (Some s)) b
 
     | RE_scan scan ->
         let ctx, b = exit_bitmode ctx b loc in
         let v, ctx = get_ret_var ctx ret in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_binst (B_scan (scan, v)) loc id) b in
+          add_instr (mk_binst (B_scan (scan, v)) loc id None) b in
         ctx, b
 
     | RE_non_term (m, nt, None) ->
         let ctx, b = exit_bitmode ctx b loc in
         let v, ctx = get_ret_var ctx ret in
-        let m = Anf_common.modul_of_mname m in
+        let m  = Anf_common.modul_of_mname m in
         let id = ctx.ctx_id_gen () in
-        let call = mk_binst (B_call_nonterm (m, nt, [], v)) loc id in
+        let bi = B_call_nonterm (m, nt, [], v) in
+        let s, ctx  = mk_site ctx SS_call loc in
+        let call = mk_binst bi loc id (Some s) in
         ctx, add_instr call b
 
     | RE_non_term (m, nt, Some args) ->
@@ -469,13 +504,16 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let b, args =
           List.fold_left (fun (b, args) (i, v, ae) ->
               let id = ctx.ctx_id_gen () in
-              add_instr (mk_l2b (L_assign (v, ae)) v.v_typ v.v_loc id) b,
+              let li = L_assign (v, ae) in
+              add_instr (mk_l2b li v.v_typ v.v_loc id None) b,
               (i, v) :: args
             ) (b, []) args in
         let v, ctx = get_ret_var ctx ret in
         let m = Anf_common.modul_of_mname m in
         let id = ctx.ctx_id_gen () in
-        let call = mk_binst (B_call_nonterm (m, nt, args, v)) loc id in
+        let bi = B_call_nonterm (m, nt, args, v) in
+        let s, ctx  = mk_site ctx SS_call loc in
+        let call = mk_binst bi loc id (Some s) in
         ctx, add_instr call b
 
     (* binding for return values *)
@@ -493,7 +531,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
             | Some v' ->
                 let assign = L_assign (v', ae_of_av (av_of_var v)) in
                 let id = ctx.ctx_id_gen () in
-                add_instr (mk_l2b assign v.v_typ v.v_loc id) b in
+                add_instr (mk_l2b assign v.v_typ v.v_loc id None) b in
         ctx, b
 
     (* side-effects *)
@@ -506,20 +544,26 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
            could distinguish view-read-only from view-write
            actions. *)
         let ctx, b = exit_bitmode ctx b loc in
+        (* Save and restore free vars around lowering `stmts`, since
+           the free variables in the expression language are not
+           visible in the grammar language. *)
+        let fvs = ctx.ctx_free_vars in
         let astms, ctx = norm_stms ctx stmts in
+        let ctx = {ctx with ctx_free_vars = fvs} in
         let act = L_action astms in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b act typ loc id) b in
+          add_instr (mk_l2b act typ loc id None) b in
         (match retexp, ret with
            | None, None ->
                ctx, b
            | None, Some v ->
                assert (is_unit typ);
-               let lit_unit = ae_of_av (make_av (AV_lit PL_unit) unit loc) in
+               let lit_unit = make_av (AV_lit PL_unit) unit loc in
+               let lit_unit = ae_of_av lit_unit in
                let assign = L_assign (v, lit_unit) in
                let id = ctx.ctx_id_gen () in
-               ctx, add_instr (mk_l2b assign unit loc id) b
+               ctx, add_instr (mk_l2b assign unit loc id None) b
            | Some _, None ->
                (* Consider it an error if the user is not binding the
                   return expression *)
@@ -530,7 +574,8 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
                let ctx = of_exp_ctx ctx ec in
                let assign = L_assign (v, ae) in
                let id = ctx.ctx_id_gen () in
-               ctx, add_instr (mk_l2b assign ae.aexp_typ ae.aexp_loc id) b)
+               let bi = mk_l2b assign ae.aexp_typ ae.aexp_loc id None in
+               ctx, add_instr bi b)
 
     (* control flow *)
     | RE_constraint c ->
@@ -558,24 +603,29 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
                 v, ctx, L_assign (v, ac) in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b instr typ loc id) b in
+          add_instr (mk_l2b instr typ loc id None) b in
         let ifb = seal_block init_block in
-        let elseb =
+        let elseb, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_binst B_fail loc id) init_block in
+          let s, ctx  = mk_site ctx SS_cond loc in
+          add_instr (mk_binst B_fail loc id (Some s)) init_block,
+          ctx in
         let elseb = seal_block elseb in
         let cblock = C_if (cvar, ifb, elseb) in
         let id = ctx.ctx_id_gen () in
-        ctx, add_instr (mk_c2b cblock loc id) b
+        ctx, add_instr (mk_c2b cblock loc id None) b
 
     (* since the case when there is no return value is especially
        simple, handle it separately *)
     | RE_seq res when ret = None ->
         (* [[RE_seq res]] = [ {[[re_i]] | re_i <- res} ] *)
         let ctx, b = exit_bitmode ctx b loc in
-        List.fold_left (fun (ctx, b) re ->
-            lower_rule_elem trace ctx m b ret re
-          ) (ctx, b) res
+        (* Save and restore free vars across combinator. *)
+        let fvs = ctx.ctx_free_vars in
+        let ctx, b = List.fold_left (fun (ctx, b) re ->
+                         lower_rule_elem trace ctx m b ret re
+                       ) (ctx, b) res in
+        {ctx with ctx_free_vars = fvs}, b
 
     (* with a return value, the outline is the same as above, but we
        have to ensure that the return variable is properly assigned *)
@@ -585,6 +635,8 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
                                 ]
          *)
         let ctx, b = exit_bitmode ctx b loc in
+        (* Save and restore free vars across combinator. *)
+        let fvs = ctx.ctx_free_vars in
         let ctx, b, vs =
           List.fold_left (fun (ctx, b, vs) (re: TypedAst.rule_elem) ->
               (* create variables for the elements of the sequence *)
@@ -594,6 +646,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
               let ctx, b = lower_rule_elem trace ctx m b ret re in
               ctx, b, v :: vs
             ) (ctx, b, []) res in
+        let ctx = {ctx with ctx_free_vars = fvs} in
         (* construct the list value holding the elements, starting
            with the base empty value *)
         let l = constr_av "[]" "[]" [] typ loc in
@@ -611,7 +664,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let assign = L_assign (v, l) in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b assign typ loc id) b in
+          add_instr (mk_l2b assign typ loc id None) b in
         ctx, b
 
     (* there is no special case for ret since it gets handled by
@@ -631,19 +684,22 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         (* This is a special case of the next clause (ret <> None),
            but treated separately for simplicity. *)
         let ctx, b = exit_bitmode ctx b loc in
+        (* Save and restore free vars across combinator. *)
+        let fvs = ctx.ctx_free_vars in
         (* This turns into a `simple' infinite loop wrapped in a
            do block with a handler that ignores a failure. *)
         let ctx, b' = lower_rule_elem trace ctx m init_block ret re' in
+        let ctx = {ctx with ctx_free_vars = fvs} in
         let loop = C_loop (true, seal_block b') in
         let b' =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_c2b loop loc id) init_block in
+          add_instr (mk_c2b loop loc id None) init_block in
         let b' = seal_block b' in
         let fail = seal_handler init_block in
         let doblock = C_do (b', (H_success, fail)) in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_c2b doblock loc id) b in
+          add_instr (mk_c2b doblock loc id None) b in
         ctx, b
 
     | RE_star (re', None) ->
@@ -664,37 +720,41 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let null = ae_of_av (constr_av "[]" "[]" [] typ loc) in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (vr, null)) typ loc id in
+          mk_l2b (L_assign (vr, null)) typ loc id None in
         let b = add_instr assign b in
         (* Create the block for `re'`. *)
         let b' = init_block in
         let v', ctx = fresh_var ctx re'.rule_elem_aux re'.rule_elem_loc in
         let ret' = Some v' in
+        (* Save and restore free vars across combinator. *)
+        let fvs = ctx.ctx_free_vars in
         let ctx, b' = lower_rule_elem trace ctx m b' ret' re' in
+        let ctx = {ctx with ctx_free_vars = fvs} in
         (* Update the return value: `vr := v' :: vr`. *)
         let l = constr_av "[]" "::" [av_of_var v';
                                      av_of_var vr] typ loc in
         let id = ctx.ctx_id_gen () in
-        let assign = mk_l2b (L_assign (vr, ae_of_av l)) typ loc id in
+        let li = L_assign (vr, ae_of_av l) in
+        let assign = mk_l2b li typ loc id None in
         let b' = add_instr assign b' in
         (* Embed this in a loop for `re'*`. *)
         let loop = C_loop (true, seal_block b') in
         let id = ctx.ctx_id_gen () in
-        let b' = add_instr (mk_c2b loop loc id) init_block in
+        let b' = add_instr (mk_c2b loop loc id None) init_block in
         let b' = seal_block b' in
         (* Reverse the list in the handler: `vr := List.rev vr`. *)
         let ftyp = mk_func_type ctx typ typ in
         let f = mk_mod_func "List" "rev" ftyp loc in
-        let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
+        let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc None in
         let id = ctx.ctx_id_gen () in
-        let assign = mk_linst (L_assign (vr, l)) typ loc id in
+        let assign = mk_linst (L_assign (vr, l)) typ loc id None in
         let fail = add_instr assign init_block in
         let fail = seal_handler fail in
         (* Create a `do` block that ignores the failure. *)
         let doblock = C_do (b', (H_success, fail)) in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_c2b doblock loc id) b in
+          add_instr (mk_c2b doblock loc id None) b in
         ctx, b
 
     | RE_star (re', Some e) ->
@@ -728,7 +788,8 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let null = ae_of_av (constr_av "[]" "[]" [] typ loc) in
         let b = if   have_ret
                 then let id = ctx.ctx_id_gen () in
-                     add_instr (mk_l2b (L_assign (vr, null)) typ loc id) b
+                     let li = L_assign (vr, null) in
+                     add_instr (mk_l2b li typ loc id None) b
                 else b in
         let bnd, ctx = norm_exp ctx e in
         (* Assign the bound `bnd` to a variable `n`, and then decrement
@@ -736,61 +797,76 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
            when the `n` fails the constraint that it is positive. *)
         let n, ctx = fresh_var ctx e.expr_aux e.expr_loc in
         let id = ctx.ctx_id_gen () in
-        let assign = mk_l2b (L_assign (n, bnd)) e.expr_aux e.expr_loc id in
+        let li = L_assign (n, bnd) in
+        let assign = mk_l2b li e.expr_aux e.expr_loc id None in
         let b = add_instr assign b in
         (* Build the loop block. *)
         let b' = init_block in
         (* Evaluate the conditional: `c := n > 0`. *)
         let z = av_of_int ctx 0 Ast.usize_t e.expr_loc in
         let ae = AE_binop (Ast.Gt Ast.usize_t, av_of_var n, z) in
-        let ae = make_ae ae bool e.expr_loc in
+        let ae = make_ae ae bool e.expr_loc None in
         let c, ctx = fresh_var ctx bool e.expr_loc in
         let id = ctx.ctx_id_gen () in
-        let assign = mk_l2b (L_assign (c, ae)) bool e.expr_loc id in
+        let li = L_assign (c, ae) in
+        let assign = mk_l2b li bool e.expr_loc id None in
         let b' = add_instr assign b' in
         (* Check the conditional in an `if` block: `if c [] [break]` *)
         let thenb = seal_block init_block in
-        let elseb =
+        let elseb, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_binst B_break loc id) init_block in
+          let bi = B_break in
+          let s, ctx  = mk_site ctx SS_break e.expr_loc in
+          add_instr (mk_binst bi loc id (Some s)) init_block,
+          ctx in
         let elseb = seal_block elseb in
         (* Add the `if` check *)
-        let ifb =
+        let ifb, ctx =
           let id = ctx.ctx_id_gen () in
-          mk_c2b (C_if (c, thenb, elseb)) e.expr_loc id in
+          let s, ctx  = mk_site ctx SS_cond loc in
+          let ci = C_if (c, thenb, elseb) in
+          mk_c2b ci e.expr_loc id (Some s), ctx in
         let b' = add_instr ifb b' in
         (* Match `re'` binding the result to `v'`. *)
         let v', ctx = fresh_var ctx re'.rule_elem_aux re'.rule_elem_loc in
         let ret' = if have_ret then Some v' else None in
+        (* Save and restore free vars across combinator. *)
+        let fvs = ctx.ctx_free_vars in
         let ctx, b' = lower_rule_elem trace ctx m b' ret' re' in
+        let ctx = {ctx with ctx_free_vars = fvs} in
         let b' = if   have_ret
                  then (* Update the return value: `vr := v' :: vr`. *)
                    let l = constr_av "[]" "::" [av_of_var v';
                                                 av_of_var vr] typ loc in
                    let id = ctx.ctx_id_gen () in
                    let assign =
-                     mk_l2b (L_assign (vr, ae_of_av l)) typ loc id in
+                     let li = L_assign (vr, ae_of_av l) in
+                     mk_l2b li typ loc id None in
                    add_instr assign b'
                  else  b' in
         (* `n := n - 1` *)
         let o = av_of_int ctx 1 Ast.usize_t e.expr_loc in
         let ae = AE_binop (Ast.Minus Ast.usize_t, av_of_var n, o) in
-        let ae = make_ae ae usize e.expr_loc in
+        let ae = make_ae ae usize e.expr_loc None in
         let id = ctx.ctx_id_gen () in
-        let assign = mk_l2b (L_assign (n, ae)) e.expr_aux e.expr_loc id in
+        let li = L_assign (n, ae) in
+        let assign = mk_l2b li e.expr_aux e.expr_loc id None in
         let b' = add_instr assign b' in
         (* The loop block is done. *)
         let id = ctx.ctx_id_gen () in
-        let loop = mk_c2b (C_loop (false, seal_block b')) loc id in
+        let ci = C_loop (false, seal_block b') in
+        let loop = mk_c2b ci loc id None in
         let b = add_instr loop b in
         let b =
           if   have_ret
           then (* Reorder the accumulated matches: `vr := List.rev vr`. *)
             let ftyp = mk_func_type ctx typ typ in
             let f = mk_mod_func "List" "rev" ftyp loc in
-            let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
+            let l =
+              make_ae (AE_apply (f, [av_of_var vr])) typ loc None in
             let id = ctx.ctx_id_gen () in
-            let assign = mk_l2b (L_assign (vr, l)) typ loc id in
+            let li = L_assign (vr, l) in
+            let assign = mk_l2b li typ loc id None in
             add_instr assign b
           else  b in
         ctx, b
@@ -805,15 +881,18 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
            calculations, so they are currently forbidden in
            bit-mode. *)
         let ctx, b = exit_bitmode ctx b loc in
+        (* Save and restore free vars across combinator. *)
+        let fvs = ctx.ctx_free_vars in
         (* Create a block for `do` in which to match `re'`. *)
         let ctx, b' =
           lower_rule_elem trace ctx m init_block ret re' in
+        let ctx = {ctx with ctx_free_vars = fvs} in
         let fail = seal_handler init_block in
         (* Create a `do` block that ignores the failure. *)
         let doblock = C_do (seal_block b', (H_success, fail)) in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_c2b doblock loc id) b in
+          add_instr (mk_c2b doblock loc id None) b in
         ctx, b
 
     | RE_opt re' ->
@@ -831,25 +910,30 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let v', ctx =
           fresh_var ctx re'.rule_elem_aux re'.rule_elem_loc in
         let ret' = Some v' in
+        (* Save and restore free vars across combinator. *)
+        let fvs = ctx.ctx_free_vars in
         let ctx, b' =
           lower_rule_elem trace ctx m init_block ret' re' in
+        let ctx = {ctx with ctx_free_vars = fvs} in
         (* In success path: `vr := option::Some(v')` *)
         let av = constr_av "option" "Some" [av_of_var v'] typ loc in
         let id = ctx.ctx_id_gen () in
-        let assign = mk_l2b (L_assign (vr, ae_of_av av)) typ loc id in
+        let li = L_assign (vr, ae_of_av av) in
+        let assign = mk_l2b li typ loc id None in
         let b' = add_instr assign b' in
         (* In failure path: `vr := option::None()` *)
         let fail = init_block in
         let none = constr_av "option" "None" [] typ loc in
         let id = ctx.ctx_id_gen () in
-        let assign = mk_linst (L_assign (vr, ae_of_av none)) typ loc id in
+        let li = L_assign (vr, ae_of_av none) in
+        let assign = mk_linst li typ loc id None in
         let fail = add_instr assign fail in
         let fail = seal_handler fail in
         (* Create a `do` block that ignores the failure. *)
         let doblock = C_do (seal_block b', (H_success, fail)) in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_c2b doblock loc id) b in
+          add_instr (mk_c2b doblock loc id None) b in
         ctx, b
 
     | RE_epsilon ->
@@ -868,17 +952,21 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let ve, ctx = fresh_var ctx e.expr_aux e.expr_loc in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (ve, ae)) e.expr_aux e.expr_loc id in
+          let li = L_assign (ve, ae) in
+          mk_l2b li e.expr_aux e.expr_loc id None in
         let b = add_instr assign b in
         let avu, ctx = norm_exp ctx vu in
         let vvu, ctx = fresh_var ctx vu.expr_aux vu.expr_loc in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (vvu, avu)) vu.expr_aux vu.expr_loc id in
+          let li = L_assign (vvu, avu) in
+          mk_l2b li vu.expr_aux vu.expr_loc id None in
         let b = add_instr assign b in
-        let susp =
+        let susp, ctx =
           let id = ctx.ctx_id_gen () in
-          mk_binst (B_require_remaining (vvu, ve)) loc id in
+          let bi = B_require_remaining (vvu, ve) in
+          let s, ctx  = mk_site ctx SS_dynamic loc in
+          mk_binst bi loc id (Some s), ctx in
         let b = add_instr susp b in
         ctx, b
 
@@ -902,11 +990,15 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let v, ctx = fresh_var ctx e.expr_aux e.expr_loc in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (v, ae)) e.expr_aux e.expr_loc id in
+          let li = L_assign (v, ae) in
+          mk_l2b li e.expr_aux e.expr_loc id None in
         let b = add_instr assign b in
-        let b =
+        let b, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b (L_set_view v) unit loc id) b in
+          let li = L_set_view v in
+          let s, ctx  = mk_site ctx SS_view loc in
+          add_instr (mk_l2b li unit loc id (Some s)) b,
+          ctx in
         (* Any return binding should be set to `() : unit`. *)
         let b = match ret with
             | None   -> b
@@ -914,7 +1006,8 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
                 let lit_unit = ae_of_av (make_av (AV_lit PL_unit) unit loc) in
                 let assign =
                   let id = ctx.ctx_id_gen () in
-                  mk_l2b (L_assign (v, lit_unit)) unit loc id in
+                  let li = L_assign (v, lit_unit) in
+                  mk_l2b li unit loc id None in
                 add_instr assign b in
         ctx, b
 
@@ -936,36 +1029,48 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let v, ctx = fresh_var ctx e.expr_aux e.expr_loc in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (v, ae)) e.expr_aux e.expr_loc id in
+          let li = L_assign (v, ae) in
+          mk_l2b li e.expr_aux e.expr_loc id None in
         let b = add_instr assign b in
         (* Wrap the match for `re'` in a `do` block. *)
         let b' = init_block in
         (* Save the current view before the excursion. *)
         let b' =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b L_push_view unit loc id) b' in
+          add_instr (mk_l2b L_push_view unit loc id None) b' in
         (* Set the new view.  The old view needs to be restored on
            both the success and failure paths. *)
-        let set_pos =
+        let set_pos, ctx =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_set_pos v) unit loc id in
+          let li = L_set_pos v in
+          let s, ctx  = mk_site ctx SS_view re'.rule_elem_loc in
+          mk_l2b li unit loc id (Some s), ctx in
         let b' = add_instr set_pos b' in
+        (* Save and restore free vars across combinator. *)
+        let fvs = ctx.ctx_free_vars in
         (* Perform the match for `re'`. *)
         let ctx, b' = lower_rule_elem trace ctx m b' ret re' in
+        let ctx = {ctx with ctx_free_vars = fvs} in
         (* Restore the view after a successful match. *)
-        let b' =
+        let b', ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b L_pop_view unit loc id) b' in
+          let li = L_pop_view in
+          let s, ctx  = mk_site ctx SS_view re'.rule_elem_loc in
+          add_instr (mk_l2b li unit loc id (Some s)) b',
+          ctx in
         (* The do block is done.  The handler needs to restore the
            view in the failure path. *)
-        let fail =
+        let fail, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_linst L_pop_view unit loc id) init_block in
+          let li = L_pop_view  in
+          let s, ctx  = mk_site ctx SS_view loc in
+          add_instr (mk_linst li unit loc id (Some s)) init_block,
+          ctx in
         let fail = seal_handler fail in
         let doblock = C_do (seal_block b', (H_failure, fail)) in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_c2b doblock loc id) b in
+          add_instr (mk_c2b doblock loc id None) b in
         ctx, b
 
     | RE_at_view (e, re') ->
@@ -984,36 +1089,49 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let v, ctx = fresh_var ctx e.expr_aux e.expr_loc in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (v, ae)) e.expr_aux e.expr_loc id in
+          let li = L_assign (v, ae) in
+          mk_l2b li e.expr_aux e.expr_loc id None in
         let b = add_instr assign b in
         (* Wrap the match for `re'` in a `do` block. *)
         let b' = init_block in
         (* Save the current view before the excursion. *)
         let b' =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b L_push_view unit loc id) b' in
+          let li = L_push_view in
+          add_instr (mk_l2b li unit loc id None) b' in
         (* Set the new view.  The old view needs to be restored on
            both the success and failure paths. *)
-        let set_pos =
+        let set_pos, ctx =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_set_view v) unit loc id in
+          let li = L_set_view v in
+          let s, ctx  = mk_site ctx SS_view re'.rule_elem_loc in
+          mk_l2b li unit loc id (Some s), ctx in
         let b' = add_instr set_pos b' in
+        (* Save and restore free vars across combinator. *)
+        let fvs = ctx.ctx_free_vars in
         (* Perform the match for `re'`. *)
         let ctx, b' = lower_rule_elem trace ctx m b' ret re' in
+        let ctx = {ctx with ctx_free_vars = fvs} in
         (* Restore the view after a successful match. *)
-        let b' =
+        let b', ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b L_pop_view unit loc id) b' in
+          let li = L_pop_view in
+          let s, ctx  = mk_site ctx SS_view re'.rule_elem_loc in
+          add_instr (mk_l2b li unit loc id (Some s)) b',
+          ctx in
         (* The do block is done.  The handler needs to restore the
            view in the failure path. *)
-        let fail =
+        let fail, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_linst L_pop_view unit loc id) init_block in
+          let li = L_pop_view in
+          let s, ctx  = mk_site ctx SS_view loc in
+          add_instr (mk_linst li unit loc id (Some s)) init_block,
+          ctx in
         let fail = seal_handler fail in
         let doblock = C_do (seal_block b', (H_failure, fail)) in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_c2b doblock loc id) b in
+          add_instr (mk_c2b doblock loc id None) b in
         ctx, b
 
     (* handle the multi-assignment map-view case before the more
@@ -1053,7 +1171,8 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let vs, ctx = fresh_var ctx e.expr_aux e.expr_loc in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (vs, ae)) e.expr_aux e.expr_loc id in
+          let li = L_assign (vs, ae) in
+          mk_l2b li e.expr_aux e.expr_loc id None in
         let b = add_instr assign b in
         (* Split args into their types: iters are the variables
            holding the lists to be looped over (i.e. the condition
@@ -1067,7 +1186,8 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
               let e_typ, e_loc = e.expr_aux, e.expr_loc in
               let v, ctx = fresh_var ctx e_typ e_loc in
               let id = ctx.ctx_id_gen () in
-              let assign = mk_l2b (L_assign (v, ae)) e_typ e_loc id in
+              let li = L_assign (v, ae) in
+              let assign = mk_l2b li e_typ e_loc id None in
               let b = add_instr assign b in
               let is, cs = match a with
                   | Ast.A_in -> (i, v) :: is, cs
@@ -1082,12 +1202,13 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let db =
           if   have_ret
           then let id = ctx.ctx_id_gen () in
-               add_instr (mk_l2b (L_assign (vr, null)) typ loc id) db
+               let li = L_assign (vr, null) in
+               add_instr (mk_l2b li typ loc id None) db
           else db in
         (* Save the current view before the excursion. *)
         let db =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b L_push_view unit loc id) db in
+          add_instr (mk_l2b L_push_view unit loc id None) db in
         (* Create the loop block to loop over `vs`. *)
         let lb = init_block in
         (* Create a condition variable to evaluate the loop exit
@@ -1095,14 +1216,15 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
            `c := vs == [] && is == [] forall i`. *)
         let null = constr_av "[]" "[]" [] e.expr_aux e.expr_loc in
         let ae = AE_binop (Ast.Eq, (av_of_var vs), null) in
-        let ae = make_ae ae bool e.expr_loc in
+        let ae = make_ae ae bool e.expr_loc None in
         let c, ctx = fresh_var ctx bool e.expr_loc in
         (* tmp for `iters` loop *)
         let ct, ctx = fresh_var ctx bool e.expr_loc in
         (* `c := cs == []` *)
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (c, ae)) bool e.expr_loc id in
+          let li = L_assign (c, ae) in
+          mk_l2b li bool e.expr_loc id None in
         let lb = add_instr assign lb in
         let lb =
           List.fold_left (fun lb (_i, v) ->
@@ -1111,26 +1233,33 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
               (* `ct := v == []` *)
               let null = constr_av "[]" "[]" [] v.v_typ v.v_loc in
               let ae = AE_binop (Ast.Eq, (av_of_var v), null) in
-              let ae = make_ae ae bool v.v_loc in
+              let ae = make_ae ae bool v.v_loc None in
               let id = ctx.ctx_id_gen () in
-              let assign = mk_l2b (L_assign (ct, ae)) bool v.v_loc id in
+              let li = L_assign (ct, ae) in
+              let assign = mk_l2b li bool v.v_loc id None in
               let lb = add_instr assign lb in
               (* `c := c || ct` *)
               let ae =
                 AE_binop (Ast.Lor, (av_of_var c), (av_of_var ct)) in
-              let ae = make_ae ae bool c.v_loc in
+              let ae = make_ae ae bool c.v_loc None in
               let id = ctx.ctx_id_gen () in
-              let assign = mk_l2b (L_assign (c, ae)) bool c.v_loc id in
+              let li = L_assign (c, ae) in
+              let assign = mk_l2b li bool c.v_loc id None in
               add_instr assign lb
             ) lb iters in
         (* Check for loop exit condition; i.e. if `c` is true. *)
-        let thenb =
+        let thenb, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_binst B_break loc id) init_block in
+          let s, ctx  = mk_site ctx SS_break e.expr_loc in
+          add_instr (mk_binst B_break loc id (Some s)) init_block,
+          ctx in
         let thenb = seal_block thenb in
         let elseb = seal_block init_block in
-        let id = ctx.ctx_id_gen () in
-        let ifb = mk_c2b (C_if (c, thenb, elseb)) e.expr_loc id in
+        let ifb, ctx =
+          let id  = ctx.ctx_id_gen () in
+          let ci  = C_if (c, thenb, elseb) in
+          let s, ctx   = mk_site ctx SS_cond e.expr_loc in
+          mk_c2b ci e.expr_loc id (Some s), ctx in
         let lb  = add_instr ifb lb in
         (* Extract the heads of the various lists, and update the
            lists in the condition variables to their tails.  Collect
@@ -1145,21 +1274,23 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
               let elmtyp = list_elem is.v_typ in
               let ftyp = mk_func_type ctx is.v_typ elmtyp in
               let f = mk_mod_func "List" "head" ftyp is.v_loc in
-              let hd =
-                make_ae (AE_apply (f, [av_of_var vs])) elmtyp is.v_loc in
+              let hd = make_ae (AE_apply (f, [av_of_var vs]))
+                         elmtyp is.v_loc None in
               let i, ctx = fresh_var ctx elmtyp e.expr_loc in
               let assign =
                 let id = ctx.ctx_id_gen () in
-                mk_l2b (L_assign (i, hd)) elmtyp is.v_loc id in
+                let li = L_assign (i, hd) in
+                mk_l2b li elmtyp is.v_loc id None in
               let lb = add_instr assign lb in
               (* update the list: `is := List.tail is` *)
               let ftyp = mk_func_type ctx is.v_typ is.v_typ in
               let f  = mk_mod_func "List" "tail" ftyp is.v_loc in
-              let tl =
-                make_ae (AE_apply (f, [av_of_var is])) is.v_typ is.v_loc in
+              let tl = make_ae (AE_apply (f, [av_of_var is]))
+                         is.v_typ is.v_loc None in
               let assign =
                 let id = ctx.ctx_id_gen () in
-                mk_l2b (L_assign (is, tl)) is.v_typ is.v_loc id in
+                let li = L_assign (is, tl) in
+                mk_l2b li is.v_typ is.v_loc id None in
               let lb = add_instr assign lb in
               ctx, lb, i :: ls
             ) (ctx, lb, []) (vs :: List.map snd iters) in
@@ -1169,18 +1300,23 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
            view-specific values of the attributes in `iters`. *)
         let is = List.combine iters is in
         (* Set the view: set_view v *)
-        let lb =
+        let lb, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b (L_set_view v) unit v.v_loc id) lb in
+          let li = L_set_view v in
+          let s, ctx  = mk_site ctx SS_view v.v_loc in
+          add_instr (mk_l2b li unit v.v_loc id (Some s)) lb,
+          ctx in
         (* Construct the inherited attr argument list for the call. *)
         let iters' = List.map (fun ((i, _), v) -> (i, v)) is in
         let args' = iters' @ consts in
         let m = Anf_common.modul_of_mname m in
         let loc' = re'.rule_elem_loc in
         let r, ctx = fresh_var ctx re'.rule_elem_aux loc'  in
-        let call =
+        let call, ctx =
           let id = ctx.ctx_id_gen () in
-          mk_binst (B_call_nonterm (m, nt, args', r)) loc' id in
+          let bi = B_call_nonterm (m, nt, args', r) in
+          let s, ctx  = mk_site ctx SS_call (Location.loc nt) in
+          mk_binst bi loc' id (Some s), ctx in
         let lb = add_instr call lb in
         let lb =
           if   have_ret
@@ -1189,37 +1325,46 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
                                          av_of_var vr] typ loc in
             let assign =
               let id = ctx.ctx_id_gen () in
-              mk_l2b (L_assign (vr, ae_of_av l)) typ loc id in
+              let li = L_assign (vr, ae_of_av l) in
+              mk_l2b li typ loc id None in
             add_instr assign lb
           else  lb in
         (* The loop block is done; create the loop instruction. *)
         let loop = C_loop (false, seal_block lb) in
         let db =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_c2b loop loc id) db in
+          add_instr (mk_c2b loop loc id None) db in
         let db =
           if   have_ret
           then (* Reverse the result list: `vr := List.rev vr` *)
             let ftyp = mk_func_type ctx typ typ in
             let f = mk_mod_func "List" "rev" ftyp loc in
-            let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
+            let l =
+              make_ae (AE_apply (f, [av_of_var vr])) typ loc None in
             let id = ctx.ctx_id_gen () in
-            let assign = mk_l2b (L_assign (vr, l)) typ loc id in
+            let li = L_assign (vr, l) in
+            let assign = mk_l2b li typ loc id None in
             add_instr assign db
           else db in
         (* Restore the saved view. *)
-        let db =
+        let db, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b L_pop_view unit loc id) db in
+          let li = L_pop_view in
+          let s, ctx  = mk_site ctx SS_view loc in
+          add_instr (mk_l2b li unit loc id (Some s)) db,
+          ctx in
         (* Restore it in the `do` handler. *)
-        let fail =
+        let fail, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_linst L_pop_view unit loc id) init_block in
+          let li = L_pop_view in
+          let s, ctx  = mk_site ctx SS_view loc in
+          add_instr (mk_linst li unit loc id (Some s)) init_block,
+          ctx in
         let fail = seal_handler fail in
         let dob = C_do (seal_block db, (H_failure, fail)) in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_c2b dob loc id) b in
+          add_instr (mk_c2b dob loc id None) b in
         ctx, b
 
     | RE_map_views (e, re') ->
@@ -1247,7 +1392,8 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let vs, ctx = fresh_var ctx e.expr_aux e.expr_loc in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (vs, ae)) e.expr_aux e.expr_loc id in
+          let li = L_assign (vs, ae) in
+          mk_l2b li e.expr_aux e.expr_loc id None in
         let b = add_instr assign b in
         (* Wrap the excursions over `vs` in a handled `do` block. *)
         let db = init_block in
@@ -1257,32 +1403,42 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let db =
           if   have_ret
           then let id = ctx.ctx_id_gen () in
-               add_instr (mk_l2b (L_assign (vr, null)) typ loc id) db
+               let li = L_assign (vr, null) in
+               add_instr (mk_l2b li typ loc id None) db
           else db in
         (* Save the current view before the excursion. *)
-        let db =
+        let db, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b L_push_view unit loc id) db in
+          let li = L_push_view in
+          let s, ctx  = mk_site ctx SS_view re'.rule_elem_loc in
+          add_instr (mk_l2b li unit loc id (Some s)) db,
+          ctx in
         (* Create the loop block to loop over `vs`. *)
         let lb = init_block in
         (* Evaluate the loop exit condition `c := vs == []`. *)
         let null = constr_av "[]" "[]" [] e.expr_aux e.expr_loc in
         let ae = AE_binop (Ast.Eq, (av_of_var vs), null) in
-        let ae = make_ae ae bool e.expr_loc in
+        let ae = make_ae ae bool e.expr_loc None in
         let c, ctx = fresh_var ctx bool e.expr_loc in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (c, ae)) bool e.expr_loc id in
+          let li = L_assign (c, ae) in
+          mk_l2b li bool e.expr_loc id None in
         let lb = add_instr assign lb in
         (* Check for loop exit condition. *)
-        let thenb =
+        let thenb, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_binst B_break loc id) init_block in
+          let bi = B_break in
+          let s, ctx  = mk_site ctx SS_break e.expr_loc in
+          add_instr (mk_binst bi loc id (Some s)) init_block,
+          ctx in
         let thenb = seal_block thenb in
         let elseb = seal_block init_block in
-        let ifb   =
+        let ifb, ctx   =
           let id = ctx.ctx_id_gen () in
-          mk_c2b (C_if (c, thenb, elseb)) e.expr_loc id in
+          let ci = C_if (c, thenb, elseb) in
+          let s, ctx  = mk_site ctx SS_cond e.expr_loc in
+          mk_c2b ci e.expr_loc id (Some s), ctx in
         let lb = add_instr ifb lb in
         (* Get the head view to set: `v := List.head vs`. *)
         (* Use the _element type_ of the list type in `e.expr_aux`
@@ -1290,21 +1446,29 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let elmtyp = list_elem e.expr_aux in
         let ftyp = mk_func_type ctx e.expr_aux elmtyp in
         let f = mk_mod_func "List" "head" ftyp e.expr_loc in
-        let hd =
-          make_ae (AE_apply (f, [av_of_var vs])) elmtyp e.expr_loc in
+        let hd = make_ae (AE_apply (f, [av_of_var vs]))
+                   elmtyp e.expr_loc None in
         let v, ctx = fresh_var ctx elmtyp e.expr_loc in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (v, hd)) elmtyp e.expr_loc id in
+          let li = L_assign (v, hd) in
+          mk_l2b li elmtyp e.expr_loc id None in
         let lb = add_instr assign lb in
         (* Set this view. *)
-        let lb =
+        let lb, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b (L_set_view v) unit e.expr_loc id) lb in
+          let li = L_set_view v in
+          let s, ctx  = mk_site ctx SS_view e.expr_loc in
+          add_instr (mk_l2b li unit e.expr_loc id (Some s)) lb,
+          ctx in
         (* Bind the match for `re'` into `r`. *)
-        let r, ctx = fresh_var ctx re'.rule_elem_aux re'.rule_elem_loc in
+        let r, ctx =
+          fresh_var ctx re'.rule_elem_aux re'.rule_elem_loc in
         let ret' = if have_ret then Some r else None in
+        (* Save and restore free vars across combinator. *)
+        let fvs = ctx.ctx_free_vars in
         let ctx, lb = lower_rule_elem trace ctx m lb ret' re' in
+        let ctx = {ctx with ctx_free_vars = fvs} in
         let lb =
           if   have_ret
           then (* Add the result to `vr`: `vr := r :: vr`. *)
@@ -1312,45 +1476,55 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
                                          av_of_var vr] typ loc in
             let assign =
               let id = ctx.ctx_id_gen () in
-              mk_l2b (L_assign (vr, ae_of_av l)) typ loc id in
+              let li = L_assign (vr, ae_of_av l) in
+              mk_l2b li typ loc id None in
             add_instr assign lb
           else lb in
         (* Update the remaining views: `vs := List.tail vs`. *)
         let f = mk_mod_func "List" "tail" ftyp e.expr_loc in
-        let tl =
-          make_ae (AE_apply (f, [av_of_var vs])) e.expr_aux e.expr_loc in
+        let tl = make_ae (AE_apply (f, [av_of_var vs]))
+                   e.expr_aux e.expr_loc None in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (vs, tl)) e.expr_aux e.expr_loc id in
+          let li = L_assign (vs, tl) in
+          mk_l2b li e.expr_aux e.expr_loc id None in
         let lb = add_instr assign lb in
         (* The loop block is done; create the loop instruction. *)
         let loop = C_loop (false, seal_block lb) in
         let db =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_c2b loop loc id) db in
+          add_instr (mk_c2b loop loc id None) db in
         let db =
           if   have_ret
           then (* Reverse the result list: `vr := List.rev vr` *)
             let ftyp = mk_func_type ctx typ typ in
             let f = mk_mod_func "List" "rev" ftyp loc in
-            let l = make_ae (AE_apply (f, [av_of_var vr])) typ loc in
+            let l = make_ae (AE_apply (f, [av_of_var vr]))
+                      typ loc None in
             let id = ctx.ctx_id_gen () in
-            let assign = mk_l2b (L_assign (vr, l)) typ loc id in
+            let li = L_assign (vr, l) in
+            let assign = mk_l2b li typ loc id None in
             add_instr assign db
           else db in
         (* Restore the saved view. *)
-        let db =
+        let db, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_l2b L_pop_view unit loc id) db in
+          let li = L_pop_view in
+          let s, ctx  = mk_site ctx SS_view e.expr_loc in
+          add_instr (mk_l2b li unit loc id (Some s)) db,
+          ctx in
         (* Restore it in the `do` handler. *)
-        let fail =
+        let fail, ctx =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_linst L_pop_view unit loc id) init_block in
+          let li = L_pop_view in
+          let s, ctx  = mk_site ctx SS_view e.expr_loc in
+          add_instr (mk_linst li unit loc id (Some s)) init_block,
+          ctx in
         let fail = seal_handler fail in
         let dob = C_do (seal_block db, (H_failure, fail)) in
         let b =
           let id = ctx.ctx_id_gen () in
-          add_instr (mk_c2b dob loc id) b in
+          add_instr (mk_c2b dob loc id None) b in
         ctx, b
 
 (* Unlike a rule element, a rule has no explicit return value, since
@@ -1366,7 +1540,8 @@ let lower_rule (trace: bool) (ctx: context) (m: Ast.mname) (b: block)
         let ae, ctx = norm_exp ctx e in
         let assign =
           let id = ctx.ctx_id_gen () in
-          mk_l2b (L_assign (v, ae)) e.expr_aux e.expr_loc id in
+          let li = L_assign (v, ae) in
+          mk_l2b li e.expr_aux e.expr_loc id None in
         ctx, add_instr assign b
       ) (ctx, b) r.rule_temps in
   (* Now lower the rule elements. *)
@@ -1382,6 +1557,8 @@ let lower_rule (trace: bool) (ctx: context) (m: Ast.mname) (b: block)
    nt_entry so that it can be called from other rules. *)
 let lower_general_ntd (trace: bool) (ctx: context) (ntd: TypedAst.non_term_defn)
     : context =
+  (* Save and restore free vars across definition. *)
+  let fvs = ctx.ctx_free_vars in
   let nt_name = Location.value ntd.non_term_name in
   let mname = Ast.(Modul (Mod_inferred ntd.non_term_mod)) in
   let typ = get_nt_typ ctx mname nt_name in
@@ -1420,7 +1597,8 @@ let lower_general_ntd (trace: bool) (ctx: context) (ntd: TypedAst.non_term_defn)
      nt_loc       = ntd.non_term_loc} in
   (* Add it to the completed non-terminal definitions. *)
   let toc = ValueMap.add (m, nt_name) nte ctx.ctx_toc in
-  {ctx with ctx_toc = toc}
+  {ctx with ctx_toc       = toc;
+            ctx_free_vars = fvs}
 
 (* A wrapper to intercept the special case of a non-terminal without
    attributes, no temporaries and regexp-convertible rules. *)
