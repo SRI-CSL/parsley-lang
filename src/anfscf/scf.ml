@@ -32,6 +32,7 @@
 
 open Parsing
 open Typing
+open Site
 open Anf
 open Dfa
 
@@ -83,7 +84,6 @@ type matched_bits_predicate =
 module FrameMap = Map.Make(struct type t = frame_id
                                   let compare = compare
                            end)
-
 
 (* Handler type. *)
 type handle =
@@ -219,10 +219,11 @@ type linear_desc =
   | L_fail_choice
 
 type linear_instr =
-  {li:     linear_desc;
-   li_typ: TypedAst.typ;
-   li_loc: Location.t;
-   li_id:  instr_id}
+  {li:      linear_desc;
+   li_typ:  TypedAst.typ;
+   li_loc:  Location.t;
+   li_id:   instr_id;
+   li_site: site option}
 
 (* The basic bivalent instruction type, which includes linear and
    structured control instructions. *)
@@ -282,9 +283,10 @@ type bivalent_desc =
   | B_require_remaining of var (* view *) * var (* nbytes *)
 
 and bivalent_instr =
-  {bi:     bivalent_desc;
-   bi_loc: Location.t;
-   bi_id:  instr_id}
+  {bi:      bivalent_desc;
+   bi_loc:  Location.t;
+   bi_id:   instr_id;
+   bi_site: site option}
 
 and block = bivalent_instr list
 
@@ -330,7 +332,8 @@ and ctrl_desc =
 and ctrl_instr =
   {ci:      ctrl_desc;
    ci_loc:  Location.t;
-   ci_id:   instr_id}
+   ci_id:   instr_id;
+   ci_site: site option}
 
 module StringMap = Map.Make(String)
 
@@ -368,29 +371,34 @@ type spec_scf =
 
 (* Instruction utilities. *)
 
-let mk_linst d t l i : linear_instr =
-  {li     = d;
-   li_typ = t;
-   li_loc = l;
-   li_id  = i}
+let mk_linst d t l i s : linear_instr =
+  {li      = d;
+   li_typ  = t;
+   li_loc  = l;
+   li_id   = i;
+   li_site = s}
 
-let mk_binst d l i : bivalent_instr =
-  {bi     = d;
-   bi_loc = l;
-   bi_id  = i}
+let mk_binst d l i s : bivalent_instr =
+  {bi      = d;
+   bi_loc  = l;
+   bi_id   = i;
+   bi_site = s}
 
-let mk_cinst c l i : ctrl_instr =
-  {ci     = c;
-   ci_loc = l;
-   ci_id  = i}
+let mk_cinst c l i s : ctrl_instr =
+  {ci      = c;
+   ci_loc  = l;
+   ci_id   = i;
+   ci_site = s}
 
-let mk_l2b d t l i : bivalent_instr =
-  let li = mk_linst d t l i in
-  mk_binst (B_linear li) l i
+(* Sites are attached to innermost instructions. *)
 
-let mk_c2b c l i : bivalent_instr =
-  let ci = mk_cinst c l i in
-  mk_binst (B_control ci) l i
+let mk_l2b d t l i s : bivalent_instr =
+  let li = mk_linst d t l i s in
+  mk_binst (B_linear li) l i None
+
+let mk_c2b c l i s : bivalent_instr =
+  let ci = mk_cinst c l i s in
+  mk_binst (B_control ci) l i None
 
 let can_fail_implicitly (i: bivalent_instr) : bool =
   match i.bi with
@@ -474,8 +482,14 @@ type context =
    ctx_frame_gen: frame_gen;
    (* Mutations *)
    ctx_mutations: mutations FrameMap.t;
+   (* Free variables. *)
+   ctx_free_vars: site_var StringMap.t;
    (* Instruction id allocator *)
-   ctx_id_gen:    instr_id_gen}
+   ctx_id_gen:    instr_id_gen;
+   (* Site generator. *)
+   ctx_site_gen:  site_id_gen;
+   (* Sites by site identifier. *)
+   ctx_site_map:  site SiteMap.t}
 
 let add_frame (ctx: context) (f: frame_id) : context =
   {ctx with ctx_frame = f;
@@ -496,6 +510,9 @@ let to_stm_ctx (ctx: context) : anf_stm_ctx =
    anfs_frame     = ctx.ctx_frame;
    anfs_stack     = ctx.ctx_stack;
    anfs_frame_gen = ctx.ctx_frame_gen;
+   anfs_free_vars = ctx.ctx_free_vars;
+   anfs_site_gen  = ctx.ctx_site_gen;
+   anfs_site_map  = ctx.ctx_site_map;
    anfs_muts      = VMap.empty}
 
 let to_exp_ctx (ctx: context) : anf_exp_ctx =
@@ -516,3 +533,13 @@ let of_stm_ctx (ctx: context) (sc: anf_stm_ctx) : context =
    specification. *)
 let of_exp_ctx (ctx: context) (ec: anf_exp_ctx) : context =
   of_stm_ctx ctx (fold_exp_ctx (to_stm_ctx ctx) ec)
+
+(* Site creation and registration. *)
+let mk_site ctx typ (loc: Location.t) =
+  let id = ctx.ctx_site_gen () in
+  let s  = {site_id   = id;
+            site_type = typ;
+            site_vars = ctx.ctx_free_vars;
+            site_loc  = loc} in
+  let map  = SiteMap.add id s ctx.ctx_site_map in
+  s, {ctx with ctx_site_map = map}

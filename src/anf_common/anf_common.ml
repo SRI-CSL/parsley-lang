@@ -17,7 +17,7 @@
 
 open Parsing
 
-type varid = string * int
+type varid = string * int  (* globally unique identifiers *)
 
 let string_of_var (v, id) =
   if   v <> "" && id = 1
@@ -69,3 +69,7 @@ let string_of_occurrence occ =
   if   occ = []
   then ""
   else "@" ^ (String.concat "/" (List.map string_of_int occ))
+
+(* other useful defs *)
+
+module StringMap = Map.Make(String)

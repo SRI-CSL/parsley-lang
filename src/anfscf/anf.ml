@@ -19,6 +19,7 @@ open Parsing
 open Typing
 open TypedAst
 open Anf_common
+open Site
 
 (* The IR for the expression language is the A-normal form.
 
@@ -55,11 +56,17 @@ module FieldSet = Set.Make(struct type t = string list
                            end)
 
 (* variable bindings *)
+
 type var =
   {v:       varid;
    v_typ:   typ;
    v_frame: frame_id;
    v_loc:   Location.t}
+
+let mk_site_var v (k: site_var_type) (var: var) =
+  {sv_ident = AstUtils.ident_of_var v;
+   sv_type  = k;
+   sv_var   = var.v}
 
 (* values of ANF *)
 
@@ -155,32 +162,36 @@ type aexp_desc =
   | AE_letpat of var * (av * occurrence) * aexp
 
 and aexp =
-  {aexp:     aexp_desc;
-   aexp_typ: typ;
-   aexp_loc: Location.t}
+  {aexp:      aexp_desc;
+   aexp_typ:  typ;
+   aexp_loc:  Location.t;
+   aexp_site: site option}
 
 (* constructors for expressions *)
 
-let make_ae ae t l =
-  {aexp     = ae;
-   aexp_typ = t;
-   aexp_loc = l}
+let make_ae ae t l s =
+  {aexp      = ae;
+   aexp_typ  = t;
+   aexp_loc  = l;
+   aexp_site = s}
 
 let ae_of_av (av: av) : aexp =
-  {aexp     = AE_val av;
-   aexp_typ = av.av_typ;
-   aexp_loc = av.av_loc}
+  {aexp      = AE_val av;
+   aexp_typ  = av.av_typ;
+   aexp_loc  = av.av_loc;
+   aexp_site = None}
 
 type aconst =
-  {aconst_ident: varid;
-   aconst_val:   aexp;
-   aconst_mod:   string;
-   aconst_loc:   Location.t}
+  {aconst_var: var;
+   aconst_val: aexp;
+   aconst_mod: string;
+   aconst_loc: Location.t}
 
 type afun =
   {afun_ident:     var;
    afun_params:    var list;
    afun_body:      aexp;
+   afun_site:      site;
    afun_vars:      VSet.t;   (* new vars bound in the body (not including params) *)
    afun_frame:     frame_id;
    afun_recursive: bool;
@@ -199,8 +210,9 @@ type astmt_desc =
   | AS_letpat of var * (av * occurrence) * astmt
 
 and astmt =
-  {astmt:     astmt_desc;
-   astmt_loc: Location.t}
+  {astmt:      astmt_desc;
+   astmt_loc:  Location.t;
+   astmt_site: site option}
 
 module Bindings = Map.Make(struct type t = string * TypeInfer.varid
                                   let compare = compare
@@ -285,13 +297,20 @@ let error_msg = function
    and hence their dynamic calling context will always have an
    invoking call to the non-terminal they are defining.  During that
    invocation, the dynamic frame context will always match the static
-   context. [Proof?] *)
+   context. [Proof?]
+
+   For execution monitors, we collect the free variables in scope
+   (indexed by string name).
+ *)
 
 type anf_exp_ctx =
   {anfe_tenv:      TypingEnvironment.environment;
    anfe_venv:      VEnv.t;
    anfe_frame:     frame_id;
-   anfe_frame_gen: frame_gen}
+   anfe_frame_gen: frame_gen;
+   anfe_site_gen:  site_id_gen;
+   anfe_site_map:  site SiteMap.t;
+   anfe_free_vars: site_var StringMap.t}
 
 (* mutated variables and fields *)
 
@@ -309,6 +328,9 @@ type anf_stm_ctx =
    anfs_frame:     frame_id;
    anfs_stack:     frame_id list;
    anfs_frame_gen: frame_gen;
+   anfs_site_gen:  site_id_gen;
+   anfs_site_map:  site SiteMap.t;
+   anfs_free_vars: site_var StringMap.t;
    anfs_muts:      mutations}
 
 (* The expression context is always a projection of the latest
@@ -317,7 +339,10 @@ let mk_exp_ctx (ctx: anf_stm_ctx) : anf_exp_ctx =
   {anfe_tenv      = ctx.anfs_tenv;
    anfe_venv      = ctx.anfs_venv;
    anfe_frame     = ctx.anfs_frame;
-   anfe_frame_gen = ctx.anfs_frame_gen}
+   anfe_frame_gen = ctx.anfs_frame_gen;
+   anfe_site_gen  = ctx.anfs_site_gen;
+   anfe_site_map  = ctx.anfs_site_map;
+   anfe_free_vars = ctx.anfs_free_vars}
 
 (* An expression context updates the statement context it was
  * derived from. *)

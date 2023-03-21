@@ -18,10 +18,32 @@
 open Parsing
 open Typing
 open TypedAst
+open Anf_common
+open Site
 open Anf
 open Anf_pattern
 
-(* expression normalizer *)
+(* Site creation. *)
+
+let mk_site ctx typ (loc: Location.t) =
+  let id = ctx.anfe_site_gen () in
+  let s  = {site_id   = id;
+            site_type = typ;
+            site_vars = ctx.anfe_free_vars;
+            site_loc  = loc} in
+  let map = SiteMap.add id s ctx.anfe_site_map in
+  s, {ctx with anfe_site_map = map}
+
+let mk_site' ctx typ (loc: Location.t) =
+  let id = ctx.anfs_site_gen () in
+  let s  = {site_id   = id;
+            site_type = typ;
+            site_vars = ctx.anfs_free_vars;
+            site_loc  = loc} in
+  let map  = SiteMap.add id s ctx.anfs_site_map in
+  s, {ctx with anfs_site_map = map}
+
+(* Expression normalizer. *)
 
 type subexp =
   | S_var of av
@@ -34,14 +56,35 @@ type subexp =
 let rec mk_normalized_let v ae bd typ loc =
   match ae.aexp with
     | AE_let (v', ae', bd') ->
-        let bd''  = mk_normalized_let v bd' bd typ loc in
-        {aexp     = AE_let (v', ae', bd'');
-         aexp_typ = bd''.aexp_typ;
-         aexp_loc = bd''.aexp_loc}
+        let bd''   = mk_normalized_let v bd' bd typ loc in
+        {aexp      = AE_let (v', ae', bd'');
+         aexp_typ  = bd''.aexp_typ;
+         aexp_loc  = bd''.aexp_loc;
+         aexp_site = None}
     | _ ->
-        {aexp     = AE_let (v, ae, bd);
-         aexp_typ = typ;
-         aexp_loc = loc}
+        {aexp      = AE_let (v, ae, bd);
+         aexp_typ  = typ;
+         aexp_loc  = loc;
+         aexp_site = None}
+
+(* Create a unique IR variable for a source AST variable, and add it
+   to the list of current free variables. *)
+
+let bind (ctx: anf_exp_ctx) (v: TypeInfer.varid Ast.var) t k =
+  let avar, venv = VEnv.bind ctx.anfe_venv v in
+  let var = make_var avar ctx.anfe_frame t (Location.loc v) in
+  let sv = mk_site_var v k var in
+  let fvs = StringMap.add (Ast.var_name v) sv ctx.anfe_free_vars in
+  var, {ctx with anfe_venv      = venv;
+                 anfe_free_vars = fvs}
+
+let bind' (ctx: anf_stm_ctx) (v: TypeInfer.varid Ast.var) t k =
+  let avar, venv = VEnv.bind ctx.anfs_venv v in
+  let var = make_var avar ctx.anfs_frame t (Location.loc v) in
+  let sv = mk_site_var v k var in
+  let fvs = StringMap.add (Ast.var_name v) sv ctx.anfs_free_vars in
+  var, {ctx with anfs_venv      = venv;
+                 anfs_free_vars = fvs}
 
 (* When normalizing subexpressions, avoid creating let bindings
    for subexpressions that are already variables, since that will
@@ -65,8 +108,8 @@ let rec subnorm (ctx: anf_exp_ctx) (e: exp) : subexp * anf_exp_ctx =
 (* The main expression normalizer *)
 and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
   let loc = e.expr_loc in
-  let wrap e' =
-    make_ae e' e.expr_aux loc in
+  let wrap e' s =
+    make_ae e' e.expr_aux loc s in
   let make_lets binds ae =
     (* The bindings in [binds] are executed in reverse order,
        relying on the fact that the [binds] are themselves in
@@ -80,10 +123,10 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
         let t  = e.expr_aux in
         let l  = Location.loc v in
         let v' = make_av (AV_var v') t l in
-        wrap (AE_val v'), ctx
+        wrap (AE_val v') None, ctx
     | E_literal l ->
         let v' = make_av (AV_lit l) e.expr_aux e.expr_loc in
-        wrap (AE_val v'), ctx
+        wrap (AE_val v') None, ctx
     | E_constr (c, es) ->
         (* Order of evaluation is left-to-right *)
         let (binds, vs), ctx =
@@ -96,7 +139,7 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
             ) (([], []), ctx) es in
         let v  = AV_constr (Anf_common.convert_con c, List.rev vs) in
         let av = make_av v e.expr_aux e.expr_loc in
-        let ae = make_lets binds (wrap (AE_val av)) in
+        let ae = make_lets binds (wrap (AE_val av) None) in
         ae, ctx
     | E_record fs ->
         (* Order of evaluation is first to last *)
@@ -111,7 +154,7 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
             ) (([], []), ctx) fs in
         let v  = AV_record (List.rev fvs) in
         let av = make_av v e.expr_aux e.expr_loc in
-        let ae = make_lets binds (wrap (AE_val av)) in
+        let ae = make_lets binds (wrap (AE_val av) None) in
         ae, ctx
     | E_apply (f, es) ->
         (* Order of evaluation is function first, and then args
@@ -136,7 +179,9 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
             | AV_var v -> wrap (FV_var v)
             | AV_mod_member (m, c) -> wrap (FV_mod_member (m, c))
             | _ -> assert false in
-        let ae = wrap (AE_apply (fv, List.rev vs)) in
+        (* This is an apply site. *)
+        let s, ctx = mk_site ctx ST_apply loc in
+        let ae = wrap (AE_apply (fv, List.rev vs)) (Some s) in
         let ae = make_lets binds ae in
         ae, ctx
     | E_unop (op, e) ->
@@ -144,7 +189,7 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
         let binds, av = match se with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
-        let ae = wrap (AE_unop (op, av)) in
+        let ae = wrap (AE_unop (op, av)) None in
         let ae = make_lets binds ae in
         ae, ctx
     | E_binop (op, l, r) ->
@@ -158,7 +203,7 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
         let binds, rv = match sr with
             | S_var av          -> binds, av
             | S_let (v, ae, av) -> (v, ae) :: binds, av in
-        let ae = wrap (AE_binop (op, lv, rv)) in
+        let ae = wrap (AE_binop (op, lv, rv)) None in
         let ae = make_lets binds ae in
         ae, ctx
     | E_recop ((m, r, op), e) ->
@@ -169,8 +214,8 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
             | S_let (v, ae, av) -> [v, ae], av in
         let m = Anf_common.modul_of_mname m in
         let ae = match Location.value op with
-            | "bits"   -> wrap (AE_bits_of_rec (m, r, av, bfi))
-            | "record" -> wrap (AE_rec_of_bits (m, r, av, bfi))
+            | "bits"   -> wrap (AE_bits_of_rec (m, r, av, bfi)) None
+            | "record" -> wrap (AE_rec_of_bits (m, r, av, bfi)) None
             | _        -> assert false in
         let ae = make_lets binds ae in
         ae, ctx
@@ -179,7 +224,7 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
         let binds, av = match se with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
-        let ae = wrap (AE_bitrange (av, f, l)) in
+        let ae = wrap (AE_bitrange (av, f, l)) None in
         let ae = make_lets binds ae in
         ae, ctx
     | E_match (e, c) ->
@@ -187,7 +232,7 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
         let binds, av = match se with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
-        let ae = wrap (AE_match (av, Anf_common.convert_con c)) in
+        let ae = wrap (AE_match (av, Anf_common.convert_con c)) None in
         let ae = make_lets binds ae in
         ae, ctx
     | E_field (e, (_, f)) ->
@@ -196,18 +241,18 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
         let binds, av = match se with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
-        let ae = wrap (AE_field (av, f)) in
+        let ae = wrap (AE_field (av, f)) None in
         let ae = make_lets binds ae in
         ae, ctx
     | E_mod_member (m, id) ->
         let mm = make_av (AV_mod_member (m, id)) e.expr_aux e.expr_loc in
-        wrap (AE_val mm), ctx
+        wrap (AE_val mm) None, ctx
     | E_cast (e, t) ->
         let se, ctx   = subnorm ctx e in
         let binds, av = match se with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
-        let ae = wrap (AE_cast (av, t)) in
+        let ae = wrap (AE_cast (av, t)) None in
         let ae = make_lets binds ae in
         ae, ctx
     | E_let (p, pe, e) ->
@@ -215,7 +260,7 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
         let binds, av = match spe with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
-        (* this is a special case of pattern matching *)
+        (* This is a special case of pattern matching *)
         let cases = [p, e] in
         let ae, ctx = normalize_exp_case ctx av cases loc in
         let ae = make_lets binds ae in
@@ -233,7 +278,7 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
         let binds, av = match se with
             | S_var av          -> [], av
             | S_let (v, ae, av) -> [v, ae], av in
-        let ae = wrap (AE_print (b, av)) in
+        let ae = wrap (AE_print (b, av)) None in
         let ae = make_lets binds ae in
         ae, ctx
 
@@ -260,28 +305,33 @@ and normalize_exp_case (ctx: anf_exp_ctx) (scrutinee: av) (cases: (pat * exp) li
              Otherwise, the action can be inlined at the single leaf
              resolving to it. *)
           let act, pvs = List.assoc a act_infos in
+          (* Save the binding context. *)
+          let fvs = ctx.anfe_free_vars in
           (* Bind a new ANF variable in the variable environment for
              each pvar *)
           let letpats, ctx =
             List.fold_left (fun (letpats, ctx) (v, t, occ) ->
                 if   VEnv.is_bound ctx.anfe_venv v
                 then letpats, ctx
-                else let avar, venv = VEnv.bind ctx.anfe_venv v in
-                     let var = make_var avar ctx.anfe_frame t (Location.loc v) in
-                     (var, occ) :: letpats, {ctx with anfe_venv = venv}
+                else let var, ctx = bind ctx v t SV_val in
+                     (var, occ) :: letpats, ctx
 
               ) ([], ctx) pvs in
           (* Normalize the action expression in this augmented
              variable environment *)
           let ae, ctx = normalize_exp ctx act in
+          (* Create a binding site for the clause. *)
+          let s, ctx = mk_site ctx ST_let ae.aexp_loc in
+          let ae = {ae with aexp_site = Some s} in
           (* Wrap the normalized action in the letpat bindings to
              bind the new ANF variables *)
           let ae =
             List.fold_left (fun ae (avar, occ) ->
                 make_ae (AE_letpat (avar, (scrutinee, occ), ae))
-                  ae.aexp_typ ae.aexp_loc
+                  ae.aexp_typ ae.aexp_loc None
               ) ae letpats in
-          ae, ctx
+          (* Restore the binding context. *)
+          ae, {ctx with anfe_free_vars = fvs}
       | Switch (occ, subtree) ->
           (* Convert the subtree into cases for an ANF case.  The type
              of the sub-term being matched at the occurence is that of
@@ -310,29 +360,30 @@ and normalize_exp_case (ctx: anf_exp_ctx) (scrutinee: av) (cases: (pat * exp) li
              | AV_var v when occ = root_occurrence ->
                  let var =
                    make_var v ctx.anfe_frame scrutinee.av_typ scrutinee.av_loc in
-                 make_ae (AE_case (var, cases)) case_typ loc,
+                 make_ae (AE_case (var, cases)) case_typ loc None,
                  ctx
              | _ ->
                  let v, venv = VEnv.gen ctx.anfe_venv in
                  let var  = make_var v ctx.anfe_frame occ_typ Location.ghost_loc in
                  let aexp =
-                   make_ae (AE_case (var, cases)) case_typ loc in
+                   make_ae (AE_case (var, cases)) case_typ loc None in
                  (* Wrap the case in a letpat for the ANF variable *)
                  make_ae
                    (AE_letpat (var, (scrutinee, occ), aexp))
                    aexp.aexp_typ
-                   loc,
+                   loc
+                   None,
                  {ctx with anfe_venv = venv}) in
   (* construct the anf *)
   unfold ctx dt
 
 let normalize_const (ctx: anf_exp_ctx) (c: const) : aconst * anf_exp_ctx =
-  let cident, venv = VEnv.bind ctx.anfe_venv c.const_defn_ident in
-  let cval, ctx = normalize_exp {ctx with anfe_venv = venv} c.const_defn_val in
-  {aconst_ident = cident;
-   aconst_val   = cval;
-   aconst_mod   = c.const_defn_mod;
-   aconst_loc   = c.const_defn_loc},
+  let cvar, ctx = bind ctx c.const_defn_ident c.const_defn_aux SV_val in
+  let cval, ctx = normalize_exp ctx c.const_defn_val in
+  {aconst_var = cvar;
+   aconst_val = cval;
+   aconst_mod = c.const_defn_mod;
+   aconst_loc = c.const_defn_loc},
   ctx
 
 (* utility to wrap frame generation *)
@@ -342,9 +393,11 @@ let alloc_frame (ctx: anf_exp_ctx) : frame_id * anf_exp_ctx =
   orig_frame, {ctx with anfe_frame}
 
 let normalize_fun (ctx: anf_exp_ctx) (f: func) : afun * anf_exp_ctx =
-  let fv, venv = VEnv.bind ctx.anfe_venv f.fun_defn_ident in
-  let fv = make_var fv ctx.anfe_frame f.fun_defn_aux f.fun_defn_loc in
-  let ctx = {ctx with anfe_venv = venv} in
+  (* Add function name to list of free vars. *)
+  let fv, ctx = bind ctx f.fun_defn_ident f.fun_defn_aux SV_fun in
+  (* Save free-vars on entry into the binding context of the function
+     body, and restore on exit. *)
+  let fvs = ctx.anfe_free_vars in
   (* Get a new frame in which the function body will be normalized.
      The variables for the function parameters will also be allocated
      in this frame.  This will affect call frame construction for
@@ -355,62 +408,73 @@ let normalize_fun (ctx: anf_exp_ctx) (f: func) : afun * anf_exp_ctx =
   (* Save the entry venv so that we can compute the set of variables
      allocated in this new frame. *)
   let entry_venv = ctx.anfe_venv in
-  let params, venv =
-    List.fold_left (fun (ps, venv) (v, te, t) ->
-        let p, venv = VEnv.bind venv v in
-        let p = make_var p ctx.anfe_frame t Ast.(te.type_expr_loc) in
-        p :: ps, venv
-      ) ([], ctx.anfe_venv) f.fun_defn_params in
-  let body, ctx   = normalize_exp {ctx with anfe_venv = venv} f.fun_defn_body in
+  let params, ctx =
+    List.fold_left (fun (ps, ctx) (v, _te, t) ->
+        let p, ctx = bind ctx v t SV_val in
+        p :: ps, ctx
+      ) ([], ctx) f.fun_defn_params in
+  (* Create a site at function entry. *)
+  let s, ctx = mk_site ctx ST_fun f.fun_defn_body.expr_loc in
+  let body, ctx   = normalize_exp ctx f.fun_defn_body in
   {afun_ident     = fv;
    afun_params    = List.rev params;
    afun_body      = body;
+   afun_site      = s;
    afun_vars      = VEnv.new_since ctx.anfe_venv entry_venv ctx.anfe_frame;
    afun_frame     = ctx.anfe_frame;
    afun_recursive = f.fun_defn_recursive;
    afun_synth     = f.fun_defn_synth;
    afun_mod       = f.fun_defn_mod;
    afun_loc       = f.fun_defn_loc},
-  {ctx with anfe_frame = orig_frame}
+  (* Restore binding context. *)
+  {ctx with anfe_frame     = orig_frame;
+            anfe_free_vars = fvs}
 
 let normalize_recfuns (ctx: anf_exp_ctx) (fs: func list) : afun list * anf_exp_ctx =
-  (* bind all the function names before normalizing the first body *)
+  (* Bind all the function names before normalizing the first body *)
   let fids, ctx =
     List.fold_left (fun (fids, ctx) (f: func) ->
-        let fid, venv = VEnv.bind ctx.anfe_venv f.fun_defn_ident in
-        let fid = make_var fid ctx.anfe_frame f.fun_defn_aux f.fun_defn_loc in
-        fid :: fids, {ctx with anfe_venv = venv}
+        let fid, ctx =
+          bind ctx f.fun_defn_ident f.fun_defn_aux SV_fun in
+        fid :: fids, ctx
       ) ([], ctx) (List.rev fs) in
   (* now do the function bodies *)
   let fs, ctx =
     List.fold_left (fun (fs, ctx) (fid, (f: func)) ->
-        let orig_frame, ctx = alloc_frame ctx in
+        (* Save context on entry into binding context, and restore on
+           exit. *)
+        let fvs = ctx.anfe_free_vars in
         let entry_venv = ctx.anfe_venv in
-        let params, venv =
-          List.fold_left (fun (ps, venv) (v, te, t) ->
-              let p, venv = VEnv.bind venv v in
-              let p = make_var p ctx.anfe_frame t Ast.(te.type_expr_loc) in
-              p :: ps, venv
-            ) ([], ctx.anfe_venv) f.fun_defn_params in
-        let body, ctx = normalize_exp {ctx with anfe_venv = venv} f.fun_defn_body in
+        let orig_frame, ctx = alloc_frame ctx in
+        let params, ctx =
+          List.fold_left (fun (ps, ctx) (v, _te, t) ->
+              let p, ctx = bind ctx v t SV_val in
+              p :: ps, ctx
+            ) ([], ctx) f.fun_defn_params in
+        (* Create a site at function entry. *)
+        let s, ctx = mk_site ctx ST_fun f.fun_defn_body.expr_loc in
+        let body, ctx = normalize_exp ctx f.fun_defn_body in
         let f' = {afun_ident     = fid;
                   afun_params    = List.rev params;
                   afun_body      = body;
+                  afun_site      = s;
                   afun_vars      = VEnv.new_since ctx.anfe_venv entry_venv ctx.anfe_frame;
                   afun_frame     = ctx.anfe_frame;
                   afun_recursive = f.fun_defn_recursive;
                   afun_synth     = f.fun_defn_synth;
                   afun_mod       = f.fun_defn_mod;
                   afun_loc       = f.fun_defn_loc} in
-        f' :: fs, {ctx with anfe_frame = orig_frame}
+        f' :: fs, {ctx with anfe_frame     = orig_frame;
+                            anfe_free_vars = fvs}
       ) ([], ctx) (List.combine fids fs) in
   List.rev fs, ctx
 
 let rec normalize_stmt (ctx: anf_stm_ctx) (s: stmt) : astmt * anf_stm_ctx =
   let loc = s.stmt_loc in
-  let wrap s' =
-    {astmt     = s';
-     astmt_loc = loc} in
+  let wrap s' site =
+    {astmt      = s';
+     astmt_loc  = loc;
+     astmt_site = site} in
   (* Flatten any nested expression-level lets along with any
      statement-level ones. *)
   let get_subnorm_binds se =
@@ -435,8 +499,9 @@ let rec normalize_stmt (ctx: anf_stm_ctx) (s: stmt) : astmt * anf_stm_ctx =
       | [] ->
           sn
       | (v, ae) :: rest ->
-          make_lets rest {astmt     = AS_let (v, ae, sn);
-                          astmt_loc = s.stmt_loc} in
+          make_lets rest {astmt      = AS_let (v, ae, sn);
+                          astmt_loc  = s.stmt_loc;
+                          astmt_site = None} in
   (* Verify that the mutated variable belongs to a frame
      that is on the stack. *)
   let in_scope ctx v : bool =
@@ -473,6 +538,8 @@ let rec normalize_stmt (ctx: anf_stm_ctx) (s: stmt) : astmt * anf_stm_ctx =
         let ln, ectx = normalize_exp ectx l in
         let rn, ectx = normalize_exp ectx r in
         let ctx  = fold_exp_ctx ctx ectx in
+        (* Create a site for the assignment. *)
+        let s, ctx = mk_site' ctx ST_let loc in
         (* The left hand side can be a possibly empty sequence of
            lets terminated by a variable or a record field; hoist the
            lets out of the assignment. *)
@@ -481,19 +548,19 @@ let rec normalize_stmt (ctx: anf_stm_ctx) (s: stmt) : astmt * anf_stm_ctx =
             | AE_val {av = AV_var v; _}, [] ->
                 let v = make_var v ctx.anfs_frame ln.aexp_typ ln.aexp_loc in
                 let ctx = add_mut_var ctx v in
-                wrap (AS_set_var (v, rn)), ctx
+                wrap (AS_set_var (v, rn)) (Some s), ctx
             | AE_val {av = AV_var v; _}, _ :: _ ->
                 let v = make_var v ctx.anfs_frame ln.aexp_typ ln.aexp_loc in
                 (* strip module qualifiers for fields in ANF *)
                 let fs = List.map (fun (_, f) -> f) fs in
                 let ctx = add_mut_fields ctx v fs in
-                wrap (AS_set_field (v, fs, rn)), ctx
+                wrap (AS_set_field (v, fs, rn)) (Some s), ctx
             | AE_field (_, _), _ ->
                 (* This should have been part of the fields suffix. *)
                 assert false
             | AE_let (v, ae', ae''), _ ->
                 let ae'', ctx = hoist_lets ae'' ctx in
-                wrap (AS_let (v, ae', ae'')), ctx
+                wrap (AS_let (v, ae', ae'')) (Some s), ctx
             | _ ->
                 raise (Error (ln.aexp_loc, Unassignable_expression)) in
         hoist_lets ln ctx
@@ -502,9 +569,9 @@ let rec normalize_stmt (ctx: anf_stm_ctx) (s: stmt) : astmt * anf_stm_ctx =
         let ectx      = mk_exp_ctx ctx in
         let se, ectx  = subnorm ectx e in
         let binds, av = get_subnorm_binds se in
-        let ctx   = fold_exp_ctx ctx ectx in
-        let cases = [p, ss] in
-        let sn, ctx = normalize_stmt_case ctx av cases loc in
+        let ctx       = fold_exp_ctx ctx ectx in
+        let cases     = [p, ss] in
+        let sn, ctx   = normalize_stmt_case ctx av cases loc in
         let sn = make_lets binds sn in
         sn, ctx
     | S_case (e, cases) ->
@@ -520,7 +587,7 @@ let rec normalize_stmt (ctx: anf_stm_ctx) (s: stmt) : astmt * anf_stm_ctx =
         let se, ectx   = subnorm ectx e in
         let binds, av = get_subnorm_binds se in
         let ctx       = fold_exp_ctx ctx ectx in
-        let sn = make_lets binds (wrap (AS_print (b, av))) in
+        let sn = make_lets binds (wrap (AS_print (b, av)) None) in
         sn, ctx
 
 and normalize_stmt_case (ctx: anf_stm_ctx) (scrutinee: av)
@@ -543,35 +610,48 @@ and normalize_stmt_case (ctx: anf_stm_ctx) (scrutinee: av)
              Otherwise, the action can be inlined at the single leaf
              resolving to it. *)
           let act, pvs = List.assoc a act_infos in
+          (* Save the binding context. *)
+          let fvs = ctx.anfs_free_vars in
           (* Bind a new ANF variable in the variable environment for
              each pvar *)
           let letpats, ctx =
             List.fold_left (fun (letpats, ctx) (v, t, occ) ->
                 if   VEnv.is_bound ctx.anfs_venv v
                 then letpats, ctx
-                else let avar, venv = VEnv.bind ctx.anfs_venv v in
-                     let var = make_var avar ctx.anfs_frame t (Location.loc v) in
-                     (var, occ) :: letpats, {ctx with anfs_venv = venv}
+                else let var, ctx = bind' ctx v t SV_val in
+                     (var, occ) :: letpats, ctx
               ) ([], ctx) pvs in
           (* Normalize the action block in this augmented
              variable environment (note the order reversal) *)
-          let act, ctx =
-            List.fold_left (fun (astmts, ctx) s ->
+          (* Place a site on the first statement, if there is one. *)
+          let act, ctx, oloc =
+            List.fold_left (fun (astmts, ctx, oloc) s ->
                 let astmt, ctx = normalize_stmt ctx s in
-                astmt :: astmts, ctx
-              ) ([], ctx) act in
+                let oloc = match oloc with
+                    | None   -> Some s.stmt_loc
+                    | Some _ -> oloc in
+                astmt :: astmts, ctx, oloc
+              ) ([], ctx, None) act in
+          (* Create a binding site. *)
+          let s, ctx = match oloc with
+              | Some loc -> let s, ctx = mk_site' ctx ST_let loc in
+                            Some s, ctx
+              | None     -> None, ctx in
           (* Wrap the normalized action in the letpat bindings to
              bind the new ANF variables, and reorder the reversed
              block. *)
           let astmt =
-            {astmt     = AS_block (List.rev act);
-             astmt_loc = Location.ghost_loc} in
+            {astmt      = AS_block (List.rev act);
+             astmt_loc  = Location.ghost_loc;
+             astmt_site = s} in
           let astmt =
             List.fold_left (fun astmt (avar, occ) ->
-                {astmt     = AS_letpat (avar, (scrutinee, occ), astmt);
-                 astmt_loc = Location.ghost_loc}
+                {astmt      = AS_letpat (avar, (scrutinee, occ), astmt);
+                 astmt_loc  = Location.ghost_loc;
+                 astmt_site = None}
               ) astmt letpats in
-          astmt, ctx
+          (* Restore the binding context. *)
+          astmt, {ctx with anfs_free_vars = fvs}
       | Switch (occ, subtree) ->
           (* Convert the subtree into cases for an ANF case.  The type
              of the sub-term being matched at the occurence is that of
@@ -599,17 +679,20 @@ and normalize_stmt_case (ctx: anf_stm_ctx) (scrutinee: av)
              | AV_var v when occ = root_occurrence ->
                  let var =
                    make_var v ctx.anfs_frame scrutinee.av_typ scrutinee.av_loc in
-                 {astmt     = AS_case (var, cases);
-                  astmt_loc = loc},
+                 {astmt      = AS_case (var, cases);
+                  astmt_loc  = loc;
+                  astmt_site = None},
                  ctx
              | _ ->
                  let v, venv = VEnv.gen ctx.anfs_venv in
                  let var  = make_var v ctx.anfs_frame occ_typ Location.ghost_loc in
                  let astmt =
-                   {astmt     = AS_case (var, cases);
-                    astmt_loc = loc} in
+                   {astmt      = AS_case (var, cases);
+                    astmt_loc  = loc;
+                    astmt_site = None} in
                  (* Wrap the case in a letpat for the ANF variable *)
-                 {astmt     = AS_letpat (var, (scrutinee, occ), astmt);
-                  astmt_loc = loc},
+                 {astmt      = AS_letpat (var, (scrutinee, occ), astmt);
+                  astmt_loc  = loc;
+                  astmt_site = None},
                  {ctx with anfs_venv = venv}) in
   unfold ctx dt
