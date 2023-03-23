@@ -1,0 +1,261 @@
+Debugger design
+===============
+
+Design goals
+------------
+
+. support interaction via commands
+
+  commands like: examine current variable state, buffer state, set and remove
+  breakpoint, next, prev, continue, reset
+
+. source code annotations like asserts that kick in debug mode.
+
+. forward and backward stepping
+
+. generic implementation
+
+  re-use the same interpreter infrastructure for tracing, profiling,
+  coverage testing, etc.
+
+
+High-level Design
+-----------------
+
+. interpreter as a stepper
+
+. debugger as an instance of an abstract execution monitor
+
+. an operator to compose the stepping interpreter and an arbitrary
+  execution monitor
+
+. driver as a relayer of messages between debugger and user
+
+. implement core commands from the DAP (Debugr Adapter Protocol)
+  https://microsoft.github.io/debug-adapter-protocol/specification
+
+
+Infrastructure
+--------------
+
+. locating source points of interest
+
+  . identifying a variable (to examine its value, event on binding assignment, etc)
+
+    - from name/source location (e.g. LSP)
+
+    - from cli (from scope at current breakpoint)
+
+  . identifying a breakpoint location
+
+    - from source location
+
+      Typically, this will be a line number (check DAP for more modern techniques).
+
+      Such identifications will need to handle a many-many mapping:
+      many events can occur on a line, and an event could span
+      multiple lines.
+
+      One approach is: when asked for a breakpoint on a line, activate
+      all breakpoints that span that line.
+
+    - from cli
+
+. mapping current step location to source
+
+  - current construct may cover a wide area, could need narrowing.
+
+. collecting free variables to annotate program sites can be done as a
+  part of a pass for variable def-use validation.  A depth-first
+  strategy collects defs on the way down, checks uses on the way back
+  up, and attaches free-var annotations after the def-use check.
+  Alternatively, the annotations could be attached, and then the
+  def-use checks could be performed on the annotations (to validate
+  the annotations themselves).
+
+  defs are perfored at `let`s, rule temporaries, and vars introduced
+  for internal book-keeping.
+
+  Q: do we really need to collect free-var annotations in the IR?  If
+  we keep an environment as part of the interpreter state, we could
+  just perform lookups in that; i.e. store the environment in the
+  events for a site.  Tradeoff: speed, since we don't have to traverse
+  a free-var list to lookup and collect their values for events,
+  versus memory, since envs are large.  Let's do this: even though the
+  envs are large, a functional env should result in a lot of sharing
+  of state for unmodified vars.
+
+Implementation
+--------------
+
+. Insert static points of interest (`sites` according to SML debugger)
+  that can be numbered uniquely in the program.  This can provide
+  mappings usable for the user interface:
+
+  {line number, variable name, function def, function call, non-terminal} -> site
+
+  This can also support a breakpoint array: site -> breakpoint option
+
+  This array is checked by the interpreter to break and transfer
+  control to the debugger.  Since this breakpoint lookup is very
+  frequent, it is important that this lookup be very fast.
+
+. During execution, entry at a site creates an event.  An event is
+  also uniquely numbered, and can be stored in an indexable array.
+  The execution history can then be traversed in ordered according to
+  event number: an event's temporal predecessor is identified by the
+  event corresponding to the preceding event number.
+
+  Backward execution should be as simple as just restoring the
+  interpreter state from the appropriate event.  [This may not be
+  possible in some cases: e.g. passage through general dynamic
+  assertions, freeing of buffer prefixes or buffers, etc.  If a
+  dynamic assertion is executed, its event should be recorded so that
+  it can provide a bound for forward or backward execution.]
+
+. Source variable names need to be mapped to IR var names, and scope
+  needs to be enforced.  (A variable lookup in a certain frame should
+  not find a variable with the same name but invisible according to
+  scoping rules).
+
+  Scoping rules could be recorded statically in the site information:
+  each site records the free variables visible at the site, and the
+  source name -> IR name map for these variables.  This scoping can be
+  performed during IR generation:
+
+  . Scope starts at function entry point, or non-terminal entry point.
+
+  . Each variable introduced (via params, `let` bindings, temporaries,
+    named rule-element) gets added to the free var set (along with its
+    IR name mapping).  This addition should implement capture:
+    variables should shadow variables with the same names
+    (i.e. shadowed variables should be removed from the free-var set).
+    A map indexed by source variable name should work for this purpose.
+
+Operations at the debug prompt:
+
+. Variable value: this requires a lookup in the environment active at
+  that point.  This could be implemented by just storing the active
+  environment in the event structure, which falls out if the
+  interpreter state (which includes the environment) is stored in the
+  event.  Since some variables are only visible at certain levels of
+  the call stack, each frame of the stack needs to store the value
+  environment.
+
+. Printing the call stack: The event predecessor relation for this is
+  different from the temporal predecessor, so we can add custom
+  book-keeping.  Q: can this book-keeping be purely dynamic, and
+  performed without static annotations?  We could leverage the control
+  stack of the interpreter to traverse the stack frames (which implies
+  that control operations need to generate these frames).
+
+  An accurate call stack requires each application to be a site, as
+  well as each function entry.  Chaining these specific events
+  together can generate the call stack.
+
+. Traversing the call stack: this might be needed to examine local
+  variables that are only visible in a frame on the stack.  This
+  traversal can be supported if the control stack is stored in the
+  event structure (as part of the interpreter state).
+
+. Peeking at the data in the active view (at the current frame): Each
+  frame needs to include the view active at the frame.
+
+. Not in scope for now: evaluating Parsley expressions at the prompt
+  (due to typechecker complications), modifying state.
+
+Data structures
+
+. Site:  numerical id, type, free-var info
+
+. Event: site id, call stack, interpreter state
+
+. Call frame: site id, var environment, view, eval context
+
+
+Review
+------
+
+- GHCI debugger use of `tick` annotations to ensure evaluation and
+  source-location correspondence of breakpoints.  Only on interesting
+  events: function body, case alternative, let expression.  Ticks
+  annotated with free variables of wrapped expression.  Ticks
+  propagated to byte code.
+
+  runStmt: Session -> String -> IO RunResult
+  resume: Session  -> Resume -> IO RunResult
+
+  data RunResult = RunOK | RunFailed (compilation failure)
+                 | RunException Exception | RunBreak BreakInfo
+
+  data Resume
+
+  getResumeContext: Session -> IO [Resume]
+  resumeStmt: Resume -> String
+  resumeBreakInfo: Resume -> BreakInfo
+
+  abandon: Session -> IO ()
+
+- Mercury implements a trace based debugger.  The program execution is
+  viewed as a sequence or trace of events. At each event, the compiler
+  emits code that calls the debugger; the debugger then gets control
+  and may suspend program execution to give the user control.
+
+  Events:
+
+  call (emitted just after a procedure call); exit (procedure call
+  finishes successfully); redo (computations to the right of a
+  procedure call have failed, and control is returning to the
+  procedure for alternative solutions; fail (procedure has run out of
+  alternatives and control is returning to its immediate left that
+  might have useful alternatives); excp (control leaves a procedure
+  call due to an exception event in its body or its descendants).
+
+  then (execution reaches start of then of if-then-else); else (start
+  of else of if-then-else); disj (start of a disjunct of disjunction);
+  swch (start of a branch of a switch).
+
+  When the debugger is given control, it is provided a `label layout
+  structure`, which contains the names, locations and types of all the
+  variables that are live at that point.  This structure contains a
+  pointer to a procedure layout structure, which contains info about
+  the stack the procedure's stack frame is in, and about the stack
+  frame itself.
+
+  Event numbers can be used from the debugger cli for 'step' and
+  'goto' commands, allowing the user to conduct binary search on the
+  execution trace.
+
+  The 'finish' command goes to the end of the procedure at the
+  specified depth, allowing the user to go to the end of an ancestor
+  call (e.g. if the user accidentally stepped into the call).
+
+  Strictness allows forward execution commands to go past breakpoints
+  (if the command is 'strict') or stop immediately (if 'non-strict').
+
+- SML debugger: source is annotated at interesting sites, especially
+  those that introduce bindings (e.g. top of function bodies and top
+  of pattern-match clause bodies) and control flow (function
+  application).  These sites are the static counterpart of events,
+  which are generated during execution when the code corresponding to
+  a site is entered.  Entering a site during an event record, which is
+  linked to the event record corresponding to the innermost binding
+  site, creating a chain that can be used to find all the bindings in
+  scope (variable names are in the static site info, their values are
+  in the dynamic event record for that site), and also represent the
+  call chain or stack.
+
+  The sites are also locations where breakpoints can be placed.  Sites
+  are associated with unique indices, a boolean array indexed by a
+  site index represents a breakpoint array; the flag at an index is
+  set to true if a breakpoint is set on the site.  Single-stepping is
+  enabled if all flags are set to true.
+
+  For Parsley, we may needed a lastCaller for function stack traces,
+  and a lastNonTerm for grammar stack traces.
+
+  Q: How to make the function/app annotation work for Parsley?  Can
+  the annotation be done without perturbing the AST, for e.g. can it
+  be done during IR code-gen and be present only in the IR?  Q: Is
+  there anything we could add from the Mercury style, for tracking
+  backtracking?
