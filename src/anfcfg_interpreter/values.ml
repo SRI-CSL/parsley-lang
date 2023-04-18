@@ -171,6 +171,11 @@ type vtype =
 let mod_prefix    = Anfcfg.Anf.mod_prefix
 let str_of_constr = Anfcfg.Anf.string_of_constr
 
+(* tail recursive map,since we might be working with very large
+   values *)
+let rmap f l =
+  List.rev (List.rev_map f l)
+
 let rec string_of_vtype (t: vtype) : string =
   let string_of_field (f, ft) =
     Printf.sprintf "%s: %s" f (string_of_vtype ft) in
@@ -193,13 +198,13 @@ let rec string_of_vtype (t: vtype) : string =
     | T_list t'      -> Printf.sprintf "list<%s>" (string_of_vtype t')
 
     | T_tuple ts    -> "("
-                       ^ (String.concat ", " (List.map string_of_vtype ts))
+                       ^ (String.concat ", " (rmap string_of_vtype ts))
                        ^ ")"
     | T_adt s       -> s
     | T_adt_constr (c, ts) -> Printf.sprintf "%s(%s)" (str_of_constr c)
-                                (String.concat ", " (List.map string_of_vtype ts))
+                                (String.concat ", " (rmap string_of_vtype ts))
     | T_record fs   -> Printf.sprintf "{%s}"
-                         (String.concat ", " (List.map string_of_field fs))
+                         (String.concat ", " (rmap string_of_field fs))
     | T_view        -> "view"
 
     | T_set T_empty -> "set<>"
@@ -222,15 +227,15 @@ let rec vtype_of (v: value) : vtype =
     | V_float _        -> T_float
     | V_string _       -> T_string
     | V_bitvector _    -> T_bitvector
-    | V_bitfield (i,_) -> T_record (List.map (fun (f,_) ->
+    | V_bitfield (i,_) -> T_record (rmap (fun (f,_) ->
                                         f, T_bitvector) i.bf_fields)
     | V_option None    -> T_option T_empty
     | V_option (Some o)-> T_option (vtype_of o)
     | V_list []        -> T_list T_empty
     | V_list (e :: _)  -> T_list (vtype_of e)
-    | V_tuple vs       -> T_tuple (List.map vtype_of vs)
-    | V_constr (c, vs) -> T_adt_constr (c, List.map vtype_of vs)
-    | V_record fs      -> T_record (List.map ftype_of fs)
+    | V_tuple vs       -> T_tuple (rmap vtype_of vs)
+    | V_constr (c, vs) -> T_adt_constr (c, rmap vtype_of vs)
+    | V_record fs      -> T_record (rmap ftype_of fs)
     | V_view _         -> T_view
     | V_set []         -> T_set T_empty
     | V_set (e :: _)   -> T_set (vtype_of e)
@@ -255,7 +260,7 @@ let string_of_value (as_ascii: bool) (v: value) : string =
     let mk_sep c  = Printf.sprintf "%s\n %s" c (mk_fill d) in
     let pr_bit b  = if b then "1" else "0" in
     let pr_bvec v =
-      Printf.sprintf "0b%s" (String.concat "" (List.map pr_bit v)) in
+      Printf.sprintf "0b%s" (String.concat "" (rmap pr_bit v)) in
     let pr_bf v h l = pr_bvec (field_of_bitvector v h l) in
     let srt vl    = List.sort compare vl in
     let srt_r fs  = List.sort (fun (l, _) (r, _) -> compare l r) fs in
@@ -264,13 +269,13 @@ let string_of_value (as_ascii: bool) (v: value) : string =
                     then Printf.sprintf "0%x" c
                     else Printf.sprintf "%x"  c in
     let pr_hex l = String.concat ""
-                     (List.map (function
+                     (rmap (function
                           | V_char c -> to_hex (Char.code c)
                           | _        -> assert false
                         ) l) in
     let pr_str l = String.of_seq
                      (List.to_seq
-                        (List.map (function
+                        (rmap (function
                              | V_char c -> c
                              | _        -> assert false
                            ) l)) in
@@ -285,7 +290,7 @@ let string_of_value (as_ascii: bool) (v: value) : string =
       | V_bitvector v     -> pr_bvec v
       | V_bitfield (i, v) -> Printf.sprintf "{%s}"
                                (String.concat (mk_sep ";")
-                                  (List.map (fun (f, (h, l)) ->
+                                  (rmap (fun (f, (h, l)) ->
                                        Printf.sprintf "%s: %s" f (pr_bf v h l)
                                      ) (srt_r i.bf_fields)))
       | V_option v        -> (match v with
@@ -297,23 +302,23 @@ let string_of_value (as_ascii: bool) (v: value) : string =
                           -> Printf.sprintf "%s"
                                (if as_ascii then pr_str vs else pr_hex vs)
       | V_list vs         -> Printf.sprintf "%s[%s]" (mk_fill d)
-                               (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
+                               (String.concat (mk_sep ",") (rmap (pr (d + 1)) vs))
       | V_tuple vs        -> Printf.sprintf "(%s)"
-                               (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
+                               (String.concat (mk_sep ",") (rmap (pr (d + 1)) vs))
       | V_constr (c, vs) -> Printf.sprintf "%s(%s)"
                               (str_of_constr c)
-                              (String.concat (mk_sep ",") (List.map (pr (d + 1)) vs))
+                              (String.concat (mk_sep ",") (rmap (pr (d + 1)) vs))
       | V_record fs       -> Printf.sprintf "{%s}"
                                (String.concat (mk_sep ";")
-                                  (List.map (fun (f, v) ->
+                                  (rmap (fun (f, v) ->
                                        Printf.sprintf "%s: %s" f (pr (d + 1) v)
                                      ) (srt_r fs)))
       | V_view _v         -> "view"
       | V_set  vs         -> Printf.sprintf "set<%s>"
-                               (String.concat (mk_sep ",") (List.map (pr (d + 1)) (srt vs)))
+                               (String.concat (mk_sep ",") (rmap (pr (d + 1)) (srt vs)))
       | V_map  kvs        -> Printf.sprintf "map<%s>"
                                (String.concat (mk_sep ",")
-                                  (List.map (fun (k, v) ->
+                                  (rmap (fun (k, v) ->
                                        Printf.sprintf "%s: %s" (pr (d+1) k) (pr (d+1) v)
                                      ) (srt kvs))) in
   pr 0 v
