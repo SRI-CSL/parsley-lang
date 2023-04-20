@@ -171,12 +171,18 @@ let norm_recfuns ctx fs =
   afs, of_exp_ctx ctx ec'
 
 let norm_stms ctx stms =
-  let sc, astms =
-    List.fold_left (fun (sc, astms) stm ->
+  let sc, astms, span =
+    List.fold_left (fun (sc, astms, span) stm ->
         let astm, sc = Anf_gen.normalize_stmt sc stm in
-        sc, astm :: astms
-      ) (to_stm_ctx ctx, []) stms in
-  List.rev astms, of_stm_ctx ctx sc
+        let span = Location.extent span stm.stmt_loc in
+        sc, astm :: astms, span
+      ) (to_stm_ctx ctx, [], Location.ghost_loc) stms in
+  let astm = match astms with
+      | [s] -> s
+      | _   -> {astmt      = AS_block (List.rev astms);
+                astmt_loc  = span;
+                astmt_site = None} in
+  astm, of_stm_ctx ctx sc
 
 (* From a control-flow viewpoint, the choice combinator within a rule
    functions similarly to the rules for a non-terminal: the rules form
@@ -548,9 +554,9 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
            the free variables in the expression language are not
            visible in the grammar language. *)
         let fvs = ctx.ctx_free_vars in
-        let astms, ctx = norm_stms ctx stmts in
+        let astm, ctx = norm_stms ctx stmts in
         let ctx = {ctx with ctx_free_vars = fvs} in
-        let act = L_action astms in
+        let act = L_action astm in
         let b =
           let id = ctx.ctx_id_gen () in
           add_instr (mk_l2b act typ loc id None) b in

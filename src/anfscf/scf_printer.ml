@@ -62,9 +62,8 @@ let str_of_linst (li: linear_instr) : string =
           (Location.value m)
           (Location.value v)
           (String.concat "," args)
-    | L_action ss ->
-        Printf.sprintf "{%d stmts}"
-          (List.length ss)
+    | L_action _ ->
+        "{stmt}"
     | L_enter_bitmode ->
         "enter_bitmode"
     | L_exit_bitmode ->
@@ -220,14 +219,12 @@ let print_linst (li: linear_instr) =
                      (String.concat "," args)
           );
         Anf_printer.print_aexp bd
-    | L_action ss ->
+    | L_action s ->
         pp_open_vbox 0;
         pp_string "{ ";
-        List.iter (fun s ->
-            Anf_printer.print_stmt s;
-            pp_string ";";
-            pp_space ()
-          ) ss;
+        Anf_printer.print_stmt s;
+        pp_string ";";
+        pp_space ();
         pp_string " }";
         pp_close_box ()
     | L_enter_bitmode ->
