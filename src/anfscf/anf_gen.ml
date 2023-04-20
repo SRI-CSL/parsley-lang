@@ -357,16 +357,15 @@ and normalize_exp_case (ctx: anf_exp_ctx) (scrutinee: av) (cases: (pat * exp) li
           (* Bind an ANF variable to the subterm being scrutinized,
              unless it is the root of a variable term *)
           (match scrutinee.av with
-             | AV_var v when occ = root_occurrence ->
-                 let var =
-                   make_var v ctx.anfe_frame scrutinee.av_typ scrutinee.av_loc in
-                 make_ae (AE_case (var, cases)) case_typ loc None,
+             | AV_var _ when occ = root_occurrence ->
+                 make_ae (AE_case (scrutinee, cases)) case_typ loc None,
                  ctx
              | _ ->
                  let v, venv = VEnv.gen ctx.anfe_venv in
-                 let var  = make_var v ctx.anfe_frame occ_typ scrutinee.av_loc in
+                 let var = make_var v ctx.anfe_frame occ_typ scrutinee.av_loc in
+                 let av = av_of_var var in
                  let aexp =
-                   make_ae (AE_case (var, cases)) case_typ loc None in
+                   make_ae (AE_case (av, cases)) case_typ loc None in
                  (* Wrap the case in a letpat for the ANF variable *)
                  make_ae
                    (AE_letpat (var, (scrutinee, occ), aexp))
@@ -679,18 +678,17 @@ and normalize_stmt_case (ctx: anf_stm_ctx) (scrutinee: av)
           (* Bind an ANF variable to the subterm being scrutinized,
              unless it is the root of a variable term *)
           (match scrutinee.av with
-             | AV_var v when occ = root_occurrence ->
-                 let var =
-                   make_var v ctx.anfs_frame scrutinee.av_typ scrutinee.av_loc in
-                 {astmt      = AS_case (var, cases);
+             | AV_var _ when occ = root_occurrence ->
+                 {astmt      = AS_case (scrutinee, cases);
                   astmt_loc  = loc;
                   astmt_site = None},
                  ctx
              | _ ->
                  let v, venv = VEnv.gen ctx.anfs_venv in
                  let var  = make_var v ctx.anfs_frame occ_typ scrutinee.av_loc in
+                 let av = av_of_var var in
                  let astmt =
-                   {astmt      = AS_case (var, cases);
+                   {astmt      = AS_case (av, cases);
                     astmt_loc  = loc;
                     astmt_site = None} in
                  (* Wrap the case in a letpat for the ANF variable *)

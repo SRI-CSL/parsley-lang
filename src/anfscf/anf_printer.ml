@@ -44,6 +44,30 @@ let string_of_occurrence occ : string =
   then ""
   else "@" ^ (String.concat "/" (List.map string_of_int occ))
 
+let rec string_of_av (av: av) : string =
+  match av.av with
+    | AV_lit l ->
+        AstPrinter.string_of_literal l
+    | AV_var v ->
+        string_of_varid v
+    | AV_constr (c, avs) ->
+        (string_of_constr c)
+        ^ (if List.length avs > 0
+           then "("
+                ^ (String.concat ", " (List.map string_of_av avs))
+                ^ ")"
+           else "")
+    | AV_record fields ->
+        "{"
+        ^ (String.concat ", "
+             (List.map (fun (f, v) ->
+                  Printf.sprintf "%s: %s"
+                    (Location.value f) (string_of_av v)
+                ) fields))
+        ^ "}"
+    | AV_mod_member (m, i) ->
+        Printf.sprintf "%s.%s" (Location.value m) (Location.value i)
+
 let rec print_av (av: av) : unit =
   match av.av with
     | AV_lit l ->
@@ -169,7 +193,7 @@ and print_aexp (e: aexp) : unit =
     | AE_case (v, clauses) ->
         pp_open_vbox 1;
         pp_string "(case ";
-        pp_string (string_of_var v);
+        pp_string (string_of_av v);
         pp_string " of ";
         pp_break 0 0;
         print_clauses clauses;
@@ -279,7 +303,7 @@ and print_stmt (s: astmt) =
     | AS_case (v, clauses) ->
         pp_open_vbox 2;
         pp_string "(case ";
-        pp_string (string_of_var v);
+        pp_string (string_of_av v);
         pp_string " of ";
         pp_break 0 0;
         print_clauses clauses;
