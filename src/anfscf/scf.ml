@@ -109,7 +109,7 @@ type linear_desc =
   (* side-effects *)
 
   (* Any return value from the action will be handled by an `assign`. *)
-  | L_action of astmt list
+  | L_action of astmt
 
   (* The mechanism for the matching and extraction of matched bits is
      the following:
