@@ -364,7 +364,7 @@ and normalize_exp_case (ctx: anf_exp_ctx) (scrutinee: av) (cases: (pat * exp) li
                  ctx
              | _ ->
                  let v, venv = VEnv.gen ctx.anfe_venv in
-                 let var  = make_var v ctx.anfe_frame occ_typ Location.ghost_loc in
+                 let var  = make_var v ctx.anfe_frame occ_typ scrutinee.av_loc in
                  let aexp =
                    make_ae (AE_case (var, cases)) case_typ loc None in
                  (* Wrap the case in a letpat for the ANF variable *)
@@ -624,30 +624,33 @@ and normalize_stmt_case (ctx: anf_stm_ctx) (scrutinee: av)
           (* Normalize the action block in this augmented
              variable environment (note the order reversal) *)
           (* Place a site on the first statement, if there is one. *)
-          let act, ctx, oloc =
-            List.fold_left (fun (astmts, ctx, oloc) s ->
+          let act, ctx, site_loc, loc_span =
+            List.fold_left (fun (astmts, ctx, oloc, span) s ->
                 let astmt, ctx = normalize_stmt ctx s in
                 let oloc = match oloc with
                     | None   -> Some s.stmt_loc
                     | Some _ -> oloc in
-                astmt :: astmts, ctx, oloc
-              ) ([], ctx, None) act in
+                let span = Location.extent span s.stmt_loc in
+                astmt :: astmts, ctx, oloc, span
+              ) ([], ctx, None, Location.ghost_loc) act in
           (* Create a binding site. *)
-          let s, ctx = match oloc with
+          let s, ctx = match site_loc with
               | Some loc -> let s, ctx = mk_site' ctx ST_let loc in
                             Some s, ctx
               | None     -> None, ctx in
+          (* Fix the block ordering, and optimize for a single
+             statement. *)
+          let astmt = match act with
+              | [stm] -> {stm with astmt_site = s}
+              | _     -> {astmt      = AS_block (List.rev act);
+                          astmt_loc  = loc_span;
+                          astmt_site = s} in
           (* Wrap the normalized action in the letpat bindings to
-             bind the new ANF variables, and reorder the reversed
-             block. *)
-          let astmt =
-            {astmt      = AS_block (List.rev act);
-             astmt_loc  = Location.ghost_loc;
-             astmt_site = s} in
+             bind the new ANF variables. *)
           let astmt =
             List.fold_left (fun astmt (avar, occ) ->
                 {astmt      = AS_letpat (avar, (scrutinee, occ), astmt);
-                 astmt_loc  = Location.ghost_loc;
+                 astmt_loc  = avar.v_loc;
                  astmt_site = None}
               ) astmt letpats in
           (* Restore the binding context. *)
@@ -685,7 +688,7 @@ and normalize_stmt_case (ctx: anf_stm_ctx) (scrutinee: av)
                  ctx
              | _ ->
                  let v, venv = VEnv.gen ctx.anfs_venv in
-                 let var  = make_var v ctx.anfs_frame occ_typ Location.ghost_loc in
+                 let var  = make_var v ctx.anfs_frame occ_typ scrutinee.av_loc in
                  let astmt =
                    {astmt      = AS_case (var, cases);
                     astmt_loc  = loc;
