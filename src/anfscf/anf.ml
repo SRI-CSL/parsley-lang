@@ -154,7 +154,7 @@ type aexp_desc =
   | AE_bitrange of av * int * int
   | AE_match of av * (modul * string * string)
   | AE_field of av * Ast.ident
-  | AE_case of var * (apat * aexp) list
+  | AE_case of av * (apat * aexp) list
   | AE_let of var * aexp * aexp
   | AE_cast of av * Ast.type_expr
   | AE_print of bool * av
@@ -204,7 +204,7 @@ type astmt_desc =
   | AS_set_field of var * Ast.ident list * aexp
   | AS_print of bool * av
   | AS_let of var * aexp * astmt
-  | AS_case of var * (apat * astmt) list
+  | AS_case of av * (apat * astmt) list
   | AS_block of astmt list
   (* subterm identification for pattern variables *)
   | AS_letpat of var * (av * occurrence) * astmt
