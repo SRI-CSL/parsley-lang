@@ -149,8 +149,8 @@ type aexp_desc =
   | AE_apply of fv * av list
   | AE_unop of Ast.unop * av
   | AE_binop of Ast.binop * av * av
-  | AE_bits_of_rec of modul * Ast.ident * av * TypingEnvironment.bitfield_info
-  | AE_rec_of_bits of modul * Ast.ident * av * TypingEnvironment.bitfield_info
+  | AE_bits_of_rec of av * (modul * Ast.ident * TypingEnvironment.bitfield_info)
+  | AE_rec_of_bits of av * (modul * Ast.ident * TypingEnvironment.bitfield_info)
   | AE_bitrange of av * int * int
   | AE_match of av * (modul * string * string)
   | AE_field of av * Ast.ident

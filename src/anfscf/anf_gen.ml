@@ -214,8 +214,8 @@ and normalize_exp (ctx: anf_exp_ctx) (e: exp) : aexp * anf_exp_ctx =
             | S_let (v, ae, av) -> [v, ae], av in
         let m = Anf_common.modul_of_mname m in
         let ae = match Location.value op with
-            | "bits"   -> wrap (AE_bits_of_rec (m, r, av, bfi)) None
-            | "record" -> wrap (AE_rec_of_bits (m, r, av, bfi)) None
+            | "bits"   -> wrap (AE_bits_of_rec (av, (m, r, bfi))) None
+            | "record" -> wrap (AE_rec_of_bits (av, (m, r, bfi))) None
             | _        -> assert false in
         let ae = make_lets binds ae in
         ae, ctx

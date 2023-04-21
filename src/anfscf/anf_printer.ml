@@ -154,13 +154,13 @@ and print_aexp (e: aexp) : unit =
         pp_string op;
         print_av r;
         pp_string ")"
-    | AE_bits_of_rec (m, r, v, _) ->
+    | AE_bits_of_rec (v, (m, r, _)) ->
         let r = Printf.sprintf "%s->bits" (mod_prefix m (Location.value r)) in
         pp_string r;
         pp_string "(";
         print_av v;
         pp_string ")"
-    | AE_rec_of_bits (m, r, v, _) ->
+    | AE_rec_of_bits (v, (m, r, _)) ->
         let r = Printf.sprintf "%s->record"
                   (mod_prefix m (Location.value r)) in
         pp_string r;
