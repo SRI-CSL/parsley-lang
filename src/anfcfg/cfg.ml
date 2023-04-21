@@ -18,6 +18,7 @@
 open Parsing
 open Typing
 open Flow
+open Anf_common
 open Anf
 open Dfa.Automaton
 
@@ -29,16 +30,6 @@ open Dfa.Automaton
    Each non-terminal definition is represented by its own CFG.  Any
    embedded expressions are represented by their ANF forms.  The CFG
    and ANF share the variable representation.  *)
-
-(* A bound on the expected number of matched bits. *)
-type matched_bits_bound =
-  | MB_exact of int (* the bound is exact *)
-  | MB_below of int (* the matched number has to be <= the bound *)
-
-(* The above bound as well as a specified bit-pattern, to be matched
-   for padding. *)
-type matched_bits_predicate =
-  matched_bits_bound * Ast.bv_literal
 
 (* An optional variable to which the matched return value needs to be
    bound. *)

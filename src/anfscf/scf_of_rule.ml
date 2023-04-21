@@ -17,6 +17,7 @@
 
 open Parsing
 open Typing
+open Anf_common
 open Site
 open Anf
 open Scf

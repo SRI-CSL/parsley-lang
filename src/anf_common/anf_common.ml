@@ -70,6 +70,16 @@ let string_of_occurrence occ =
   then ""
   else "@" ^ (String.concat "/" (List.map string_of_int occ))
 
+(* A bound on the expected number of matched bits. *)
+type matched_bits_bound =
+  | MB_exact of int (* the bound is exact *)
+  | MB_below of int (* the matched number has to be <= the bound *)
+
+(* The above bound as well as a specified bit-pattern, to be matched
+   for padding. *)
+type matched_bits_predicate =
+  matched_bits_bound * Ast.bv_literal
+
 (* other useful defs *)
 
 module StringMap = Map.Make(String)
