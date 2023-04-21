@@ -19,7 +19,7 @@
    matched and an updated view) if any. *)
 
 open Dfa.Automaton
-open Interpreter_common.Values
+open Values
 
 let run (dfa: DFA.t) (v: view) : (value * view) option =
   let buf   = !(v.vu_buf) in
