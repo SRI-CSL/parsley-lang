@@ -16,6 +16,7 @@
 (**************************************************************************)
 
 open Parsing
+open Anf_common
 open Scf
 
 let pp_string    = AstPrinter.pp_string

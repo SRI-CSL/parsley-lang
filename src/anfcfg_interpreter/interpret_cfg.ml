@@ -18,6 +18,7 @@
 open Parsing
 open Anfcfg
 open Interpreter_common
+open State_common
 open Values
 open State
 open Parsleygram
@@ -28,6 +29,14 @@ open Interpret_bitops
 
 (* Executions of linear or non-control flow nodes return an
    updated state. *)
+
+let bs_wrap (f: bitstate -> bitstate) (s: state) : state =
+  from_bitstate s (f (to_bitstate s))
+
+let bs_collect_bits loc s =
+  let bs = to_bitstate s in
+  let bits, bs = collect_bits loc bs in
+  bits, from_bitstate s bs
 
 let do_gnode (s: state) (n: Cfg.gnode) : state =
   let loc = n.node_loc in
@@ -51,15 +60,15 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
     | N_action sts ->
         List.fold_left eval_stmt s sts
     | N_enter_bitmode ->
-        enter_bitmode loc s
+        bs_wrap (enter_bitmode loc) s
     | N_exit_bitmode ->
-        exit_bitmode loc s
+        bs_wrap (exit_bitmode loc) s
     | N_fail_bitmode ->
-        fail_bitmode loc s
+        bs_wrap (fail_bitmode loc) s
     | N_mark_bit_cursor ->
-        mark_bit_cursor loc s
+        bs_wrap (mark_bit_cursor loc) s
     | N_collect_bits (v, pred, obf) ->
-        let bits, s = collect_bits loc s in
+        let bits, s = bs_collect_bits loc s in
         if   match_bits_bound bits pred
         then let vl = match obf with
                  | None    -> V_bitvector bits
@@ -211,19 +220,22 @@ and do_return _lc (s': state) (l: Cfg.label) : parse_result =
 and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
   match n with
     | N_bits (loc, w, lsc, lf) ->
-        (match match_bits loc (Printf.sprintf "bits<%d>" w) s w with
-           | Ok s    -> do_jump loc s lsc
-           | Error s -> do_jump loc s lf)
+        let bs = to_bitstate s in
+        (match match_bits loc (Printf.sprintf "bits<%d>" w) bs w with
+           | Ok bs    -> do_jump loc (from_bitstate s bs) lsc
+           | Error bs -> do_jump loc (from_bitstate s bs) lf)
     | N_align (loc, w, lsc, lf) ->
-        (match align_bits loc (Printf.sprintf "align<%d>" w) s w with
-           | Ok s    -> do_jump loc s lsc
-           | Error s -> do_jump loc s lf)
+        let bs = to_bitstate s in
+        (match align_bits loc (Printf.sprintf "align<%d>" w) bs w with
+           | Ok bs    -> do_jump loc (from_bitstate s bs) lsc
+           | Error bs -> do_jump loc (from_bitstate s bs) lf)
     | N_pad (loc, w, lsc, lf) ->
-        (match align_bits loc (Printf.sprintf "pad<%d>" w) s w with
-           | Ok s    -> do_jump loc s lsc
-           | Error s -> do_jump loc s lf)
+        let bs = to_bitstate s in
+        (match align_bits loc (Printf.sprintf "pad<%d>" w) bs w with
+           | Ok bs    -> do_jump loc (from_bitstate s bs) lsc
+           | Error bs -> do_jump loc (from_bitstate s bs) lf)
     | Cfg.Node.N_collect_checked_bits (loc, v, (mbb, pat), lsc, lf) ->
-        let bits, s = collect_bits loc s in
+        let bits, s = bs_collect_bits loc s in
         if   not (match_bits_bound bits mbb)
         then let m   = Cfg_printer.string_of_mbb mbb in
              let err = Interpreter_errors.Bitsbound_check m in
@@ -235,7 +247,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
              do_jump loc s lsc
         else do_jump loc s lf
     | Cfg.Node.N_check_bits (loc, (mbb, pat), lsc, lf) ->
-        let bits, s = collect_bits loc s in
+        let bits, s = bs_collect_bits loc s in
         if   not (match_bits_bound bits mbb)
         then let m   = Cfg_printer.string_of_mbb mbb in
              let err = Interpreter_errors.Bitsbound_check m in

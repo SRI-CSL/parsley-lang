@@ -21,21 +21,11 @@ open Parsing
 open Typing
 open Anfscf
 open Interpreter_common
+open State_common
 open Values
 open Internal_errors
 open Runtime_exceptions
 open Interpreter_errors
-
-(* bit-level parsing state *)
-
-type bitwise =
-  {bw_bit_ofs: int;
-   bw_view:    Values.view; (* view to rewind to on failure *)
-   bw_matched: bool list}
-
-type mode =
-  | Mode_normal
-  | Mode_bitwise of bitwise
 
 (* Variable bindings *)
 module Bindings = Map.Make(struct type t = Anf_common.varid
@@ -162,6 +152,16 @@ and state =
    st_ctrl_stk:     call_frame list}
 
 (* helpers *)
+
+(* Projector and injector between bitstate and the overall state. *)
+
+let to_bitstate (s: state) : bitstate =
+  {bs_mode     = s.st_mode;
+   bs_cur_view = s.st_cur_view}
+
+let from_bitstate (s: state) (bs: bitstate) : state =
+  {s with st_mode     = bs.bs_mode;
+          st_cur_view = bs.bs_cur_view}
 
 (* Returns the `vu_ofs` and `vu_end` of the view in the state. *)
 type last_pos = int * int

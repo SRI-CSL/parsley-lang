@@ -17,64 +17,62 @@
 
 (* bit and bit-vector parsing *)
 
-open Anfcfg
-open Interpreter_common
+open Anf_common
 open Values
 open Runtime_exceptions
-open State
-
+open State_common
 
 let init_bitwise (v: view) : bitwise =
   {bw_bit_ofs = 0;
    bw_view    = v;
    bw_matched = []}
 
-let enter_bitmode lc (s: state) : state =
-  assert (s.st_mode = Mode_normal);
+let enter_bitmode lc (s: bitstate) : bitstate =
+  assert (s.bs_mode = Mode_normal);
   (* extend view before parsing *)
-  let v = s.st_cur_view in
+  let v = s.bs_cur_view in
   extend_view v;
   (* cursor should be at valid offset *)
   if   v.vu_ofs >= v.vu_end
   then fault lc (View_bound ("start_bitwise", "end bound exceeded"))
   else let bw = init_bitwise v in
-       {s with st_mode = Mode_bitwise bw}
+       {s with bs_mode = Mode_bitwise bw}
 
 (* accessing bitwise state from bit-mode *)
-let get_bitwise (s: state) : bitwise =
-  match s.st_mode with
+let get_bitwise (s: bitstate) : bitwise =
+  match s.bs_mode with
     | Mode_normal ->
         assert false
     | Mode_bitwise bw ->
         (* should be in the same view *)
-        let v = s.st_cur_view in
+        let v = s.bs_cur_view in
         assert (bw.bw_view.vu_id = v.vu_id);
         bw
 
-let exit_bitmode _lc (s: state) : state =
+let exit_bitmode _lc (s: bitstate) : bitstate =
   let bw = get_bitwise s in
   (* should be byte-aligned *)
   assert (bw.bw_bit_ofs = 0);
-  {s with st_mode = Mode_normal}
+  {s with bs_mode = Mode_normal}
 
-let fail_bitmode _lc (s: state) : state =
+let fail_bitmode _lc (s: bitstate) : bitstate =
   (* rewind the view to the offset of the bitmode entry *)
   let bw = get_bitwise s in
-  {s with st_mode     = Mode_normal;
-          st_cur_view = bw.bw_view}
+  {bs_mode     = Mode_normal;
+   bs_cur_view = bw.bw_view}
 
 (* reset the bit-collection buffer *)
-let mark_bit_cursor lc (s: state) : state =
+let mark_bit_cursor lc (s: bitstate) : bitstate =
   let bw = get_bitwise s in
   let bw = {bw with bw_matched = []} in
   (* cursor should be at valid offset *)
-  let v = s.st_cur_view in
+  let v = s.bs_cur_view in
   if   v.vu_ofs >= v.vu_end
   then fault lc (View_bound ("set_bit_mark", "end bound exceeded"))
-  else {s with st_mode = Mode_bitwise bw}
+  else {s with bs_mode = Mode_bitwise bw}
 
 (* return matched bits *)
-let collect_bits _lc (s: state) : bool list * state =
+let collect_bits _lc (s: bitstate) : bool list * bitstate =
   let bw = get_bitwise s in
   List.rev bw.bw_matched, s
 
@@ -105,9 +103,9 @@ let byte_to_nbits (c: char) ofs n : bool list =
   loop [] 0
 
 (* match `n` bits *)
-let match_bits _lc _op (s: state) n : (state, state) result =
+let match_bits _lc _op (s: bitstate) n : (bitstate, bitstate) result =
   let bw = get_bitwise s in
-  let v = s.st_cur_view in
+  let v = s.bs_cur_view in
   if   not (valid_bit_bounds v bw n)
   then Error s
   else (* extract n' bits from specified byte and bit offsets *)
@@ -133,14 +131,14 @@ let match_bits _lc _op (s: state) n : (state, state) result =
        let bw = {bw with bw_bit_ofs = bit_ofs;
                          bw_matched = acc} in
        let v = {v with vu_ofs = byte_ofs} in
-       Ok {s with st_mode = Mode_bitwise bw;
-                  st_cur_view = v}
+       Ok {bs_mode     = Mode_bitwise bw;
+           bs_cur_view = v}
 
 (* align `n` bits *)
-let align_bits lc op (s: state) n : (state, state) result =
+let align_bits lc op (s: bitstate) n : (bitstate, bitstate) result =
   assert (n mod 8 = 0);
   let bw = get_bitwise s in
-  let v  = s.st_cur_view in
+  let v  = s.bs_cur_view in
   let cur_ofs, nbits = if   bw.bw_bit_ofs > 0
                        then v.vu_ofs + 1, 8 - bw.bw_bit_ofs
                        else v.vu_ofs, 0 in
@@ -170,5 +168,5 @@ let match_padding matched_bits padding =
 let match_bits_bound bits bnd : bool =
   let len = List.length bits in
   match bnd with
-    | Cfg.MB_exact n -> len = n
-    | Cfg.MB_below n -> len <= n
+    | MB_exact n -> len = n
+    | MB_below n -> len <= n
