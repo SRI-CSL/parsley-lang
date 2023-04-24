@@ -87,10 +87,10 @@ let str_of_linst (li: linear_instr) : string =
         "drop_view"
     | L_set_view v ->
         Printf.sprintf "set_view %s"
-          (Anf_printer.string_of_var v)
+          (Anf_printer.string_of_av v)
     | L_set_pos v ->
         Printf.sprintf "set_pos %s"
-          (Anf_printer.string_of_var v)
+          (Anf_printer.string_of_av v)
     | L_continue_choice ->
         "continue_choice"
     | L_finish_choice ->
@@ -136,7 +136,7 @@ let rec str_of_binst (bi: bivalent_instr) =
           (sprint_padding bv)
     | B_constraint v ->
         Printf.sprintf "constraint %s"
-          (Anf_printer.string_of_var v)
+          (Anf_printer.string_of_av v)
     | B_exec_dfa (_, v) ->
         Printf.sprintf "dfa %s"
           (Anf_printer.string_of_var v)
@@ -147,10 +147,10 @@ let rec str_of_binst (bi: bivalent_instr) =
           (Anf_printer.string_of_var v)
     | B_call_nonterm (m, nt, args, ret) ->
         let sargs = String.concat ","
-                      (List.map (fun (a, (v: Anf.var)) ->
+                      (List.map (fun (a, (av: Anf.av)) ->
                            Printf.sprintf "%s<-%s"
                              (Location.value a)
-                             (Anf_printer.string_of_var v)
+                             (Anf_printer.string_of_av av)
                          ) args) in
         Printf.sprintf "call %s[%s], %s"
           (Anf_common.mod_prefix m (Location.value nt))
@@ -158,8 +158,8 @@ let rec str_of_binst (bi: bivalent_instr) =
           (Anf_printer.string_of_var ret)
     | B_require_remaining (v, e) ->
         Printf.sprintf "require_remaining %s, %s"
-          (Anf_printer.string_of_var v)
-          (Anf_printer.string_of_var e)
+          (Anf_printer.string_of_av v)
+          (Anf_printer.string_of_av e)
 
 and str_of_cinst (ci: ctrl_instr) =
   match ci.ci with
@@ -174,7 +174,7 @@ and str_of_cinst (ci: ctrl_instr) =
           (str_of_block lb)
     | C_if (v, tb, eb) ->
         Printf.sprintf "if %s [ %s ] [ %s ]"
-          (Anf_printer.string_of_var v)
+          (Anf_printer.string_of_av v)
           (str_of_block tb)
           (str_of_block eb)
     | C_start_choices (f, _vs, cb) ->
@@ -251,10 +251,10 @@ let print_linst (li: linear_instr) =
         pp_string "drop_view"
     | L_set_view v ->
         pp_string (Printf.sprintf "set_view %s"
-                     (Anf_printer.string_of_var v))
+                     (Anf_printer.string_of_av v))
     | L_set_pos v ->
         pp_string (Printf.sprintf "set_pos %s"
-                     (Anf_printer.string_of_var v))
+                     (Anf_printer.string_of_av v))
 
     | L_continue_choice ->
         pp_string "continue_choice"
@@ -292,7 +292,7 @@ let rec print_binst (bi: bivalent_instr) =
                      (sprint_padding bv))
     | B_constraint v ->
         pp_string (Printf.sprintf "constraint %s"
-                     (Anf_printer.string_of_var v))
+                     (Anf_printer.string_of_av v))
     | B_exec_dfa (_, v) ->
         pp_string (Printf.sprintf "dfa %s"
                      (Anf_printer.string_of_var v))
@@ -303,10 +303,10 @@ let rec print_binst (bi: bivalent_instr) =
                      (Anf_printer.string_of_var v))
     | B_call_nonterm (m, nt, args, ret) ->
         let sargs = String.concat ","
-                     (List.map (fun (a, (v: Anf.var)) ->
+                     (List.map (fun (a, (av: Anf.av)) ->
                           Printf.sprintf "%s<-%s"
                             (Location.value a)
-                            (Anf_printer.string_of_var v)
+                            (Anf_printer.string_of_av av)
                         ) args) in
         pp_string (Printf.sprintf "call %s[%s], %s"
                      (Anf_common.mod_prefix m (Location.value nt))
@@ -314,8 +314,8 @@ let rec print_binst (bi: bivalent_instr) =
                      (Anf_printer.string_of_var ret))
     | B_require_remaining (v, e) ->
         pp_string (Printf.sprintf "require_remaining %s, %s"
-                     (Anf_printer.string_of_var v)
-                     (Anf_printer.string_of_var e))
+                     (Anf_printer.string_of_av v)
+                     (Anf_printer.string_of_av e))
 
 and print_cinst (ci: ctrl_instr) =
   match ci.ci with
@@ -341,7 +341,7 @@ and print_cinst (ci: ctrl_instr) =
     | C_if (v, tb, eb) ->
         pp_open_vbox 2;
         pp_string (Printf.sprintf "if %s ["
-                     (Anf_printer.string_of_var v));
+                     (Anf_printer.string_of_av v));
         print_block tb;
         pp_string "] else [";
         print_block eb;

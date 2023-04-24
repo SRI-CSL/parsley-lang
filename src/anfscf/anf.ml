@@ -143,6 +143,10 @@ let root_occurrence = []
    As a result, evaluation of subexpressions takes place in let
    bindings that name the result, and the sequence of let bindings
    makes the sequence of computation explicit.
+
+   `var` denotes variables in binding position (e.g. in `AE_let`)
+   while `av` denotes bound variables that should have a value in the
+   dynamic value environment.
  *)
 type aexp_desc =
   | AE_val of av

@@ -188,8 +188,8 @@ type linear_desc =
      into the register, `set_pos` adjusts the cursor of the view in
      the register. *)
 
-  | L_set_view of var
-  | L_set_pos of var
+  | L_set_view of av
+  | L_set_pos of av
 
   (* Choice frame manipulation for backtracking: these should be the
      last instructions in the block they appear in.  *)
@@ -251,7 +251,7 @@ type bivalent_desc =
 
   (* Constraint: the var should have been bound to the value
      of the constraint expression. *)
-  | B_constraint of var
+  | B_constraint of av
 
   (* Call the DFA for a regular expression.  On a successful match,
      assign the specified variable to the match. *)
@@ -263,13 +263,13 @@ type bivalent_desc =
   (* Call the CFG for the specified non-terminal with the specified
      expressions for the inherited attributes. *)
   | B_call_nonterm of
-      Anf_common.modul * Ast.ident * (Ast.ident * var) list * (*return*) var
+      Anf_common.modul * Ast.ident * (Ast.ident * av) list * (*return*) var
 
   (* Suspension constraint (or dynamic assertion): Suspend the
      parsing machine until the constraint is satisfied.  This
      requires that the instruction is the first one to be executed on
      resuming the parse after a suspension. *)
-  | B_require_remaining of var (* view *) * var (* nbytes *)
+  | B_require_remaining of av (* view *) * av (* nbytes *)
 
 and bivalent_instr =
   {bi:      bivalent_desc;
@@ -311,7 +311,7 @@ and ctrl_desc =
   | C_loop of bool * sealed_block
 
   (* Conditional control block. *)
-  | C_if of var * sealed_block * sealed_block
+  | C_if of av * sealed_block * sealed_block
 
   (* Choice combinator block.  Creates a choice frame, initialized
      with current view and the specified variables that will need

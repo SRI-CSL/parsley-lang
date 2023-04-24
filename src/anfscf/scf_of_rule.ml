@@ -513,7 +513,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
               let id = ctx.ctx_id_gen () in
               let li = L_assign (v, ae) in
               add_instr (mk_l2b li v.v_typ v.v_loc id None) b,
-              (i, v) :: args
+              (i, av_of_var v) :: args
             ) (b, []) args in
         let v, ctx = get_ret_var ctx ret in
         let m = Anf_common.modul_of_mname m in
@@ -618,7 +618,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
           add_instr (mk_binst B_fail loc id (Some s)) init_block,
           ctx in
         let elseb = seal_block elseb in
-        let cblock = C_if (cvar, ifb, elseb) in
+        let cblock = C_if (av_of_var cvar, ifb, elseb) in
         let id = ctx.ctx_id_gen () in
         ctx, add_instr (mk_c2b cblock loc id None) b
 
@@ -831,7 +831,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let ifb, ctx =
           let id = ctx.ctx_id_gen () in
           let s, ctx  = mk_site ctx SS_cond loc in
-          let ci = C_if (c, thenb, elseb) in
+          let ci = C_if (av_of_var c, thenb, elseb) in
           mk_c2b ci e.expr_loc id (Some s), ctx in
         let b' = add_instr ifb b' in
         (* Match `re'` binding the result to `v'`. *)
@@ -971,7 +971,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let b = add_instr assign b in
         let susp, ctx =
           let id = ctx.ctx_id_gen () in
-          let bi = B_require_remaining (vvu, ve) in
+          let bi = B_require_remaining (av_of_var vvu, av_of_var ve) in
           let s, ctx  = mk_site ctx SS_dynamic loc in
           mk_binst bi loc id (Some s), ctx in
         let b = add_instr susp b in
@@ -1002,7 +1002,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let b = add_instr assign b in
         let b, ctx =
           let id = ctx.ctx_id_gen () in
-          let li = L_set_view v in
+          let li = L_set_view (av_of_var v) in
           let s, ctx  = mk_site ctx SS_view loc in
           add_instr (mk_l2b li unit loc id (Some s)) b,
           ctx in
@@ -1049,7 +1049,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
            both the success and failure paths. *)
         let set_pos, ctx =
           let id = ctx.ctx_id_gen () in
-          let li = L_set_pos v in
+          let li = L_set_pos (av_of_var v) in
           let s, ctx  = mk_site ctx SS_view re'.rule_elem_loc in
           mk_l2b li unit loc id (Some s), ctx in
         let b' = add_instr set_pos b' in
@@ -1110,7 +1110,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
            both the success and failure paths. *)
         let set_pos, ctx =
           let id = ctx.ctx_id_gen () in
-          let li = L_set_view v in
+          let li = L_set_view (av_of_var v) in
           let s, ctx  = mk_site ctx SS_view re'.rule_elem_loc in
           mk_l2b li unit loc id (Some s), ctx in
         let b' = add_instr set_pos b' in
@@ -1181,11 +1181,16 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
           let li = L_assign (vs, ae) in
           mk_l2b li e.expr_aux e.expr_loc id None in
         let b = add_instr assign b in
-        (* Split args into their types: iters are the variables
+        (* Split args into their types: `iters` are the variables
            holding the lists to be looped over (i.e. the condition
-           variables), while consts are the variables holding values
+           variables), while `consts` are the variables holding values
            that don't change in the loop.  Note that `vs` holding the
-           list of views is also a condition variable. *)
+           list of views is also a condition variable.
+
+           Since the variables in `iters` are going to be assigned, collect
+           them as `var`s, while the ones in `consts` can be collected
+           as `av`s, since they are bound to values.
+         *)
         let b, ctx, iters, consts =
           List.fold_left (fun (b, ctx, is, cs) (i, a, e) ->
               let ae, ctx = norm_exp ctx e in
@@ -1198,7 +1203,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
               let b = add_instr assign b in
               let is, cs = match a with
                   | Ast.A_in -> (i, v) :: is, cs
-                  | Ast.A_eq -> is, (i, v) :: cs in
+                  | Ast.A_eq -> is, (i, av_of_var v) :: cs in
               b, ctx, is, cs
             ) (b, ctx, [], []) args in
         (* Wrap the excursions over `vs` in a handled `do` block. *)
@@ -1239,7 +1244,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
                  each list `v` in `iters`. *)
               (* `ct := v == []` *)
               let null = constr_av "[]" "[]" [] v.v_typ v.v_loc in
-              let ae = AE_binop (Ast.Eq, (av_of_var v), null) in
+              let ae = AE_binop (Ast.Eq, av_of_var v, null) in
               let ae = make_ae ae bool v.v_loc None in
               let id = ctx.ctx_id_gen () in
               let li = L_assign (ct, ae) in
@@ -1264,7 +1269,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let elseb = seal_block init_block in
         let ifb, ctx =
           let id  = ctx.ctx_id_gen () in
-          let ci  = C_if (c, thenb, elseb) in
+          let ci  = C_if (av_of_var c, thenb, elseb) in
           let s, ctx   = mk_site ctx SS_cond e.expr_loc in
           mk_c2b ci e.expr_loc id (Some s), ctx in
         let lb  = add_instr ifb lb in
@@ -1309,12 +1314,12 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         (* Set the view: set_view v *)
         let lb, ctx =
           let id = ctx.ctx_id_gen () in
-          let li = L_set_view v in
+          let li = L_set_view (av_of_var v) in
           let s, ctx  = mk_site ctx SS_view v.v_loc in
           add_instr (mk_l2b li unit v.v_loc id (Some s)) lb,
           ctx in
         (* Construct the inherited attr argument list for the call. *)
-        let iters' = List.map (fun ((i, _), v) -> (i, v)) is in
+        let iters' = List.map (fun ((i, _), v) -> (i, av_of_var v)) is in
         let args' = iters' @ consts in
         let m = Anf_common.modul_of_mname m in
         let loc' = re'.rule_elem_loc in
@@ -1443,7 +1448,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let elseb = seal_block init_block in
         let ifb, ctx   =
           let id = ctx.ctx_id_gen () in
-          let ci = C_if (c, thenb, elseb) in
+          let ci = C_if (av_of_var c, thenb, elseb) in
           let s, ctx  = mk_site ctx SS_cond e.expr_loc in
           mk_c2b ci e.expr_loc id (Some s), ctx in
         let lb = add_instr ifb lb in
@@ -1464,7 +1469,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         (* Set this view. *)
         let lb, ctx =
           let id = ctx.ctx_id_gen () in
-          let li = L_set_view v in
+          let li = L_set_view (av_of_var v) in
           let s, ctx  = mk_site ctx SS_view e.expr_loc in
           add_instr (mk_l2b li unit e.expr_loc id (Some s)) lb,
           ctx in
