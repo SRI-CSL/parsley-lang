@@ -43,8 +43,8 @@ type zctx =
   | Z_do of bz * exit_handler * Location.t * instr_id * zctx
   | Z_doh of sealed_block * handle * hz * Location.t * instr_id * zctx
   | Z_loop of bool * bz * Location.t * instr_id * zctx
-  | Z_ift of var * bz * sealed_block * Location.t * instr_id * zctx
-  | Z_ife of var * sealed_block * bz * Location.t * instr_id * zctx
+  | Z_ift of av * bz * sealed_block * Location.t * instr_id * zctx
+  | Z_ife of av * sealed_block * bz * Location.t * instr_id * zctx
   | Z_start_choices of
       frame_id * mutations FrameMap.t * bz * Location.t * instr_id * zctx
 
