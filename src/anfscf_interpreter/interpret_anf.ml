@@ -20,7 +20,7 @@ open Anfscf
 open Interpreter_common
 open Values
 open State
-open Anf_zipper
+open Anf_context
 open Dispatch
 open Parsleylib
 open Viewlib
@@ -241,46 +241,6 @@ let matcher loc vr vl cases =
 type elem_exp =
   | E_av of Anf.av
   | E_call of Anf.fv * value list * Location.t
-(** Compute the stepper state for an expression by decomposing it into
-    an elementary expression and its continuation. **)
-let decompose_aexp (ae: Anf.aexp) (root: zexp) : elem_exp * zexp =
-  let rec setup ae z =
-    let si = Anf.(ae.aexp_site) in
-    let loc = Anf.(ae.aexp_loc) in
-    match Anf.(ae.aexp) with
-      | AE_val av ->
-          E_av av, z
-      | AE_apply (f, []) ->
-          E_call (f, [], ae.aexp_loc), z
-      | AE_apply (f, (av :: _ as avs)) ->
-          E_av av, Zexp_apply (f, [], avs, loc, si, z)
-      | AE_unop (op, av) ->
-          E_av av, Zexp_unop (op, loc, si, z)
-      | AE_binop (op, avl, avr) ->
-          E_av avl, Zexp_binop1 (op, avl, avr, loc, si, z)
-      | AE_bits_of_rec (av, info) ->
-          E_av av, Zexp_bits_of_rec (info, loc, si, z)
-      | AE_rec_of_bits (av, info) ->
-          E_av av, Zexp_rec_of_bits (info, loc, si, z)
-      | AE_bitrange (av, h, l) ->
-          E_av av, Zexp_bitrange (h, l, loc, si, z)
-      | AE_match (av, c) ->
-          E_av av, Zexp_match (c, loc, si, z)
-      | AE_field (av, f) ->
-          E_av av, Zexp_field (f, loc, si, z)
-      | AE_case (v, cases) ->
-          E_av v, Zexp_cases (v, cases, si, z)
-      | AE_let (v, bind, bod) ->
-          let zdrop = Zexp_drop_var (v, si, z) in
-          setup bind (Zexp_let (v, bod, si, zdrop))
-      | AE_cast (av, t) ->
-          E_av av, Zexp_cast (t, loc, si, z)
-      | AE_print (f, av) ->
-          E_av av, Zexp_print (f, av, loc, si, z)
-      | AE_letpat (v, (av, occ), body) ->
-          let zdrop = Zexp_drop_var (v, si, z) in
-          E_av av, Zexp_letpat (occ, v, body, si, zdrop)
-  in setup ae root
 
 (* The states in the step-transition graph. *)
 type exp_step_state =
@@ -288,6 +248,59 @@ type exp_step_state =
   | ESS_aexp of state * Anf.aexp * zexp
   | ESS_call of state * Anf.fv * value list * Location.t * zexp
   | ESS_done of value * Location.t
+
+(** Compute the stepper state for an expression by decomposing it into
+    an elementary expression and its continuation. **)
+let decompose_aexp (s: state) (ae: Anf.aexp) (root: zexp) : exp_step_state =
+  let rec setup ae z =
+    let si = Anf.(ae.aexp_site) in
+    let loc = Anf.(ae.aexp_loc) in
+    match Anf.(ae.aexp) with
+      | AE_val av ->
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+      | AE_apply (f, []) ->
+          ESS_call (s, f, [], ae.aexp_loc, z)
+      | AE_apply (f, (av :: _ as avs)) ->
+          let z = Zexp_apply (f, [], avs, loc, si, z) in
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+      | AE_unop (op, av) ->
+          let z = Zexp_unop (op, loc, si, z) in
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+      | AE_binop (op, avl, avr) ->
+          let z = Zexp_binop1 (op, avl, avr, loc, si, z) in
+          ESS_val (s, val_of_av s avl, avl.av_loc, z)
+      | AE_bits_of_rec (av, info) ->
+          let z = Zexp_bits_of_rec (info, loc, si, z) in
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+      | AE_rec_of_bits (av, info) ->
+          let z = Zexp_rec_of_bits (info, loc, si, z) in
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+      | AE_bitrange (av, h, l) ->
+          let z = Zexp_bitrange (h, l, loc, si, z) in
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+      | AE_match (av, c) ->
+          let z = Zexp_match (c, loc, si, z) in
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+      | AE_field (av, f) ->
+          let z = Zexp_field (f, loc, si, z) in
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+      | AE_case (av, cases) ->
+          let z = Zexp_cases (av, cases, si, z) in
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+      | AE_let (v, bind, bod) ->
+          let zdrop = Zexp_drop_var (v, si, z) in
+          setup bind (Zexp_let (v, bod, si, zdrop))
+      | AE_cast (av, t) ->
+          let z = Zexp_cast (t, loc, si, z) in
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+      | AE_print (f, av) ->
+          let z = Zexp_print (f, av, loc, si, z) in
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+      | AE_letpat (v, (av, occ), body) ->
+          let zdrop = Zexp_drop_var (v, si, z) in
+          let z = Zexp_letpat (occ, v, body, si, zdrop) in
+          ESS_val (s, val_of_av s av, av.av_loc, z)
+  in setup ae root
 
 (** A function call stepper returns either a value (from an external
    function) or the body expression and an updated evaluation state
@@ -416,15 +429,7 @@ let exp_take_step (step: exp_step_state) : exp_step_result =
     | ESS_val (s, v, l, z) ->
         ESR_next (exp_step_val s v l z)
     | ESS_aexp (s, ae, z) ->
-        (let elem, z = decompose_aexp ae z in
-         match elem with
-           | E_av av ->
-               let v = val_of_av s av in
-               let st = ESS_val (s, v, av.av_loc, z) in
-               ESR_next st
-           | E_call (fv, vs, l) ->
-               let st = ESS_call (s, fv, vs, l, z) in
-               ESR_next st)
+        ESR_next (decompose_aexp s ae z)
     | ESS_call (s, fv, vs, l, z) ->
         ESR_next (exp_step_call s z fv vs l)
     | ESS_done (v, _l) ->
@@ -488,32 +493,8 @@ let assign_field (s: state) (r: Anf.var) (fs: Ast.ident list) (fvl: value)
    specifies the first step and its continuation. *)
 type elem_stmt =
   | SE_exp of Anf.aexp
-  | SE_av of Anf.av
+  | SE_val of value
   | SE_next
-let decompose_stmt (stm: Anf.astmt) (root: zstmt) : elem_stmt * zstmt =
-  let rec setup stm z =
-    let si = Anf.(stm.astmt_site) in
-    let loc = Anf.(stm.astmt_loc) in
-    match stm.astmt with
-      | AS_set_var (v, ae) ->
-          SE_exp ae, Zstmt_set_var (v, loc, si, z)
-      | AS_set_field (r, fs, ae) ->
-          SE_exp ae, Zstmt_set_field (r, fs, loc, si, z)
-      | AS_print (f, av) ->
-          SE_av av, Zstmt_print (f, av, si, z)
-      | AS_let (v, ae, s) ->
-          let zdrop = Zstmt_drop_var (v, si, z) in
-          SE_exp ae, Zstmt_let (v, s, si, zdrop)
-      | AS_case (av, cases) ->
-          SE_av av, Zstmt_cases (av, cases, si, z)
-      | AS_block [] ->
-          SE_next, z
-      | AS_block (h :: t) ->
-          setup h (Zstmt_block (t, si, z))
-      | AS_letpat (v, (av, occ), stm) ->
-          let zdrop = Zstmt_drop_var (v, si, z) in
-          SE_av av, Zstmt_letpat (occ, v, stm, si, zdrop) in
-  setup stm root
 
 type stmt_step_state =
   | SSS_elem of state * elem_stmt * zstmt
@@ -521,6 +502,44 @@ type stmt_step_state =
   | SSS_val of state * value * zstmt
   | SSS_next of state * zstmt
   | SSS_done of state
+
+let decompose_stmt (s: state) (stm: Anf.astmt) (root: zstmt)
+    : stmt_step_state =
+  let rec setup stm z =
+    let si = Anf.(stm.astmt_site) in
+    let loc = Anf.(stm.astmt_loc) in
+    match stm.astmt with
+      | AS_set_var (v, ae) ->
+          let e = SE_exp ae in
+          let z = Zstmt_set_var (v, loc, si, z) in
+          SSS_elem (s, e, z)
+      | AS_set_field (r, fs, ae) ->
+          let e = SE_exp ae in
+          let z = Zstmt_set_field (r, fs, loc, si, z) in
+          SSS_elem (s, e, z)
+      | AS_print (f, av) ->
+          let e = SE_val (val_of_av s av) in
+          let z = Zstmt_print (f, av, si, z) in
+          SSS_elem (s, e, z)
+      | AS_let (v, ae, stm) ->
+          let zdrop = Zstmt_drop_var (v, si, z) in
+          let e = SE_exp ae in
+          let z = Zstmt_let (v, stm, si, zdrop) in
+          SSS_elem (s, e, z)
+      | AS_case (av, cases) ->
+          let e = SE_val (val_of_av s av) in
+          let z = Zstmt_cases (av, cases, si, z) in
+          SSS_elem (s, e, z)
+      | AS_block [] ->
+          SSS_elem (s, SE_next, z)
+      | AS_block (h :: t) ->
+          setup h (Zstmt_block (t, si, z))
+      | AS_letpat (v, (av, occ), stm) ->
+          let zdrop = Zstmt_drop_var (v, si, z) in
+          let e = SE_val (val_of_av s av) in
+          let z = Zstmt_letpat (occ, v, stm, si, zdrop) in
+          SSS_elem (s, e, z) in
+  setup stm root
 
 (** A value stepper takes a state expecting a value and computes an
     updated state and the next stepper state in the continuation. **)
@@ -565,11 +584,9 @@ let stmt_step_unit (s: state) (z: zstmt) : stmt_step_state =
     | Zstmt_block ([], _si, z) ->
         SSS_next (s, z)
     | Zstmt_block (stm :: ss, si, z) ->
-        let elem, z = decompose_stmt stm (Zstmt_block (ss, si, z)) in
-        SSS_elem (s, elem, z)
+        decompose_stmt s stm (Zstmt_block (ss, si, z))
     | Zstmt_stmt (stm, z) ->
-        let elem, z = decompose_stmt stm z in
-        SSS_elem (s, elem, z)
+        decompose_stmt s stm z
     | Zstmt_drop_var (v, _si, z) ->
         let env = VEnv.remove s.st_venv v.v in
         let s   = {s with st_venv = env} in
@@ -594,8 +611,7 @@ let stmt_step_elem (s: state) (e: elem_stmt) (zs: zstmt)
                SSS_exp (s, est, zs)
            | ESR_done v ->
                SSS_val (s, v, zs))
-    | SE_av av ->
-        let v = val_of_av s av in
+    | SE_val v ->
         SSS_val (s, v, zs)
     | SE_next ->
         SSS_next (s, zs)
@@ -630,6 +646,5 @@ let eval_stmt (s: state) (st: Anf.astmt) : state =
       | SSR_next st -> stepper st
       | SSR_done s  -> s in
   let root = Zstmt_root st in
-  let e, z = decompose_stmt st root in
-  let st = SSS_elem (s, e, z) in
+  let st = decompose_stmt s st root in
   stepper st

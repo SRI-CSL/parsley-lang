@@ -15,7 +15,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Zipper data structure for the ANF IR. *)
+(* Context/continuation data structure for the ANF IR, implemented as
+   a zipper. *)
 
 open Parsing
 open Typing
