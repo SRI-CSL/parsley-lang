@@ -128,11 +128,22 @@ module MFEnv = struct
                          interpret_error l err
 end
 
-(* Control stack entry, set up/pushed by `N_call_nonterm` and
-   used/popped by `N_return`. *)
+(* Choice frame, to save the environment and view stack at the
+   beginning of a `start-choice`.  It is used for state restoration by
+   `continue-choice` and dropped by `finish-choice` and `fail-choice`. *)
+type choice_frame =
+  {chf_venv:       VEnv.t;
+   chf_start_view: Values.view;
+   chf_view_stk:   Values.view list}
+
+(* Control stack frame, set up/pushed by `N_call_nonterm` and
+   used/popped on exit (via success or failure). *)
 type call_frame =
   {cf_nt:          Ast.ident;                     (* (user-defined) non-terminal being called *)
    cf_nt_retvar:   Anf.var;                       (* variable for successful match *)
+   cf_call_retvar: Anf.var;                       (* return variable for this call *)
+   cf_call_cont:   Scf_context.zscf;              (* continuation *)
+   cf_choice_stk:  choice_frame list;             (* choice context *)
    cf_call_state:  state}                         (* call state *)
 
 and state =
@@ -220,3 +231,31 @@ type pause_reason =
      Since the view contains a pointer indirection to the buffer, no
      variable bindings to the view need to be updated. *)
   | Paused_require_refill of Values.view * int
+
+(* Helpers to manipulate the choice stack: create a choice frame (on
+   start-choices), restore from a choice frame (on continue-choice or
+   fail-choice), pop a choice frame (on fail-choice or
+   finish-choice). *)
+
+let create_choice_frame (s: state) : state =
+  let chf = {chf_venv       = s.st_venv;
+             chf_start_view = s.st_cur_view;
+             chf_view_stk   = s.st_view_stk} in
+  (* TODO: convert exceptions here to internal errors. *)
+  let cthd, cttl = List.hd s.st_ctrl_stk, List.tl s.st_ctrl_stk in
+  let cthd = {cthd with cf_choice_stk = chf :: cthd.cf_choice_stk} in
+  {s with st_ctrl_stk = cthd :: cttl}
+
+let restore_choice (s: state) : state =
+  (* TODO: convert exceptions here to internal errors. *)
+  let cthd = List.hd s.st_ctrl_stk in
+  let chf  = List.hd cthd.cf_choice_stk in
+  {s with st_venv     = chf.chf_venv;
+          st_cur_view = chf.chf_start_view;
+          st_view_stk = chf.chf_view_stk}
+
+let pop_choice_frame (s: state) : state =
+  (* TODO: convert exceptions here to internal errors. *)
+  let cthd, cttl = List.hd s.st_ctrl_stk, List.tl s.st_ctrl_stk in
+  let cthd = {cthd with cf_choice_stk = List.tl cthd.cf_choice_stk} in
+  {s with st_ctrl_stk = cthd :: cttl}
