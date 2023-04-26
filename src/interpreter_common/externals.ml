@@ -18,7 +18,6 @@
 (* Implementations of external/foreign functions. *)
 
 open Parsing
-open Interpreter_common
 open Fi
 open Values
 open Internal_errors
