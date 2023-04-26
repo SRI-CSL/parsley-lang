@@ -249,6 +249,13 @@ type exp_step_state =
   | ESS_call of state * Anf.fv * value list * Location.t * zexp
   | ESS_done of value * Location.t
 
+let loc_of_exp_state st : Location.t =
+  match st with
+    | ESS_val (_, _, l, _)
+    | ESS_call (_, _, _, l, _)
+    | ESS_done (_, l) -> l
+    | ESS_aexp (_, ae, _) -> ae.aexp_loc
+
 (** Compute the stepper state for an expression by decomposing it into
     an elementary expression and its continuation. **)
 let decompose_aexp (s: state) (ae: Anf.aexp) (root: zexp) : exp_step_state =
@@ -422,7 +429,7 @@ let exp_step_val (s: state) (v: value) (loc: Location.t) (z: zexp)
 (** Top-level expression stepper. **)
 
 type exp_step_result =
-  | ESR_done of value
+  | ESR_done of value * Location.t
   | ESR_next of exp_step_state
 let exp_take_step (step: exp_step_state) : exp_step_result =
   match step with
@@ -432,16 +439,16 @@ let exp_take_step (step: exp_step_state) : exp_step_result =
         ESR_next (decompose_aexp s ae z)
     | ESS_call (s, fv, vs, l, z) ->
         ESR_next (exp_step_call s z fv vs l)
-    | ESS_done (v, _l) ->
-        ESR_done v
+    | ESS_done (v, l) ->
+        ESR_done (v, l)
 
 (** Big-step expression evaluator. **)
 
 let val_of_aexp (s: state) (ae: Anf.aexp) : value =
   let rec stepper st =
     match exp_take_step st with
-      | ESR_next st -> stepper st
-      | ESR_done v  -> v in
+      | ESR_next st      -> stepper st
+      | ESR_done (v, _)  -> v in
   let root = Zexp_root ae in
   let st = ESS_aexp (s, ae, root) in
   stepper st
@@ -492,16 +499,30 @@ let assign_field (s: state) (r: Anf.var) (fs: Ast.ident list) (fvl: value)
 (* Compute the starting stepper state for a statement, which
    specifies the first step and its continuation. *)
 type elem_stmt =
-  | SE_exp of Anf.aexp
-  | SE_val of value
-  | SE_next
+  | SE_exp  of Anf.aexp
+  | SE_val  of value * Location.t
+  | SE_next of Location.t
+
+let loc_of_elem e : Location.t =
+  match e with
+    | SE_exp ae     -> ae.aexp_loc
+    | SE_val (_, l)
+    | SE_next l     -> l
 
 type stmt_step_state =
   | SSS_elem of state * elem_stmt * zstmt
   | SSS_exp of state * exp_step_state * zstmt
-  | SSS_val of state * value * zstmt
-  | SSS_next of state * zstmt
-  | SSS_done of state
+  | SSS_val of state * value * Location.t * zstmt
+  | SSS_next of state * zstmt * Location.t
+  | SSS_done of state * Location.t
+
+let loc_of_stmt_state s : Location.t =
+  match s with
+    | SSS_elem (_, e, _)   -> loc_of_elem e
+    | SSS_exp (_, s, _)    -> loc_of_exp_state s
+    | SSS_val (_, _, l, _)
+    | SSS_next (_, _, l)
+    | SSS_done (_, l)      -> l
 
 let decompose_stmt (s: state) (stm: Anf.astmt) (root: zstmt)
     : stmt_step_state =
@@ -518,7 +539,7 @@ let decompose_stmt (s: state) (stm: Anf.astmt) (root: zstmt)
           let z = Zstmt_set_field (r, fs, loc, si, z) in
           SSS_elem (s, e, z)
       | AS_print (f, av) ->
-          let e = SE_val (val_of_av s av) in
+          let e = SE_val (val_of_av s av, av.av_loc) in
           let z = Zstmt_print (f, av, si, z) in
           SSS_elem (s, e, z)
       | AS_let (v, ae, stm) ->
@@ -527,16 +548,16 @@ let decompose_stmt (s: state) (stm: Anf.astmt) (root: zstmt)
           let z = Zstmt_let (v, stm, si, zdrop) in
           SSS_elem (s, e, z)
       | AS_case (av, cases) ->
-          let e = SE_val (val_of_av s av) in
+          let e = SE_val (val_of_av s av, av.av_loc) in
           let z = Zstmt_cases (av, cases, si, z) in
           SSS_elem (s, e, z)
       | AS_block [] ->
-          SSS_elem (s, SE_next, z)
+          SSS_elem (s, SE_next loc, z)
       | AS_block (h :: t) ->
           setup h (Zstmt_block (t, si, z))
       | AS_letpat (v, (av, occ), stm) ->
           let zdrop = Zstmt_drop_var (v, si, z) in
-          let e = SE_val (val_of_av s av) in
+          let e = SE_val (val_of_av s av, av.av_loc) in
           let z = Zstmt_letpat (occ, v, stm, si, zdrop) in
           SSS_elem (s, e, z) in
   setup stm root
@@ -577,12 +598,13 @@ let stmt_step_val (s: state) (vl: value) (z: zstmt)
 
 (** A statement stepper for states that are not expecting a computed
    value. **)
-let stmt_step_unit (s: state) (z: zstmt) : stmt_step_state =
+let stmt_step_unit (s: state) (z: zstmt) (l: Location.t)
+    : stmt_step_state =
   match z with
     | Zstmt_root _ ->
-        SSS_done s
+        SSS_done (s, l)
     | Zstmt_block ([], _si, z) ->
-        SSS_next (s, z)
+        SSS_next (s, z, l)
     | Zstmt_block (stm :: ss, si, z) ->
         decompose_stmt s stm (Zstmt_block (ss, si, z))
     | Zstmt_stmt (stm, z) ->
@@ -590,7 +612,7 @@ let stmt_step_unit (s: state) (z: zstmt) : stmt_step_state =
     | Zstmt_drop_var (v, _si, z) ->
         let env = VEnv.remove s.st_venv v.v in
         let s   = {s with st_venv = env} in
-        SSS_next (s, z)
+        SSS_next (s, z, l)
     (* The remaining continuations take a value. *)
     | Zstmt_set_var _
     | Zstmt_set_field _
@@ -609,31 +631,31 @@ let stmt_step_elem (s: state) (e: elem_stmt) (zs: zstmt)
         (match exp_take_step est with
            | ESR_next est ->
                SSS_exp (s, est, zs)
-           | ESR_done v ->
-               SSS_val (s, v, zs))
-    | SE_val v ->
-        SSS_val (s, v, zs)
-    | SE_next ->
-        SSS_next (s, zs)
+           | ESR_done (v, l) ->
+               SSS_val (s, v, l, zs))
+    | SE_val (v, l) ->
+        SSS_val (s, v, l, zs)
+    | SE_next l ->
+        SSS_next (s, zs, l)
 
 type stmt_step_result =
-  | SSR_done of state
+  | SSR_done of state * Location.t
   | SSR_next of stmt_step_state
 let stmt_take_step (sss: stmt_step_state) =
   match sss with
     | SSS_exp (s, es, zs) ->
         (match exp_take_step es with
-           | ESR_done v ->
-               SSR_next (SSS_val (s, v, zs))
+           | ESR_done (v, l) ->
+               SSR_next (SSS_val (s, v, l, zs))
            | ESR_next es ->
                SSR_next (SSS_exp (s, es, zs)))
-    | SSS_val (s, v, zs) ->
+    | SSS_val (s, v, l, zs) ->
         let s, _si, zs = stmt_step_val s v zs in
-        SSR_next (SSS_next (s, zs))
-    | SSS_done s ->
-        SSR_done s
-    | SSS_next (s, zs) ->
-        let st = stmt_step_unit s zs in
+        SSR_next (SSS_next (s, zs, l))
+    | SSS_done (s, l)  ->
+        SSR_done (s, l)
+    | SSS_next (s, zs, l) ->
+        let st = stmt_step_unit s zs l in
         SSR_next st
     | SSS_elem (s, e, zs) ->
         SSR_next (stmt_step_elem s e zs)
@@ -643,8 +665,8 @@ let stmt_take_step (sss: stmt_step_state) =
 let eval_stmt (s: state) (st: Anf.astmt) : state =
   let rec stepper st =
     match stmt_take_step st with
-      | SSR_next st -> stepper st
-      | SSR_done s  -> s in
+      | SSR_next st     -> stepper st
+      | SSR_done (s, _) -> s in
   let root = Zstmt_root st in
   let st = decompose_stmt s st root in
   stepper st
