@@ -1,4 +1,4 @@
 (library
   (name interpreter_common)
-  (libraries parsing typing anf_common dfa)
+  (libraries parsing typing anf_common dfa unix)
 )
