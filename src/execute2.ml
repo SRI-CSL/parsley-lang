@@ -51,6 +51,10 @@ let interpret load_externals spec nt inp_name inp loop data_as_ascii =
     then do_loop ()
     else do_once ()
   with
+    | Anfscf_interpreter.Scf_context.Error(l, e) ->
+        Errors.handle_exception
+          (Printexc.get_backtrace ()) l
+          (Printf.sprintf "%s\n" (Scf_context.error_msg e))
     | Internal_errors.Internal_error (l, e) ->
         Errors.handle_exception
           (Printexc.get_backtrace ()) l
