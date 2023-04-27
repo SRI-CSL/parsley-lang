@@ -410,8 +410,9 @@ type scf_return_result =
 let scf_step_return (s': state) (f: bool) (_l: Location.t) : scf_return_result =
   match s'.st_ctrl_stk with
     | [] ->
-        (* This returns to the top-level. *)
-        SRR_done (s', f)
+        (* We cannot return to an empty stack; it should contain the
+           caller's frame. *)
+        assert false
     | cf :: stk ->
         (* Returns should be made with an empty choice stack. *)
         assert (cf.cf_choice_stk = []);
@@ -429,15 +430,21 @@ let scf_step_return (s': state) (f: bool) (_l: Location.t) : scf_return_result =
           let s   = {s with st_venv     = env;
                             st_ctrl_stk = stk;
                             st_cur_view = s'.st_cur_view} in
-          (* Resume in the caller's continuation. *)
-          let z   = cf.cf_call_cont in
-          SRR_cont (s, z, loc)
+          (* If the return is from the very first call, then the
+             caller is the top-level and the execution is done. *)
+          if   stk = []
+          then SRR_done (s, true)
+          else (* Resume in the caller's continuation. *)
+            let z  = cf.cf_call_cont in
+            SRR_cont (s, z, loc)
         else
           (* The call failed; resume with the caller's state in the
              failure handler in the caller's continuation. *)
-          let s    = cf.cf_call_state in
-          let next = fail loc cf.cf_call_cont in
-          SRR_next (s, next, loc)
+          let s = cf.cf_call_state in
+          if   stk = []
+          then SRR_done (s, false)
+          else let next = fail loc cf.cf_call_cont in
+               SRR_next (s, next, loc)
 
 (** The top level stepper for SCF. **)
 
@@ -484,7 +491,7 @@ let scf_take_step (css: scf_step_state) : scf_step_result =
     | CSS_pause (s, z, pr, l) ->
         CSR_pause (s, z, pr, l)
 
-(** Top level big-step executor of SCF. **)
+(** Top level big-step executors of SCF. **)
 
 type scf_result =
   | CR_done  of state * bool
@@ -499,4 +506,14 @@ let run_scf (s: state) (sb: sealed_block) (l: Location.t)
       | CSR_pause (s, z, pr, l) -> CR_pause (s, z, pr, l) in
   let zinit = init_zscf sb in
   let st = CSS_next (s, zinit, l) in
+  stepper st
+
+let run_cont (s: state) (z: zscf) (l: Location.t)
+    : scf_result =
+  let rec stepper st =
+    match scf_take_step st with
+      | CSR_done (s, b)         -> CR_done (s, b)
+      | CSR_next st             -> stepper st
+      | CSR_pause (s, z, pr, l) -> CR_pause (s, z, pr, l) in
+  let st = CSS_next (s, z, l) in
   stepper st
