@@ -26,6 +26,10 @@ let test copts : unit =
   Options.process_copts copts;
   Test.run_tests copts.co_verbose Test.gen_cfg Test.exe_cfg
 
+let test2 copts : unit =
+  Options.process_copts copts;
+  Test2.run_tests copts.co_verbose Test2.gen_scf Test2.exe_scf
+
 let check copts ckopts sopts spec_file : unit =
   Options.process_copts copts;
   Options.process_ckopts ckopts;
@@ -44,6 +48,16 @@ let execute copts sopts xopts load_externals loop start
   let spec = Check.cfg_of_spec verbose ckopts sopts spec_file in
   let m = Parsing.AstUtils.modname_of_file spec_file in
   Execute.execute verbose xopts.exe_show_data_as_ascii
+    load_externals loop m start spec data_file stdin
+
+let execute2 copts sopts xopts load_externals loop start
+      spec_file data_file stdin : unit =
+  Options.process_copts copts;
+  let verbose = copts.co_verbose in
+  let ckopts = Options.default_ckopts in
+  let spec = Check2.scf_of_spec verbose ckopts sopts spec_file in
+  let m = Parsing.AstUtils.modname_of_file spec_file in
+  Execute2.execute verbose xopts.exe_show_data_as_ascii
     load_externals loop m start spec data_file stdin
 
 (* TODO: help command *)
@@ -170,6 +184,11 @@ let test_cmd : unit Cmd.t =
   let info = Cmd.info "test" ~doc in
   Cmd.v info Term.(const test $ copts_t)
 
+let test2_cmd : unit Cmd.t =
+  let doc  = "run internal tests" in
+  let info = Cmd.info "test2" ~doc in
+  Cmd.v info Term.(const test2 $ copts_t)
+
 let check_cmd : unit Cmd.t =
   let doc  = "parse, type-check and generate IR for a specification" in
   let info = Cmd.info "check" ~doc in
@@ -186,12 +205,19 @@ let execute_cmd : unit Cmd.t =
   Cmd.v info Term.(const execute $ copts_t $ sopts_t $ exopts_t
                    $ load_externals $ loop $ start $ spec $ data $ stdin)
 
+let execute2_cmd : unit Cmd.t =
+  let doc  = "parse the given data using the given specification" in
+  let info = Cmd.info "execute2" ~doc in
+  Cmd.v info Term.(const execute2 $ copts_t $ sopts_t $ exopts_t
+                   $ load_externals $ loop $ start $ spec $ data $ stdin)
+
 (* top-level command *)
 let main_cmd : unit Cmd.t =
   let doc  = "the Parsley compiler" in
   let prog = Filename.basename Sys.argv.(0) in
   let info = Cmd.info prog ~version:version ~doc in
-  Cmd.group info [check_cmd; check2_cmd; execute_cmd; test_cmd]
+  Cmd.group info [check_cmd; execute_cmd; test_cmd;
+                  check2_cmd; execute2_cmd; test2_cmd]
 
 let run () =
   exit (Cmd.eval main_cmd)
