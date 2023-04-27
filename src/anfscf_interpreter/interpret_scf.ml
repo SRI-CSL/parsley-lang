@@ -410,9 +410,10 @@ type scf_return_result =
 let scf_step_return (s': state) (f: bool) (_l: Location.t) : scf_return_result =
   match s'.st_ctrl_stk with
     | [] ->
-        (* We cannot return to an empty stack; it should contain the
-           caller's frame. *)
-        assert false
+        (* We normally cannot return to an empty stack: it should contain the
+           caller's frame.  However, during startup initialization, the
+           static block executes without a call frame. *)
+        SRR_done (s', true)
     | cf :: stk ->
         (* Returns should be made with an empty choice stack. *)
         assert (cf.cf_choice_stk = []);

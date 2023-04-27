@@ -105,11 +105,57 @@ type error =
   | ZE_illegal_fail_choice_in_loop
   | ZE_illegal_fail_choice_in_handler
   | ZE_illegal_fail_in_assign_var
-  | ZE_illegal_fail_choice_not_last
   | ZE_illegal_fail_in_start_choice
   | ZE_illegal_fail_in_handler
 
 exception Error of Location.t * error
+
+let exn_msg = function
+  | ZE_no_loop_for_break ->
+      "no break found in loop"
+  | ZE_illegal_next_in_assign_var ->
+      "illegal next when awaiting assignment"
+  | ZE_illegal_next_in_start_choice ->
+      "illegal next in start-choice"
+  | ZE_illegal_break_in_assign_var ->
+      "illegal break when awaiting assignment"
+  | ZE_illegal_break_in_start_choices ->
+      "illegal break in start-choices"
+  | ZE_illegal_break_in_handler ->
+      "illegal break in handler"
+  | ZE_illegal_finish_choice ->
+      "illegal finish-choice"
+  | ZE_illegal_finish_choice_in_assign_var ->
+      "illegal finish-choice when awaiting assignment"
+  | ZE_illegal_finish_choice_in_handler ->
+      "illegal finish-choice in handler"
+  | ZE_illegal_finish_choice_in_loop ->
+      "illegal finish-choice in loop"
+  | ZE_illegal_continue_choice ->
+      "illegal continue-choice"
+  | ZE_illegal_continue_choice_in_assign_var ->
+      "illegal continue-choice when awaiting assignment"
+  | ZE_illegal_continue_choice_in_loop ->
+      "illegal continue-choice in loop"
+  | ZE_illegal_continue_choice_in_handler ->
+      "illegal continue-choice in handler"
+  | ZE_illegal_fail_choice ->
+      "illegal fail-choice"
+  | ZE_illegal_fail_choice_in_assign_var ->
+      "illegal fail-choice when awaiting assignment"
+  | ZE_illegal_fail_choice_in_loop ->
+      "illegal fail-choice in loop"
+  | ZE_illegal_fail_choice_in_handler ->
+      "illegal fail-choice in handler"
+  | ZE_illegal_fail_in_assign_var ->
+      "illegal fail when awaiting assignment"
+  | ZE_illegal_fail_in_start_choice ->
+      "illegal fail-choice in start-choice"
+  | ZE_illegal_fail_in_handler ->
+      "illegal fail in handler"
+
+let error_msg e =
+  Printf.sprintf "Internal Error: %s" (exn_msg e)
 
 type next =
   | N_in_block   of bivalent_instr * zscf
@@ -310,37 +356,3 @@ let fail_choice (l: Location.t) (z: zscf) : next =
           let err = ZE_illegal_fail_choice_in_handler in
           raise (Error (l, err)) in
   search z
-
-(*
-
-let error_msg = function
-  | ZE_empty_block ->
-      "unexpected empty block"
-  | ZE_empty_handler ->
-      "illegal empty handler"
-  | ZE_empty_loop ->
-      "illegal empty loop"
-  | ZE_no_loop_for_break ->
-      "no break found in loop"
-  | ZE_illegal_break_in_start_choices ->
-      "illegal break in start-choices"
-  | ZE_illegal_break_in_handler_context ->
-      "illegal break in handler context"
-  | ZE_illegal_finish_choice ->
-      "illegal finish-choice"
-  | ZE_illegal_finish_choice_in_handler_context ->
-      "illegal finish-choice in handler context"
-  | ZE_illegal_continue_choice ->
-      "illegal continue-choice"
-  | ZE_illegal_continue_choice_no_choice ->
-      "no choices left for continue-choice"
-  | ZE_illegal_fail_choice ->
-      "illegal fail-choice"
-  | ZE_illegal_fail_choice_not_last ->
-      "illegal fail-choice: choice is not last"
-  | ZE_illegal_fail_in_start_choice ->
-      "illegal fail-choice in start-choice"
-  | ZE_illegal_fail_in_handler ->
-      "illegal fail in handler"
-
- *)
