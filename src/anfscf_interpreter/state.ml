@@ -143,15 +143,15 @@ type call_frame =
    cf_nt_retvar:   Anf.var;                       (* variable for successful match *)
    cf_call_retvar: Anf.var;                       (* return variable for this call *)
    cf_call_cont:   Scf_context.zscf;              (* continuation *)
-   cf_choice_stk:  choice_frame list;             (* choice context *)
-   cf_call_state:  state}                         (* call state *)
+   cf_call_state:  state;                         (* call state *)
+   cf_choice_stk:  choice_frame list}             (* choice context *)
 
 and state =
   {(* static state *)
    st_spec_nts:     Scf.nt_entry Scf.ValueMap.t;
    (* static state only for debugging *)
-   st_cfg_tenv:     TypingEnvironment.environment;
-   st_cfg_venv:     Anf.VEnv.t;
+   st_scf_tenv:     TypingEnvironment.environment;
+   st_scf_venv:     Anf.VEnv.t;
    (* dynamic state *)
    st_mode:         mode;
    st_venv:         VEnv.t;
