@@ -487,12 +487,12 @@ let tests = [
      "M", "\x01\x02", V_record ["m", V_int (Ast.u8_t, 0x02L)]);
   ]
 
-let do_tests print_cfg gen_cfg exe_cfg =
+let do_tests print_cfg gen_cfg exe_cfg print_spec =
   let fails = ref 0 in
   let succs = ref 0 in
   let print_cfg cfg =
     if   print_cfg
-    then Anfcfg.Cfg_printer.print_spec cfg in
+    then print_spec cfg in
   let fail reason =
     incr fails;
     Printf.eprintf " failed, %s.\n%!" reason in

@@ -23,7 +23,7 @@ open Lexing
 module I = Parser.MenhirInterpreter
 open Typing
 open Interpreter_common
-open Anfcfg_interpreter
+open Anfscf_interpreter
 
 (* Don't use the one from errors.ml since we don't want to exit on
    test failure. *)
@@ -75,9 +75,9 @@ let parse_spec test s cont =
         handle_exception
           (Printexc.get_backtrace ()) (Parseerror.error_msg e)
 
-type cfg = Anfcfg.Cfg.spec_cfg
+type scf = Anfscf.Scf.spec_scf
 
-let gen_cfg (test_name: string) (spec: string) : cfg option =
+let gen_scf (test_name: string) (spec: string) : scf option =
   let includes = SpecParser.StringSet.empty in
   let spec =
     parse_spec test_name spec (fun ast ->
@@ -94,12 +94,12 @@ let gen_cfg (test_name: string) (spec: string) : cfg option =
       ) in
   match spec with
     | None   -> None
-    | Some s -> Some (Check.cfg_of_ast false Options.default_ckopts s)
+    | Some s -> Some (Check2.scf_of_ast false Options.default_ckopts s)
 
-let exe_cfg (test: string) (cfg: cfg) (entry: string) (data: string)
+let exe_scf (test: string) (scf: scf) (entry: string) (data: string)
     : Values.value option =
   let entry = Anf_common.M_name "Test", entry in
-  try  fst (Interpret.once_on_test_string test cfg entry data)
+  try  fst (Interpret.once_on_test_string test scf entry data)
   with
     | Runtime_exceptions.Runtime_exception (_, e) ->
         (* Catch the backtrace before error_msg has an exception
@@ -108,6 +108,6 @@ let exe_cfg (test: string) (cfg: cfg) (entry: string) (data: string)
           (Printf.sprintf "%s\n" (Runtime_exceptions.error_msg e))
           (Printexc.get_backtrace ())
 
-let run_tests verbose gen_cfg exe_cfg =
+let run_tests verbose gen_scf exe_scf =
   Interpret.init_runtime true;
-  Tests.do_tests verbose gen_cfg exe_cfg Anfcfg.Cfg_printer.print_spec
+  Tests.do_tests verbose gen_scf exe_scf Anfscf.Scf_printer.print_spec
