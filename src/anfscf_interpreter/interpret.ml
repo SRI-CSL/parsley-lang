@@ -113,8 +113,10 @@ let init load_externals (spec: Scf.spec_scf)
   let ent = match get_init_ntentry s entry_nt with
       | Some b -> b
       | None   -> (Printf.eprintf
-                     "Unknown user-defined non-terminal `%s' specified.\n"
-                     (snd entry_nt);
+                     "Unknown user-defined non-terminal `%s' specified.\n Options are: %s\n"
+                     (snd entry_nt)
+                     (String.concat ", " (get_ntentry_names s
+                                            (Anf_common.mod_of_qname entry_nt)));
                    exit 1) in
   (* Initialize from the statics block. *)
   let s, loc =

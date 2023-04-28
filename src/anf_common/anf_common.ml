@@ -51,6 +51,9 @@ let mod_prefix m s =
 let str_of_qname (m, s) =
   mod_prefix m s
 
+let mod_of_qname (m, _) =
+  m
+
 let convert_con (m, t, c) =
   (modul_of_mname m), Location.value t, Location.value c
 
