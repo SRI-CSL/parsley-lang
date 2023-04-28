@@ -121,10 +121,12 @@ type error =
   | ZE_illegal_continue_choice_in_assign_var
   | ZE_illegal_continue_choice_in_loop
   | ZE_illegal_continue_choice_in_handler
+  | ZE_illegal_continue_choice_in_failing_handler
   | ZE_illegal_fail_choice
   | ZE_illegal_fail_choice_in_assign_var
   | ZE_illegal_fail_choice_in_loop
   | ZE_illegal_fail_choice_in_handler
+  | ZE_illegal_fail_choice_in_success_handler
   | ZE_illegal_fail_in_assign_var
   | ZE_illegal_fail_in_start_choice
   | ZE_illegal_fail_in_handler
@@ -158,6 +160,8 @@ let exn_msg = function
       "illegal continue-choice in loop"
   | ZE_illegal_continue_choice_in_handler ->
       "illegal continue-choice in handler"
+  | ZE_illegal_continue_choice_in_failing_handler ->
+      "illegal continue-choice in failing handler"
   | ZE_illegal_fail_choice ->
       "illegal fail-choice"
   | ZE_illegal_fail_choice_in_assign_var ->
@@ -166,6 +170,8 @@ let exn_msg = function
       "illegal fail-choice in loop"
   | ZE_illegal_fail_choice_in_handler ->
       "illegal fail-choice in handler"
+  | ZE_illegal_fail_choice_in_success_handler ->
+      "illegal fail-choice in success handler"
   | ZE_illegal_fail_in_assign_var ->
       "illegal fail when awaiting assignment"
   | ZE_illegal_fail_in_start_choice ->
@@ -346,9 +352,16 @@ let continue_choice (l: Location.t) (z: zscf) : zscf =
       | Zscf_loop _ ->
           let err = ZE_illegal_continue_choice_in_loop in
           raise (Error (l, err))
-      | Zscf_doh _ ->
+      (* continue-choice should be the last instruction in a handler. *)
+      | Zscf_doh (_, _, (_, _::_), _) ->
           let err = ZE_illegal_continue_choice_in_handler in
-          raise (Error (l, err)) in
+          raise (Error (l, err))
+      (* continue-choice can only occur in a success handler. *)
+      | Zscf_doh (_, H_failure, (_, []), _) ->
+          let err = ZE_illegal_continue_choice_in_failing_handler in
+          raise (Error (l, err))
+      | Zscf_doh (_, H_success, (_, []), z) ->
+          z in
   search z
 
 let fail_choice (l: Location.t) (z: zscf) : next =
@@ -371,7 +384,14 @@ let fail_choice (l: Location.t) (z: zscf) : next =
       | Zscf_loop _ ->
           let err = ZE_illegal_fail_choice_in_loop in
           raise (Error (l, err))
-      | Zscf_doh _ ->
+      (* fail-choice should be the last instruction in a handler. *)
+      | Zscf_doh (_, _, (_, _::_), _) ->
           let err = ZE_illegal_fail_choice_in_handler in
-          raise (Error (l, err)) in
+          raise (Error (l, err))
+      (* fail-choice can only occur in a failing handler. *)
+      | Zscf_doh (_, H_success, (_, []), _) ->
+          let err = ZE_illegal_fail_choice_in_success_handler in
+          raise (Error (l, err))
+      | Zscf_doh (_, H_failure, (_, []), z) ->
+          search z in
   search z
