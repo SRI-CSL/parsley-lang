@@ -74,10 +74,15 @@ type scf_step_state =
   | CSS_call  of state * zscf * call_info
   | CSS_pause of state * zscf * pause_reason * Location.t
 
+let trace = true
+
 let scf_step_val (s: state) (v: value) (z: zscf) : scf_step_state =
   (* There's only one possible continuation that consumes a value. *)
   match z with
     | Zscf_assign_var (vr, z) ->
+        (if   trace
+         then Printf.printf " %s <- [] in context %s\n"
+                (Anf_printer.string_of_var vr) (str_of_top_zscf z));
         let st_venv = VEnv.assign s.st_venv vr v in
         CSS_next ({s with st_venv}, z, vr.v_loc)
     | _ ->
@@ -87,6 +92,10 @@ let scf_step_val (s: state) (v: value) (z: zscf) : scf_step_state =
 
 let scf_step_linear (s: state) (li: linear_instr) (z: zscf)
     : scf_step_state =
+  (if   trace
+   then Printf.printf " %s in context %s\n"
+          (Scf_printer.str_of_linst li)
+          (str_of_top_zscf z));
   let loc = li.li_loc in
   match li.li with
     (* TODO: split assignments into two kinds: one done during
@@ -192,6 +201,15 @@ let scf_step_linear (s: state) (li: linear_instr) (z: zscf)
 
 let rec scf_step_bivalent (s: state) (bi: bivalent_instr) (z: zscf)
         : scf_step_state =
+  (if   trace
+   then (match bi.bi with
+           (* avoid double printing instructions that have their own
+              printer. *)
+           | B_linear _
+           | B_control _ -> ()
+           | _           -> Printf.printf " %s in context %s\n"
+                              (Scf_printer.str_of_binst bi)
+                              (str_of_top_zscf z)));
   let loc = bi.bi_loc in
   match bi.bi with
     | B_linear li ->
@@ -319,6 +337,10 @@ let rec scf_step_bivalent (s: state) (bi: bivalent_instr) (z: zscf)
 
 and scf_step_control (s: state) (ci: ctrl_instr) (z: zscf)
     : scf_step_state =
+  (if   trace
+   then Printf.printf " %s in context %s\n"
+          (Scf_printer.str_of_cinst ci)
+          (str_of_top_zscf z));
   let loc = ci.ci_loc in
   match ci.ci with
     | C_do (sb, eh) ->
@@ -347,6 +369,10 @@ let scf_step_call (s: state) (ci: call_info) (z: zscf)
     | (m, nt, pvs, ret, loc)
          when m = Anf_common.M_stdlib
               && is_std_nonterm (Location.value nt) ->
+        (if   trace
+         then Printf.printf " call to %s in context %s\n"
+                (Anf_common.mod_prefix m (Location.value nt))
+                (str_of_top_zscf z));
         (* We don't have an nt_entry for stdlib non-terminals, so
            just evaluate the attribute values and dispatch without
            creating a call-frame. *)
@@ -369,6 +395,10 @@ let scf_step_call (s: state) (ci: call_info) (z: zscf)
                let cont = fail loc z in
                CSS_jump (s, cont, loc))
     | (m, nt, pvs, ret, loc) ->
+        (if   trace
+         then Printf.printf " call to %s in context %s\n"
+                (Anf_common.mod_prefix m (Location.value nt))
+                (str_of_top_zscf z));
         let ent = get_ntentry s (m, nt) in
         let ntn = Location.value nt in
         (* sanity check *)
@@ -407,7 +437,10 @@ type scf_return_result =
   | SRR_next of state * next * Location.t (* continue on failure *)
   | SRR_done of state * bool              (* done *)
 
-let scf_step_return (s': state) (f: bool) (_l: Location.t) : scf_return_result =
+let scf_step_return (s': state) (f: bool) (_l: Location.t)
+    : scf_return_result =
+  (if   trace
+   then Printf.printf " return \n");
   match s'.st_ctrl_stk with
     | [] ->
         (* We normally cannot return to an empty stack: it should contain the
