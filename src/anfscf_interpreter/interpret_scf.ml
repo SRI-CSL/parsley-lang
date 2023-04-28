@@ -74,13 +74,11 @@ type scf_step_state =
   | CSS_call  of state * zscf * call_info
   | CSS_pause of state * zscf * pause_reason * Location.t
 
-let trace = true
-
 let scf_step_val (s: state) (v: value) (z: zscf) : scf_step_state =
   (* There's only one possible continuation that consumes a value. *)
   match z with
     | Zscf_assign_var (vr, z) ->
-        (if   trace
+        (if   s.st_trace_exec
          then Printf.printf " %s <- %s in context %s\n"
                 (Anf_printer.string_of_var vr)
                 (Values.string_of_value true v)
@@ -94,7 +92,7 @@ let scf_step_val (s: state) (v: value) (z: zscf) : scf_step_state =
 
 let scf_step_linear (s: state) (li: linear_instr) (z: zscf)
     : scf_step_state =
-  (if   trace
+  (if   s.st_trace_exec
    then Printf.printf " %s in context %s\n"
           (Scf_printer.str_of_linst li)
           (str_of_top_zscf z));
@@ -203,7 +201,7 @@ let scf_step_linear (s: state) (li: linear_instr) (z: zscf)
 
 let rec scf_step_bivalent (s: state) (bi: bivalent_instr) (z: zscf)
         : scf_step_state =
-  (if   trace
+  (if   s.st_trace_exec
    then (match bi.bi with
            (* avoid double printing instructions that have their own
               printer. *)
@@ -339,7 +337,7 @@ let rec scf_step_bivalent (s: state) (bi: bivalent_instr) (z: zscf)
 
 and scf_step_control (s: state) (ci: ctrl_instr) (z: zscf)
     : scf_step_state =
-  (if   trace
+  (if   s.st_trace_exec
    then Printf.printf " %s in context %s\n"
           (Scf_printer.str_of_cinst ci)
           (str_of_top_zscf z));
@@ -371,7 +369,7 @@ let scf_step_call (s: state) (ci: call_info) (z: zscf)
     | (m, nt, pvs, ret, loc)
          when m = Anf_common.M_stdlib
               && is_std_nonterm (Location.value nt) ->
-        (if   trace
+        (if   s.st_trace_exec
          then Printf.printf " call to NT %s (%s) in context %s\n"
                 (Anf_common.mod_prefix m (Location.value nt))
                 (String.concat ", "
@@ -400,7 +398,7 @@ let scf_step_call (s: state) (ci: call_info) (z: zscf)
                let cont = fail loc z in
                CSS_jump (s, cont, loc))
     | (m, nt, pvs, ret, loc) ->
-        (if   trace
+        (if   s.st_trace_exec
          then Printf.printf " call to %s in context %s\n"
                 (Anf_common.mod_prefix m (Location.value nt))
                 (str_of_top_zscf z));
@@ -444,7 +442,7 @@ type scf_return_result =
 
 let scf_step_return (s': state) (f: bool) (_l: Location.t)
     : scf_return_result =
-  (if   trace
+  (if   s'.st_trace_exec
    then Printf.printf " [return] \n");
   match s'.st_ctrl_stk with
     | [] ->

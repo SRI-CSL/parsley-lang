@@ -162,7 +162,8 @@ and state =
    st_mfenv:        MFEnv.t;
    st_view_stk:     Values.view list;  (* stack of views (minus top-of-stack) *)
    st_cur_view:     Values.view;       (* current view (top-of-view-stack) *)
-   st_ctrl_stk:     call_frame list}
+   st_ctrl_stk:     call_frame list;
+   st_trace_exec:   bool}              (* interpreter options *)
 
 (* helpers *)
 

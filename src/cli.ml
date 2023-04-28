@@ -57,7 +57,7 @@ let execute2 copts sopts xopts load_externals loop start
   let ckopts = Options.default_ckopts in
   let spec = Check2.scf_of_spec verbose ckopts sopts spec_file in
   let m = Parsing.AstUtils.modname_of_file spec_file in
-  Execute2.execute verbose xopts.exe_show_data_as_ascii
+  Execute2.execute verbose xopts.exe_show_data_as_ascii xopts.exe_trace_exec
     load_externals loop m start spec data_file stdin
 
 (* TODO: help command *)
@@ -146,14 +146,18 @@ let spec : string Term.t =
   let doc  = "The file containing the input Parsley specification." in
   Arg.(required & (pos 0 (some non_dir_file) None & info [] ~doc ~docv))
 
-let mk_exopts exe_show_data_as_ascii : exe_opts =
-  {exe_show_data_as_ascii}
+let mk_exopts exe_show_data_as_ascii exe_trace_exec: exe_opts =
+  {exe_show_data_as_ascii;
+   exe_trace_exec}
 
 let exopts_t : exe_opts Term.t =
   let show_data_as_ascii =
     let doc = "Interpret byte data as (ascii) strings." in
     Arg.(value & flag & info ["show-data-as-ascii"] ~doc) in
-  Term.(const mk_exopts $ show_data_as_ascii)
+  let trace_exec =
+    let doc = "Trace execution." in
+    Arg.(value & flag & info ["trace-exec"] ~doc) in
+  Term.(const mk_exopts $ show_data_as_ascii $ trace_exec)
 
 let data : string option Term.t =
   let docv = "data_file" in

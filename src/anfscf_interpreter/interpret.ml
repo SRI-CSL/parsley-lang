@@ -87,7 +87,7 @@ let resolve_foreign (ffs: TypedAst.ffi_decl Scf.ValueMap.t) =
 
 (* Returns the entry block for the given non-terminal along with the
    interpreter state that is initialized by executing the static block. *)
-let init load_externals (spec: Scf.spec_scf)
+let init load_externals trace_exec (spec: Scf.spec_scf)
       (entry_nt: Anf_common.modul * string) (view: view)
     : state * Scf.nt_entry * Location.t =
   (* Resolve externals in FFI. *)
@@ -108,7 +108,8 @@ let init load_externals (spec: Scf.spec_scf)
            st_mfenv        = mfenv;
            st_view_stk     = [];
            st_cur_view     = view;
-           st_ctrl_stk     = []} in
+           st_ctrl_stk     = [];
+           st_trace_exec   = trace_exec} in
   (* Look up the entry non-terminal. *)
   let ent = match get_init_ntentry s entry_nt with
       | Some b -> b
@@ -229,7 +230,8 @@ let loop_over_pauses (s: state) (ent: Scf.nt_entry) (l: Location.t)
   loop s zinit l
 
 (* Execute the CFG from the given starting block for a single result. *)
-let run_once ((s: state), (ent: Scf.nt_entry), (l: Location.t)) (ph: App_viewlib.pause_handler)
+let run_once ((s: state), (ent: Scf.nt_entry), (l: Location.t))
+      (ph: App_viewlib.pause_handler)
     : value option * error_info =
   let vo, s = loop_over_pauses s ent l ph in
   vo, error_info s
@@ -237,7 +239,8 @@ let run_once ((s: state), (ent: Scf.nt_entry), (l: Location.t)) (ph: App_viewlib
 (* Execute the CFG from the given starting block for as many
    successful results as possible, restarting at the given block after
    a success, and stopping at the first failure. *)
-let run_loop ((s: state), (ent: Scf.nt_entry), (l: Location.t)) (ph: App_viewlib.pause_handler)
+let run_loop ((s: state), (ent: Scf.nt_entry), (l: Location.t))
+      (ph: App_viewlib.pause_handler)
     : value list * error_info =
   let rec loop acc s_init =
     match loop_over_pauses s_init ent l ph with
@@ -260,16 +263,18 @@ let open_input i =
     | Inp_stdin sz         -> App_viewlib.from_channel "stdin" Stdlib.stdin sz
     | Inp_string (test, s) -> App_viewlib.from_string test s
 
-let once_on_file load_externals spec entry f =
+let once_on_file load_externals trace_exec spec entry f =
   init_runtime load_externals;
   let v, pause_handler = open_input f in
-  run_once (init load_externals spec entry v) pause_handler
+  run_once (init load_externals trace_exec spec entry v)
+    pause_handler
 
-let loop_on_file load_externals spec entry f =
+let loop_on_file load_externals trace_exec spec entry f =
   init_runtime load_externals;
   let v, pause_handler = open_input f in
-  run_loop (init load_externals spec entry v) pause_handler
+  run_loop (init load_externals trace_exec spec entry v)
+    pause_handler
 
 let once_on_test_string test spec entry s =
   let v, pause_handler = open_input (Inp_string (test, s)) in
-  run_once (init true spec entry v) pause_handler
+  run_once (init true false spec entry v) pause_handler
