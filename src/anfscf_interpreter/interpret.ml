@@ -157,7 +157,7 @@ let init load_externals (spec: Scf.spec_scf)
 (* Returns the parse call stack. *)
 type parse_stk = Ast.ident list
 let parse_info (s: state) : parse_stk =
-  List.map (fun cf -> cf.cf_nt) s.st_ctrl_stk
+  safe_map (fun cf -> cf.cf_nt) s.st_ctrl_stk
 
 (* Info for reporting state at the end of parse. *)
 type error_info = last_pos * parse_stk

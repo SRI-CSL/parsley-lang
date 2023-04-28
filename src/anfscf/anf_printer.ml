@@ -29,6 +29,9 @@ let pp_newline   = AstPrinter.pp_newline
 let pp_cut       = AstPrinter.pp_cut
 let pp_flush     = AstPrinter.pp_flush
 
+let safe_map f ls =
+  List.rev (List.rev_map f ls)
+
 let string_of_varid ((v, id) : varid) : string =
   if   v <> "" && id = 1
   then v
@@ -42,7 +45,7 @@ let string_of_var (v: var) : string =
 let string_of_occurrence occ : string =
   if   occ = []
   then ""
-  else "@" ^ (String.concat "/" (List.map string_of_int occ))
+  else "@" ^ (String.concat "/" (safe_map string_of_int occ))
 
 let rec string_of_av (av: av) : string =
   match av.av with
@@ -54,13 +57,13 @@ let rec string_of_av (av: av) : string =
         (string_of_constr c)
         ^ (if List.length avs > 0
            then "("
-                ^ (String.concat ", " (List.map string_of_av avs))
+                ^ (String.concat ", " (safe_map string_of_av avs))
                 ^ ")"
            else "")
     | AV_record fields ->
         "{"
         ^ (String.concat ", "
-             (List.map (fun (f, v) ->
+             (safe_map (fun (f, v) ->
                   Printf.sprintf "%s: %s"
                     (Location.value f) (string_of_av v)
                 ) fields))
