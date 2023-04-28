@@ -416,9 +416,6 @@ let exp_step_val (s: state) (v: value) (loc: Location.t) (z: zexp)
         let ae = {ae with aexp_site = si} in
         ESS_aexp (s, ae, z)
     | Zexp_let (var, ae, si, z) ->
-        Printf.printf "  [step val] adding %s (=%s) to env\n"
-          (Anf_printer.string_of_var var)
-          (Values.string_of_value true v);
         let env = VEnv.assign s.st_venv var v in
         (* We are losing `si` and may not have one in `ae`. Pick one. *)
         let si = pick_site si ae.aexp_site in
@@ -432,9 +429,6 @@ let exp_step_val (s: state) (v: value) (loc: Location.t) (z: zexp)
         ESS_val (s, V_unit, loc, z)
     | Zexp_letpat (occ, var, ae, si, z) ->
         let v = Builtins.subterm var.v_loc v occ in
-        Printf.printf "  [step val] adding pat %s (=%s) to env\n"
-          (Anf_printer.string_of_var var)
-          (Values.string_of_value true v);
         let env = VEnv.assign s.st_venv var v in
         (* We are losing `si` and may not have one in `ae`. Pick one. *)
         let si = pick_site si ae.aexp_site in
@@ -442,8 +436,6 @@ let exp_step_val (s: state) (v: value) (loc: Location.t) (z: zexp)
         let s  = {s with st_venv = env} in
         ESS_aexp (s, ae, z)
     | Zexp_drop_var (vr, _si, z) ->
-        Printf.printf "  [step val] dropping %s from env\n"
-          (Anf_printer.string_of_var vr);
         let env = VEnv.remove s.st_venv vr.v in
         let s   = {s with st_venv = env} in
         ESS_val (s, v, loc, z)
@@ -640,8 +632,6 @@ let stmt_step_unit (s: state) (z: zstmt) (l: Location.t)
     | Zstmt_stmt (stm, z) ->
         decompose_stmt s stm z
     | Zstmt_drop_var (v, _si, z) ->
-        Printf.printf "  [step unit] dropping %s from env\n"
-          (Anf_printer.string_of_var v);
         let env = VEnv.remove s.st_venv v.v in
         let s   = {s with st_venv = env} in
         SSS_next (s, z, l)
