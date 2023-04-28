@@ -20,13 +20,15 @@ open Anfscf
 open Interpreter_common
 open Anfscf_interpreter
 
-let interpret load_externals spec nt inp_name inp loop data_as_ascii =
+let interpret load_externals trace_exec spec nt inp_name inp loop
+      data_as_ascii =
   let fmt_pos (o, e) =
     Printf.sprintf "offset %d (%d bytes remaining)" o (e - o) in
   let fmt_stk nts =
     String.concat " <- " (List.map Location.value nts) in
   let do_loop () =
-    let vs, (lp, _) = Interpret.loop_on_file load_externals spec nt inp in
+    let vs, (lp, _) =
+      Interpret.loop_on_file load_externals trace_exec spec nt inp in
     let n = List.length vs in
     Printf.printf "%d values extracted with parse terminating at %s%s\n\n"
       n (fmt_pos lp) (if n = 0 then "." else ":");
@@ -35,7 +37,7 @@ let interpret load_externals spec nt inp_name inp loop data_as_ascii =
           (Values.string_of_value data_as_ascii v)
       ) vs in
   let do_once () =
-    match Interpret.once_on_file load_externals spec nt inp with
+    match Interpret.once_on_file load_externals trace_exec spec nt inp with
       | Some v, (lp, _) -> (Printf.printf
                               "Parse terminated successfully at %s with:\n"
                               (fmt_pos lp);
@@ -70,7 +72,7 @@ let interpret load_externals spec nt inp_name inp loop data_as_ascii =
           (Printf.sprintf "Error processing %s: %s: %s.\n"
              inp_name op (Unix.error_message e))
 
-let execute _verbose (data_as_ascii: bool) (load_externals: bool)
+let execute _verbose (data_as_ascii: bool) (trace_exec: bool) (load_externals: bool)
       (loop: bool) (m: string) (start: string) (spec: Scf.spec_scf)
       (data: string option) (stdin: int option) =
   let inp_name, inp =
@@ -86,4 +88,5 @@ let execute _verbose (data_as_ascii: bool) (load_externals: bool)
       | None, Some i ->
           "stdin", Interpret.Inp_stdin i in
   let m = Anf_common.M_name m in
-  interpret load_externals spec (m, start) inp_name inp loop data_as_ascii
+  interpret load_externals trace_exec spec (m, start) inp_name inp loop
+    data_as_ascii

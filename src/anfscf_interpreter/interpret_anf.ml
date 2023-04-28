@@ -88,12 +88,10 @@ let print_val loc s (as_ascii: bool) (av: Anf.av) (v: value) =
     svl
     (fmt_pos (view_info s))
 
-let trace = true
-
 (** Basic expression stepper: av -> value **)
 
 let rec val_of_av (s: state) (av: Anf.av) : value =
-  (if   trace
+  (if   s.st_trace_exec
    then Printf.printf " eval(%s)\n" (Anf_printer.string_of_av av));
   match av.av with
     | Anf.AV_lit l ->
@@ -156,8 +154,8 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
         else    MVEnv.lookup s.st_mvenv (m, c) av.av_loc
 
 (* match helper, used for aexps and astmts *)
-let matcher loc vr vl cases =
-  (if   trace
+let matcher s loc vr vl cases =
+  (if   s.st_trace_exec
    then Printf.printf " matching cases for %s=%s\n"
           (Anf_printer.string_of_av vr)
           (Values.string_of_value true vl));
@@ -322,7 +320,7 @@ let decompose_aexp (s: state) (ae: Anf.aexp) (root: zexp) : exp_step_state =
    and continuation. **)
 let exp_step_call (s: state) (z: zexp) (fv: Anf.fv) (vs: value list)
       loc : exp_step_state =
-  (if   trace
+  (if   s.st_trace_exec
    then Printf.printf " stepping call %s (%s)\n"
           (Anf_printer.string_of_fv fv)
           (String.concat ","
@@ -369,7 +367,7 @@ let pick_site sil sir =
    the continuation. **)
 let exp_step_val (s: state) (v: value) (loc: Location.t) (z: zexp)
     : exp_step_state =
-  (if   trace
+  (if   s.st_trace_exec
    then Printf.printf " <- %s\n"
           (Values.string_of_value true v));
   match z with
@@ -412,7 +410,7 @@ let exp_step_val (s: state) (v: value) (loc: Location.t) (z: zexp)
         let v = Builtins.get_field (Location.loc f) v (Location.value f) in
         ESS_val (s, v, loc, z)
     | Zexp_cases (av, cases, si, z) ->
-        let ae = matcher loc av v cases in
+        let ae = matcher s loc av v cases in
         (* We are losing `si` and may not have one in `ae`. Pick one. *)
         let si = pick_site si ae.aexp_site in
         let ae = {ae with aexp_site = si} in
@@ -482,7 +480,7 @@ let val_of_aexp (s: state) (ae: Anf.aexp) : value =
 (* Field assignment helper for assignment statements. *)
 let assign_field (s: state) (r: Anf.var) (fs: Ast.ident list) (fvl: value)
   (loc: Location.t) : state =
-  (if   trace
+  (if   s.st_trace_exec
    then Printf.printf " %s.%s <- %s\n"
           (Anf_printer.string_of_var r)
           (String.concat "." (safe_map Location.value fs))
@@ -596,7 +594,7 @@ let decompose_stmt (s: state) (stm: Anf.astmt) (root: zstmt)
 type stmt_step_val_result = state * sinfo * zstmt
 let stmt_step_val (s: state) (vl: value) (z: zstmt)
     : stmt_step_val_result =
-  (if   trace
+  (if   s.st_trace_exec
    then Printf.printf " <- %s;\n"
           (Values.string_of_value true vl));
   (* Only continuations created with a corresponding value providing
@@ -615,7 +613,7 @@ let stmt_step_val (s: state) (vl: value) (z: zstmt)
         let env = VEnv.assign s.st_venv var vl in
         {s with st_venv = env}, si, Zstmt_stmt (stm, z)
     | Zstmt_cases (av, cases, si, z) ->
-        let stm = matcher av.av_loc av vl cases in
+        let stm = matcher s av.av_loc av vl cases in
         s, si, Zstmt_stmt (stm, z)
     | Zstmt_letpat (occ, var, stm, si, z) ->
         let vl = Builtins.subterm var.v_loc vl occ in
