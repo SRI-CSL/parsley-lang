@@ -1038,3 +1038,50 @@ let stdlib_mods : (module PARSLEY_MOD) list = [
     (module PSet.Set);
     (module PMap.Map);
   ]
+
+(* top-level operator calls *)
+
+let val_of_lit (l: Ast.primitive_literal) : value =
+  match l with
+    | Ast.PL_int (i, n)  -> V_int (n, Int64.of_int i)
+    | Ast.PL_bytes s     -> PString.to_byte_list s
+    | Ast.PL_unit        -> V_unit
+    | Ast.PL_bool b      -> V_bool b
+    | Ast.PL_bit b       -> V_bit b
+    | Ast.PL_bitvector v -> V_bitvector v
+
+let apply_unop (op: Ast.unop) v loc =
+  match op with
+    | Uminus t -> Builtins.int_uminus t loc v
+    | Inot t   -> Builtins.int_not t loc v
+    | Not      -> Builtins.bool_not loc v
+    | Neg_b    -> Builtins.bitvector_negate loc v
+
+let apply_binop (op: Ast.binop) vl vr loc =
+  let bin = match op with
+      | Lt t    -> Builtins.less_than t
+      | Gt t    -> Builtins.greater_than t
+      | Lteq t  -> Builtins.le_than t
+      | Gteq t  -> Builtins.ge_than t
+      | Eq      -> Builtins.equals
+      | Neq     -> Builtins.not_equals
+      | Plus t  -> Builtins.int_plus t
+      | Minus t -> Builtins.int_minus t
+      | Mult t  -> Builtins.int_mul t
+      | Mod t   -> Builtins.int_mod t
+      | Div t   -> Builtins.int_div t
+      | Iand t  -> Builtins.int_and t
+      | Ior t   -> Builtins.int_or t
+      | Ixor t  -> Builtins.int_xor t
+      | Lshft t -> Builtins.int_lshft t
+      | Rshft t -> Builtins.int_rshft t
+      | Ashft t -> Builtins.int_ashft t
+      | Land    -> Builtins.bool_and
+      | Lor     -> Builtins.bool_or
+      | Or_b    -> Builtins.bv_or
+      | And_b   -> Builtins.bv_and
+      | Plus_s  -> PString.concat
+      | At      -> PList.concat
+      | Cons    -> PList.cons
+      | Index   -> PList.index in
+  bin loc vl vr

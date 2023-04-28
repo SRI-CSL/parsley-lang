@@ -26,15 +26,6 @@ open Viewlib
 
 let mod_value = AstUtils.str_of_mod
 
-let val_of_lit (l: Ast.primitive_literal) : value =
-  match l with
-    | Ast.PL_int (i, n)  -> V_int (n, Int64.of_int i)
-    | Ast.PL_bytes s     -> PString.to_byte_list s
-    | Ast.PL_unit        -> V_unit
-    | Ast.PL_bool b      -> V_bool b
-    | Ast.PL_bit b       -> V_bit b
-    | Ast.PL_bitvector v -> V_bitvector v
-
 let rec val_of_av (s: state) (av: Anf.av) : value =
   match av.av with
     | Anf.AV_lit l ->
@@ -176,41 +167,11 @@ let rec val_of_aexp (s: state) (ae: Anf.aexp) : value =
         val_of_av s av
     | AE_unop (op, ae') ->
         let v = val_of_av s ae' in
-        (match op with
-           | Uminus t -> Builtins.int_uminus t loc v
-           | Inot t   -> Builtins.int_not t loc v
-           | Not      -> Builtins.bool_not loc v
-           | Neg_b    -> Builtins.bitvector_negate loc v)
+        apply_unop op v loc
     | AE_binop (op, ae', ae'') ->
         let v'  = val_of_av s ae' in
         let v'' = val_of_av s ae'' in
-        let bin = match op with
-            | Lt t    -> Builtins.less_than t
-            | Gt t    -> Builtins.greater_than t
-            | Lteq t  -> Builtins.le_than t
-            | Gteq t  -> Builtins.ge_than t
-            | Eq      -> Builtins.equals
-            | Neq     -> Builtins.not_equals
-            | Plus t  -> Builtins.int_plus t
-            | Minus t -> Builtins.int_minus t
-            | Mult t  -> Builtins.int_mul t
-            | Mod t   -> Builtins.int_mod t
-            | Div t   -> Builtins.int_div t
-            | Iand t  -> Builtins.int_and t
-            | Ior t   -> Builtins.int_or t
-            | Ixor t  -> Builtins.int_xor t
-            | Lshft t -> Builtins.int_lshft t
-            | Rshft t -> Builtins.int_rshft t
-            | Ashft t -> Builtins.int_ashft t
-            | Land    -> Builtins.bool_and
-            | Lor     -> Builtins.bool_or
-            | Or_b    -> Builtins.bv_or
-            | And_b   -> Builtins.bv_and
-            | Plus_s  -> PString.concat
-            | At      -> PList.concat
-            | Cons    -> PList.cons
-            | Index   -> PList.index in
-        bin loc v' v''
+        apply_binop op v' v'' loc
     | AE_bits_of_rec (_, r, av, bfi) ->
         Builtins.bits_of_rec loc (Location.value r) (val_of_av s av) bfi
     | AE_rec_of_bits (_, r, av, bfi) ->
