@@ -272,6 +272,8 @@ let decompose_aexp (s: state) (ae: Anf.aexp) (root: zexp) : exp_step_state =
       | AE_val av ->
           ESS_val (s, val_of_av s av, av.av_loc, z)
       | AE_apply (f, []) ->
+          (* Save the calling environment to restore after the call. *)
+          let z = Zexp_post_apply (f, s, f.fv_loc, si, z) in
           ESS_call (s, f, [], ae.aexp_loc, z)
       | AE_apply (f, (av :: _ as avs)) ->
           let z = Zexp_apply (f, [], avs, loc, si, z) in
@@ -376,8 +378,10 @@ let exp_step_val (s: state) (v: value) (loc: Location.t) (z: zexp)
     | Zexp_apply (_, _, [], _, _, _) ->
         (* There should be an arg which we just evaluated. *)
         assert false
-    | Zexp_apply (fv, vals, [av], loc, _si, z) ->
+    | Zexp_apply (fv, vals, [av], loc, si, z) ->
         let _, vs = List.split (List.rev ((av, v) :: vals)) in
+        (* Save the calling environment to restore after the call. *)
+        let z = Zexp_post_apply (fv, s, fv.fv_loc, si, z) in
         ESS_call (s, fv, vs, loc, z)
     | Zexp_apply (fv, vs, av :: (av' :: _ as avs), loc, si, z) ->
         let vs = (av, v) :: vs in
@@ -439,6 +443,9 @@ let exp_step_val (s: state) (v: value) (loc: Location.t) (z: zexp)
         let env = VEnv.remove s.st_venv vr.v in
         let s   = {s with st_venv = env} in
         ESS_val (s, v, loc, z)
+    | Zexp_post_apply (_f, s', l, _si, z) ->
+        let s = {s with st_venv = s'.st_venv} in
+        ESS_val (s, v, l, z)
 
 (** Top-level expression stepper. **)
 
