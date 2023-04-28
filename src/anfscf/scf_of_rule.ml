@@ -392,7 +392,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
         let pred = MB_exact bits in
         let b' =
           let id = ctx.ctx_id_gen () in
-          collect_cursor b' pred ret typ None loc id in
+          collect_cursor b' pred ret typ (Some bfi) loc id in
         let b' = seal_block b' in
         (* failure handler *)
         let fail = init_block in
