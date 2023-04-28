@@ -110,7 +110,6 @@ let str_of_top_zscf z =
 type error =
   | ZE_no_loop_for_break
   | ZE_illegal_next_in_assign_var
-  | ZE_illegal_next_in_start_choice
   | ZE_illegal_break_in_assign_var
   | ZE_illegal_break_in_start_choices
   | ZE_illegal_break_in_handler
@@ -137,8 +136,6 @@ let exn_msg = function
       "no break found in loop"
   | ZE_illegal_next_in_assign_var ->
       "illegal next when awaiting assignment"
-  | ZE_illegal_next_in_start_choice ->
-      "illegal next in start-choice"
   | ZE_illegal_break_in_assign_var ->
       "illegal break when awaiting assignment"
   | ZE_illegal_break_in_start_choices ->
@@ -238,11 +235,11 @@ let rec next (l: Location.t) z : next =
           N_in_block (h, z)
       | Zscf_ife (_, _, (_, []), z) ->
           search z
-      | Zscf_start_choices _ ->
-          (* We should be transitioning inside `start_choices` via the
-             choice instructions. *)
-          let err = ZE_illegal_next_in_start_choice in
-          raise (Error (l, err)) in
+      | Zscf_start_choices (f, muts, (p, h :: t), z) ->
+          let z = Zscf_start_choices(f, muts, (h :: p, t), z) in
+          N_in_block (h, z)
+      | Zscf_start_choices (_, _, (_, []), z) ->
+          search z in
   search z
 
 and fail (l: Location.t) z : next =
