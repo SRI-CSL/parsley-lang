@@ -54,9 +54,7 @@ module VEnv = struct
     Bindings.mem v t
 
   let remove (t: t) (v: Anf_common.varid) : t =
-    (* Variables are re-used across recursive calls, so we cannot
-       assert this (yet). *)
-    (* assert (bound t v); *)
+    assert (bound t v);
     Bindings.remove v t
 end
 

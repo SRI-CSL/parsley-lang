@@ -25,6 +25,7 @@ open Anfscf
 open Anf
 open Interpreter_common
 open Values
+open State
 
 (* Pair ANF atoms with their values *)
 type anf_val = av * value
@@ -40,6 +41,7 @@ type sinfo = Site.site option
 type zexp =
   | Zexp_root of aexp (* the whole expression *)
   | Zexp_apply of fv * anf_val list * av list * Location.t * sinfo * zexp
+  | Zexp_post_apply of fv * state * Location.t * sinfo * zexp
   | Zexp_unop of Ast.unop * Location.t * sinfo * zexp
   | Zexp_binop1 of Ast.binop * av * av * Location.t * sinfo * zexp
   | Zexp_binop2 of Ast.binop * anf_val * av * Location.t * sinfo * zexp
