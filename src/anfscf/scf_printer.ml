@@ -56,7 +56,7 @@ let str_of_linst (li: linear_instr) : string =
         Printf.sprintf "[%s := <.>]"
           (Anf_printer.string_of_var v)
     | L_assign_fun (v, vs, _, _) ->
-        let args = List.map (fun v ->
+        let args = Anf_printer.safe_map (fun v ->
                        Anf_printer.string_of_var v
                      ) vs in
         Printf.sprintf "[%s(%s) = <.>]"
@@ -66,7 +66,7 @@ let str_of_linst (li: linear_instr) : string =
         Printf.sprintf "[%s.%s := <.>]"
           (Location.value m) (Location.value v)
     | L_assign_mod_fun (m, v, vs, _, _) ->
-        let args = List.map (fun v ->
+        let args = Anf_printer.safe_map (fun v ->
                        Anf_printer.string_of_var v
                      ) vs in
         Printf.sprintf "[%s.%s(%s) = <.>]"
@@ -87,7 +87,7 @@ let str_of_linst (li: linear_instr) : string =
         let bf = match obf with
             | None    -> ""
             | Some bf -> Printf.sprintf "<%s>" bf.bf_name in
-        Printf.sprintf "collect_bits%s %s, %s"
+        Printf.sprintf "[collect_bits%s %s, %s]"
           bf (Anf_printer.string_of_var v) (string_of_mbb mbb)
     | L_push_view ->
         "push_view"
@@ -96,10 +96,10 @@ let str_of_linst (li: linear_instr) : string =
     | L_drop_view ->
         "drop_view"
     | L_set_view v ->
-        Printf.sprintf "set_view %s"
+        Printf.sprintf "[set_view %s]"
           (Anf_printer.string_of_av v)
     | L_set_pos v ->
-        Printf.sprintf "set_pos %s"
+        Printf.sprintf "[set_pos %s]"
           (Anf_printer.string_of_av v)
     | L_continue_choice ->
         "continue_choice"
@@ -110,7 +110,7 @@ let str_of_linst (li: linear_instr) : string =
 
 let sprint_padding bv =
   let fb b = if b then "1" else "0" in
-  let sbv = String.concat "" (List.map fb bv) in
+  let sbv = String.concat "" (Anf_printer.safe_map fb bv) in
   if   List.length bv = 0
   then ""
   else ", padding<0b" ^ sbv ^ ">"
@@ -130,77 +130,77 @@ let rec str_of_binst (bi: bivalent_instr) =
     | B_break ->
         "break"
     | B_bits i ->
-        Printf.sprintf "bits %d" i
+        Printf.sprintf "[bits %d]" i
     | B_align i ->
-        Printf.sprintf "align %d" i
+        Printf.sprintf "[align %d]" i
     | B_pad i ->
-        Printf.sprintf "pad %d" i
+        Printf.sprintf "[pad %d]" i
     | B_collect_checked_bits (v, (mbb, bv)) ->
-        Printf.sprintf "collect_checked_bits %s, %s%s"
+        Printf.sprintf "[collect_checked_bits %s, %s%s]"
           (Anf_printer.string_of_var v)
           (string_of_mbb mbb)
           (sprint_padding bv)
     | B_check_bits (mbb, bv) ->
-        Printf.sprintf "check_bits %s%s"
+        Printf.sprintf "[check_bits %s%s]"
           (string_of_mbb mbb)
           (sprint_padding bv)
     | B_constraint v ->
-        Printf.sprintf "constraint %s"
+        Printf.sprintf "[constraint %s]"
           (Anf_printer.string_of_av v)
     | B_exec_dfa (_, v) ->
-        Printf.sprintf "dfa %s"
+        Printf.sprintf "[dfa %s]"
           (Anf_printer.string_of_var v)
     | B_scan ((t, d), v) ->
-        Printf.sprintf "scan-%s \"%s\", %s"
+        Printf.sprintf "[scan-%s \"%s\", %s]"
           (sprint_scan_dir d)
           (Location.value t)
           (Anf_printer.string_of_var v)
     | B_call_nonterm (m, nt, args, ret) ->
         let sargs = String.concat ","
-                      (List.map (fun (a, (av: Anf.av)) ->
+                      (Anf_printer.safe_map (fun (a, (av: Anf.av)) ->
                            Printf.sprintf "%s<-%s"
                              (Location.value a)
                              (Anf_printer.string_of_av av)
                          ) args) in
-        Printf.sprintf "call %s[%s], %s"
+        Printf.sprintf "[call %s[%s], %s]"
           (Anf_common.mod_prefix m (Location.value nt))
           sargs
           (Anf_printer.string_of_var ret)
     | B_require_remaining (v, e) ->
-        Printf.sprintf "require_remaining %s, %s"
+        Printf.sprintf "[require_remaining %s, %s]"
           (Anf_printer.string_of_av v)
           (Anf_printer.string_of_av e)
 
 and str_of_cinst (ci: ctrl_instr) =
   match ci.ci with
     | C_do (db, (hf, h)) ->
-        Printf.sprintf "do [ %s ] handle %s [ %s ]"
+        Printf.sprintf "{do [ %s ] handle %s [ %s ]}"
           (str_of_block db)
           (string_of_handle hf)
           (str_of_handler h)
     | C_loop (f, lb) ->
-        Printf.sprintf "loop(%s) [ %s ]"
+        Printf.sprintf "{loop(%s) [ %s ]}"
           (if f then "i" else "b")
           (str_of_block lb)
     | C_if (v, tb, eb) ->
-        Printf.sprintf "if %s [ %s ] [ %s ]"
+        Printf.sprintf "{if %s [ %s ] [ %s ]}"
           (Anf_printer.string_of_av v)
           (str_of_block tb)
           (str_of_block eb)
     | C_start_choices (f, vs, cb) ->
         let vars = string_of_frame_mutations vs in
-        Printf.sprintf "start_choices(%s, %s) [ %s ]"
+        Printf.sprintf "{start_choices(%s, %s) [ %s ]}"
           (Anf.str_of_frame_id f)
           vars
           (str_of_block cb)
 
 and str_of_block : sealed_block -> string = function
   | `Sealed b ->
-      String.concat " " (List.map str_of_binst b)
+      String.concat " " (Anf_printer.safe_map str_of_binst b)
 
 and str_of_handler : sealed_handler -> string = function
   | `Sealed h ->
-      String.concat " " (List.map str_of_linst h)
+      String.concat " " (Anf_printer.safe_map str_of_linst h)
 
 let print_linst (li: linear_instr) =
   match li.li with
@@ -209,7 +209,7 @@ let print_linst (li: linear_instr) =
                      (Anf_printer.string_of_var v));
         Anf_printer.print_aexp ae
     | L_assign_fun (v, vs, bd, _) ->
-        let args = List.map (fun v ->
+        let args = Anf_printer.safe_map (fun v ->
                        Anf_printer.string_of_var v
                      ) vs in
         pp_string (Printf.sprintf "%s(%s) = "
@@ -222,7 +222,7 @@ let print_linst (li: linear_instr) =
                      (Location.value m) (Location.value v));
         Anf_printer.print_aexp ae
     | L_assign_mod_fun (m, v, vs, bd, _) ->
-        let args = List.map (fun v ->
+        let args = Anf_printer.safe_map (fun v ->
                        Anf_printer.string_of_var v
                      ) vs in
         pp_string (Printf.sprintf "%s.%s(%s) = "
@@ -314,7 +314,7 @@ let rec print_binst (bi: bivalent_instr) =
                      (Anf_printer.string_of_var v))
     | B_call_nonterm (m, nt, args, ret) ->
         let sargs = String.concat ","
-                     (List.map (fun (a, (av: Anf.av)) ->
+                     (Anf_printer.safe_map (fun (a, (av: Anf.av)) ->
                           Printf.sprintf "%s<-%s"
                             (Location.value a)
                             (Anf_printer.string_of_av av)

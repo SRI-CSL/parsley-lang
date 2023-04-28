@@ -81,8 +81,10 @@ let scf_step_val (s: state) (v: value) (z: zscf) : scf_step_state =
   match z with
     | Zscf_assign_var (vr, z) ->
         (if   trace
-         then Printf.printf " %s <- [] in context %s\n"
-                (Anf_printer.string_of_var vr) (str_of_top_zscf z));
+         then Printf.printf " %s <- %s in context %s\n"
+                (Anf_printer.string_of_var vr)
+                (Values.string_of_value true v)
+                (str_of_top_zscf z));
         let st_venv = VEnv.assign s.st_venv vr v in
         CSS_next ({s with st_venv}, z, vr.v_loc)
     | _ ->
@@ -370,8 +372,11 @@ let scf_step_call (s: state) (ci: call_info) (z: zscf)
          when m = Anf_common.M_stdlib
               && is_std_nonterm (Location.value nt) ->
         (if   trace
-         then Printf.printf " call to %s in context %s\n"
+         then Printf.printf " call to NT %s (%s) in context %s\n"
                 (Anf_common.mod_prefix m (Location.value nt))
+                (String.concat ", "
+                   (safe_map (fun (_, vl) -> Values.string_of_value true vl)
+                      pvs))
                 (str_of_top_zscf z));
         (* We don't have an nt_entry for stdlib non-terminals, so
            just evaluate the attribute values and dispatch without
@@ -440,7 +445,7 @@ type scf_return_result =
 let scf_step_return (s': state) (f: bool) (_l: Location.t)
     : scf_return_result =
   (if   trace
-   then Printf.printf " return \n");
+   then Printf.printf " [return] \n");
   match s'.st_ctrl_stk with
     | [] ->
         (* We normally cannot return to an empty stack: it should contain the
