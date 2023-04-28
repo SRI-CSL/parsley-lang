@@ -84,6 +84,28 @@ let in_handler_block = function
   | Zscf_doh _ -> true
   | _          -> false
 
+(* Print the frame of the context. *)
+let str_of_top_zscf z =
+  match z with
+    | Zscf_root _ ->
+        "[root]"
+    | Zscf_assign_var (v, _) ->
+        Printf.sprintf "[%s := ]" (Anf_printer.string_of_var v)
+    | Zscf_block _ ->
+        "[block]"
+    | Zscf_do _ ->
+        "[do]"
+    | Zscf_doh _ ->
+        "[do handler]"
+    | Zscf_loop _ ->
+        "[loop]"
+    | Zscf_ift (av, _, _, _) ->
+        Printf.sprintf "[if %s then]" (Anf_printer.string_of_av av)
+    | Zscf_ife (av, _, _, _) ->
+        Printf.sprintf "[if %s else]" (Anf_printer.string_of_av av)
+    | Zscf_start_choices _ ->
+        "[choices]"
+
 (* These errors should have been caught by the SCF validator.*)
 type error =
   | ZE_no_loop_for_break
