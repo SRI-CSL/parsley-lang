@@ -198,6 +198,11 @@ let get_ntentry (s: state) ((m, nt): Anf_common.modul * Ast.ident) : Scf.nt_entr
 let get_init_ntentry (s: state) (nt: Anf_common.modul * string) : Scf.nt_entry option =
   Scf.ValueMap.find_opt nt s.st_spec_nts
 
+let get_ntentry_names (s: state) (md: Anf_common.modul) : string list =
+  List.map (fun ((_, nt), _) -> nt)
+    (List.filter (fun ((m, _), _) -> m = md)
+       (Scf.ValueMap.bindings s.st_spec_nts))
+
 (* Set current view. *)
 
 let set_view lc (s: state) (v: value) : state =
