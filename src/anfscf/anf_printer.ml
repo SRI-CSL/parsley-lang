@@ -68,6 +68,13 @@ let rec string_of_av (av: av) : string =
     | AV_mod_member (m, i) ->
         Printf.sprintf "%s.%s" (Location.value m) (Location.value i)
 
+let string_of_fv (fv: fv) : string =
+  match fv.fv with
+    | FV_var v ->
+        string_of_varid v
+    | FV_mod_member (m, i) ->
+        Printf.sprintf "%s.%s" (Location.value m) (Location.value i)
+
 let rec print_av (av: av) : unit =
   match av.av with
     | AV_lit l ->

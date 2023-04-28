@@ -88,9 +88,13 @@ let print_val loc s (as_ascii: bool) (av: Anf.av) (v: value) =
     svl
     (fmt_pos (view_info s))
 
+let trace = true
+
 (** Basic expression stepper: av -> value **)
 
 let rec val_of_av (s: state) (av: Anf.av) : value =
+  (if   trace
+   then Printf.printf " av %s\n" (Anf_printer.string_of_av av));
   match av.av with
     | Anf.AV_lit l ->
         val_of_lit l
@@ -153,6 +157,10 @@ let rec val_of_av (s: state) (av: Anf.av) : value =
 
 (* match helper, used for aexps and astmts *)
 let matcher loc vr vl cases =
+  (if   trace
+   then Printf.printf " matching cases for %s=%s\n"
+          (Anf_printer.string_of_av vr)
+          (Values.string_of_value true vl));
   let rec do_cases cases =
     match vl, cases with
       | _, [] ->
@@ -314,6 +322,11 @@ let decompose_aexp (s: state) (ae: Anf.aexp) (root: zexp) : exp_step_state =
    and continuation. **)
 let exp_step_call (s: state) (z: zexp) (fv: Anf.fv) (vs: value list)
       loc : exp_step_state =
+  (if   trace
+   then Printf.printf " %s (%s)\n"
+          (Anf_printer.string_of_fv fv)
+          (String.concat ","
+             (List.map (Values.string_of_value true) vs)));
   let setup_eval fn ps bd loc =
     let nps, nvs = List.length ps, List.length vs in
     if   nps != nvs
@@ -356,6 +369,9 @@ let pick_site sil sir =
    the continuation. **)
 let exp_step_val (s: state) (v: value) (loc: Location.t) (z: zexp)
     : exp_step_state =
+  (if   trace
+   then Printf.printf " <- %s\n"
+          (Values.string_of_value true v));
   match z with
     | Zexp_root _ ->
         ESS_done (v, loc)
@@ -458,6 +474,11 @@ let val_of_aexp (s: state) (ae: Anf.aexp) : value =
 (* Field assignment helper for assignment statements. *)
 let assign_field (s: state) (r: Anf.var) (fs: Ast.ident list) (fvl: value)
   (loc: Location.t) : state =
+  (if   trace
+   then Printf.printf " %s.%s <- %s"
+          (Anf_printer.string_of_var r)
+          (String.concat "." (List.map Location.value fs))
+          (Values.string_of_value true fvl));
   (* `r` might not be bound since this might be the initializing
      assignment. *)
   let rvl = if   VEnv.bound s.st_venv r.v
@@ -567,6 +588,9 @@ let decompose_stmt (s: state) (stm: Anf.astmt) (root: zstmt)
 type stmt_step_val_result = state * sinfo * zstmt
 let stmt_step_val (s: state) (vl: value) (z: zstmt)
     : stmt_step_val_result =
+  (if   trace
+   then Printf.printf " <- %s;\n"
+          (Values.string_of_value true vl));
   (* Only continuations created with a corresponding value providing
      `elem_stmt` in `decompose_stmt` expect a value. *)
   match z with
