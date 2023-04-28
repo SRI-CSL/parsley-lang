@@ -1286,7 +1286,7 @@ let rec lower_rule_elem (trace: bool) (ctx: context) (m: Ast.mname)
               let elmtyp = list_elem is.v_typ in
               let ftyp = mk_func_type ctx is.v_typ elmtyp in
               let f = mk_mod_func "List" "head" ftyp is.v_loc in
-              let hd = make_ae (AE_apply (f, [av_of_var vs]))
+              let hd = make_ae (AE_apply (f, [av_of_var is]))
                          elmtyp is.v_loc None in
               let i, ctx = fresh_var ctx elmtyp e.expr_loc in
               let assign =
