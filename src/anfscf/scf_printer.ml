@@ -40,6 +40,16 @@ let string_of_handle = function
   | H_success -> "success"
   | H_failure -> "failure"
 
+let string_of_frame_mutations (fm : Anf.mutations FrameMap.t) =
+  "("
+  ^ (String.concat ", "
+       (List.of_seq (Seq.map (fun (f, ms) ->
+                         Printf.sprintf "%s: %s"
+                           (Anf.str_of_frame_id f)
+                           (Anf_printer.string_of_mutations ms))
+                       (FrameMap.to_seq fm))))
+  ^ ")"
+
 let str_of_linst (li: linear_instr) : string =
   match li.li with
     | L_assign (v, _) ->
@@ -169,7 +179,7 @@ and str_of_cinst (ci: ctrl_instr) =
           (string_of_handle hf)
           (str_of_handler h)
     | C_loop (f, lb) ->
-        Printf.sprintf "%sloop [ %s ]"
+        Printf.sprintf "loop(%s) [ %s ]"
           (if f then "i" else "b")
           (str_of_block lb)
     | C_if (v, tb, eb) ->
@@ -177,10 +187,11 @@ and str_of_cinst (ci: ctrl_instr) =
           (Anf_printer.string_of_av v)
           (str_of_block tb)
           (str_of_block eb)
-    | C_start_choices (f, _vs, cb) ->
-        (* TODO: FIXME: print `vs` *)
-        Printf.sprintf "start_choices(%s, VARS) [ %s ]"
+    | C_start_choices (f, vs, cb) ->
+        let vars = string_of_frame_mutations vs in
+        Printf.sprintf "start_choices(%s, %s) [ %s ]"
           (Anf.str_of_frame_id f)
+          vars
           (str_of_block cb)
 
 and str_of_block : sealed_block -> string = function
@@ -347,11 +358,11 @@ and print_cinst (ci: ctrl_instr) =
         print_block eb;
         pp_close_box ();
         pp_string "]"
-    | C_start_choices (f, _vs, cb) ->
-        (* TODO: FIXME: print `vs` *)
+    | C_start_choices (f, vs, cb) ->
         pp_open_vbox 2;
-        pp_string (Printf.sprintf "start_choices(%s, VARS) ["
-                     (Anf.str_of_frame_id f));
+        pp_string (Printf.sprintf "start_choices(%s, %s) ["
+                     (Anf.str_of_frame_id f)
+                     (string_of_frame_mutations vs));
         print_block cb;
         pp_close_box ();
         pp_string "]"
@@ -377,9 +388,13 @@ and print_handler : sealed_handler -> unit = function
       pp_close_box ()
 
 let string_of_nt_entry (e: nt_entry) : string =
-  Printf.sprintf "{nt: %s, var: %s}"
+  Printf.sprintf "{nt: %s, var: %s, {%s}}"
     (Location.value  e.nt_name)
     (Anf_printer.string_of_var e.nt_retvar)
+    (String.concat ", "
+       (List.of_seq (Seq.map (fun (_, (v, _)) ->
+                         Anf_printer.string_of_var v)
+                       (StringMap.to_seq e.nt_inh_attrs))))
 
 let print_globals (g: nt_entry ValueMap.t) =
   pp_string "Globals:"; pp_newline ();

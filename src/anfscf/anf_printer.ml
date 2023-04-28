@@ -75,6 +75,21 @@ let string_of_fv (fv: fv) : string =
     | FV_mod_member (m, i) ->
         Printf.sprintf "%s.%s" (Location.value m) (Location.value i)
 
+let string_of_fieldset (f: FieldSet.t) : string =
+  String.concat ", "
+    (List.of_seq (Seq.map (String.concat ".") (FieldSet.to_seq f)))
+
+let string_of_mutations (m: mutations) : string =
+  "{"
+  ^ (String.concat "; "
+       (List.of_seq (Seq.map (fun (v, fs) ->
+                         Printf.sprintf "%s - {%s}"
+                           (string_of_varid (fst v))
+                           (string_of_fieldset fs))
+                       (VMap.to_seq m))
+       ))
+  ^ "}"
+
 let rec print_av (av: av) : unit =
   match av.av with
     | AV_lit l ->
