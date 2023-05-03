@@ -77,7 +77,7 @@ type scf_step_state =
 let scf_step_val (s: state) (v: value) (z: zscf) : scf_step_state =
   (* There's only one possible continuation that consumes a value. *)
   match z with
-    | Zscf_assign_var (vr, z) ->
+    | Zscf_assign_var (vr, _si, z) ->
         (if   s.st_trace_exec
          then Printf.printf " %s <- %s in context %s\n"
                 (Anf_printer.string_of_var vr)
@@ -97,6 +97,7 @@ let scf_step_linear (s: state) (li: linear_instr) (z: zscf)
           (Scf_printer.str_of_linst li)
           (str_of_top_zscf z));
   let loc = li.li_loc in
+  let si  = li.li_site in
   match li.li with
     (* TODO: split assignments into two kinds: one done during
        startup, which may not be worth single-stepping through, and
@@ -104,7 +105,7 @@ let scf_step_linear (s: state) (li: linear_instr) (z: zscf)
     | L_assign (v, ae) ->
         let eroot = Zexp_root ae in
         let est = ESS_aexp (s, ae, eroot) in
-        let z = Zscf_assign_var (v, z) in
+        let z = Zscf_assign_var (v, si, z) in
         CSS_exp (s, z, est)
 
     (* Function and constant assignments are executed during
@@ -342,23 +343,24 @@ and scf_step_control (s: state) (ci: ctrl_instr) (z: zscf)
           (Scf_printer.str_of_cinst ci)
           (str_of_top_zscf z));
   let loc = ci.ci_loc in
+  let si  = ci.ci_site in
   match ci.ci with
     | C_do (sb, eh) ->
-        let z = Zscf_do (([], unseal_block sb), eh, z) in
+        let z = Zscf_do (([], unseal_block sb), eh, si, z) in
         CSS_next (s, z, loc)
     | C_loop (f, sb) ->
-        let z = Zscf_loop (f, ([], unseal_block sb), z) in
+        let z = Zscf_loop (f, ([], unseal_block sb), si, z) in
         CSS_next (s, z, loc)
     | C_if (av, tb, eb) ->
         if   Parsleylib.cond loc (val_of_av s av)
-        then let z = Zscf_ift (av, ([], unseal_block tb), eb, z) in
+        then let z = Zscf_ift (av, ([], unseal_block tb), eb, si, z) in
              CSS_next (s, z, loc)
-        else let z = Zscf_ife (av, tb, ([], unseal_block eb), z) in
+        else let z = Zscf_ife (av, tb, ([], unseal_block eb), si, z) in
              CSS_next (s, z, loc)
     | C_start_choices (fid, muts, sb) ->
         let b = unseal_block sb in
         let s = create_choice_frame s in
-        let z = Zscf_start_choices (fid, muts, ([], b), z) in
+        let z = Zscf_start_choices (fid, muts, ([], b), si, z) in
         CSS_next (s, z, loc)
 
 (* Stepper for non-terminal calls. *)

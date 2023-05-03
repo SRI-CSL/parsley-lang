@@ -39,6 +39,8 @@ type hseg = linear_instr list
 type bz = (* prefix *) bseg * (* suffix *) bseg
 type hz = (* prefix *) hseg * (* suffix *) hseg
 
+type sinfo = Site.site option
+
 let zip_block ((p, s): bz) : sealed_block =
   seal_block ((List.rev s) @ p)
 
@@ -47,14 +49,14 @@ let zip_handler ((p, s): hz) : sealed_handler =
 
 type zscf =
   | Zscf_root of sealed_block
-  | Zscf_assign_var of var * zscf
+  | Zscf_assign_var of var * sinfo * zscf
   | Zscf_block of bz * zscf
-  | Zscf_do of bz * exit_handler * zscf
-  | Zscf_doh of sealed_block * handle * hz * zscf
-  | Zscf_loop of bool * bz * zscf
-  | Zscf_ift of av * bz * sealed_block * zscf
-  | Zscf_ife of av * sealed_block * bz * zscf
-  | Zscf_start_choices of frame_id * mutations FrameMap.t * bz * zscf
+  | Zscf_do of bz * exit_handler * sinfo * zscf
+  | Zscf_doh of sealed_block * handle * hz * sinfo * zscf
+  | Zscf_loop of bool * bz * sinfo * zscf
+  | Zscf_ift of av * bz * sealed_block * sinfo * zscf
+  | Zscf_ife of av * sealed_block * bz * sinfo * zscf
+  | Zscf_start_choices of frame_id * mutations FrameMap.t * bz * sinfo * zscf
 
 (* Create the initial continuation from a non-terminal code block. *)
 let init_zscf (sb: sealed_block) : zscf =
@@ -72,12 +74,12 @@ let is_done z =
    necessarily _at_ the next instruction. *)
 let last_in_block = function
   | Zscf_block ((_, []), _)
-  | Zscf_do ((_, []), _, _)
-  | Zscf_doh (_, _, (_, []), _)
-  | Zscf_loop (_, (_, []), _)
-  | Zscf_ift (_, (_, []), _, _)
-  | Zscf_ife (_, _, (_, []), _)
-  | Zscf_start_choices (_, _, (_, []), _) -> true
+  | Zscf_do ((_, []), _, _, _)
+  | Zscf_doh (_, _, (_, []), _, _)
+  | Zscf_loop (_, (_, []), _, _)
+  | Zscf_ift (_, (_, []), _, _, _)
+  | Zscf_ife (_, _, (_, []), _, _)
+  | Zscf_start_choices (_, _, (_, []), _, _) -> true
   | _                                     -> false
 
 let in_handler_block = function
@@ -89,7 +91,7 @@ let str_of_top_zscf z =
   match z with
     | Zscf_root _ ->
         "[root]"
-    | Zscf_assign_var (v, _) ->
+    | Zscf_assign_var (v, _, _) ->
         Printf.sprintf "[%s := ]" (Anf_printer.string_of_var v)
     | Zscf_block _ ->
         "[block]"
@@ -99,9 +101,9 @@ let str_of_top_zscf z =
         "[do handler]"
     | Zscf_loop _ ->
         "[loop]"
-    | Zscf_ift (av, _, _, _) ->
+    | Zscf_ift (av, _, _, _, _) ->
         Printf.sprintf "[if %s then]" (Anf_printer.string_of_av av)
-    | Zscf_ife (av, _, _, _) ->
+    | Zscf_ife (av, _, _, _, _) ->
         Printf.sprintf "[if %s else]" (Anf_printer.string_of_av av)
     | Zscf_start_choices _ ->
         "[choices]"
@@ -203,48 +205,48 @@ let rec next (l: Location.t) z : next =
           N_in_block (h, z)
       | Zscf_block ((_, []), z) ->
           search z
-      | Zscf_do ((p, h :: t), eh, z') ->
-          let z = Zscf_do ((h :: p, t), eh, z') in
+      | Zscf_do ((p, h :: t), eh, si, z') ->
+          let z = Zscf_do ((h :: p, t), eh, si, z') in
           N_in_block (h, z)
-      | Zscf_do ((_, []), _, z) ->
+      | Zscf_do ((_, []), _, _, z) ->
           search z
-      | Zscf_doh (sb, h, (p, i :: t), z') ->
-          let z = Zscf_doh (sb, h, (i :: p, t), z') in
+      | Zscf_doh (sb, h, (p, i :: t), si, z') ->
+          let z = Zscf_doh (sb, h, (i :: p, t), si, z') in
           N_in_handler (i, z)
-      | Zscf_doh (_, H_success, (_, []), z) ->
+      | Zscf_doh (_, H_success, (_, []), _, z) ->
           (* Resume at the next instruction. *)
           search z
-      | Zscf_doh (_, H_failure, (_, []), z) ->
+      | Zscf_doh (_, H_failure, (_, []), _, z) ->
           (* Resume in an enclosing handler. *)
           fail l z
-      | Zscf_loop (f, (p, h :: t), z') ->
-          let z = Zscf_loop (f, (h :: p, t), z') in
+      | Zscf_loop (f, (p, h :: t), si, z') ->
+          let z = Zscf_loop (f, (h :: p, t), si, z') in
           N_in_block (h, z)
-      | Zscf_loop (_, ([], []), z) ->
+      | Zscf_loop (_, ([], []), _, z) ->
           (* This should not have been validated, but operationally it
              is treated as a nop. *)
           search z
-      | Zscf_loop (f, (rb, []), z') ->
+      | Zscf_loop (f, (rb, []), si, z') ->
           (* Go back to the first instruction in the block. *)
           let h, bz = match List.rev rb with
               | []     -> assert false (* The earlier case handles this.*)
               | h :: t -> h, ([h], t) in
-          let z = Zscf_loop (f, bz, z') in
+          let z = Zscf_loop (f, bz, si, z') in
           N_in_block (h, z)
-      | Zscf_ift (av, (p, h :: t), eb, z') ->
-          let z = Zscf_ift (av, (h :: p, t), eb, z') in
+      | Zscf_ift (av, (p, h :: t), eb, si, z') ->
+          let z = Zscf_ift (av, (h :: p, t), eb, si, z') in
           N_in_block (h, z)
-      | Zscf_ift (_, (_, []), _, z) ->
+      | Zscf_ift (_, (_, []), _, _, z) ->
           search z
-      | Zscf_ife (av, tb, (p, h :: t), z') ->
-          let z = Zscf_ife (av, tb, (h :: p, t), z') in
+      | Zscf_ife (av, tb, (p, h :: t), si, z') ->
+          let z = Zscf_ife (av, tb, (h :: p, t), si, z') in
           N_in_block (h, z)
-      | Zscf_ife (_, _, (_, []), z) ->
+      | Zscf_ife (_, _, (_, []), _, z) ->
           search z
-      | Zscf_start_choices (f, muts, (p, h :: t), z) ->
-          let z = Zscf_start_choices(f, muts, (h :: p, t), z) in
+      | Zscf_start_choices (f, muts, (p, h :: t), si, z) ->
+          let z = Zscf_start_choices(f, muts, (h :: p, t), si, z) in
           N_in_block (h, z)
-      | Zscf_start_choices (_, _, (_, []), z) ->
+      | Zscf_start_choices (_, _, (_, []), _, z) ->
           search z in
   search z
 
@@ -259,15 +261,15 @@ and fail (l: Location.t) z : next =
           let err = ZE_illegal_fail_in_assign_var in
           raise (Error (l, err))
       | Zscf_block (_, z)
-      | Zscf_loop (_, _, z)
-      | Zscf_ift (_, _, _, z)
-      | Zscf_ife (_, _, _, z) ->
+      | Zscf_loop (_, _, _, z)
+      | Zscf_ift (_, _, _, _, z)
+      | Zscf_ife (_, _, _, _, z) ->
           search z
-      | Zscf_do (bz, (h, sh), z') ->
+      | Zscf_do (bz, (h, sh), si, z') ->
           (* Failures are handled in `do` blocks. *)
           let sb = zip_block bz in
           let eh = unseal_handler sh in
-          let z  = Zscf_doh (sb, h, ([], eh), z') in
+          let z  = Zscf_doh (sb, h, ([], eh), si, z') in
           next l z
       | Zscf_doh _ ->
           let err = ZE_illegal_fail_in_handler in
@@ -287,16 +289,16 @@ let break (l: Location.t) (z: zscf) : zscf =
       | Zscf_root _ ->
           let err = ZE_no_loop_for_break in
           raise (Error (l, err))
-      | Zscf_loop (_, _, z) ->
+      | Zscf_loop (_, _, _, z) ->
           z
       | Zscf_assign_var _ ->
           (* The continuation is expecting a value. *)
           let err = ZE_illegal_break_in_assign_var in
           raise (Error (l, err))
       | Zscf_block (_, z)
-      | Zscf_do (_, _, z)
-      | Zscf_ift (_, _, _, z)
-      | Zscf_ife (_, _, _, z) ->
+      | Zscf_do (_, _, _, z)
+      | Zscf_ift (_, _, _, _, z)
+      | Zscf_ife (_, _, _, _, z) ->
           search z
       | Zscf_doh _ ->
           let err = ZE_illegal_break_in_handler in
@@ -312,15 +314,15 @@ let finish_choice (l: Location.t) (z: zscf) : zscf =
       | Zscf_root _ ->
           let err = ZE_illegal_finish_choice in
           raise (Error (l, err))
-      | Zscf_start_choices (_, _, _, z) ->
+      | Zscf_start_choices (_, _, _, _, z) ->
           z
-      | Zscf_assign_var (_, _) ->
+      | Zscf_assign_var (_, _, _) ->
           let err = ZE_illegal_finish_choice_in_assign_var in
           raise (Error (l, err))
       | Zscf_block (_, z)
-      | Zscf_do (_, _, z)
-      | Zscf_ift (_, _, _, z)
-      | Zscf_ife (_, _, _, z) ->
+      | Zscf_do (_, _, _, z)
+      | Zscf_ift (_, _, _, _, z)
+      | Zscf_ife (_, _, _, _, z) ->
           search z
       | Zscf_loop _ ->
           let err = ZE_illegal_finish_choice_in_loop in
@@ -336,31 +338,31 @@ let continue_choice (l: Location.t) (z: zscf) : zscf =
       | Zscf_root _ ->
           let err = ZE_illegal_continue_choice in
           raise (Error (l, err))
-      | Zscf_start_choices (_, _, (_, _ :: _), _) ->
+      | Zscf_start_choices (_, _, (_, _ :: _), _, _) ->
           z (* this is pointing at the next choice *)
-      | Zscf_start_choices (_, _, (_, []), _) ->
+      | Zscf_start_choices (_, _, (_, []), _, _) ->
           let err = ZE_illegal_continue_choice in
           raise (Error (l, err))
-      | Zscf_assign_var (_, _) ->
+      | Zscf_assign_var (_, _, _) ->
           let err = ZE_illegal_continue_choice_in_assign_var in
           raise (Error (l, err))
       | Zscf_block (_, z)
-      | Zscf_do (_, _, z)
-      | Zscf_ift (_, _, _, z)
-      | Zscf_ife (_, _, _, z) ->
+      | Zscf_do (_, _, _, z)
+      | Zscf_ift (_, _, _, _, z)
+      | Zscf_ife (_, _, _, _, z) ->
           search z
       | Zscf_loop _ ->
           let err = ZE_illegal_continue_choice_in_loop in
           raise (Error (l, err))
       (* continue-choice should be the last instruction in a handler. *)
-      | Zscf_doh (_, _, (_, _::_), _) ->
+      | Zscf_doh (_, _, (_, _::_), _, _) ->
           let err = ZE_illegal_continue_choice_in_handler in
           raise (Error (l, err))
       (* continue-choice can only occur in a success handler. *)
-      | Zscf_doh (_, H_failure, (_, []), _) ->
+      | Zscf_doh (_, H_failure, (_, []), _, _) ->
           let err = ZE_illegal_continue_choice_in_failing_handler in
           raise (Error (l, err))
-      | Zscf_doh (_, H_success, (_, []), z) ->
+      | Zscf_doh (_, H_success, (_, []), _, z) ->
           z in
   search z
 
@@ -373,25 +375,25 @@ let fail_choice (l: Location.t) (z: zscf) : next =
       | Zscf_assign_var _ ->
           let err = ZE_illegal_fail_choice_in_assign_var in
           raise (Error (l, err))
-      | Zscf_start_choices (_, _, _, z) ->
+      | Zscf_start_choices (_, _, _, _, z) ->
           (* Escape to the closest handler. *)
           fail l z
       | Zscf_block (_, z)
-      | Zscf_do (_, _, z)
-      | Zscf_ift (_, _, _, z)
-      | Zscf_ife (_, _, _, z) ->
+      | Zscf_do (_, _, _, z)
+      | Zscf_ift (_, _, _, _, z)
+      | Zscf_ife (_, _, _, _, z) ->
           search z
       | Zscf_loop _ ->
           let err = ZE_illegal_fail_choice_in_loop in
           raise (Error (l, err))
       (* fail-choice should be the last instruction in a handler. *)
-      | Zscf_doh (_, _, (_, _::_), _) ->
+      | Zscf_doh (_, _, (_, _::_), _, _) ->
           let err = ZE_illegal_fail_choice_in_handler in
           raise (Error (l, err))
       (* fail-choice can only occur in a failing handler. *)
-      | Zscf_doh (_, H_success, (_, []), _) ->
+      | Zscf_doh (_, H_success, (_, []), _, _) ->
           let err = ZE_illegal_fail_choice_in_success_handler in
           raise (Error (l, err))
-      | Zscf_doh (_, H_failure, (_, []), z) ->
+      | Zscf_doh (_, H_failure, (_, []), _, z) ->
           search z in
   search z
