@@ -1,0 +1,16 @@
+type sm_type = {
+  msg: [byte]
+}
+
+format {
+  SimpleMessage sm {s: sm_type} :=
+    hello = (Byte^5u)
+    [hello = "hello"]
+    length = UInt8
+    msg = Byte^(Usize.of_u8(length))
+    goodbye = (Byte^7u)
+    [goodbye ="goodbye"]
+    {
+      sm.s.msg := msg
+    }
+}

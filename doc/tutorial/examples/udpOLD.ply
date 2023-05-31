@@ -12,7 +12,7 @@
 type udp_packet = {
   source_port: u16,
   destination_port: u16,
-  length: u16,
+  length: usize,
   checksum: [byte],
   data: [byte]
 }
@@ -25,12 +25,12 @@ format {
     checksum = (Byte^2u) 
     [length >=_u16 8u16] // length field must be at least 8, the UDP header length
     data = (Byte^(Usize.of_u16(length) -_u 8u)) // subtract 8 for the UDP header length
-    //[validate_checksum(source_port, destination_port, length, checksum, data)]
     {
       udpp.u.source_port := source_port;
       udpp.u.destination_port := destination_port;
-      udpp.u.length := length;
+      udpp.u.length := Usize.of_u16(length);
       udpp.u.checksum := checksum;
       udpp.u.data := data
     }
 }
+

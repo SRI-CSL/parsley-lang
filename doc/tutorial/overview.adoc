@@ -1,45 +1,49 @@
 = Tutorial Overview
 
-The aim of this tutorial is to get the reader up to speed with the Parsley specification and toolchain by going through a series of examples.
-In the current iteration of this tutorial, we focus solely on how to use the Parsley type checker and how to specify data formats via Parsley.
+The aim of this tutorial is to familiarize the reader with the Parsley specification and toolchain, through a series of short lessons, each of which involve capturing a real-world specification within Parsley.
 
 == What is Parsley?
 
 Parsley is a data format definition language.
 That is, Parsley allows for the creation of precise specifications for file formats.
+The Parsley compiler provides a specification checker and an interpreter.
 An overview of the first iteration of the language, its goals, and its initial design choices can be found in the http://spw20.langsec.org/papers/parsley-langsec2020.pdf[initial Parsley research report].
+This tutorial and the Parsley <<../readme.adoc#, documentation>> are actively being updated to reflect the status of the latest stable release of Parsley.
 
 == Installation
 
-To install the Parsley type checker:
+To install the Parsley compiler:
 
 . Install opam, the OCaml package manager (https://opam.ocaml.org/doc/Install.html).
 . Install the dependencies specified in the link:../../README.md#building[README] using `opam`.
 . Clone the repository containing the Parsley type checker, examples, and other documentation: `git clone git@github.com:SRI-CSL/parsley-lang.git` and then type `cd parsley-lang`.
-. Run `make` in this directory. You should now see an executable, `parsleyc.exe`, in the directory.  This executable is the Parsley type checker.
+. Run `make` in this directory. You should now see an executable, `parsleyc.exe`, in the directory.  This executable is the Parsley compiler.
 
-== Running the Type Checker
+== Running the Specification Checker and Interpreter
 
-The Parsley type checker takes a single command-line argument, a relative file path, and it checks whether the file specified by that path conforms to the Parsley specification.
+The Parsley specification checker takes a single command-line argument, a relative file path, and it checks whether the file specified by that path conforms to the Parsley specification.
 You can test this by running:
 
 `./parsleyc.exe check ./test/lang/examples.ply`
 
 The type checker will either approve of the file or specify where things went wrong.
 
+PLACEHOLDER - add example for interpreter
+
 == Learning by Example
 
-This tutorial is organized as a series of short lessons.
-Each lesson focuses on creating a Parsley specification for a specific data format.
-Each lesson was designed to be done in a single short sitting (5-30 minutes).
-As mentioned, the examples corresponding to the lessons in this tutorial can be found in `./tutorial/examples/`.
+This tutorial is organized as a series of short lessons, which are designed to be completed in short sittings (~30 minutes).
+Each lesson focuses on creating a Parsley specification that corresponds to either part or all of a real-world specification.
+The examples corresponding to the lessons in this tutorial can be found in `./tutorial/examples/`.
 
 == Tutorial Layout
 
-Lesson 1: <<udp.adoc#, UDP>>: The https://tools.ietf.org/html/rfc768[User Datagram Protocol] format is used in conjunction with IP to deliver data over the internet with minimal overhead.
+<<udp.adoc#, Lesson 1: The User Datagram Protocol>>: The https://en.wikipedia.org/wiki/User_Datagram_Protocol[User Datagram Protocol] is an important protocol in the https://en.wikipedia.org/wiki/Internet_protocol_suite[IP suite] that is used in conjunction with IPv4 to deliver data over the internet with minimal overhead.
 
-Lesson 2: <<ipv4.adoc#, IPV4>>: The https://tools.ietf.org/html/rfc791[Internet Protocol] is a key protocol in the https://en.wikipedia.org/wiki/Internet_protocol_suite[IP suite] that is used for the transmission of packets over the internet.
+<<ipv4.adoc#, Lesson 2: The Internet Protocol (version 4)>>: The https://en.wikipedia.org/wiki/Internet_Protocol_version_4[Internet Protocol (version 4)] is another important protocol in the https://en.wikipedia.org/wiki/Internet_protocol_suite[IP suite] that is used for the transmission of packets over the internet.
 
-Lesson 3: <<pbm.adoc#, PBM>>: The http://netpbm.sourceforge.net/doc/pbm.html[Portable Bitmap] format is a simple bitmap-based image format.
+<<pbm.adoc#, Lesson 3: The Portable Bitmap Format>>: The http://netpbm.sourceforge.net/doc/pbm.html[Portable Bitmap] format is a simple bitmap-based image format.
+
+<<checksum.adoc#, Lesson 4: Checking the Checksum>>: In this fourth lesson, we do checksum validation for https://en.wikipedia.org/wiki/User_Datagram_Protocol[UDP] and https://en.wikipedia.org/wiki/Internet_Protocol_version_4[IPv4].
 
 [red]#Navigation:# <<udp.adoc#, &#8594; The First Lesson>> | <<../readme.adoc#, &#128196; Documentation>>

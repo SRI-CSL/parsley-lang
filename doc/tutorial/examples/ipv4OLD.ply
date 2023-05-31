@@ -3,19 +3,13 @@
 
 include udp
 
-bitfield ipv4_flags = {
- bit0: 2,
- bit1: 1,
- bit2: 0
-}
-
 type ip_packet = {
   version: u8,
   ihl: u8,
   type_of_service: u8,
   total_length: u16,
   identification: [byte],
-  flags: ipv4_flags,
+  flags: u8,
   fragment_offset: u16,
   time_to_live: u8,
   protocol: u8,
@@ -27,23 +21,22 @@ type ip_packet = {
 
 format {
   IPPacket ipp {ip_packet} :=
-    (| version: u8 := 0u8, ihl: u8 := 0u8, fragment_offset: u16 := 0u16 |)
-    version_bv = BitVector<4>
-    ihl_bv = BitVector<4>
+    (| version: u8 := 0u8, ihl: u8 := 0u8, flags: u8 := 0u8,
+       fragment_offset: u16 := 0u16 |)
+    version_and_ihl = UInt8
     {
-      version := Bits.to_u8(version_bv);
-      ihl := Bits.to_u8(ihl_bv) 
+      version := version_and_ihl /_u8 16u8;
+      ihl := (version_and_ihl *_u8 16u8) /_u8 16u8
     }
     [version = 4u8]
     [ihl >=_u8 5u8]  // the header length should be at least 5 as per the spec
     type_of_service = UInt8
     total_length = UInt16<endian=endian::Big()>
     identification = (Byte^2u)
-    flags = $bitfield(ipv4_flags)
-    [flags.bit0 = 0b0] // the specification specifies this should be 0
-    fragments_offset_bv = BitVector<13>
+    flags_and_fragment_offset = UInt16<endian=endian::Big()>
     {
-      fragment_offset := Bits.to_u16(fragments_offset_bv)
+      flags := U8.of_u16_wrapped(flags_and_fragment_offset /_u16 1024u16);
+      fragment_offset := (flags_and_fragment_offset *_u16 8u16) /_u16 8u16
     }
     time_to_live = UInt8
     protocol = UInt8
@@ -71,9 +64,9 @@ format {
     }
 
     // udp w/o fragmentation
-    ([protocol = 17u8 && flags.bit1 = 0b1] UDPPacket) | // udp w/o fragmentation
+    ([protocol = 17u8 && flags = 2u8] UDPPacket) | // udp w/o fragmentation
 
-    // placeholder for udp w/ fragmentation or other next level protocols,
+    // placeholder for udp w/o fragmentation or other next level protocols,
     // e.g., protocol 6 is tcp
-    [protocol != 17u8 || (protocol = 17u8 && flags.bit1 = 0b0)]
+    [protocol != 17u8 || (protocol = 17u8 && flags != 2u8)]
 }

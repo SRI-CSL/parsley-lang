@@ -1,4 +1,6 @@
-= Portable Bitmap Format
+= Lesson 3: The Portable Bitmap Format
+
+THIS LESSON IS DEPRECATED. WE ARE UPDATING IT.
 
 In this lesson, we study the http://netpbm.sourceforge.net/doc/pbm.html[Portable Bitmap Format (PBM)].
 In particular, we look at http://netpbm.sourceforge.net/doc/pbm.html#plainpbm[Plain PBM].
@@ -519,4 +521,4 @@ format {
 }
 ....
 
-[red]#Navigation:# <<overview.adoc#, &#8593; Tutorial Overview>> | <<ipv4.adoc#, &#8592; Previous Lesson>> | <<../readme.adoc#, &#128196; Documentation>>
+[red]#Navigation:# <<overview.adoc#, &#8593; Tutorial Overview>> | <<ipv4.adoc#, &#8592; Previous Lesson>> | <<checksum.adoc#, &#8594; Next Lesson>> | <<../readme.adoc#, &#128196; Documentation>>

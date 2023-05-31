@@ -1,0 +1,82 @@
+// This Parsley file provides functionality to assist in 
+// computation pertaining to checksums for the IP and UDP 
+// protocols. It does this via ComputeChecksum, a non-terminal, which,
+// when given a view that contains the packet (or rather packet 
+// capture) contents, a file length, and a checksum, performs the
+// following operations: (i) matches the contents as a list of bytes,
+// (ii) computes a checksum on the file, (iii) compares the computed
+// checksum with the checksum supplied as an argument.
+
+// The relevant RFC is https://www.rfc-editor.org/rfc/rfc1071 .
+// This implementation is inspired by the c code provided in 4.1 .
+
+recfun checksum_fold(running_sum: u32) -> u32 = {
+  (case running_sum >>_u32 16_u8 of
+   | 0_u32 -> running_sum
+   | other -> checksum_fold((running_sum &_u32 65535_u32) +_u32 (running_sum >>_u32 16_u8))
+  )
+}
+
+recfun compute_checksum(bytes: [byte], running_sum: u32) -> u32 = {
+  (case bytes of
+   | [] -> checksum_fold(running_sum)// (((~_u32 checksum_fold(running_sum)) <<_u32 16_u8) >>_u32 16_u8) // [] -> ~_u32 checksum_fold(running_sum)
+   | a::[] -> (((~_u32 checksum_fold(running_sum +_u32 U32.of_byte(a))) <<_u32 16_u8) >>_u32 16_u8) // ~_u32 checksum_fold(running_sum +_u32 U32.of_byte(a))
+   | a::b::c -> compute_checksum(c, running_sum +_u32 (U32.of_byte(a) <<_u32 8_u8) +_u32 (U32.of_byte(b))))  
+}
+
+format {
+
+  UDPTest udpt {computed_checksum: u16} :=
+    ipv4_pseudoheader = Byte^12u // 4 bytes ipv4src, 4 bytes ipv4dest, 1 byte zeroes, 1 byte protocol, 2 bytes udp length
+    // since Parsley does not currently have a convenient way to create the IPv4
+    // pseudoheader, I am including the pseudoheader in the file itself
+    // this includes everything above this line in the current NT... it should be fixed later...
+    // the "real" test code should start with clone view in the line below.
+    // and the ipv4 pseudoheader should be created from the passed-in ipv4 src and test data, alongside matched the udp length
+    clone_view = {;; View.clone(View.get_current())}
+    source_port = UInt16<endian=endian::Big()>
+    destination_port = UInt16<endian=endian::Big()>
+    length = UInt16<endian=endian::Big()>
+    checksum = UInt16<endian=endian::Big()> 
+    [length >=_u16 8u16] // length field must be at least 8, the UDP header length
+    data = (Byte^(Usize.of_u16(length) -_u 8u)) // subtract 8 for the UDP header length
+    computed_checksum = @[clone_view, ComputeChecksumFBA<ipv4ph = ipv4_pseudoheader, len = length>]
+    //[computed_checksum = 65535_u16]
+    { udpt.computed_checksum := computed_checksum}
+    ;;
+
+  IPv4Test ipv4t {ipv4_computed_checksum: u16} :=
+    clone_view = {;; View.clone(View.get_current())}
+    version_and_ihl = UInt8
+    {
+      ihl := (version_and_ihl *_u8 16u8) /_u8 16u8
+    }
+    pre_checksum = (Byte^14u)
+    zeros_16bit = (Byte^2u)
+    src_and_dest_ip = (Byte^8u)
+    options_and_padding_len = {;;
+      4u16 *_u16 U16.of_u8(ihl) -_u16 5u16
+    }
+    options_and_padding = (Byte^Usize.of_u16(options_and_padding_len))
+    {
+      byte_list := List.concat(pre_checksum, zeros_16bit, src_and_dest_ip, options_and_padding);
+      $print(byte_list);
+      ipv4_computed_checksum := compute_checksum(byte_list, 0_u32);
+      $print(computed_checksum)
+    }
+    ;;
+
+  // a function-based approach to validating checksums
+  ComputeChecksumFBA ccfba (ipv4ph: [byte], len: u16) {cs_computed: u32} :=
+    byte_list = (Byte^Usize.of_u16(len))
+    {
+      byte_list := List.concat(ipv4ph, byte_list);
+      $print(byte_list);
+      ccfba.cs_computed := compute_checksum(byte_list, 0_u32);
+      $print(ccfba.cs_computed)
+    }
+  
+  // a grammar-based approach to validating checksums
+  // ComputeChecksumGBA
+
+}
