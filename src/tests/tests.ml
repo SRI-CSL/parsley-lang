@@ -67,6 +67,18 @@ let tests = [
      "ABC", V_list [V_char 'A'; V_char 'B']);
     ("astar",   "format { A := (# [\"A\"] #)* }", "A",
      "A", V_list [V_char 'A']);
+    ("astar_empty", "format { A := (# [\"A\"] #)* }", "A",
+     "", V_list []);
+    ("astar_emptymatch", "format { A := (# [\"A\"] #)* }", "A",
+     "B", V_list []);
+    ("astar_repeat", "format { A := (# [\"A\"] #)* }", "A",
+     "AAB", V_list [V_char 'A'; V_char 'A']);
+    ("abstar", "format { A := (# [\"AB\"] #)* }", "A",
+     "ABAB", V_list [V_char 'A'; V_char 'B'; V_char 'A'; V_char 'B']);
+    (*
+    ("abstar_trailing", "format { A := (# [\"AB\"] #)* }", "A",
+     "ABABC", V_list [V_char 'A'; V_char 'B'; V_char 'A'; V_char 'B']);
+     *)
     ("istar",   "format { A := (# [\"0\" .. \"9\"] #)* }", "A",
      "0159A", V_list [V_char '0'; V_char '1'; V_char '5'; V_char '9']);
     ("ichoice", "format { A := (# [\"0\" | \"5\" | \"9\"] #)* }", "A",
