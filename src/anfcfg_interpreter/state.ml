@@ -40,6 +40,29 @@ module Bindings = Map.Make(struct type t = Anf.varid
                                   let compare = compare
                            end)
 
+(* SMT Constraint environment *)
+module SMTCEnv = struct
+  type vmap = (Smt_cfg.SMTNode.node * Anf.var) Bindings.t
+
+  (* use a flat environment for now: consume more memory to
+     prioritize speed *)
+  type t = vmap
+
+  let empty = Bindings.empty
+
+  let assign (t: t) (v: Anf.var) (vl: Smt_cfg.SMTNode.node) : t =
+    Bindings.add Anf.(v.v) (vl, v) t
+
+  let lookup (t: t) (v: Anf.varid) (l: Location.t) : Smt_cfg.SMTNode.node =
+    match Bindings.find_opt v t with
+      | None         -> internal_error l (No_binding_for_read v)
+      | Some (vl, _) -> vl
+
+  let bound (t: t) (v: Anf.varid) : bool =
+    Bindings.mem v t
+end
+
+
 (* Variable environment *)
 module VEnv = struct
   type vmap = (Values.value * Anf.var) Bindings.t
@@ -181,9 +204,10 @@ and state =
    st_cfg_venv:     Anf.VEnv.t;
    (* dynamic state *)
    st_mode:         mode;
-   st_cenv:         CEnv.t;
+   st_smtcenv:      SMTCEnv.t;
    st_curpath:      path;
    st_venv:         VEnv.t;
+   st_cenv:         CEnv.t; (* constraint env for SMT generation *)
    st_fenv:         FEnv.t;
    st_mvenv:        MVEnv.t;
    st_mfenv:        MFEnv.t;

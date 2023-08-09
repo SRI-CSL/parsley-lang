@@ -26,7 +26,6 @@ open Interpret_anf
 open Interpret_bitops
 open Cfg
 
-(*TODO START HERE *)
 let rec convert_to_sat (r: unit Dfa.re) =
     match r.re with
     | R_empty -> ""
@@ -56,32 +55,42 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
   let loc = n.node_loc in
   match n.node with
     | N_assign (vr, ae) ->
+        let _ = print_endline "gnode:assign" in
         let vl = val_of_aexp s ae in
         let st_venv = VEnv.assign s.st_venv vr vl in
         {s with st_venv}
     | N_assign_fun (fv, pvs, bd, _) ->
+        let _ = print_endline "gnode:assign_fun" in
         let st_fenv = FEnv.assign s.st_fenv fv pvs bd in
         {s with st_fenv}
     | N_assign_mod_var (m, v, ae) ->
+        let _ = print_endline "gnode:assign_mod_var" in
         let vl = val_of_aexp s ae in
         let m, v = Location.value m, Location.value v in
         let st_mvenv = MVEnv.assign s.st_mvenv (m, v) vl loc in
         {s with st_mvenv}
     | N_assign_mod_fun (m, f, pvs, bd, _) ->
+        let _ = print_endline "gnode:assign_mod_fun" in
         let m, f = Location.value m, Location.value f in
         let st_mfenv = MFEnv.assign s.st_mfenv (m, f) pvs bd loc in
         {s with st_mfenv}
     | N_action sts ->
-        List.fold_left eval_stmt s sts
+        let _ = print_endline "gnode:action" in
+        List.fold_left Interpret_smt.eval_stmt s sts
     | N_enter_bitmode ->
+        let _ = print_endline "gnode:enter_bitmode" in
         enter_bitmode loc s
     | N_exit_bitmode ->
+        let _ = print_endline "gnode:exit_bitmode" in
         exit_bitmode loc s
     | N_fail_bitmode ->
+        let _ = print_endline "gnode:fail_bitmode" in
         fail_bitmode loc s
     | N_mark_bit_cursor ->
+        let _ = print_endline "gnode:mark_bit_cursor" in
         mark_bit_cursor loc s
     | N_collect_bits (v, pred, obf) ->
+        let _ = print_endline "gnode:n_collect_bits" in
         let bits, s = collect_bits loc s in
         if   match_bits_bound bits pred
         then let vl = match obf with
@@ -93,23 +102,29 @@ let do_gnode (s: state) (n: Cfg.gnode) : state =
              let err = Internal_errors.Bitsbound_check m in
              internal_error loc err
     | N_push_view ->
+        let _ = print_endline "gnode:N_push_view" in
         let st_view_stk = s.st_cur_view :: s.st_view_stk in
         {s with st_view_stk}
     | N_pop_view | N_drop_view
          when s.st_view_stk = [] ->
+        let _ = print_endline "gnode:N_pop_view | N_drop_view st == []" in
         let err = Internal_errors.View_stack_underflow in
         internal_error loc err
     | N_pop_view ->
+        let _ = print_endline "gnode:N_pop_view" in
         let vu, stk = List.hd s.st_view_stk, List.tl s.st_view_stk in
         {s with st_cur_view = vu;
                 st_view_stk = stk}
     | N_drop_view ->
+        let _ = print_endline "gnode:N_drop_view" in
         let stk = List.tl s.st_view_stk in
         {s with st_view_stk = stk}
     | N_set_view v ->
+        let _ = print_endline "gnode:N_set_view" in
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
         Viewlib.set_view loc s vl
     | N_set_pos v ->
+        let _ = print_endline "gnode:N_set_pos" in
         let ps = VEnv.lookup s.st_venv v.v v.v_loc in
         Viewlib.set_pos loc s ps
 
@@ -127,6 +142,7 @@ let do_linear_node (s: state) (n: Cfg.Node.linear_node)
     : state =
   match n with
     | Cfg.Node.N_gnode nd ->
+        let _ = print_endline "gnode" in
         do_gnode s nd
     | _ ->
         (* this should not be needed *)
@@ -234,18 +250,22 @@ and do_return _lc (s': state) (l: Cfg.label) : parse_result =
 and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
   match n with
     | N_bits (loc, w, lsc, lf) ->
+        let _ = print_endline "bits" in
         (match match_bits loc (Printf.sprintf "bits<%d>" w) s w with
            | Ok s    -> do_jump loc s lsc
            | Error s -> do_jump loc s lf)
     | N_align (loc, w, lsc, lf) ->
+        let _ = print_endline "align" in
         (match align_bits loc (Printf.sprintf "align<%d>" w) s w with
            | Ok s    -> do_jump loc s lsc
            | Error s -> do_jump loc s lf)
     | N_pad (loc, w, lsc, lf) ->
+        let _ = print_endline "pad" in
         (match align_bits loc (Printf.sprintf "pad<%d>" w) s w with
            | Ok s    -> do_jump loc s lsc
            | Error s -> do_jump loc s lf)
     | Cfg.Node.N_collect_checked_bits (loc, v, (mbb, pat), lsc, lf) ->
+        let _ = print_endline "collect_checked_bits" in
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
         then let m   = Cfg_printer.string_of_mbb mbb in
@@ -258,6 +278,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
              do_jump loc s lsc
         else do_jump loc s lf
     | Cfg.Node.N_check_bits (loc, (mbb, pat), lsc, lf) ->
+        let _ = print_endline "check_bits" in
         let bits, s = collect_bits loc s in
         if   not (match_bits_bound bits mbb)
         then let m   = Cfg_printer.string_of_mbb mbb in
@@ -267,28 +288,31 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
         then do_jump loc s lsc
         else do_jump loc s lf
     | Cfg.Node.N_jump (loc, l) ->
+        let _ = print_endline "jump" in
         do_jump loc s l
     | Cfg.Node.N_return (loc, l) ->
+        let _ = print_endline "return" in
         do_return loc s l
     | Cfg.Node.N_constraint (loc, v, lsc, lf) ->
+        let _ = print_endline "constraint" in
         assert (s.st_mode = Mode_normal);
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
         if   Parsleylib.cond loc vl
         then do_jump loc s lsc
         else do_jump loc s lf
     | Cfg.Node.N_cond_branch (loc, v, lsc, lf) ->
+        let _ = print_endline "cond_branch" in
         assert (s.st_mode = Mode_normal);
         let vl = VEnv.lookup s.st_venv v.v v.v_loc in
         let b = Parsleylib.cond v.v_loc vl in
         do_jump loc s (if b then lsc else lf)
-    | Cfg.Node.N_exec_dfa (dfa, v, lsc, _lf) ->
+    | Cfg.Node.N_exec_dfa (dfa, v, lsc, lf) ->
         assert (s.st_mode = Mode_normal);
         let loc = Dfa.DFA.loc dfa in
-        let sat = convert_to_sat dfa.dfa_regex in
-        let _ = print_endline sat in
-        let c_val = (V_constraint [(Constraint_dfa dfa, [n])]) in
-        let env = VEnv.assign s.st_venv v c_val in
-        let s = {s with st_venv     = env} in
+        let _ = print_endline "exec_dfa" in
+        let c_val = Smt_cfg.SMTNode.N_bits_constraint (loc, 0, lsc, lf) in
+        let env = SMTCEnv.assign s.st_smtcenv v c_val in
+        let s = {s with st_smtcenv     = env} in
         do_jump loc s lsc
         (* extend view before parsing *)
         (* extend_view s.st_cur_view; *)
@@ -305,6 +329,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
         (*                        st_cur_view = vu} in *)
         (*        do_jump loc s lsc) *)
     | Cfg.Node.N_scan (loc, (tag, dir), v, lsc, lf) ->
+        let _ = print_endline "scan" in
         assert (s.st_mode = Mode_normal);
         (* extend view before parsing *)
         extend_view s.st_cur_view;
@@ -324,6 +349,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
     | Cfg.Node.N_call_nonterm (m, nt, params, ret, lsc, lf)
          when m = Anf.M_stdlib
               && is_std_nonterm (Location.value nt) ->
+        let _ = print_endline "non terminal with m = stdlib" in
         assert (s.st_mode = Mode_normal);
         (* Extend view before parsing. *)
         extend_view s.st_cur_view;
@@ -357,6 +383,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
                do_jump loc s lf)
     | Cfg.Node.N_call_nonterm (m, nt, params, ret, lsc, lf) ->
         assert (s.st_mode = Mode_normal);
+        let _ = print_endline "non terminal" in
         let ent = get_ntentry s (m, nt) in
         let ntn = Location.value nt in
         (* sanity check *)
@@ -395,6 +422,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
     (* Suspend/resume. *)
 
     | Cfg.Node.N_require_remaining (v, e, lr, ln) ->
+        let _ = print_endline "require remaining" in
         let vu  = VEnv.lookup s.st_venv v.v v.v_loc in
         let vu  = Builtins.view_of v.v_loc vu in
         let req = VEnv.lookup s.st_venv e.v e.v_loc in

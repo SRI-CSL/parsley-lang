@@ -94,6 +94,7 @@ let init load_externals (spec: Cfg.spec_cfg) (entry_nt: Anf.modul * string)
   if   load_externals
   then resolve_foreign Cfg.(spec.cfg_foreigns);
   (* Initialize state. *)
+  let smtcenv  = SMTCEnv.empty in
   let cenv  = CEnv.empty in
   let venv  = VEnv.empty in
   let fenv  = FEnv.empty in
@@ -104,6 +105,7 @@ let init load_externals (spec: Cfg.spec_cfg) (entry_nt: Anf.modul * string)
            st_cfg_tenv     = Cfg.(spec.cfg_tenv);
            st_cfg_venv     = Cfg.(spec.cfg_venv);
            st_mode         = Mode_normal;
+           st_smtcenv      = smtcenv;
            st_cenv         = cenv;
            st_venv         = venv;
            st_fenv         = fenv;

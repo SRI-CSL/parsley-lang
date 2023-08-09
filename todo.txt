@@ -1,0 +1,5 @@
+1. bound the regex by some upper bound K. global constant K.
+
+2. Implement sigma / epsilon rule. and see which approach works beteter..
+RE or with the flag f variable. 
+
