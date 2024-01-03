@@ -54,10 +54,3 @@ val content_of_loc:  t -> string (* snippet of source code at
 
 module LocationMap: Map.S
        with type key = t
-
-(* json support *)
-
-type pos
-
-val position_to_pos: Lexing.position -> pos
-val pos_to_yojson:   pos -> Yojson.Safe.t

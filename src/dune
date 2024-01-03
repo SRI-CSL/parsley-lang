@@ -1,8 +1,7 @@
 (executable
  (name parsleyc)
- (libraries parsing typing analysis anfcfg anfcfg_interpreter anfscf anfscf_interpreter tests yojson cmdliner)
+ (libraries parsing typing analysis anfcfg anfcfg_interpreter anfscf anfscf_interpreter tests cmdliner)
  (link_deps parsing/parseErrorMessages.check)
- (preprocess (pps ppx_deriving_yojson))
  )
 
 ; Specify a profile for an AFL build to get global flag settings.

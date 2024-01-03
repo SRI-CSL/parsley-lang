@@ -15,9 +15,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* API for LSP *)
-let json_out    = ref false
-
 type common_opts =
   {co_debug:   bool;
    co_verbose: bool}
@@ -32,8 +29,7 @@ type check_opts =
    co_show_anf:          bool;
    co_trace_cfg_build:   bool;
    co_show_cfg:          bool;
-   co_show_decorated:    string list;
-   co_output_json:       bool}
+   co_show_decorated:    string list}
 
 let default_ckopts =
   {co_show_raw_ast      = false;
@@ -45,8 +41,7 @@ let default_ckopts =
    co_show_anf          = false;
    co_trace_cfg_build   = false;
    co_show_cfg          = false;
-   co_show_decorated    = [];
-   co_output_json       = false}
+   co_show_decorated    = []}
 
 type spec_opts =
   {so_import_dirs: string list}
@@ -67,5 +62,4 @@ module StringSet = FD.StringSet
 let process_ckopts ckopts =
   List.iter (fun s ->
       FD.display_decorated := StringSet.add s !FD.display_decorated
-    ) ckopts.co_show_decorated;
-  json_out := ckopts.co_output_json
+    ) ckopts.co_show_decorated

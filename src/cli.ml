@@ -78,7 +78,7 @@ let copts_t : common_opts Term.t =
 
 let mk_ckopts co_trace_solver co_show_raw_ast co_show_parsed_ast
       co_show_after_macros co_show_types co_show_typed_ast co_show_anf
-      co_trace_cfg_build co_show_cfg co_show_decorated co_output_json
+      co_trace_cfg_build co_show_cfg co_show_decorated
     : check_opts =
   {co_show_raw_ast;
    co_show_parsed_ast;
@@ -89,8 +89,7 @@ let mk_ckopts co_trace_solver co_show_raw_ast co_show_parsed_ast
    co_trace_cfg_build;
    co_show_anf;
    co_show_cfg;
-   co_show_decorated;
-   co_output_json}
+   co_show_decorated}
 
 let ckopts_t : check_opts Term.t =
   let trace_solver =
@@ -120,16 +119,13 @@ let ckopts_t : check_opts Term.t =
   let show_cfg =
     let doc = "Show the generated control flow graph for the grammar sublanguage." in
     Arg.(value & flag & info ["show-cfg"] ~doc) in
-  let output_json =
-    let doc = "Display compiler messages in JSON." in
-    Arg.(value & flag & info ["output-json"] ~doc) in
   let show_decorated =
     let docv = "NonTerm" in
     let doc  = "Show the decorated version of the specified non-terminal." in
     Arg.(value & opt_all string [] & info ["show-decorated"] ~doc ~docv) in
   Term.(const mk_ckopts $ trace_solver $ show_raw_ast $ show_parsed_ast
         $ show_after_macros $ show_types $ show_typed_ast
-        $ show_anf $ trace_cfg_build $ show_cfg $ show_decorated $ output_json)
+        $ show_anf $ trace_cfg_build $ show_cfg $ show_decorated)
 
 let mk_sopts so_import_dirs : spec_opts =
   {so_import_dirs}

@@ -12,7 +12,7 @@ Ensure your opam is up-to-date before installing the dependencies:
 
 ```
 $ opam update && opam upgrade
-$ opam install menhir dune cmdliner yojson ppx_deriving_yojson
+$ opam install menhir dune cmdliner
 ```
 
 Then,

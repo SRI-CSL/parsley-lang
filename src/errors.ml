@@ -17,32 +17,13 @@
 
 module Location = Parsing.Location
 
-type errormsg =
-  {errm_start:  Location.pos;
-   errm_end:    Location.pos;
-   errm_ghost:  bool;
-   errm_reason: string}
-    [@@deriving to_yojson];;
-
-let mk_json_errormsg t msg =
-  let err =
-    {errm_start  = Location.position_to_pos (Location.get_start t);
-     errm_end    = Location.position_to_pos (Location.get_end t);
-     errm_ghost  = Location.is_ghost t;
-     errm_reason = msg} in
-  errormsg_to_yojson err
-
 (* `bt`  contains the backtrace if this is a debugging build.
    `loc` contains the location of the error.
    `msg` is the error message from the compiler. *)
 let handle_exception bt loc msg =
-   if   !Options.json_out
-   then Printf.fprintf stderr "%s" (Yojson.Safe.to_string (mk_json_errormsg loc msg))
-   else (
-     if   Location.is_ghost loc
-     then Printf.fprintf stderr "%s\n" msg
-     else let content = Location.content_of_loc loc in
-          Printf.printf "%s\n" bt;
-          Printf.fprintf stderr "%s%s: %s\n" content (Location.str_of_loc loc) msg;
-   );
-   exit Cmdliner.Cmd.Exit.some_error
+  if   Location.is_ghost loc
+  then Printf.fprintf stderr "%s\n" msg
+  else (let content = Location.content_of_loc loc in
+        Printf.printf "%s\n" bt;
+        Printf.fprintf stderr "%s%s: %s\n" content (Location.str_of_loc loc) msg);
+  exit Cmdliner.Cmd.Exit.some_error
