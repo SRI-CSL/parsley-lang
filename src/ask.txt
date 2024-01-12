@@ -1,0 +1,10 @@
+Questions
+-=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=--=
+1. Subset of parsley lang?
+how to deal with functions?
+Functions can be arbitrarily complex. Can generate complex SMT. BUT they maybe
+required to parse complex data formats?
+What if function is hash/checksum calculation?
+
+2.
+

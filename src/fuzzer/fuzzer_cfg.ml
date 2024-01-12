@@ -310,7 +310,7 @@ and do_exit_node (s: state) (n: Cfg.Node.exit_node) : parse_result =
         assert (s.st_mode = Mode_normal);
         let loc = Dfa.DFA.loc dfa in
         let _ = print_endline "exec_dfa" in
-        let c_val = Smt_cfg.SMTNode.N_bits_constraint (loc, 0, lsc, lf) in
+        let c_val = Smt_cfg.SMTNode.N_dfa_constraint (loc, dfa, v, lsc, lf) in
         let env = SMTCEnv.assign s.st_smtcenv v c_val in
         let s = {s with st_smtcenv     = env} in
         do_jump loc s lsc

@@ -3,6 +3,7 @@ open Parsing
 open Anfcfg.Anf
 open Anfcfg.Dfa
 open Anfcfg.Cfg
+(* open Values *)
 
 type smtBool = string
 type smtString = string
@@ -10,7 +11,26 @@ type smtConstraintString = string
 
 let print_dfa _ : string = "TODO: print_dfa";
 
-
+module SMTValue = struct
+  type value =
+    | V_value of value * string
+    | V_unit
+    | V_bool of bool
+    | V_bit of bool
+    | V_char of char (* also used for byte *)
+    | V_int of Parsing.Ast.num_t * Int64.t
+    | V_float of float
+    | V_string of string
+    | V_bitvector of bool list                (* big-endian *)
+    | V_option of value option
+    | V_list of value list
+    | V_tuple of value list
+    | V_constr of constr * value list
+    | V_record of (string * value) list
+    (* module types *)
+    | V_set of value list
+    | V_map of (value * value) list
+end
 
 (* The node structure of the CFG for SMT constraint generation *)
 module SMTNode = struct
@@ -45,6 +65,10 @@ module SMTNode = struct
     | N_scan_constraint: Location.t * (Ast.literal * Ast.scan_direction)
               * (*return*) var * label * label -> node
 
+    | N_value: SMTValue.value -> node
+    | N_unit
+    | N_record: (string * node) list -> node
+
     (* Call the CFG for the specified non-terminal with the specified
        expressions for the inherited attributes.  On a successful
        continuation, continue at the first specified label.  The
@@ -70,6 +94,9 @@ module SMTNode = struct
       | N_scan_constraint (_, _, _, sc, fl)
       | N_call_nonterm_constraint (_, _, _, _, sc, fl)
         -> [raw_label_of sc; raw_label_of fl]
+      | N_record _
+      | N_unit
+      | N_value _ -> []
       (* this should not be needed *)
       (* | _ -> assert false *)
 end
